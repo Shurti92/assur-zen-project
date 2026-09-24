@@ -721,15 +721,29 @@
   (confirmed)="confirmResendAccess()"
 />
 
-<app-modal [visible]="resendAccessResult() !== null" title="Accès renvoyés" (closed)="resendAccessResult.set(null)">
+<app-modal
+  [visible]="resendAccessResult() !== null"
+  title="Renvoi des accès"
+  (closed)="resendingAccess() ? null : resendAccessResult.set(null)"
+>
   @if (resendAccessResult(); as result) {
-    @if (result.notifie) {
-      <p>Un nouveau mot de passe temporaire a été généré et <strong>envoyé par SMS</strong> à <code>{{ result.username }}</code>.</p>
-    } @else {
-      <p>Un nouveau mot de passe temporaire a été généré pour <code>{{ result.username }}</code>, mais l'envoi du SMS a échoué — réessayez ou transmettez les accès par un autre canal.</p>
+    @switch (result.status) {
+      @case ('sending') {
+        <p class="d-flex align-items-center gap-2"><c-spinner size="sm" /> Envoi des accès à <code>{{ result.username }}</code> en cours…</p>
+      }
+      @case ('done') {
+        @if (result.notifie) {
+          <p>Un nouveau mot de passe temporaire a été généré et <strong>envoyé par SMS</strong> à <code>{{ result.username }}</code>.</p>
+        } @else {
+          <p>Un nouveau mot de passe temporaire a été généré pour <code>{{ result.username }}</code>, mais l'envoi du SMS a échoué — réessayez ou transmettez les accès par un autre canal.</p>
+        }
+      }
+      @case ('error') {
+        <app-alert-message class="d-block mb-3" [message]="result.message" />
+      }
     }
     <div class="d-flex justify-content-end">
-      <button (click)="resendAccessResult.set(null)" cButton color="primary" type="button">Fermer</button>
+      <button (click)="resendAccessResult.set(null)" [disabled]="resendingAccess()" cButton color="primary" type="button">Fermer</button>
     </div>
   }
 </app-modal>

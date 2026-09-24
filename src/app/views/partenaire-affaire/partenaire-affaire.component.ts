@@ -100,6 +100,9 @@ export class PartenaireAffaireComponent {
    * distinguer un partenaire qui a juste un numéro renseigné d'un partenaire qui a vraiment
    * un compte (le badge "Compte actif" affichait auparavant les deux de la même façon). */
   readonly accountUsernames = signal<Set<string>>(new Set());
+  /** username (= téléphone) → userId, alimenté par le même appel que accountUsernames : évite une
+   * seconde recherche GET /users?q= au moment du renvoi des accès. */
+  private readonly accountIdsByUsername = new Map<string, number>();
   readonly profiles = signal<ProfileRecord[]>([]);
   readonly exercices = signal<ExerciceComptableResponse[]>([]);
   readonly villes = signal<VillePartenaireResponse[]>([]);
@@ -129,7 +132,12 @@ export class PartenaireAffaireComponent {
   readonly resendingAccess = signal(false);
   /** Pas de mot de passe ici (contrairement à avant) : le backend le génère et l'envoie par SMS
    * lui-même, sans jamais le renvoyer dans la réponse HTTP — voir UserService.resendAccess(). */
-  readonly resendAccessResult = signal<{ username: string; notifie: boolean } | null>(null);
+  readonly resendAccessResult = signal<
+    | { status: 'sending'; username: string }
+    | { status: 'done'; username: string; notifie: boolean }
+    | { status: 'error'; username: string; message: string }
+    | null
+  >(null);
 
   readonly exporting = signal(false);
   readonly exportError = signal<string | null>(null);
@@ -521,34 +529,46 @@ export class PartenaireAffaireComponent {
     const item = this.resendAccessTarget();
     this.resendAccessTarget.set(null);
     if (!item?.telephone) return;
+    const username = item.telephone;
+    // Tout le déroulé (envoi, succès, échec) s'affiche dans la modale : les erreurs posées dans
+    // accountNotice apparaissaient en haut de la liste, souvent hors écran — « rien ne se passe ».
     this.resendingAccess.set(true);
-    this.userService.list(0, 20, { q: item.telephone }).subscribe({
+    this.resendAccessResult.set({ status: 'sending', username });
+    const knownId = this.accountIdsByUsername.get(username);
+    if (knownId !== undefined) {
+      this.sendAccess(username, knownId);
+      return;
+    }
+    this.userService.list(0, 20, { q: username }).subscribe({
       next: (page) => {
-        const user = page.content.find((u) => u.username === item.telephone);
+        const user = page.content.find((u) => u.username === username);
         if (!user) {
-          this.resendingAccess.set(false);
-          this.accountNotice.set({
-            type: 'error',
-            message: `Aucun compte de connexion avec l'identifiant exact « ${item.telephone} » n'a été retrouvé — vérifiez que le téléphone du partenaire correspond bien à l'identifiant du compte avant de réessayer.`,
-          });
+          this.failResendAccess(
+            username,
+            `Aucun compte de connexion avec l'identifiant exact « ${username} » n'a été retrouvé — vérifiez que le téléphone du partenaire correspond bien à l'identifiant du compte avant de réessayer.`,
+          );
           return;
         }
-        this.userService.resendAccess(user.userId).subscribe({
-          next: (response) => {
-            this.resendingAccess.set(false);
-            this.resendAccessResult.set({ username: user.username, notifie: response.notificationEnvoyee ?? false });
-          },
-          error: () => {
-            this.resendingAccess.set(false);
-            this.accountNotice.set({ type: 'error', message: 'Impossible de renvoyer les accès pour ce compte.' });
-          },
-        });
+        this.sendAccess(username, user.userId);
       },
-      error: () => {
-        this.resendingAccess.set(false);
-        this.accountNotice.set({ type: 'error', message: 'Impossible de rechercher le compte associé à ce partenaire.' });
-      },
+      error: () => this.failResendAccess(username, 'Impossible de rechercher le compte associé à ce partenaire.'),
     });
+  }
+
+  private sendAccess(username: string, userId: number): void {
+    this.userService.resendAccess(userId).subscribe({
+      next: (response) => {
+        this.resendingAccess.set(false);
+        this.resendAccessResult.set({ status: 'done', username, notifie: response.notificationEnvoyee ?? false });
+      },
+      error: (err: HttpErrorResponse) =>
+        this.failResendAccess(username, err.error?.message ?? 'Impossible de renvoyer les accès pour ce compte.'),
+    });
+  }
+
+  private failResendAccess(username: string, message: string): void {
+    this.resendingAccess.set(false);
+    this.resendAccessResult.set({ status: 'error', username, message });
   }
 
   private fetchProfiles(): void {
@@ -593,7 +613,11 @@ export class PartenaireAffaireComponent {
 
   private fetchAccountUsernames(): void {
     this.userService.list(0, 1000, {}).subscribe({
-      next: (page) => this.accountUsernames.set(new Set(page.content.map((u) => u.username))),
+      next: (page) => {
+        this.accountIdsByUsername.clear();
+        page.content.forEach((u) => this.accountIdsByUsername.set(u.username, u.userId));
+        this.accountUsernames.set(new Set(page.content.map((u) => u.username)));
+      },
       error: () => {
         // Silent: le badge "Compte actif" reste simplement absent si ça échoue.
       },
