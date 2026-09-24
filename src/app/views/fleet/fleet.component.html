@@ -1,0 +1,1546 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Gestion de flotte</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Vue">
+      <button (click)="setView('flottes')" [attr.data-active]="view() === 'flottes'" class="dl-pill" type="button">Flottes</button>
+      <button (click)="setView('vehicules')" [attr.data-active]="view() === 'vehicules'" class="dl-pill" type="button">Véhicules/Moto</button>
+    </div>
+
+    @if (view() === 'flottes') {
+      <div class="dl-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="onFleetSearchInput($any($event.target).value)" autocomplete="off" placeholder="Rechercher un n°, un nom, un client…" type="search" />
+      </div>
+      <select (change)="setFleetTypeFilter($any($event.target).value)" cSelect style="max-width: 160px;">
+        <option value="all">Tous types</option>
+        <option value="AUTO">Auto</option>
+        <option value="MOTO">Moto</option>
+        <option value="MIXED">Mixte</option>
+      </select>
+      <select (change)="setFleetStatusFilter($any($event.target).value)" cSelect style="max-width: 180px;">
+        <option value="all">Tous statuts</option>
+        <option value="DRAFT">Brouillon</option>
+        <option value="ACTIVE">Active</option>
+        <option value="SUSPENDED">Suspendue</option>
+        <option value="CLOSED">Clôturée</option>
+        <option value="EXPIRED">Expirée</option>
+      </select>
+      <div class="dl-actions">
+        <button (click)="fetchFleets()" [disabled]="fleetsLoading()" cButton class="dl-btn" type="button">
+          @if (fleetsLoading()) {
+            <c-spinner size="sm" />
+          }
+          Actualiser
+        </button>
+        <button (click)="openCreateFleet()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouvelle flotte
+        </button>
+      </div>
+    }
+    @if (view() === 'vehicules') {
+      <div class="dl-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="onVehiculeSearchInput($any($event.target).value)" autocomplete="off" placeholder="Rechercher une immatriculation, un modèle, un propriétaire…" type="search" />
+      </div>
+      <select (change)="setVehiculeTypeFilter($any($event.target).value)" cSelect style="max-width: 160px;">
+        <option value="all">Tous types</option>
+        <option value="AUTO">Auto</option>
+        <option value="MOTO">Moto</option>
+      </select>
+      <select (change)="setVehiculeStatutFilter($any($event.target).value)" cSelect style="max-width: 180px;">
+        <option value="all">Tous statuts</option>
+        <option value="ACTIF">Actif</option>
+        <option value="HORS_SERVICE">Hors service</option>
+        <option value="VENDU">Vendu</option>
+      </select>
+      <div class="dl-actions">
+        <button (click)="fetchVehicules()" [disabled]="vehiculesLoading()" cButton class="dl-btn" type="button">
+          @if (vehiculesLoading()) {
+            <c-spinner size="sm" />
+          }
+          Actualiser
+        </button>
+        <button (click)="openCreateVehicule()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouveau véhicule/Moto
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- ================= FLOTTES ================= -->
+  @if (view() === 'flottes') {
+    @if (fleetsError()) {
+      <p class="dl-empty">{{ fleetsError() }} <button (click)="fetchFleets()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (fleetsLoading()) {
+      <p class="dl-empty">Chargement des flottes…</p>
+    } @else if (pagedFleets().length === 0) {
+      <p class="dl-empty">Aucune flotte ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">N° flotte</th>
+              <th scope="col">Nom</th>
+              <th scope="col">Client</th>
+              <th scope="col">Type</th>
+              <th scope="col">Véhicules</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (fleet of pagedFleets(); track fleet.id) {
+              <tr>
+                <td><span class="dl-tag">{{ fleet.fleetNumber }}</span></td>
+                <td>{{ fleet.name }}</td>
+                <td>{{ fleet.clientName }}</td>
+                <td>{{ fleetTypeLabel[fleet.fleetType] }}</td>
+                <td class="dl-timestamp">{{ fleet.activeVehicles }} / {{ fleet.totalVehicles }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + fleetStatusVariant(fleet.status)">
+                    <span class="dl-chip-dot"></span>{{ fleetStatusLabel[fleet.status] }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <c-dropdown alignment="end" [popperOptions]="{ strategy: 'fixed' }">
+                      <button [caret]="false" [disabled]="fleetActionPendingId() === fleet.id" cDropdownToggle class="dl-icon-btn" title="Actions" type="button">
+                        @if (fleetActionPendingId() === fleet.id) {
+                          <c-spinner size="sm" />
+                        } @else {
+                          <svg cIcon name="cilOptions" size="sm"></svg>
+                        }
+                      </button>
+                      <div cDropdownMenu>
+                        <button (click)="openFleetDetail(fleet)" cDropdownItem class="hdr-user-menu-item" type="button">
+                          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                            <svg cIcon name="cilInfo" size="lg"></svg>
+                          </span>
+                          Détails
+                        </button>
+                        @if (fleet.status !== 'CLOSED') {
+                          <button (click)="openEditFleet(fleet)" cDropdownItem class="hdr-user-menu-item" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                              <svg cIcon name="cilPencil" size="lg"></svg>
+                            </span>
+                            Modifier
+                          </button>
+                        }
+                        @if (fleet.status === 'DRAFT' || fleet.status === 'SUSPENDED') {
+                          <button (click)="activateFleet(fleet)" cDropdownItem class="hdr-user-menu-item" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                              <svg cIcon name="cilCheckCircle" size="lg"></svg>
+                            </span>
+                            Activer
+                          </button>
+                        }
+                        @if (fleet.status === 'ACTIVE') {
+                          <button (click)="suspendFleet(fleet)" cDropdownItem class="hdr-user-menu-item" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--warning">
+                              <svg cIcon name="cilWarning" size="lg"></svg>
+                            </span>
+                            Suspendre
+                          </button>
+                        }
+                        @if (fleet.status !== 'CLOSED') {
+                          <hr class="dropdown-divider" />
+                          <button (click)="askCloseFleet(fleet)" cDropdownItem class="hdr-user-menu-item hdr-user-menu-item--danger" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--danger">
+                              <svg cIcon name="cilTrash" size="lg"></svg>
+                            </span>
+                            Clôturer
+                          </button>
+                        }
+                      </div>
+                    </c-dropdown>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <div class="dl-footnote">
+      <span><strong>{{ pagedFleets().length }}</strong> sur {{ filteredFleets().length }} flottes (page {{ fleetsPage() + 1 }} sur {{ fleetsTotalPages() }})</span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToFleetsPage(fleetsPage() - 1)" [disabled]="fleetsPage() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToFleetsPage(fleetsPage() + 1)" [disabled]="fleetsPage() + 1 >= fleetsTotalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= VÉHICULES ================= -->
+  @if (view() === 'vehicules') {
+    @if (vehiculesError()) {
+      <p class="dl-empty">{{ vehiculesError() }} <button (click)="fetchVehicules()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (vehiculesLoading()) {
+      <p class="dl-empty">Chargement des véhicules…</p>
+    } @else if (pagedVehicules().length === 0) {
+      <p class="dl-empty">Aucun véhicule ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Immatriculation</th>
+              <th scope="col">Type</th>
+              <th scope="col">Marque / Modèle</th>
+              <th scope="col">Propriétaire</th>
+              <th scope="col">Flotte actuelle</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (v of pagedVehicules(); track v.id) {
+              <tr>
+                <td><span class="dl-tag">{{ v.immatriculation || v.numeroChassis || '—' }}</span></td>
+                <td>{{ vehiculeTypeLabel[v.type] }}</td>
+                <td>{{ v.marque }} {{ v.modele }}</td>
+                <td>{{ v.proprietaireName }}</td>
+                <td class="dl-cell-detail">{{ v.currentFleetNumber ?? '—' }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + vehiculeStatutVariant(v.statut)">
+                    <span class="dl-chip-dot"></span>{{ vehiculeStatutLabel[v.statut] }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditVehicule(v)" class="dl-icon-btn" title="Modifier" type="button">
+                      <svg cIcon name="cilPencil" size="sm"></svg>
+                    </button>
+                    @if (!v.currentFleetId) {
+                      <button (click)="askDeleteVehicule(v)" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                        <svg cIcon name="cilTrash" size="sm"></svg>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <div class="dl-footnote">
+      <span><strong>{{ pagedVehicules().length }}</strong> sur {{ filteredVehicules().length }} véhicules (page {{ vehiculesPage() + 1 }} sur {{ vehiculesTotalPages() }})</span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToVehiculesPage(vehiculesPage() - 1)" [disabled]="vehiculesPage() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToVehiculesPage(vehiculesPage() + 1)" [disabled]="vehiculesPage() + 1 >= vehiculesTotalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+</section>
+
+<!-- ===== Modale : création / modification d'une flotte ===== -->
+<app-modal [visible]="fleetFormVisible()" size="xl" title="{{ editingFleetId() ? 'Modifier la flotte' : 'Nouvelle flotte' }}" (closed)="fleetFormVisible.set(false)">
+  @if (fleetFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="fleetForm" cForm (ngSubmit)="saveFleet()">
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Identification</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="fl-client">Client (assuré)</label>
+          @if (selectedClientInsured(); as client) {
+            <div class="dl-autocomplete-picked">
+              <span class="dl-avatar">{{ insuredInitials(client) }}</span>
+              <span class="dl-autocomplete-picked-info">
+                <strong>{{ client.nom }} {{ client.prenoms }}</strong>
+                <span class="dl-cell-detail">{{ client.clientPhone || '—' }} · {{ client.clientCity || '—' }}</span>
+              </span>
+              <button (click)="clearClientSelection()" class="dl-autocomplete-picked-change" type="button">
+                <svg cIcon name="cilXCircle" size="sm"></svg>
+                Changer
+              </button>
+            </div>
+          } @else {
+            <div class="dl-autocomplete-box">
+              <input
+                (blur)="onClientSearchBlur()"
+                (focus)="onClientSearchFocus()"
+                (input)="onClientSearchInput($any($event.target).value)"
+                [value]="clientSearchQuery()"
+                autocomplete="off"
+                cFormControl
+                id="fl-client"
+                placeholder="Rechercher un nom, un téléphone…"
+                type="text"
+              />
+              @if (clientSearchOpen()) {
+                <div class="dl-autocomplete-dropdown">
+                  @if (clientSearchQuery().trim().length < 2) {
+                    <div class="dl-autocomplete-empty">Continuez à saisir… (2 caractères minimum)</div>
+                  } @else {
+                    @if (clientSearchResults().length === 0) {
+                      <div class="dl-autocomplete-empty">Aucun assuré trouvé.</div>
+                    } @else {
+                      @for (result of clientSearchResults(); track result.id) {
+                        <button (mousedown)="selectClient(result)" class="dl-autocomplete-item" type="button">
+                          <span class="dl-autocomplete-item-info">
+                            <strong>{{ result.nom }} {{ result.prenoms }}</strong>
+                            <span class="dl-cell-detail">{{ result.clientPhone || '—' }} · {{ result.clientCity || '—' }}</span>
+                          </span>
+                        </button>
+                      }
+                    }
+                    <button (mousedown)="openCreateInsured('client')" class="dl-autocomplete-item dl-autocomplete-item--create" type="button">
+                      <svg cIcon name="cilPlus" size="sm"></svg>
+                      Créer un nouvel assuré « {{ clientSearchQuery().trim() }} »
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+        <div class="col-sm-3">
+          <label cLabel for="fl-nom">Nom de la flotte</label>
+          <input cFormControl formControlName="name" id="fl-nom" type="text" />
+        </div>
+        <div class="col-sm-3">
+          <label cLabel for="fl-numero">N° de flotte (optionnel)</label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilDescription" size="sm"></svg>
+            <input cFormControl formControlName="fleetNumber" id="fl-numero" placeholder="Auto-généré si vide" type="text" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Couverture</div>
+      <div class="row g-3">
+        <div class="col-12">
+          <label>Type de flotte</label>
+          <div class="dl-pillgroup dl-pillgroup--stretch" role="group" aria-label="Type de flotte">
+            @for (opt of fleetTypeOptions; track opt.value) {
+              <button
+                (click)="fleetForm.controls.fleetType.setValue(opt.value)"
+                [attr.data-active]="fleetForm.controls.fleetType.value === opt.value"
+                class="dl-pill dl-pill--solid"
+                type="button"
+              >
+                <svg cIcon [name]="opt.icon" size="sm"></svg>
+                {{ opt.label }}
+              </button>
+            }
+          </div>
+        </div>
+        <div class="col-12">
+          <label cLabel for="fl-produit">Produit (optionnel)</label>
+          <select cSelect formControlName="produitId" id="fl-produit">
+            <option value="">Sélectionner…</option>
+            @for (produit of fleetProducts(); track produit.id) {
+              <option [value]="produit.id">{{ produit.nomProduit }}</option>
+            }
+          </select>
+          @if (fleetProducts().length === 0) {
+            <div class="dl-cell-detail mt-1">Aucun produit de type « Flotte » configuré pour l'instant.</div>
+          }
+        </div>
+        <div class="col-12">
+          <label>Période (optionnel)</label>
+          <div class="dl-period">
+            <svg cIcon name="cilCalendar" size="sm"></svg>
+            <div class="dl-period-field">
+              <span>Début</span>
+              <input cFormControl formControlName="startDate" id="fl-debut" type="date" />
+            </div>
+            <svg cIcon class="dl-period-arrow" name="cilArrowRight" size="sm"></svg>
+            <div class="dl-period-field">
+              <span>Fin</span>
+              <input cFormControl formControlName="endDate" id="fl-fin" type="date" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Responsable</div>
+      <div class="row g-3">
+        <div class="col-sm-4">
+          <label cLabel for="fl-manager-nom">Responsable (optionnel)</label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilUser" size="sm"></svg>
+            <input cFormControl formControlName="managerName" id="fl-manager-nom" type="text" />
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <label cLabel for="fl-manager-tel">Téléphone responsable (optionnel)</label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilPhone" size="sm"></svg>
+            <input cFormControl formControlName="managerPhone" id="fl-manager-tel" type="text" />
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <label cLabel for="fl-manager-email">Email responsable (optionnel)</label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilEnvelopeClosed" size="sm"></svg>
+            <input cFormControl formControlName="managerEmail" id="fl-manager-email" type="email" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Notes</div>
+      <label cLabel for="fl-description">Description (optionnel)</label>
+      <textarea cFormControl formControlName="description" id="fl-description" rows="2"></textarea>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="fleetFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="fleetFormSaving()" cButton color="primary" type="submit">
+        @if (fleetFormSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : détail d'une flotte ===== -->
+<app-modal [visible]="fleetDetailVisible()" size="full" title="{{ selectedFleet()?.name }} ({{ selectedFleet()?.fleetNumber }})" (closed)="closeFleetDetail()">
+  @if (selectedFleet(); as fleet) {
+    <div class="d-flex align-items-start flex-wrap gap-3 mb-3">
+      <span class="dl-avatar dl-avatar--lg">
+        <svg cIcon [name]="fleetTypeIcon[fleet.fleetType]" size="lg"></svg>
+      </span>
+      <div class="flex-grow-1" style="min-width: 0;">
+        <div style="font-size: 1.1rem; font-weight: 700;">{{ fleet.name }}</div>
+        <div class="dl-cell-detail">{{ fleet.fleetNumber }} · {{ fleetTypeLabel[fleet.fleetType] }}</div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2" style="font-size: 0.86rem;">
+          <span class="dl-avatar" style="width: 1.35rem; height: 1.35rem; font-size: 0.62rem;">{{ clientInitials(fleet.clientName) }}</span>
+          <span>{{ fleet.clientName }}</span>
+          <span class="text-secondary">·</span>
+          <span class="text-secondary">Produit {{ fleet.produitNom || '—' }}</span>
+          @if (fleet.managerName) {
+            <span class="text-secondary">·</span>
+            <span class="text-secondary">Responsable {{ fleet.managerName }}</span>
+          }
+        </div>
+      </div>
+      <span [class]="'dl-chip dl-chip--' + fleetStatusVariant(fleet.status)" style="flex-shrink: 0;">
+        <span class="dl-chip-dot"></span>{{ fleetStatusLabel[fleet.status] }}
+      </span>
+    </div>
+
+    <div class="d-flex align-items-center gap-3 mb-3" style="border: 1px solid var(--cui-border-color); border-radius: 0.6rem; padding: 0.7rem 0.9rem;">
+      <div class="dl-font-mono" style="font-size: 1.15rem; font-weight: 700; flex-shrink: 0;">{{ fleet.activeVehicles }}/{{ fleet.totalVehicles }}</div>
+      <div class="flex-grow-1" style="min-width: 0;">
+        <div class="dl-cell-detail mb-1">Véhicules actifs dans la flotte</div>
+        <div class="dl-progress"><div class="dl-progress-fill" [style.--dl-progress-value]="occupancyPercent(fleet) + '%'"></div></div>
+      </div>
+    </div>
+
+    <div class="dl-pillgroup dl-pillgroup--stretch mb-3" role="tablist" aria-label="Onglet du détail flotte">
+      <button (click)="setFleetDetailView('vehicules')" [attr.data-active]="fleetDetailView() === 'vehicules'" class="dl-pill dl-pill--solid" type="button">
+        <svg cIcon [name]="fleetTypeIcon[fleet.fleetType]" size="sm"></svg>Véhicules
+      </button>
+      <button (click)="setFleetDetailView('mouvements')" [attr.data-active]="fleetDetailView() === 'mouvements'" class="dl-pill dl-pill--solid" type="button">
+        <svg cIcon [name]="fleetDetailTabIcon.mouvements" size="sm"></svg>Mouvements
+      </button>
+      <button (click)="setFleetDetailView('contrats')" [attr.data-active]="fleetDetailView() === 'contrats'" class="dl-pill dl-pill--solid" type="button">
+        <svg cIcon [name]="fleetDetailTabIcon.contrats" size="sm"></svg>Contrats
+      </button>
+      <button (click)="setFleetDetailView('echeances')" [attr.data-active]="fleetDetailView() === 'echeances'" class="dl-pill dl-pill--solid" type="button">
+        <svg cIcon [name]="fleetDetailTabIcon.echeances" size="sm"></svg>Échéances
+      </button>
+      <button (click)="setFleetDetailView('import')" [attr.data-active]="fleetDetailView() === 'import'" class="dl-pill dl-pill--solid" type="button">
+        <svg cIcon [name]="fleetDetailTabIcon.import" size="sm"></svg>Import CSV/Excel
+      </button>
+      <button (click)="setFleetDetailView('documents')" [attr.data-active]="fleetDetailView() === 'documents'" class="dl-pill dl-pill--solid" type="button">
+        <svg cIcon [name]="fleetDetailTabIcon.documents" size="sm"></svg>Documents
+      </button>
+    </div>
+
+    <!-- ---- Documents de la flotte ---- -->
+    @if (fleetDetailView() === 'documents') {
+      <app-entity-documents [entityId]="fleet.id" entityType="FLEET" />
+    }
+
+    <!-- ---- Véhicules de la flotte ---- -->
+    @if (fleetDetailView() === 'vehicules') {
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3" style="border: 1px solid var(--cui-border-color); border-radius: 0.6rem; padding: 0.6rem 0.8rem;">
+        <label class="mb-0 fw-semibold" for="fv-statut-filter" style="font-size: 0.86rem;">Statut :</label>
+        <select (change)="setFleetVehiclesStatusFilter($any($event.target).value)" [value]="fleetVehiclesStatusFilter()" cSelect id="fv-statut-filter" style="max-width: 200px;">
+          <option value="all">Tous statuts</option>
+          <option value="ACTIVE">Actif dans la flotte</option>
+          <option value="REMOVED">Retiré</option>
+          <option value="TRANSFERRED">Transféré</option>
+          <option value="REPLACED">Remplacé</option>
+        </select>
+        <span class="dl-cell-detail">{{ fleet.totalVehicles }} véhicule(s) au total</span>
+        <div class="ms-auto">
+          @if (fleet.status === 'ACTIVE') {
+            <button (click)="openAddVehicle()" cButton class="dl-btn dl-btn-primary" type="button">
+              <svg cIcon name="cilPlus"></svg>Ajouter un véhicule
+            </button>
+          } @else {
+            <span class="dl-cell-detail">La flotte doit être active pour recevoir un ajout.</span>
+          }
+        </div>
+      </div>
+
+      @if (fleetVehiclesError()) {
+        <p class="dl-empty">{{ fleetVehiclesError() }}</p>
+      } @else if (fleetVehiclesLoading()) {
+        <p class="dl-empty">Chargement des véhicules…</p>
+      } @else if (fleetVehicles().length === 0) {
+        @if (fleet.totalVehicles === 0 && fleetVehiclesStatusFilter() === 'all') {
+          <div class="cs-empty">
+            <div class="cs-icon"><svg cIcon [name]="fleetTypeIcon[fleet.fleetType]" size="xl"></svg></div>
+            <div class="cs-title">Cette flotte n'a pas encore de véhicule</div>
+            <p class="cs-lede">Ajoutez un véhicule déjà enregistré chez ce client, ou importez-en plusieurs d'un coup depuis un fichier CSV/Excel.</p>
+            @if (fleet.status === 'ACTIVE') {
+              <button (click)="openAddVehicle()" cButton class="dl-btn dl-btn-primary mt-3" type="button">
+                <svg cIcon name="cilPlus"></svg>Ajouter un véhicule
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="cs-empty">
+            <div class="cs-icon"><svg cIcon name="sliders" size="xl"></svg></div>
+            <div class="cs-title">Aucun véhicule pour ce filtre</div>
+            <p class="cs-lede">Cette flotte compte {{ fleet.totalVehicles }} véhicule(s) au total — changez le filtre de statut pour le retrouver.</p>
+            <button (click)="setFleetVehiclesStatusFilter('all')" cButton class="dl-btn mt-3" type="button">Réinitialiser le filtre</button>
+          </div>
+        }
+      } @else {
+        <div class="dl-table-scroll">
+          <table class="dl-table dl-table--modal">
+            <thead>
+              <tr>
+                <th scope="col">Immatriculation</th>
+                <th scope="col">Type</th>
+                <th scope="col">Ajouté le</th>
+                <th scope="col">Retiré le</th>
+                <th scope="col">Statut</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (fv of fleetVehicles(); track fv.id) {
+                <tr>
+                  <td><span class="dl-tag">{{ fleetVehicleLabel(fv) }}</span></td>
+                  <td>{{ fv.vehiculeType ? vehiculeTypeLabel[fv.vehiculeType] : '—' }}</td>
+                  <td class="dl-timestamp">{{ formatDate(fv.dateAdded) }}</td>
+                  <td class="dl-timestamp">{{ formatDate(fv.dateRemoved) }}</td>
+                  <td>
+                    <span [class]="'dl-chip dl-chip--' + fleetVehicleStatusVariant(fv.status)">
+                      <span class="dl-chip-dot"></span>{{ fleetVehicleStatusLabel[fv.status] }}
+                    </span>
+                  </td>
+                  <td>
+                    @if (fv.status === 'ACTIVE') {
+                      <div class="dl-row-actions">
+                        <c-dropdown alignment="end" [popperOptions]="{ strategy: 'fixed' }">
+                          <button [caret]="false" cDropdownToggle class="dl-icon-btn" title="Actions" type="button">
+                            <svg cIcon name="cilOptions" size="sm"></svg>
+                          </button>
+                          <div cDropdownMenu>
+                            @if (fv.vehiculeId != null) {
+                              <button (click)="askCreateContract(fv)" cDropdownItem class="hdr-user-menu-item" type="button">
+                                <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                                  <svg cIcon name="cilDescription" size="lg"></svg>
+                                </span>
+                                Créer un contrat
+                              </button>
+                            }
+                            <button (click)="askRemoveVehicle(fv)" cDropdownItem class="hdr-user-menu-item" type="button">
+                              <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--warning">
+                                <svg cIcon name="cilXCircle" size="lg"></svg>
+                              </span>
+                              Retirer
+                            </button>
+                            <button (click)="askReplaceVehicle(fv)" cDropdownItem class="hdr-user-menu-item" type="button">
+                              <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                                <svg cIcon name="cilShareAll" size="lg"></svg>
+                              </span>
+                              Remplacer
+                            </button>
+                            <button (click)="askTransferVehicle(fv)" cDropdownItem class="hdr-user-menu-item" type="button">
+                              <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                                <svg cIcon name="cilArrowRight" size="lg"></svg>
+                              </span>
+                              Transférer
+                            </button>
+                          </div>
+                        </c-dropdown>
+                      </div>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+
+    <!-- ---- Mouvements ---- -->
+    @if (fleetDetailView() === 'mouvements') {
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <select (change)="setFleetMovementsTypeFilter($any($event.target).value)" cSelect style="max-width: 200px;">
+          <option value="all">Tous types</option>
+          <option value="ADD">Ajout</option>
+          <option value="REMOVE">Retrait</option>
+          <option value="REPLACE">Remplacement</option>
+          <option value="TRANSFER">Transfert</option>
+        </select>
+      </div>
+      @if (fleetMovementsError()) {
+        <p class="dl-empty">{{ fleetMovementsError() }}</p>
+      } @else if (fleetMovementsLoading()) {
+        <p class="dl-empty">Chargement des mouvements…</p>
+      } @else if (fleetMovements().length === 0) {
+        <p class="dl-empty">Aucun mouvement pour ce filtre.</p>
+      } @else {
+        <ul class="list-unstyled d-flex flex-column gap-2 m-0">
+          @for (m of fleetMovements(); track m.id) {
+            <li class="d-flex align-items-start gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+              <span class="dl-chip dl-chip--info"><span class="dl-chip-dot"></span>{{ fleetMovementTypeLabel[m.movementType] }}</span>
+              <div class="flex-grow-1">
+                <div>
+                  <span class="dl-tag">{{ m.immatriculation || 'Véhicule supprimé' }}</span>
+                  @if (m.movementType === 'REPLACE' && m.newImmatriculation) { → {{ m.newImmatriculation }} }
+                  @if (m.movementType === 'TRANSFER' && m.destinationFleetNumber) { → {{ m.destinationFleetNumber }} }
+                </div>
+                @if (m.reason) {
+                  <div class="dl-cell-detail">Motif : {{ m.reason }}</div>
+                }
+                @if (m.contractPolicyNumber) {
+                  <div class="dl-cell-detail">Contrat lié : {{ m.contractPolicyNumber }}</div>
+                }
+                <div class="dl-cell-detail">
+                  {{ formatDate(m.movementDate) }}@if (m.performedByName) { — {{ m.performedByName }} }
+                </div>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    }
+
+    <!-- ---- Contrats ---- -->
+    @if (fleetDetailView() === 'contrats') {
+      <div class="d-flex justify-content-end mb-3">
+        @if (fleet.status === 'ACTIVE') {
+          <button (click)="openAttachContract()" cButton class="dl-btn dl-btn-primary" type="button">
+            <svg cIcon name="cilPaperclip"></svg>Rattacher un contrat existant
+          </button>
+        } @else {
+          <span class="dl-cell-detail">La flotte doit être active pour recevoir un rattachement.</span>
+        }
+      </div>
+      @if (fleetContractsError()) {
+        <p class="dl-empty">{{ fleetContractsError() }}</p>
+      } @else if (fleetContractsLoading()) {
+        <p class="dl-empty">Chargement des contrats…</p>
+      } @else if (fleetContracts().length === 0) {
+        <p class="dl-empty">Aucun contrat pour les véhicules de cette flotte.</p>
+      } @else {
+        <div class="dl-table-scroll">
+          <table class="dl-table dl-table--modal">
+            <thead>
+              <tr>
+                <th scope="col">N° police</th>
+                <th scope="col">Véhicule</th>
+                <th scope="col">Produit</th>
+                <th scope="col">Prime</th>
+                <th scope="col">Statut</th>
+                <th scope="col">Échéance</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of fleetContracts(); track c.contractId) {
+                <tr>
+                  <td><span class="dl-tag">{{ c.policyNumber }}</span></td>
+                  <td>{{ fleetContractVehicleLabel(c) }}</td>
+                  <td>{{ c.produitNom ?? '—' }}</td>
+                  <td class="dl-timestamp">{{ formatAmount(c.premium) }}</td>
+                  <td>
+                    <span [class]="'dl-chip dl-chip--' + contractStatusVariant(c.status)">
+                      <span class="dl-chip-dot"></span>{{ contractStatusLabel[c.status] ?? c.status }}
+                    </span>
+                  </td>
+                  <td class="dl-timestamp">{{ formatDate(c.dateEcheance) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+
+    <!-- ---- Échéances ---- -->
+    @if (fleetDetailView() === 'echeances') {
+      @if (fleetEcheancesError()) {
+        <p class="dl-empty">{{ fleetEcheancesError() }}</p>
+      } @else if (fleetEcheancesLoading()) {
+        <p class="dl-empty">Chargement des échéances…</p>
+      } @else if (fleetEcheances().length === 0) {
+        <p class="dl-empty">Aucune échéance à venir pour les véhicules de cette flotte.</p>
+      } @else {
+        <ul class="list-unstyled d-flex flex-column gap-3 m-0">
+          @for (e of fleetEcheances(); track e.contractId) {
+            <li class="dl-timeline-card">
+              <div class="dl-timeline-head">
+                <span class="dl-benefit-icon" style="width: 2.1rem; height: 2.1rem; border-radius: 0.55rem;">
+                  <svg cIcon [name]="e.vehiculeType === 'MOTO' ? 'cilSpeedometer' : 'cilCarAlt'" size="sm"></svg>
+                </span>
+                <div class="dl-timeline-head-info">
+                  <strong>{{ e.vehiculeMarque }} {{ e.vehiculeModele }}</strong>
+                  <span class="dl-cell-detail">{{ e.policyNumber }} · {{ e.immatriculation || '—' }} · {{ vehiculeTypeLabel[e.vehiculeType] }}</span>
+                </div>
+                <span [class]="'dl-chip dl-chip--' + (contractStatusVariant(e.status)) + ' ms-auto'">
+                  <span class="dl-chip-dot"></span>{{ contractStatusLabel[e.status] ?? e.status }}
+                </span>
+              </div>
+              <div class="dl-timeline-body">
+                <div class="dl-timeline-due">Échéance du contrat : <strong>{{ formatDate(e.dateEcheance) }}</strong></div>
+                @if (e.rappels.length === 0) {
+                  <p class="dl-empty m-0">Aucun rappel SMS planifié pour ce contrat.</p>
+                } @else {
+                  @for (r of e.rappels; track r.id) {
+                    <div class="dl-timeline-row">
+                      <span [class]="'dl-timeline-dot' + (r.typeMessage === 'fin_contrat' ? ' dl-timeline-dot--final' : '')">
+                        {{ reminderOffsetLabel(r.dateEnvoi, e.dateEcheance) }}
+                      </span>
+                      <div>
+                        <span class="dl-timeline-type">{{ notifTypeLabel[r.typeMessage] ?? r.typeMessage }}</span>
+                        <span class="dl-timeline-date">{{ r.dateEnvoi ? formatDate(r.dateEnvoi) : 'Date non planifiée' }}</span>
+                      </div>
+                      <span [class]="'dl-chip dl-chip--' + (notifStatutVariant[r.statutEnvoi] ?? 'neutral')">
+                        <span class="dl-chip-dot"></span>{{ notifStatutLabel[r.statutEnvoi] ?? r.statutEnvoi }}
+                      </span>
+                    </div>
+                  }
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    }
+
+    <!-- ---- Import CSV/Excel ---- -->
+    @if (fleetDetailView() === 'import') {
+      @if (fleetImportsError(); as message) {
+        <app-alert-message class="d-block mb-3" [message]="message" />
+      }
+
+      <div class="fs-section">
+        <div class="fs-section-head">
+          <svg cIcon name="cilCloudUpload" size="lg"></svg>
+          <h3>Importer des véhicules</h3>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <button (click)="downloadTemplate('csv')" cButton class="dl-btn" type="button">Modèle CSV</button>
+          <button (click)="downloadTemplate('xlsx')" cButton class="dl-btn" type="button">Modèle Excel</button>
+          <label cButton class="dl-btn dl-btn-primary" [class.disabled]="importPreviewing()">
+            @if (importPreviewing()) {
+              <c-spinner size="sm" />
+            }
+            Choisir un fichier
+            <input (change)="onImportFileSelected($event)" [disabled]="importPreviewing()" accept=".csv,.xlsx" class="d-none" type="file" />
+          </label>
+        </div>
+
+        @if (importPreview(); as preview) {
+          <div class="dl-detail-grid mb-3">
+            <div><div class="dl-cell-detail">Fichier</div><div>{{ preview.fileName }}</div></div>
+            <div><div class="dl-cell-detail">Lignes totales</div><div>{{ preview.totalRows ?? '—' }}</div></div>
+            <div><div class="dl-cell-detail">Valides</div><div>{{ preview.validRows ?? '—' }}</div></div>
+            <div><div class="dl-cell-detail">Invalides</div><div>{{ preview.invalidRows ?? '—' }}</div></div>
+            <div><div class="dl-cell-detail">Doublons (dans le fichier)</div><div>{{ preview.duplicateRows ?? '—' }}</div></div>
+            <div>
+              <div class="dl-cell-detail">Statut</div>
+              <div>
+                <span [class]="'dl-chip dl-chip--' + fleetImportStatusVariant(preview.status)">
+                  <span class="dl-chip-dot"></span>{{ fleetImportStatusLabel[preview.status] }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button (click)="cancelImportPreview()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+            <button (click)="confirmImportPreview()" [disabled]="importConfirming() || preview.status !== 'READY'" cButton color="primary" type="button">
+              @if (importConfirming()) {
+                <c-spinner size="sm" />
+              }
+              Confirmer l'import
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="fs-section">
+        <div class="fs-section-head">
+          <svg cIcon name="cilHistory" size="lg"></svg>
+          <h3>Historique des imports</h3>
+        </div>
+        @if (fleetImportsLoading()) {
+          <p class="dl-empty">Chargement…</p>
+        } @else if (fleetImports().length === 0) {
+          <p class="dl-empty">Aucun import pour cette flotte.</p>
+        } @else {
+          <div class="dl-table-scroll">
+            <table class="dl-table dl-table--modal">
+              <thead>
+                <tr>
+                  <th scope="col">Fichier</th>
+                  <th scope="col">Statut</th>
+                  <th scope="col">Valides / Total</th>
+                  <th scope="col">Réussis / Erreurs</th>
+                  <th scope="col">Le</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (imp of fleetImports(); track imp.id) {
+                  <tr>
+                    <td>{{ imp.fileName }}</td>
+                    <td>
+                      <span [class]="'dl-chip dl-chip--' + fleetImportStatusVariant(imp.status)">
+                        <span class="dl-chip-dot"></span>{{ fleetImportStatusLabel[imp.status] }}
+                      </span>
+                    </td>
+                    <td class="dl-timestamp">{{ imp.validRows ?? '—' }} / {{ imp.totalRows ?? '—' }}</td>
+                    <td class="dl-timestamp">{{ imp.successCount ?? '—' }} / {{ imp.errorCount ?? '—' }}</td>
+                    <td class="dl-timestamp">{{ formatDateTime(imp.createdAt) }}</td>
+                    <td>
+                      <button (click)="openImportDetail(imp)" class="dl-icon-btn" title="Détails" type="button">
+                        <svg cIcon name="cilInfo" size="sm"></svg>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
+  }
+</app-modal>
+
+<!-- ===== Modale : ajouter un véhicule à la flotte ===== -->
+<app-modal [visible]="addVehicleFormVisible()" title="Ajouter un véhicule" (closed)="addVehicleFormVisible.set(false)">
+  @if (addVehicleError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="addVehicleForm" cForm (ngSubmit)="submitAddVehicle()">
+    <div class="mb-3">
+      <label cLabel for="av-vehicule">Véhicule</label>
+      <select cSelect formControlName="vehiculeId" id="av-vehicule">
+        <option value="">Sélectionner…</option>
+        @for (v of availableVehiculesForSelectedFleet(); track v.id) {
+          <option [value]="v.id">{{ v.immatriculation || v.numeroChassis || '—' }} — {{ v.marque }} {{ v.modele }}</option>
+        }
+      </select>
+      <div class="dl-cell-detail mt-1">Seuls les véhicules du même client et du même type que la flotte, non déjà rattachés, sont proposés.</div>
+    </div>
+    <div class="mb-3">
+      <label cLabel for="av-motif">Motif (optionnel)</label>
+      <input cFormControl formControlName="reason" id="av-motif" type="text" />
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="addVehicleFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="addVehicleSaving()" cButton color="primary" type="submit">
+        @if (addVehicleSaving()) {
+          <c-spinner size="sm" />
+        }
+        Ajouter
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : créer un contrat pour un véhicule de la flotte ===== -->
+<app-modal [visible]="!!createContractTarget()" size="lg" title="Créer un contrat" (closed)="createContractTarget.set(null)">
+  @if (createContractError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="createContractForm" cForm (ngSubmit)="submitCreateContract()">
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Véhicule</div>
+      @if (createContractVehicule(); as vehicule) {
+        <div class="dl-benefit-card mb-0">
+          <span class="dl-benefit-icon">
+            <svg cIcon [name]="vehicule.type === 'MOTO' ? 'cilSpeedometer' : 'cilCarAlt'" size="lg"></svg>
+          </span>
+          <div class="dl-benefit-body">
+            <strong>{{ vehicule.marque }} {{ vehicule.modele }}</strong>
+            <span class="dl-cell-detail">
+              {{ vehicule.immatriculation || vehicule.numeroChassis || '—' }} · Propriétaire : {{ vehicule.proprietaireName }}
+            </span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Produit &amp; compagnie</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="cc-produit">Produit<span class="wz-required">*</span></label>
+          @if (selectedProduct(); as produit) {
+            <div class="dl-autocomplete-picked">
+              <span class="dl-avatar"><svg cIcon name="cilDescription" size="sm"></svg></span>
+              <span class="dl-autocomplete-picked-info">
+                <strong>{{ produit.nomProduit }}</strong>
+              </span>
+              <button (click)="clearProductSelection()" class="dl-autocomplete-picked-change" type="button">
+                <svg cIcon name="cilXCircle" size="sm"></svg>
+                Changer
+              </button>
+            </div>
+          } @else {
+            <div class="dl-autocomplete-box">
+              <input
+                (blur)="onProductSearchBlur()"
+                (focus)="onProductSearchFocus()"
+                (input)="onProductSearchInput($any($event.target).value)"
+                [value]="productSearchQuery()"
+                autocomplete="off"
+                cFormControl
+                id="cc-produit"
+                placeholder="Rechercher un produit…"
+                type="text"
+              />
+              @if (productSearchOpen()) {
+                <div class="dl-autocomplete-dropdown">
+                  @if (productSearchResults().length === 0) {
+                    <div class="dl-autocomplete-empty">Aucun produit trouvé.</div>
+                  } @else {
+                    @for (produit of productSearchResults(); track produit.id) {
+                      <button (mousedown)="selectProduct(produit)" class="dl-autocomplete-item" type="button">
+                        <span class="dl-autocomplete-item-info">
+                          <strong>{{ produit.nomProduit }}</strong>
+                        </span>
+                      </button>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="cc-compagnie">Compagnie<span class="wz-required">*</span></label>
+          @if (selectedCompagnie(); as compagnie) {
+            <div class="dl-autocomplete-picked">
+              <span class="dl-avatar"><svg cIcon name="briefcase" size="sm"></svg></span>
+              <span class="dl-autocomplete-picked-info">
+                <strong>{{ compagnie.nom }}</strong>
+              </span>
+              <button (click)="clearCompagnieSelection()" class="dl-autocomplete-picked-change" type="button">
+                <svg cIcon name="cilXCircle" size="sm"></svg>
+                Changer
+              </button>
+            </div>
+          } @else {
+            <div class="dl-autocomplete-box">
+              <input
+                (blur)="onCompagnieSearchBlur()"
+                (focus)="onCompagnieSearchFocus()"
+                (input)="onCompagnieSearchInput($any($event.target).value)"
+                [value]="compagnieSearchQuery()"
+                autocomplete="off"
+                cFormControl
+                id="cc-compagnie"
+                placeholder="Rechercher une compagnie…"
+                type="text"
+              />
+              @if (compagnieSearchOpen()) {
+                <div class="dl-autocomplete-dropdown">
+                  @if (compagnieSearchResults().length === 0) {
+                    <div class="dl-autocomplete-empty">Aucune compagnie trouvée.</div>
+                  } @else {
+                    @for (compagnie of compagnieSearchResults(); track compagnie.id) {
+                      <button (mousedown)="selectCompagnie(compagnie)" class="dl-autocomplete-item" type="button">
+                        <span class="dl-autocomplete-item-info">
+                          <strong>{{ compagnie.nom }}</strong>
+                        </span>
+                      </button>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Couverture</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="cc-police">N° de police (optionnel)</label>
+          <input cFormControl formControlName="policyNumber" id="cc-police" placeholder="Auto-généré si vide" type="text" />
+        </div>
+        <div class="col-sm-3">
+          <label cLabel for="cc-duree">Durée (mois)</label>
+          <select cSelect formControlName="duree" id="cc-duree">
+            <option value="1">1 mois</option>
+            <option value="3">3 mois</option>
+            <option value="6">6 mois</option>
+            <option value="12">12 mois</option>
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label cLabel for="cc-effet">Date d'effet</label>
+          <input cFormControl formControlName="dateEffet" id="cc-effet" type="date" />
+        </div>
+        <div class="col-12">
+          <label>Statut</label>
+          <div class="dl-pillgroup dl-pillgroup--stretch" role="group" aria-label="Statut du contrat">
+            <button
+              (click)="createContractForm.controls.status.setValue('signed')"
+              [attr.data-active]="createContractForm.controls.status.value === 'signed'"
+              class="dl-pill dl-pill--success"
+              type="button"
+            >
+              Signé
+            </button>
+            <button
+              (click)="createContractForm.controls.status.setValue('pending')"
+              [attr.data-active]="createContractForm.controls.status.value === 'pending'"
+              class="dl-pill dl-pill--warning"
+              type="button"
+            >
+              En attente
+            </button>
+            <button
+              (click)="createContractForm.controls.status.setValue('draft')"
+              [attr.data-active]="createContractForm.controls.status.value === 'draft'"
+              class="dl-pill"
+              type="button"
+            >
+              Brouillon
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Paiement &amp; commission</div>
+      <div class="row g-3">
+        <div class="col-sm-4">
+          <label cLabel for="cc-prime">Prime (FCFA)<span class="wz-required">*</span></label>
+          <input cFormControl formControlName="premium" id="cc-prime" min="0" type="number" />
+        </div>
+        <div class="col-sm-4">
+          <label cLabel for="cc-taux">Taux de commission (%)</label>
+          <input cFormControl formControlName="commissionRate" id="cc-taux" min="0" step="0.01" type="number" />
+        </div>
+        <div class="col-sm-4">
+          <label cLabel for="cc-montant">Montant de commission (FCFA)</label>
+          <input cFormControl formControlName="commissionAmount" id="cc-montant" min="0" type="number" />
+        </div>
+        <div class="col-12">
+          <div class="dl-cell-detail">{{ createContractCommissionPreview() }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-1">
+      <button (click)="createContractTarget.set(null)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="createContractSaving()" cButton color="primary" type="submit">
+        @if (createContractSaving()) {
+          <c-spinner size="sm" />
+        }
+        Créer le contrat
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : rattacher un contrat mono existant à la flotte ===== -->
+<app-modal [visible]="attachContractVisible()" size="lg" title="Rattacher un contrat existant" (closed)="attachContractVisible.set(false)">
+  @if (attachContractError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="attachContractForm" cForm (ngSubmit)="submitAttachContract()">
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Contrat mono à rattacher</div>
+      @if (attachContractSelected(); as contract) {
+        <div class="dl-autocomplete-picked">
+          <span class="dl-avatar"><svg cIcon name="cilDescription" size="sm"></svg></span>
+          <span class="dl-autocomplete-picked-info">
+            <strong>{{ contract.policyNumber }}</strong>
+            <span class="dl-cell-detail">{{ contract.insuredName }} · {{ formatAmount(contract.premium) }}</span>
+          </span>
+          <button (click)="clearAttachContractSelection()" class="dl-autocomplete-picked-change" type="button">
+            <svg cIcon name="cilXCircle" size="sm"></svg>
+            Changer
+          </button>
+        </div>
+      } @else {
+        <div class="dl-autocomplete-box">
+          <input
+            (blur)="onAttachContractSearchBlur()"
+            (focus)="onAttachContractSearchFocus()"
+            (input)="onAttachContractSearchInput($any($event.target).value)"
+            [value]="attachContractSearchQuery()"
+            autocomplete="off"
+            cFormControl
+            id="ac-search"
+            placeholder="N° de police ou nom de l'assuré…"
+            type="text"
+          />
+          @if (attachContractSearchOpen()) {
+            <div class="dl-autocomplete-dropdown">
+              @if (attachContractLoading()) {
+                <div class="dl-autocomplete-empty">Chargement des contrats…</div>
+              } @else if (attachContractLoadError(); as loadErr) {
+                <div class="dl-autocomplete-empty">{{ loadErr }}</div>
+              } @else if (attachContractSearchResults().length === 0) {
+                <div class="dl-autocomplete-empty">Aucun contrat mono trouvé.</div>
+              } @else {
+                @for (c of attachContractSearchResults(); track c.id) {
+                  <button (mousedown)="selectAttachContract(c)" class="dl-autocomplete-item" type="button">
+                    <span class="dl-autocomplete-item-info">
+                      <strong>{{ c.policyNumber }}</strong>
+                      <span class="dl-cell-detail">{{ c.insuredName }} · {{ formatAmount(c.premium) }}</span>
+                    </span>
+                  </button>
+                }
+              }
+            </div>
+          }
+        </div>
+        <div class="dl-cell-detail mt-1">Seuls les contrats mono (sans véhicule rattaché) apparaissent ici.</div>
+      }
+    </div>
+
+    @if (attachContractSelected()) {
+      <div class="dl-form-section">
+        <div class="dl-form-section-label">Véhicule/Moto à rattacher</div>
+        @if (attachContractVehiculeOptions().length === 0) {
+          <p class="dl-empty">
+            Aucun véhicule/Moto compatible trouvé pour {{ attachContractSelected()?.insuredName }} — le véhicule/Moto doit appartenir
+            au même assuré, être d'un type compatible avec cette flotte, et ne pas être actif dans une autre flotte.
+          </p>
+        } @else {
+          <select cSelect formControlName="vehiculeId" id="ac-vehicule">
+            <option value="">Sélectionner un véhicule/Moto…</option>
+            @for (v of attachContractVehiculeOptions(); track v.id) {
+              <option [value]="v.id">
+                {{ v.marque }} {{ v.modele }} — {{ v.immatriculation || v.numeroChassis || '—' }}
+                @if (v.currentFleetId) { (déjà dans cette flotte) }
+              </option>
+            }
+          </select>
+        }
+        <div class="mt-3">
+          <label cLabel for="ac-motif">Motif (optionnel)</label>
+          <input cFormControl formControlName="reason" id="ac-motif" type="text" />
+        </div>
+      </div>
+    }
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-1">
+      <button (click)="attachContractVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="attachContractSaving() || !attachContractSelected()" cButton color="primary" type="submit">
+        @if (attachContractSaving()) {
+          <c-spinner size="sm" />
+        }
+        Rattacher le contrat
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : retirer un véhicule ===== -->
+<app-modal [visible]="!!removeVehicleTarget()" title="Retirer « {{ fleetVehicleLabel(removeVehicleTarget()) }} » de la flotte" (closed)="removeVehicleTarget.set(null)">
+  @if (removeVehicleError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="removeVehicleForm" cForm (ngSubmit)="submitRemoveVehicle()">
+    <div class="mb-3">
+      <label cLabel for="rv-motif">Motif (optionnel)</label>
+      <input cFormControl formControlName="reason" id="rv-motif" type="text" />
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="removeVehicleTarget.set(null)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="removeVehicleSaving()" cButton color="danger" type="submit">
+        @if (removeVehicleSaving()) {
+          <c-spinner size="sm" />
+        }
+        Retirer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : remplacer un véhicule ===== -->
+<app-modal [visible]="!!replaceVehicleTarget()" title="Remplacer « {{ fleetVehicleLabel(replaceVehicleTarget()) }} »" (closed)="replaceVehicleTarget.set(null)">
+  @if (replaceVehicleError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="replaceVehicleForm" cForm (ngSubmit)="submitReplaceVehicle()">
+    <div class="mb-3">
+      <label cLabel for="rpv-vehicule">Nouveau véhicule</label>
+      <select cSelect formControlName="newVehiculeId" id="rpv-vehicule">
+        <option value="">Sélectionner…</option>
+        @for (v of availableVehiculesForSelectedFleet(); track v.id) {
+          <option [value]="v.id">{{ v.immatriculation || v.numeroChassis || '—' }} — {{ v.marque }} {{ v.modele }}</option>
+        }
+      </select>
+    </div>
+    <div class="mb-3">
+      <label cLabel for="rpv-motif">Motif (optionnel)</label>
+      <input cFormControl formControlName="reason" id="rpv-motif" type="text" />
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="replaceVehicleTarget.set(null)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="replaceVehicleSaving()" cButton color="primary" type="submit">
+        @if (replaceVehicleSaving()) {
+          <c-spinner size="sm" />
+        }
+        Remplacer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : transférer un véhicule ===== -->
+<app-modal [visible]="!!transferVehicleTarget()" title="Transférer « {{ fleetVehicleLabel(transferVehicleTarget()) }} »" (closed)="transferVehicleTarget.set(null)">
+  @if (transferVehicleError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="transferVehicleForm" cForm (ngSubmit)="submitTransferVehicle()">
+    <div class="mb-3">
+      <label cLabel for="tv-flotte">Flotte de destination</label>
+      <select cSelect formControlName="destinationFleetId" id="tv-flotte">
+        <option value="">Sélectionner…</option>
+        @if (selectedFleet(); as fleet) {
+          @for (f of activeFleetsForClient(fleet.clientId, fleet.id); track f.id) {
+            <option [value]="f.id">{{ f.name }} ({{ f.fleetNumber }})</option>
+          }
+        }
+      </select>
+      <div class="dl-cell-detail mt-1">Seules les autres flottes actives du même client sont proposées.</div>
+    </div>
+    <div class="mb-3">
+      <label cLabel for="tv-motif">Motif (optionnel)</label>
+      <input cFormControl formControlName="reason" id="tv-motif" type="text" />
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="transferVehicleTarget.set(null)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="transferVehicleSaving()" cButton color="primary" type="submit">
+        @if (transferVehicleSaving()) {
+          <c-spinner size="sm" />
+        }
+        Transférer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : détail d'un import ===== -->
+<app-modal [visible]="importDetailVisible()" size="lg" title="Import — {{ selectedImport()?.fileName }}" (closed)="importDetailVisible.set(false)">
+  @if (selectedImport(); as imp) {
+    <div class="dl-detail-grid mb-3">
+      <div><div class="dl-cell-detail">Format</div><div>{{ imp.format }}</div></div>
+      <div>
+        <div class="dl-cell-detail">Statut</div>
+        <div>
+          <span [class]="'dl-chip dl-chip--' + fleetImportStatusVariant(imp.status)">
+            <span class="dl-chip-dot"></span>{{ fleetImportStatusLabel[imp.status] }}
+          </span>
+        </div>
+      </div>
+      <div><div class="dl-cell-detail">Lignes totales</div><div>{{ imp.totalRows ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Valides</div><div>{{ imp.validRows ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Invalides</div><div>{{ imp.invalidRows ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Doublons</div><div>{{ imp.duplicateRows ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Réussis</div><div>{{ imp.successCount ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Erreurs</div><div>{{ imp.errorCount ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Téléversé par</div><div>{{ imp.uploadedBy ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Téléversé le</div><div>{{ formatDateTime(imp.createdAt) }}</div></div>
+    </div>
+
+    @if (importErrorsLoading()) {
+      <p class="dl-empty">Chargement des erreurs…</p>
+    } @else if (importErrors().length > 0) {
+      <div class="dl-cell-detail mb-1">Erreurs ligne par ligne</div>
+      <ul class="list-unstyled d-flex flex-column gap-2 m-0">
+        @for (err of importErrors(); track err.id) {
+          <li class="pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+            <span class="dl-tag">Ligne {{ err.ligneNumero }}</span>
+            @if (err.colonneEnErreur) { — {{ err.colonneEnErreur }} }
+            @if (err.valeurBrute) { (« {{ err.valeurBrute }} ») }
+            <div class="dl-cell-detail">{{ err.message }}</div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</app-modal>
+
+<!-- ===== Modale : création / modification d'un véhicule ===== -->
+<app-modal [visible]="vehiculeFormVisible()" size="xl" title="{{ editingVehiculeId() ? 'Modifier le véhicule' : 'Nouveau véhicule/Moto' }}" (closed)="vehiculeFormVisible.set(false)">
+  @if (vehiculeFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="vehiculeForm" cForm (ngSubmit)="saveVehicule()">
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Identification</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label>Type</label>
+          <div class="dl-pillgroup dl-pillgroup--stretch" role="group" aria-label="Type de véhicule">
+            @for (opt of vehiculeTypeToggleOptions; track opt.value) {
+              <button
+                (click)="vehiculeForm.controls.type.setValue(opt.value)"
+                [attr.data-active]="vehiculeForm.controls.type.value === opt.value"
+                class="dl-pill dl-pill--solid"
+                type="button"
+              >
+                <svg cIcon [name]="opt.icon" size="sm"></svg>
+                {{ opt.label }}
+              </button>
+            }
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="vh-immat">Immatriculation</label>
+          <input cFormControl formControlName="immatriculation" id="vh-immat" placeholder="Laisser vide si pas encore attribuée" type="text" />
+          @if (vehiculeForm.controls.type.value === 'MOTO') {
+            <span class="dl-cell-detail">Optionnelle si un n° de châssis est renseigné ci-dessous — cas d'une moto neuve sans plaque.</span>
+          }
+        </div>
+        <div class="col-12">
+          <label>Statut</label>
+          <div class="dl-pillgroup" role="group" aria-label="Statut du véhicule">
+            <button
+              (click)="vehiculeForm.controls.statut.setValue('ACTIF')"
+              [attr.data-active]="vehiculeForm.controls.statut.value === 'ACTIF'"
+              class="dl-pill dl-pill--success"
+              type="button"
+            >
+              Actif
+            </button>
+            <button
+              (click)="vehiculeForm.controls.statut.setValue('HORS_SERVICE')"
+              [attr.data-active]="vehiculeForm.controls.statut.value === 'HORS_SERVICE'"
+              class="dl-pill dl-pill--warning"
+              type="button"
+            >
+              Hors service
+            </button>
+            <button
+              (click)="vehiculeForm.controls.statut.setValue('VENDU')"
+              [attr.data-active]="vehiculeForm.controls.statut.value === 'VENDU'"
+              class="dl-pill"
+              type="button"
+            >
+              Vendu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Propriétaire</div>
+      <label cLabel for="vh-proprietaire">Propriétaire (assuré)</label>
+      @if (selectedOwnerInsured(); as owner) {
+        <div class="dl-autocomplete-picked">
+          <span class="dl-avatar">{{ insuredInitials(owner) }}</span>
+          <span class="dl-autocomplete-picked-info">
+            <strong>{{ owner.nom }} {{ owner.prenoms }}</strong>
+            <span class="dl-cell-detail">{{ owner.clientPhone || '—' }} · {{ owner.clientCity || '—' }}</span>
+          </span>
+          <button (click)="clearOwnerSelection()" class="dl-autocomplete-picked-change" type="button">
+            <svg cIcon name="cilXCircle" size="sm"></svg>
+            Changer
+          </button>
+        </div>
+      } @else {
+        <div class="dl-autocomplete-box">
+          <input
+            (blur)="onOwnerSearchBlur()"
+            (focus)="onOwnerSearchFocus()"
+            (input)="onOwnerSearchInput($any($event.target).value)"
+            [value]="ownerSearchQuery()"
+            autocomplete="off"
+            cFormControl
+            id="vh-proprietaire"
+            placeholder="Rechercher un nom, un téléphone…"
+            type="text"
+          />
+          @if (ownerSearchOpen()) {
+            <div class="dl-autocomplete-dropdown">
+              @if (ownerSearchQuery().trim().length < 2) {
+                <div class="dl-autocomplete-empty">Continuez à saisir… (2 caractères minimum)</div>
+              } @else {
+                @if (ownerSearchResults().length === 0) {
+                  <div class="dl-autocomplete-empty">Aucun assuré trouvé.</div>
+                } @else {
+                  @for (result of ownerSearchResults(); track result.id) {
+                    <button (mousedown)="selectOwner(result)" class="dl-autocomplete-item" type="button">
+                      <span class="dl-autocomplete-item-info">
+                        <strong>{{ result.nom }} {{ result.prenoms }}</strong>
+                        <span class="dl-cell-detail">{{ result.clientPhone || '—' }} · {{ result.clientCity || '—' }}</span>
+                      </span>
+                    </button>
+                  }
+                }
+                <button (mousedown)="openCreateInsured('owner')" class="dl-autocomplete-item dl-autocomplete-item--create" type="button">
+                  <svg cIcon name="cilPlus" size="sm"></svg>
+                  Créer un nouvel assuré « {{ ownerSearchQuery().trim() }} »
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Caractéristiques</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="vh-marque">Marque</label>
+          <input cFormControl formControlName="marque" id="vh-marque" type="text" />
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="vh-modele">Modèle</label>
+          <input cFormControl formControlName="modele" id="vh-modele" type="text" />
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="vh-couleur">Couleur (optionnel)</label>
+          <input cFormControl formControlName="couleur" id="vh-couleur" type="text" />
+        </div>
+        @if (vehiculeForm.controls.type.value === 'MOTO') {
+          <div class="col-sm-6">
+            <label cLabel for="vh-cylindree">Cylindrée en cm³ (optionnel)</label>
+            <input cFormControl formControlName="cylindree" id="vh-cylindree" min="0" type="number" />
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Détails techniques (optionnel)</div>
+      <div class="row g-3">
+        <div class="col-sm-4">
+          <label cLabel for="vh-chassis">N° de châssis</label>
+          <input cFormControl formControlName="numeroChassis" id="vh-chassis" type="text" />
+        </div>
+        <div class="col-sm-4">
+          <label cLabel for="vh-mise-circulation">Mise en circulation</label>
+          <input cFormControl formControlName="dateMiseEnCirculation" id="vh-mise-circulation" type="date" />
+        </div>
+        <div class="col-sm-4">
+          <label cLabel for="vh-puissance">Puissance fiscale</label>
+          <input cFormControl formControlName="puissanceFiscale" id="vh-puissance" type="number" />
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="vehiculeFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="vehiculeFormSaving()" cButton color="primary" type="submit">
+        @if (vehiculeFormSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+
+  @if (editingVehiculeId(); as vehiculeId) {
+    <hr class="my-3" />
+    <app-entity-documents [entityId]="vehiculeId" entityType="VEHICLE" />
+  }
+</app-modal>
+
+<!-- ===== Modale : création rapide d'un assuré (depuis le champ d'autocomplétion) ===== -->
+<app-modal [visible]="createInsuredVisible()" title="Créer un nouvel assuré" (closed)="createInsuredVisible.set(false)">
+  @if (createInsuredError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="createInsuredForm" cForm (ngSubmit)="submitCreateInsured()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="ci-nom">Nom</label>
+        <input cFormControl formControlName="nom" id="ci-nom" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="ci-prenoms">Prénoms</label>
+        <input cFormControl formControlName="prenoms" id="ci-prenoms" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="ci-tel">Téléphone (optionnel)</label>
+        <input cFormControl formControlName="clientPhone" id="ci-tel" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="ci-ville">Ville (optionnel)</label>
+        <input cFormControl formControlName="clientCity" id="ci-ville" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="ci-email">Email (optionnel)</label>
+        <input cFormControl formControlName="clientEmail" id="ci-email" type="email" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="ci-type">Type de client</label>
+        <select cSelect formControlName="typeClient" id="ci-type">
+          <option value="PARTICULIER">Particulier</option>
+          <option value="ENTREPRISE">Entreprise</option>
+        </select>
+      </div>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="createInsuredVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="createInsuredSaving()" cButton color="primary" type="submit">
+        @if (createInsuredSaving()) {
+          <c-spinner size="sm" />
+        }
+        Créer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!closeFleetTarget()"
+  title="Clôturer cette flotte ?"
+  [message]="'La flotte « ' + (closeFleetTarget()?.name ?? '') + ' » sera clôturée définitivement (statut terminal, aucune réactivation possible).'"
+  confirmLabel="Clôturer"
+  icon="cilTrash"
+  (cancelled)="closeFleetTarget.set(null)"
+  (confirmed)="confirmCloseFleet()"
+/>
+
+<app-confirm-dialog
+  [visible]="!!deleteVehiculeTarget()"
+  title="Supprimer ce véhicule ?"
+  [message]="'Le véhicule « ' + (deleteVehiculeTarget()?.immatriculation || deleteVehiculeTarget()?.numeroChassis || '') + ' » (' + (deleteVehiculeTarget()?.marque ?? '') + ' ' + (deleteVehiculeTarget()?.modele ?? '') + ') sera définitivement supprimé. Cette action est irréversible.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteVehiculeTarget.set(null)"
+  (confirmed)="confirmDeleteVehicule()"
+/>

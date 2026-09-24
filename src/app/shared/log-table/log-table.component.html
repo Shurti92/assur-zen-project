@@ -1,0 +1,138 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>{{ title() }}</h2>
+      @if (showLive()) {
+        <span class="dl-live"><span class="dl-live-dot"></span>En direct</span>
+      }
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher un message, {{ sourceLabel().toLowerCase() }}…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" [attr.aria-label]="'Filtrer par niveau'">
+      <button (click)="setLevel('all')" [attr.data-active]="activeLevel() === 'all'" class="dl-pill" type="button">
+        Tous <span class="dl-pill-count">{{ entries().length }}</span>
+      </button>
+      @for (pill of levelPills(); track pill.level) {
+        <button
+          (click)="setLevel(pill.level)"
+          [attr.data-active]="activeLevel() === pill.level"
+          [class]="'dl-pill dl-pill--' + chipVariant(pill.level)"
+          type="button"
+        >
+          {{ pill.label }} <span class="dl-pill-count">{{ pill.count }}</span>
+        </button>
+      }
+    </div>
+
+    <div class="dl-actions">
+      @if (showRefresh()) {
+        <button (click)="onRefreshClick()" [disabled]="refreshing()" cButton class="dl-btn" type="button">
+          @if (refreshing()) {
+            <c-spinner size="sm" />
+          }
+          Actualiser
+        </button>
+      }
+      @if (showClear()) {
+        <button (click)="requestClear()" cButton class="dl-btn" type="button">Vider</button>
+      }
+      <button (click)="export()" cButton class="dl-btn dl-btn-primary" type="button">Exporter</button>
+    </div>
+  </div>
+
+  <div class="dl-summary">
+    <dl>
+      <dt>Période</dt>
+      <dd>{{ period() ?? '—' }}</dd>
+    </dl>
+    <dl>
+      <dt>Événements</dt>
+      <dd>{{ entries().length }}</dd>
+    </dl>
+    <dl>
+      <dt>Avertissements</dt>
+      <dd class="dl-stat--warning">{{ counts().warn }}</dd>
+    </dl>
+    <dl>
+      <dt>Erreurs</dt>
+      <dd class="dl-stat--danger">{{ counts().error }}</dd>
+    </dl>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">
+      {{ error() }}
+      <button (click)="onRefreshClick()" cButton color="link" class="p-0" type="button">Réessayer</button>
+    </p>
+  } @else if (entries().length === 0) {
+    <p class="dl-empty">{{ emptyMessage() }}</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Horodatage</th>
+            <th scope="col">Niveau</th>
+            <th scope="col">{{ sourceLabel() }}</th>
+            <th scope="col">Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of filteredEntries(); track entry.timestamp + entry.message) {
+            <tr [class]="rowClass(entry.level)">
+              <td class="dl-timestamp">
+                {{ formatTimestamp(entry.timestamp) }}
+                <span class="dl-rel">{{ relativeTime(entry.timestamp) }}</span>
+              </td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + chipVariant(entry.level)">
+                  <span class="dl-chip-dot"></span>{{ chipLabel(entry.level) }}
+                </span>
+              </td>
+              <td><span class="dl-tag">{{ entry.source }}</span></td>
+              <td class="dl-cell">
+                {{ entry.message }}
+                @if (entry.details) {
+                  <div class="dl-cell-detail">{{ entry.details }}</div>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      @if (filteredEntries().length === 0) {
+        <p class="dl-empty">Aucun résultat pour ces filtres.</p>
+      }
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredEntries().length }}</strong> sur {{ entries().length }} événements affichés</span>
+    @if (footerNote()) {
+      <span>{{ footerNote() }}</span>
+    }
+  </div>
+</section>
+
+<app-confirm-dialog
+  cancelLabel="Annuler"
+  confirmLabel="Vider"
+  icon="cilWarning"
+  message="Voulez-vous vraiment vider le journal ? Cette action est irréversible."
+  title="Vider le journal"
+  [visible]="clearDialogVisible()"
+  (cancelled)="onClearCancelled()"
+  (confirmed)="onClearConfirmed()"
+/>

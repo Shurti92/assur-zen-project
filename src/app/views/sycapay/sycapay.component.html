@@ -1,0 +1,403 @@
+@if (!isAdmin()) {
+  <p class="dl-empty">Ce module est réservé aux administrateurs.</p>
+} @else {
+<div class="sp">
+  <!-- ============================================================ EN-TÊTE ============================================================ -->
+  <header class="sp-header">
+    <div class="sp-header-row">
+      <div class="sp-heading">
+        <span class="sp-eyebrow">Commissions</span>
+        <h1 class="sp-title">Paiements SycaPay</h1>
+        <p class="sp-subtitle">Virements Wave des commissions commerciaux et partenaires — suivi du jour, solde marchand et historique.</p>
+      </div>
+      <div class="sp-actions">
+        @if (view() === 'dashboard' && dashboardFetchedAt(); as fetched) {
+          <span class="sp-muted">Mis à jour à {{ formatTime(fetched.toISOString()) }}</span>
+        }
+        <button (click)="refreshCurrentView()" [disabled]="refreshing()" class="sp-btn" type="button">
+          @if (refreshing()) { <c-spinner size="sm" /> } @else {
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
+          }
+          Actualiser
+        </button>
+        @if (view() === 'solde') {
+          <button (click)="fetchBalance(true)" [disabled]="balanceLoading()" class="sp-btn sp-btn--primary" type="button" title="Ignore le cache serveur (~20 s) et interroge SycaPay directement">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+            Lire en direct chez SycaPay
+          </button>
+        }
+      </div>
+    </div>
+
+    <nav class="sp-tabs" aria-label="Sections SycaPay">
+      <button (click)="setView('dashboard')" [attr.aria-current]="view() === 'dashboard' ? 'page' : null" class="sp-tab" type="button">Tableau de bord</button>
+      <button (click)="setView('solde')" [attr.aria-current]="view() === 'solde' ? 'page' : null" class="sp-tab" type="button">Solde marchand</button>
+      <button (click)="setView('transactions')" [attr.aria-current]="view() === 'transactions' ? 'page' : null" class="sp-tab" type="button">
+        Transactions
+        @if (statusCounts(); as counts) {
+          <span class="sp-tab-count">{{ counts.total }}</span>
+        }
+      </button>
+    </nav>
+  </header>
+
+  @if (dashboard()?.testMode) {
+    <div class="sp-notice sp-notice--info" role="status">
+      <span class="sp-notice-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6" /><path d="M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3" /><path d="M7 15h10" /></svg>
+      </span>
+      <div class="sp-notice-body">
+        <strong>Mode test : virements et SMS de commission partent vers {{ formatPhone(dashboard()!.testPhone ?? '') }} ({{ formatNumber(dashboard()!.testAmount ?? 0) }} FCFA par virement)</strong>
+        <span>Les commissions restent enregistrées à leur montant réel ; chaque SMS indique son vrai destinataire. Les SMS de connexion et les SMS clients ne sont pas redirigés.</span>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================ TABLEAU DE BORD ============================================================ -->
+  @if (view() === 'dashboard') {
+    @if (dashboardError()) {
+      <p class="dl-empty">{{ dashboardError() }} <button (click)="fetchDashboard()" class="sp-link" type="button">Réessayer</button></p>
+    } @else if (dashboardLoading() && !dashboard()) {
+      <p class="dl-empty">Chargement du tableau de bord…</p>
+    } @else if (dashboard(); as d) {
+      @if (d.paiementsUnknown > 0) {
+        <div class="sp-notice sp-notice--warning">
+          <span class="sp-notice-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+          </span>
+          <div class="sp-notice-body">
+            <strong>{{ d.paiementsUnknown }} paiement{{ d.paiementsUnknown > 1 ? 's' : '' }} d'issue incertaine à vérifier</strong>
+            <span>SycaPay n'a pas confirmé le virement. Ne le relancez pas : réconciliez-le pour connaître son statut réel.</span>
+          </div>
+          <button (click)="showTransactionsWithStatus('UNKNOWN')" class="sp-btn sp-btn--warning" type="button">Réconcilier</button>
+        </div>
+      }
+
+      <section class="sp-grid sp-grid--hero">
+        <div class="sp-card sp-card--lg">
+          <div class="sp-hero-row">
+            <div class="sp-stat">
+              <span class="sp-stat-label">Montant payé aujourd'hui (confirmé)</span>
+              <span class="sp-amount sp-amount--xl">{{ formatNumber(d.montantPayeAujourdhui) }} <small>FCFA</small></span>
+            </div>
+            <div class="sp-stat sp-stat--end">
+              <span class="sp-stat-label">Paiements initiés</span>
+              <span class="sp-amount sp-amount--lg">{{ d.paiementsDuJour }}</span>
+            </div>
+          </div>
+          <div class="sp-bar" role="img" [attr.aria-label]="'Répartition : ' + d.paiementsSuccess + ' réussi(s), ' + d.paiementsPending + ' en attente, ' + d.paiementsFailed + ' échoué(s), ' + d.paiementsUnknown + ' indéterminé(s)'">
+            @for (segment of dashboardSegments(); track segment.variant) {
+              <span [class]="'sp-bar-seg sp-bg--' + segment.variant" [style.flex-grow]="segment.count"></span>
+            }
+          </div>
+          <div class="sp-legend">
+            <span><i class="sp-bg--success"></i>Réussis · {{ d.paiementsSuccess }}</span>
+            <span><i class="sp-bg--info"></i>En attente / en cours · {{ d.paiementsPending }}</span>
+            <span><i class="sp-bg--danger"></i>Échoués · {{ d.paiementsFailed }}</span>
+            <span><i class="sp-bg--warning"></i>Indéterminés · {{ d.paiementsUnknown }}</span>
+          </div>
+        </div>
+
+        <button (click)="setView('solde')" class="sp-card sp-card--navy" type="button">
+          <span class="sp-navy-row">
+            <span class="sp-navy-label">Solde disponible Wave</span>
+            <span class="sp-navy-pill">Compte marchand</span>
+          </span>
+          @if (waveBalance() !== null) {
+            <span class="sp-amount sp-amount--lg">{{ formatNumber(waveBalance()!) }} <small>FCFA</small></span>
+          } @else if (balanceLoading()) {
+            <span class="sp-navy-label">Lecture du solde…</span>
+          } @else {
+            <span class="sp-navy-label">{{ balanceError() || 'Solde indisponible' }}</span>
+          }
+          <span class="sp-navy-link">Voir le détail par opérateur
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+          </span>
+        </button>
+      </section>
+
+      <section class="sp-grid sp-grid--4">
+        <button (click)="showTransactionsWithStatus('SUCCESS')" class="sp-card sp-tile" type="button">
+          <span class="sp-tile-icon sp-soft--success"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg></span>
+          <span class="sp-amount sp-amount--md">{{ d.paiementsSuccess }}</span>
+          <span class="sp-muted">Réussis</span>
+        </button>
+        <div class="sp-card sp-tile">
+          <span class="sp-tile-icon sp-soft--info"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span>
+          <span class="sp-amount sp-amount--md">{{ d.paiementsPending }}</span>
+          <span class="sp-muted">En attente / en cours</span>
+        </div>
+        <button (click)="showTransactionsWithStatus('FAILED')" class="sp-card sp-tile" type="button">
+          <span class="sp-tile-icon sp-soft--danger"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></span>
+          <span class="sp-amount sp-amount--md">{{ d.paiementsFailed }}</span>
+          <span class="sp-muted">Échoués</span>
+        </button>
+        <button (click)="showTransactionsWithStatus('UNKNOWN')" [class.sp-tile--alert]="d.paiementsUnknown > 0" class="sp-card sp-tile" type="button">
+          <span class="sp-tile-icon sp-soft--warning"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><path d="M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg></span>
+          <span class="sp-amount sp-amount--md">{{ d.paiementsUnknown }}</span>
+          <span class="sp-muted">Indéterminés @if (d.paiementsUnknown > 0) { · <strong class="sp-text--warning">à réconcilier</strong> }</span>
+        </button>
+      </section>
+    }
+  }
+
+  <!-- ============================================================ SOLDE MARCHAND ============================================================ -->
+  @if (view() === 'solde') {
+    @if (balanceError()) {
+      <p class="dl-empty">{{ balanceError() }} <button (click)="fetchBalance(false)" class="sp-link" type="button">Réessayer</button></p>
+    } @else if (balanceLoading() && balanceResults().length === 0) {
+      <p class="dl-empty">Chargement du solde…</p>
+    } @else if (balanceResults().length === 0) {
+      <p class="dl-empty">Aucun opérateur actif sur ce compte marchand.</p>
+    } @else {
+      <section class="sp-card sp-card--navy sp-balance-hero">
+        <div class="sp-stat">
+          <span class="sp-navy-label">Solde disponible total</span>
+          <span class="sp-amount sp-amount--xl">{{ formatNumber(totalBalance()) }} <small>FCFA</small></span>
+          <span class="sp-navy-sub">Tous opérateurs</span>
+        </div>
+        @if (balanceAgeLabel(); as age) {
+          <div class="sp-stat sp-stat--end">
+            <span class="sp-navy-pill"><i class="sp-live-dot"></i>{{ age }}</span>
+            <span class="sp-navy-sub">Cache serveur ~20 s · dernière lecture {{ formatTime(balanceLastFetched()!.toISOString()) }}</span>
+          </div>
+        }
+      </section>
+
+      <section class="sp-grid sp-grid--4">
+        @for (result of sortedBalances(); track result.identifiant) {
+          <article [class.sp-op--main]="isCommissionAccount(result)" class="sp-card sp-op">
+            <div class="sp-op-head">
+              <span class="sp-op-name"><i [style.background]="operatorColor(result)"></i>{{ operatorLabel(result) }}</span>
+              @if (isCommissionAccount(result)) {
+                <span class="sp-badge">Commissions</span>
+              }
+            </div>
+            <span [class.sp-amount--empty]="soldeValue(result) === 0" class="sp-amount sp-amount--md">{{ formatNumber(soldeValue(result)) }} <small>FCFA</small></span>
+            <dl class="sp-dl">
+              <div><dt>Identifiant</dt><dd class="sp-mono">{{ result.identifiant }}</dd></div>
+              <div><dt>Pays</dt><dd>{{ result.isopays }}</dd></div>
+              <div class="sp-dl-wide"><dt>ID marchand</dt><dd class="sp-mono">{{ result.marchandid }}</dd></div>
+            </dl>
+          </article>
+        }
+      </section>
+    }
+  }
+
+  <!-- ============================================================ TRANSACTIONS ============================================================ -->
+  @if (view() === 'transactions') {
+    <section class="sp-card sp-card--flush">
+      <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="sp-filters">
+        <div class="sp-filter-row">
+          <label class="sp-field sp-field--grow">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <span class="visually-hidden">Référence</span>
+            <input formControlName="reference" placeholder="Rechercher une référence exacte (ex. SYC-2026-…)" type="search" />
+          </label>
+          <label class="sp-field">
+            <span class="sp-field-label">Bénéficiaire</span>
+            <select formControlName="beneficiaryType" class="sp-select">
+              <option value="all">Tous</option>
+              <option value="COMMERCIAL">Commerciaux</option>
+              <option value="PARTENAIRE">Partenaires</option>
+            </select>
+          </label>
+          @if (beneficiaryTypeFilter() !== 'all') {
+            <label class="sp-field">
+              <span class="sp-field-label">{{ beneficiaryTypeFilter() === 'PARTENAIRE' ? 'ID partenaire' : 'ID commercial' }}</span>
+              <input formControlName="beneficiaryId" class="sp-mono sp-input--short" placeholder="Tous" type="number" />
+            </label>
+          }
+          <label class="sp-field">
+            <span class="sp-field-label">Du</span>
+            <input formControlName="dateStart" type="date" />
+          </label>
+          <label class="sp-field">
+            <span class="sp-field-label">Au</span>
+            <input formControlName="dateEnd" type="date" />
+          </label>
+          <button class="sp-btn sp-btn--primary" type="submit">Rechercher</button>
+          @if (hasActiveFilters()) {
+            <button (click)="resetFilters()" class="sp-link" type="button">Réinitialiser</button>
+          }
+        </div>
+        <div class="sp-chips" role="group" aria-label="Filtrer par statut">
+          <button (click)="setStatusFilter('all')" [attr.aria-pressed]="statusFilter() === 'all'" class="sp-chip-btn" type="button">Tous@if (statusCounts(); as counts) { · {{ counts.total }} }</button>
+          @for (status of allStatuses; track status) {
+            <button (click)="setStatusFilter(status)" [attr.aria-pressed]="statusFilter() === status" [class]="'sp-chip-btn sp-chip-btn--' + statusVariant(status)" type="button">{{ statusLabel[status] }}@if (statusCounts(); as counts) { · {{ counts[status] }} }</button>
+          }
+        </div>
+      </form>
+
+      @if (transactionsError()) {
+        <p class="dl-empty">{{ transactionsError() }} <button (click)="fetchTransactions()" class="sp-link" type="button">Réessayer</button></p>
+      } @else if (transactionsLoading() && transactions().length === 0) {
+        <p class="dl-empty">Chargement des transactions…</p>
+      } @else if (transactions().length === 0) {
+        <p class="dl-empty">Aucune transaction pour ces filtres.</p>
+      } @else {
+        <div class="sp-table-scroll">
+          <table class="sp-table">
+            <thead>
+              <tr>
+                <th scope="col">Référence</th>
+                <th scope="col">Bénéficiaire</th>
+                <th scope="col" class="sp-num">Montant</th>
+                <th scope="col">Statut</th>
+                <th scope="col">Demandée le</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (transaction of transactions(); track transaction.id) {
+                <tr [class.sp-row--alert]="transaction.status === 'UNKNOWN'">
+                  <td>
+                    <div class="sp-mono sp-strong">{{ transaction.transactionReference }}@if (transaction.testMode) { <span class="sp-test-badge">Test</span> }</div>
+                    <div class="sp-sub">Contrat #{{ transaction.contractId }} · {{ beneficiaryLabel(transaction) }}</div>
+                  </td>
+                  <td>
+                    {{ transaction.beneficiaryName || '—' }}
+                    @if (transaction.beneficiaryPhone) { <div class="sp-sub sp-mono">{{ transaction.beneficiaryPhone }}</div> }
+                  </td>
+                  <td class="sp-num sp-mono sp-strong">{{ formatNumber(transaction.amount) }} FCFA</td>
+                  <td>
+                    <span [class]="'sp-chip sp-chip--' + statusVariant(transaction.status)"><i></i>{{ statusLabel[transaction.status] }}</span>
+                    @if (transaction.status === 'FAILED' && transaction.errorMessage) {
+                      <div class="sp-sub sp-text--danger">{{ transaction.errorMessage }}</div>
+                    }
+                  </td>
+                  <td>
+                    {{ formatDate(transaction.requestDate) }}
+                    <div class="sp-sub">{{ formatTime(transaction.requestDate) }}</div>
+                  </td>
+                  <td class="sp-num">
+                    @if (transaction.status === 'UNKNOWN') {
+                      <button (click)="openDetail(transaction)" class="sp-btn sp-btn--sm sp-btn--warning" type="button">Réconcilier</button>
+                    } @else if (transaction.status === 'PROCESSING') {
+                      <button (click)="openDetail(transaction)" class="sp-btn sp-btn--sm" type="button">Vérifier</button>
+                    } @else {
+                      <button (click)="openDetail(transaction)" [attr.aria-label]="'Voir le détail de ' + transaction.transactionReference" class="sp-icon-btn" type="button">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sp-table-foot">
+          <span><strong>{{ transactionsTotalElements() }}</strong> transaction{{ (transactionsTotalElements() ?? 0) > 1 ? 's' : '' }} · page {{ transactionsPage() + 1 }} sur {{ transactionsTotalPages() }}</span>
+          <div class="sp-pager">
+            <button (click)="goToTransactionsPage(transactionsPage() - 1)" [disabled]="transactionsLoading() || transactionsPage() === 0" aria-label="Page précédente" class="sp-icon-btn sp-icon-btn--bordered" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
+            </button>
+            <button (click)="goToTransactionsPage(transactionsPage() + 1)" [disabled]="transactionsLoading() || transactionsPage() + 1 >= transactionsTotalPages()" aria-label="Page suivante" class="sp-icon-btn sp-icon-btn--bordered" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  }
+</div>
+
+<!-- ============================================================ DÉTAIL (PANNEAU LATÉRAL) ============================================================ -->
+@if (detailVisible()) {
+  @if (selectedTransaction(); as t) {
+    <div (click)="closeDetail()" class="sp-drawer-backdrop"></div>
+    <aside aria-labelledby="sp-drawer-title" aria-modal="true" class="sp-drawer" role="dialog">
+      <div class="sp-drawer-head">
+        <div class="sp-drawer-top">
+          <span class="sp-drawer-chips">
+            <span [class]="'sp-chip sp-chip--lg sp-chip--' + statusVariant(t.status)"><i></i>{{ statusLabel[t.status] }}</span>
+            @if (t.testMode) { <span class="sp-test-badge sp-test-badge--lg" title="Virement redirigé par le mode test : montant et numéro de test">Test</span> }
+          </span>
+          <button (click)="closeDetail()" aria-label="Fermer" class="sp-icon-btn sp-icon-btn--filled" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          </button>
+        </div>
+        <h2 id="sp-drawer-title" class="sp-mono sp-drawer-ref">{{ t.transactionReference }}</h2>
+        <span class="sp-amount sp-amount--lg">{{ formatNumber(t.amount) }} <small>{{ t.currency === 'XOF' ? 'FCFA' : t.currency }}</small></span>
+        <span class="sp-muted">Commission du contrat <strong>#{{ t.contractId }}</strong> · <strong>{{ beneficiaryLabel(t) }}</strong></span>
+      </div>
+
+      <div class="sp-drawer-body">
+        @if (reconcileError(); as message) {
+          <app-alert-message [message]="message" />
+        }
+        @if (reconcileNoChange()) {
+          <div class="sp-notice sp-notice--info">
+            <div class="sp-notice-body">
+              <strong>Statut inchangé</strong>
+              <span>SycaPay n'a pas encore d'information exploitable sur ce virement. Réessayez plus tard.</span>
+            </div>
+          </div>
+        }
+        @if (detailNotice(); as notice) {
+          <div [class]="'sp-notice sp-notice--' + notice.variant">
+            <div class="sp-notice-body">
+              <strong>{{ notice.title }}</strong>
+              <span>{{ notice.text }}</span>
+            </div>
+          </div>
+        }
+
+        <section class="sp-section">
+          <h3>Suivi</h3>
+          <ol class="sp-timeline">
+            @for (step of timeline(); track step.label) {
+              <li [class]="'sp-step sp-step--' + step.state">
+                <span class="sp-step-dot">
+                  @if (step.state === 'done') { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg> }
+                  @if (step.state === 'failed') { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg> }
+                </span>
+                <span class="sp-step-label">{{ step.label }}</span>
+                <span class="sp-mono sp-sub">{{ formatDateTime(step.date) }}</span>
+              </li>
+            }
+          </ol>
+        </section>
+
+        <section class="sp-section">
+          <h3>Bénéficiaire</h3>
+          <div class="sp-person">
+            <span class="sp-avatar">{{ initials(t.beneficiaryName) }}</span>
+            <div>
+              <div class="sp-strong">{{ t.beneficiaryName || 'Non renseigné' }}</div>
+              @if (t.beneficiaryPhone) { <div class="sp-mono sp-sub">{{ t.beneficiaryPhone }} · Wave</div> }
+            </div>
+          </div>
+        </section>
+
+        <section class="sp-section">
+          <h3>Côté SycaPay</h3>
+          <dl class="sp-dl">
+            <div><dt>Référence SycaPay</dt><dd [class.sp-empty]="!t.sycapayReference" class="sp-mono">{{ t.sycapayReference || 'Non communiquée' }}</dd></div>
+            <div><dt>ID transaction</dt><dd [class.sp-empty]="!t.sycapayTransactionId" class="sp-mono">{{ t.sycapayTransactionId || 'Non communiqué' }}</dd></div>
+            <div><dt>Réponse</dt><dd [class.sp-empty]="t.sycapayResponseCode === null">{{ t.sycapayResponseMessage || (t.sycapayResponseCode !== null ? 'Code ' + t.sycapayResponseCode : '—') }}</dd></div>
+            <div><dt>Code erreur</dt><dd [class.sp-empty]="!t.errorCode" class="sp-mono">{{ t.errorCode || '—' }}</dd></div>
+          </dl>
+        </section>
+      </div>
+
+      <div class="sp-drawer-foot">
+        <button (click)="copyReference()" class="sp-btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg>
+          {{ referenceCopied() ? 'Référence copiée' : 'Copier la référence' }}
+        </button>
+        @if (isReconcilable(t.status)) {
+          <button (click)="reconcileSelected()" [disabled]="reconciling()" class="sp-btn sp-btn--primary sp-btn--grow" type="button">
+            @if (reconciling()) { <c-spinner size="sm" /> } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
+            }
+            Vérifier le statut chez SycaPay
+          </button>
+        }
+      </div>
+    </aside>
+  }
+}
+}

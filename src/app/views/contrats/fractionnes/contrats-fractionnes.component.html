@@ -1,0 +1,239 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Contrats fractionnés</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher un contrat…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par retard">
+      <button (click)="setRetardFilter('all')" [attr.data-active]="retardFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      <button (click)="setRetardFilter('late')" [attr.data-active]="retardFilter() === 'late'" class="dl-pill dl-pill--danger" type="button">
+        En retard <span class="dl-pill-count">{{ totalEnRetard() }}</span>
+      </button>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des contrats fractionnés…</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="dl-empty">Aucun contrat fractionné ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col">N° police</th>
+            <th scope="col">Assuré</th>
+            <th scope="col">Prime</th>
+            <th scope="col">Périodicité</th>
+            <th scope="col">Échéances</th>
+            <th scope="col">Payé</th>
+            <th scope="col">Restant dû</th>
+            <th scope="col">Prochaine échéance</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.contractId) {
+            <tr [class]="item.echeancesEnRetard > 0 ? 'dl-row--danger' : ''">
+              <td><span class="dl-tag">{{ item.policyNumber }}</span></td>
+              <td>{{ item.insuredName }}</td>
+              <td class="dl-timestamp">{{ formatAmount(item.premium) }}</td>
+              <td>{{ periodiciteLabel(item.periodiciteEcheances) }}</td>
+              <td>
+                <div class="d-flex flex-wrap gap-1">
+                  <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>{{ item.echeancesPayees }} payée(s)</span>
+                  <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>{{ item.echeancesEnAttente }} attente</span>
+                  @if (item.echeancesEnRetard > 0) {
+                    <span class="dl-chip dl-chip--danger"><span class="dl-chip-dot"></span>{{ item.echeancesEnRetard }} retard</span>
+                  }
+                </div>
+              </td>
+              <td class="dl-timestamp">{{ formatAmount(item.montantPaye) }}</td>
+              <td class="dl-timestamp">{{ formatAmount(item.montantRestantDu) }}</td>
+              <td class="dl-timestamp">{{ formatDate(item.prochaineEcheanceDate) }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEcheancier(item)" class="dl-icon-btn" title="Voir l'échéancier" type="button">
+                    <svg cIcon name="cilCalendar" size="sm"></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredItems().length }}</strong> sur {{ items().length }} contrats fractionnés</span>
+  </div>
+</section>
+
+<app-modal
+  [visible]="!!selectedContract()"
+  size="lg"
+  title="Échéancier — {{ selectedContract()?.policyNumber }} ({{ selectedContract()?.insuredName }})"
+  (closed)="closeEcheancier()"
+>
+  @if (echeancesError()) {
+    <p class="dl-empty">{{ echeancesError() }}</p>
+  } @else if (echeancesLoading()) {
+    <p class="dl-empty">Chargement de l'échéancier…</p>
+  } @else if (echeances().length === 0) {
+    <p class="dl-empty">Aucune échéance pour ce contrat.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col">N°</th>
+            <th scope="col">Montant</th>
+            <th scope="col">Date d'échéance</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of echeances(); track e.id) {
+            <tr [class]="e.enRetard && e.statut === 'EN_ATTENTE' ? 'dl-row--danger' : ''">
+              <td class="dl-timestamp">{{ e.numeroEcheance }}</td>
+              <td class="dl-timestamp">{{ formatAmount(e.montant) }}</td>
+              <td class="dl-timestamp">{{ formatDate(e.dateEcheance) }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statutVariant(e)">
+                  <span class="dl-chip-dot"></span>{{ statutLabel(e) }}
+                </span>
+              </td>
+              <td>
+                @if (e.statut === 'EN_ATTENTE') {
+                  <button (click)="openPaymentForm(e)" cButton class="dl-btn" size="sm" type="button">
+                    Enregistrer un paiement
+                  </button>
+                } @else if (e.paiementId) {
+                  <button (click)="openProofPanel(e)" cButton class="dl-btn" size="sm" type="button">
+                    <svg cIcon name="cilPaperclip" size="sm"></svg>
+                    Justificatif
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (payingEcheance(); as echeance) {
+      <div class="mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+        @if (payError(); as message) {
+          <app-alert-message class="d-block mb-3" [message]="message" />
+        }
+        <p class="mb-2">
+          Enregistrer le paiement de l'échéance n°{{ echeance.numeroEcheance }} —
+          <strong>{{ formatAmount(echeance.montant) }}</strong>
+        </p>
+        <form [formGroup]="paymentForm" cForm (ngSubmit)="submitPayment()">
+          <div class="row g-3 mb-1">
+            <div class="col-sm-4">
+              <label cLabel for="paiement-date">Date de paiement</label>
+              <input cFormControl formControlName="datePaiement" id="paiement-date" type="date" />
+            </div>
+            <div class="col-sm-4">
+              <label cLabel for="paiement-moyen">Moyen de paiement</label>
+              <input cFormControl formControlName="moyenPaiement" id="paiement-moyen" placeholder="Ex. Virement bancaire, Chèque, Espèces" type="text" />
+            </div>
+            <div class="col-sm-4">
+              <label cLabel for="paiement-reference">Référence (optionnel)</label>
+              <input cFormControl formControlName="reference" id="paiement-reference" type="text" />
+            </div>
+            <div class="col-sm-8">
+              <label cLabel for="paiement-justificatif">Justificatif (optionnel)</label>
+              <input (change)="onPaymentProofSelected($event)" accept=".pdf,image/*" class="form-control" id="paiement-justificatif" type="file" />
+              @if (paymentProofFile(); as file) {
+                <div class="dl-cell-detail mt-1">{{ file.name }} ({{ formatFileSize(file.size) }})</div>
+              }
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-end gap-2 mt-2">
+            <button (click)="cancelPaymentForm()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+            <button [disabled]="paying()" cButton color="primary" type="submit">
+              @if (paying()) {
+                <c-spinner size="sm" />
+              }
+              Valider le paiement
+            </button>
+          </div>
+        </form>
+      </div>
+    }
+
+    @if (proofPanelPaiementId(); as paiementId) {
+      <div class="mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <p class="mb-0">Justificatif du paiement</p>
+          <button (click)="closeProofPanel()" cButton class="dl-btn" size="sm" type="button">Fermer</button>
+        </div>
+        @if (proofError(); as message) {
+          <app-alert-message class="d-block mb-3" [message]="message" />
+        }
+        @if (proofLoading()) {
+          <p class="dl-empty">Chargement…</p>
+        } @else if (proofItems().length === 0) {
+          <p class="dl-empty">Aucun justificatif joint pour ce paiement.</p>
+        } @else {
+          <ul class="list-unstyled d-flex flex-column gap-2 m-0 mb-3">
+            @for (piece of proofItems(); track piece.id) {
+              <li class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+                <svg cIcon class="flex-shrink-0" name="cilFile" size="lg"></svg>
+                <div class="flex-grow-1">
+                  <div>{{ piece.fileName }}</div>
+                  <div class="dl-cell-detail">
+                    {{ formatFileSize(piece.sizeBytes) }} — {{ piece.uploadedBy }}, {{ formatDateTime(piece.createdAt) }}
+                  </div>
+                </div>
+                <button (click)="viewProof(piece)" [disabled]="viewingProofId() === piece.id" cButton class="dl-btn" size="sm" type="button">
+                  @if (viewingProofId() === piece.id) {
+                    <c-spinner size="sm" />
+                  }
+                  Voir
+                </button>
+              </li>
+            }
+          </ul>
+        }
+
+        <label cButton class="dl-btn" [class.disabled]="proofUploading()">
+          @if (proofUploading()) {
+            <c-spinner size="sm" />
+          }
+          Joindre un justificatif
+          <input (change)="onProofSelected($event)" [disabled]="proofUploading()" accept=".pdf,image/*" class="d-none" type="file" />
+        </label>
+      </div>
+    }
+  }
+</app-modal>

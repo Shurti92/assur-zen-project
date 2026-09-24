@@ -1,0 +1,32 @@
+.souscription-row {
+  padding: 1.1rem;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.85rem;
+  background: var(--cui-tertiary-bg);
+}
+
+// .wz-insured-search-box/-clear/-dropdown/-empty/-item/-item-info sont maintenant les classes
+// globales .dl-autocomplete-* (src/scss/_data-list.scss) — promues le 2026-09-02 pour le module
+// Flotte. .wz-insured-search (largeur) et .wz-insured-search-note (message "pré-rempli depuis...")
+// restent ici, propres à cet écran.
+
+.wz-insured-search {
+  max-width: 420px;
+}
+
+.wz-insured-search-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+  color: var(--cui-secondary-color);
+  background: var(--cui-tertiary-bg);
+  border-radius: 0.5rem;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+}

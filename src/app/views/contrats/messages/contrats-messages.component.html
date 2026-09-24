@@ -1,0 +1,132 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Liste des messages SMS</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher une police, un assuré…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des contrats…</p>
+  } @else if (filteredContracts().length === 0) {
+    <p class="dl-empty">Aucun contrat ne correspond à cette recherche.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col">N° police</th>
+            <th scope="col">Assuré</th>
+            <th scope="col">Produit</th>
+            <th scope="col">Dernier message</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (contract of filteredContracts(); track contract.id) {
+            <tr>
+              <td><span class="dl-tag">{{ contract.policyNumber }}</span></td>
+              <td>{{ contract.insuredName }}</td>
+              <td>{{ contract.productName }}</td>
+              <td>
+                @if (summariesLoading()) {
+                  <c-spinner size="sm" />
+                } @else if (summaryFor(contract.id); as summary) {
+                  @if (summary.latest; as latest) {
+                    <span [class]="'dl-chip dl-chip--' + statutVariant(latest.statutEnvoi)">
+                      <span class="dl-chip-dot"></span>{{ statutLabel(latest.statutEnvoi) }}
+                    </span>
+                    <span class="dl-rel">{{ typeLabel(latest.typeMessage) }} · {{ summary.count }} message(s)</span>
+                  } @else {
+                    <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Aucun</span>
+                  }
+                }
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openMessages(contract)" cButton class="dl-btn" size="sm" type="button">
+                    Voir les messages
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredContracts().length }}</strong> sur {{ contracts().length }} contrats</span>
+  </div>
+</section>
+
+<app-modal
+  [visible]="!!selectedContract()"
+  size="lg"
+  title="Messages SMS — {{ selectedContract()?.policyNumber }} ({{ selectedContract()?.insuredName }})"
+  (closed)="closeMessages()"
+>
+  @if (messagesError()) {
+    <p class="dl-empty">{{ messagesError() }}</p>
+  } @else if (messagesLoading()) {
+    <p class="dl-empty">Chargement des messages…</p>
+  } @else if (messages().length === 0) {
+    <p class="dl-empty">Aucun message SMS pour ce contrat.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Téléphone</th>
+            <th scope="col">Message</th>
+            <th scope="col">Date d'envoi</th>
+            <th scope="col">Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (m of messages(); track m.id) {
+            <tr>
+              <td><span class="dl-chip dl-chip--info"><span class="dl-chip-dot"></span>{{ typeLabel(m.typeMessage) }}</span></td>
+              <td class="dl-timestamp">{{ m.telephoneAssure }}</td>
+              <td class="dl-cell">{{ m.message }}</td>
+              <td class="dl-timestamp">{{ formatDate(m.dateEnvoi) }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statutVariant(m.statutEnvoi)">
+                  <span class="dl-chip-dot"></span>{{ statutLabel(m.statutEnvoi) }}
+                </span>
+                @if (m.responseProvider) {
+                  <span class="dl-rel">{{ m.responseProvider }}</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-modal>

@@ -1,0 +1,602 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Souscription produit</h2>
+    </div>
+  </div>
+
+  <div class="mc-body">
+    @if (success(); as result) {
+      <app-alert-message class="d-block mb-3" variant="success" [message]="successSummary(result)" />
+    }
+    @if (error(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    @if (referenceError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    @if (commissionWarning(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    @if (referenceLoading()) {
+      <p class="dl-empty">Chargement des données de référence…</p>
+    } @else {
+      <nav class="wz-stepper" aria-label="Étapes de la souscription">
+        @for (label of steps; track label; let i = $index; let last = $last) {
+          <button
+            (click)="goToStep(i)"
+            [disabled]="i > furthestStep()"
+            [class]="'wz-step' + (i === currentStep() ? ' wz-step--active' : '') + (i < currentStep() ? ' wz-step--done' : '')"
+            type="button"
+          >
+            <span class="wz-step-circle">
+              @if (i < currentStep()) {
+                <svg cIcon name="cilCheck" size="sm"></svg>
+              } @else {
+                {{ i + 1 }}
+              }
+            </span>
+            <span class="wz-step-label">{{ label }}</span>
+          </button>
+          @if (!last) {
+            <span [class]="'wz-step-connector' + (i < currentStep() ? ' wz-step-connector--done' : '')"></span>
+          }
+        }
+      </nav>
+
+      @if (currentStep() < steps.length - 1) {
+        <p class="dl-cell-detail mb-2"><span class="wz-required">*</span> Champ obligatoire</p>
+      }
+
+      <form [formGroup]="form" cForm (ngSubmit)="submit()">
+        <!-- Étape 1 : Assuré -->
+        @if (currentStep() === 0) {
+          <div formGroupName="insured">
+            <h6 class="fw-semibold mb-2">Informations de l'assuré</h6>
+
+            <div class="wz-insured-search mb-3">
+              <label cLabel for="ins-search">Assuré existant (optionnel)</label>
+              <div class="dl-autocomplete-box">
+                <input
+                  autocomplete="off"
+                  cFormControl
+                  formControlName="insuredSearchQuery"
+                  id="ins-search"
+                  placeholder="Rechercher par nom, prénoms ou téléphone…"
+                  type="text"
+                  (blur)="onInsuredSearchBlur()"
+                  (focus)="onInsuredSearchFocus()"
+                  (input)="onInsuredSearchInput($any($event.target).value)"
+                />
+                @if (selectedExistingInsured()) {
+                  <button (click)="clearExistingInsuredSelection()" class="dl-autocomplete-clear" title="Repartir sur un nouveau client" type="button">
+                    <svg cIcon name="cilXCircle" size="sm"></svg>
+                  </button>
+                }
+                @if (insuredSearchOpen()) {
+                  <div class="dl-autocomplete-dropdown">
+                    @if (insuredSearchLoading()) {
+                      <div class="dl-autocomplete-empty"><c-spinner size="sm" /> Recherche…</div>
+                    } @else if (insuredSearchError()) {
+                      <div class="dl-autocomplete-empty">{{ insuredSearchError() }}</div>
+                    } @else if (form.controls.insured.controls.insuredSearchQuery.value.trim().length < 2) {
+                      <div class="dl-autocomplete-empty">Continuez à saisir… (2 caractères minimum)</div>
+                    } @else if (insuredSearchResults().length === 0) {
+                      <div class="dl-autocomplete-empty">Aucun assuré trouvé.</div>
+                    } @else {
+                      @for (result of insuredSearchResults(); track result.id) {
+                        <button (mousedown)="selectExistingInsured(result)" class="dl-autocomplete-item" type="button">
+                          <span class="dl-avatar">{{ initials(result.nom, result.prenoms) }}</span>
+                          <span class="dl-autocomplete-item-info">
+                            <strong>{{ result.nom }} {{ result.prenoms }}</strong>
+                            <span class="dl-cell-detail">{{ result.clientPhone || '—' }} · {{ result.clientCity || '—' }}</span>
+                          </span>
+                        </button>
+                      }
+                    }
+                  </div>
+                }
+              </div>
+              @if (selectedExistingInsured(); as existing) {
+                <p class="wz-insured-search-note">
+                  <svg cIcon name="cilInfo" size="sm"></svg>
+                  Champs pré-remplis depuis l'assuré existant <strong>{{ existing.nom }} {{ existing.prenoms }}</strong> (#{{ existing.id }}). Vous pouvez les modifier. La souscription n'est pas automatiquement rattachée à cette fiche existante.
+                </p>
+              }
+            </div>
+
+            <div class="row g-3 mb-1">
+              <div class="col-sm-6">
+                <label cLabel for="ins-nom">Nom<span class="wz-required">*</span></label>
+                <input cFormControl formControlName="nom" id="ins-nom" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="ins-prenoms">Prénoms<span class="wz-required">*</span></label>
+                <input cFormControl formControlName="prenoms" id="ins-prenoms" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="ins-phone">Téléphone<span class="wz-required">*</span></label>
+                <input cFormControl formControlName="clientPhone" id="ins-phone" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="ins-phone2">2e téléphone (optionnel)</label>
+                <input cFormControl formControlName="clientPhone2" id="ins-phone2" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="ins-city">Ville<span class="wz-required">*</span></label>
+                <input cFormControl formControlName="clientCity" id="ins-city" list="ville-suggestions" autocomplete="off" type="text" />
+                <datalist id="ville-suggestions">
+                  @for (ville of villes(); track ville.id) {
+                    <option [value]="ville.nomVille"></option>
+                  }
+                </datalist>
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="ins-email">Email (optionnel)</label>
+                <input cFormControl formControlName="clientEmail" id="ins-email" type="email" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="ins-type-client">Type de client</label>
+                <select cSelect formControlName="typeClient" id="ins-type-client">
+                  <option value="PARTICULIER">Particulier</option>
+                  <option value="ENTREPRISE">Entreprise</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Étape 2 : Produit -->
+        @if (currentStep() === 1) {
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="fw-semibold mb-0">Produits souscrits</h6>
+            <button (click)="addContractRow()" cButton class="dl-btn" type="button">
+              <svg cIcon name="cilPlus"></svg>Ajouter un produit
+            </button>
+          </div>
+
+          <datalist id="compagnie-suggestions">
+            @for (compagnie of compagnies(); track compagnie.id) {
+              <option [value]="compagnie.nom"></option>
+            }
+          </datalist>
+
+          <div formArrayName="contracts">
+            @for (group of contractsArray.controls; track group; let i = $index) {
+              <div [formGroupName]="i" class="souscription-row mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <strong>Produit {{ i + 1 }}</strong>
+                  @if (contractsArray.length > 1) {
+                    <button (click)="removeContractRow(i)" class="dl-icon-btn dl-icon-btn--danger" title="Retirer ce produit" type="button">
+                      <svg cIcon name="cilTrash" size="sm"></svg>
+                    </button>
+                  }
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-sm-6 col-lg-4">
+                    <label cLabel>Produit<span class="wz-required">*</span></label>
+                    <select (change)="recomputeCommission(i)" cSelect formControlName="productId">
+                      <option [value]="0" disabled>Sélectionner…</option>
+                      @for (produit of produits(); track produit.id) {
+                        <option [value]="produit.id">{{ produit.nomProduit }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-sm-6 col-lg-4">
+                    <label cLabel>Compagnie<span class="wz-required">*</span></label>
+                    <input
+                      (input)="onCompagnieQueryChange(i)"
+                      autocomplete="off"
+                      cFormControl
+                      formControlName="compagnieQuery"
+                      list="compagnie-suggestions"
+                      placeholder="Rechercher une compagnie…"
+                      type="text"
+                    />
+                  </div>
+                  <div class="col-sm-6 col-lg-4">
+                    <label cLabel>Partenaire (optionnel)</label>
+                    <select (change)="recomputeCommission(i)" cSelect formControlName="partenaireId">
+                      <option value="">— Aucun —</option>
+                      @for (partenaire of partenaires(); track partenaire.id) {
+                        <option [value]="partenaire.id">{{ partenaire.nom }} {{ partenaire.prenoms }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-sm-6 col-lg-3">
+                    <label cLabel>Statut du contrat</label>
+                    <select cSelect formControlName="status">
+                      <option value="signed">Signé</option>
+                      <option value="pending">En attente</option>
+                      <option value="draft">Brouillon</option>
+                      <option value="cancelled">Annulé</option>
+                    </select>
+                  </div>
+                  <div class="col-sm-6 col-lg-3">
+                    <label cLabel>N° de police (optionnel)</label>
+                    <input cFormControl formControlName="policyNumber" placeholder="Auto-généré si vide" type="text" />
+                  </div>
+                  <div class="col-sm-6 col-lg-3">
+                    <label cLabel>Commercial (optionnel)</label>
+                    <select cSelect formControlName="salesRepId">
+                      <option value="">— Aucun —</option>
+                      @for (profile of profiles(); track profile.id) {
+                        <option [value]="profile.userId">{{ profile.firstname }} {{ profile.lastname }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-sm-6 col-lg-3">
+                    <label cLabel>Signé le</label>
+                    <input cFormControl formControlName="signedAt" type="date" />
+                  </div>
+
+                  <div class="col-12">
+                    <div class="form-check form-switch">
+                      <input cFormCheckInput formControlName="isRenouvellement" id="renouvellement-{{ i }}" switch type="checkbox" />
+                      <label cLabel for="renouvellement-{{ i }}">C'est un renouvellement d'un contrat existant</label>
+                    </div>
+                  </div>
+                  @if (group.controls.isRenouvellement.value) {
+                    <div class="col-sm-8">
+                      <label cLabel>Contrat précédent (renouvelé par celui-ci)<span class="wz-required">*</span></label>
+                      <select cSelect formControlName="contratPrecedentId">
+                        <option value="" disabled>Sélectionner le contrat à renouveler…</option>
+                        @for (previous of renewableContracts(); track previous.id) {
+                          <option [value]="previous.id">{{ contractLabel(previous) }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                  <div class="col-12">
+                    <label cLabel>Notes (optionnel)</label>
+                    <textarea cFormControl formControlName="notes" rows="2"></textarea>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Étape 3 : Couverture -->
+        @if (currentStep() === 2) {
+          <h6 class="fw-semibold mb-2">Couverture</h6>
+
+          <div formArrayName="contracts">
+            @for (group of contractsArray.controls; track group; let i = $index) {
+              <div [formGroupName]="i" class="souscription-row mb-3">
+                <div class="mb-2">
+                  <strong>Produit {{ i + 1 }}{{ productNameAt(i) ? ' — ' + productNameAt(i) : '' }}</strong>
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label cLabel>Durée (mois)</label>
+                    <select (change)="recomputeEcheance(i)" cSelect formControlName="duree">
+                      <option value="1">1 mois</option>
+                      <option value="3">3 mois</option>
+                      <option value="6">6 mois</option>
+                      <option value="12">12 mois</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label cLabel>Date d'effet<span class="wz-required">*</span></label>
+                    <input (change)="recomputeEcheance(i)" cFormControl formControlName="dateEffet" type="date" />
+                  </div>
+                  <div class="col-md-4">
+                    <label cLabel>Date d'échéance<span class="wz-required">*</span></label>
+                    <input cFormControl formControlName="dateEcheance" type="date" />
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Étape 4 : Paiement -->
+        @if (currentStep() === 3) {
+          <h6 class="fw-semibold mb-2">Paiement</h6>
+
+          <div formArrayName="contracts">
+            @for (group of contractsArray.controls; track group; let i = $index) {
+              <div [formGroupName]="i" class="souscription-row mb-3">
+                <div class="mb-2">
+                  <strong>Produit {{ i + 1 }}{{ productNameAt(i) ? ' — ' + productNameAt(i) : '' }}</strong>
+                  @if (isDirectAt(i)) {
+                    <span class="dl-cell-detail ms-2">(Vente directe — sans partenaire, commission obligatoire)</span>
+                  }
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label cLabel>Mode de paiement</label>
+                    <select cSelect formControlName="modePaiement">
+                      <option value="COMPTANT">Comptant</option>
+                      <option value="FRACTIONNE">Fractionné</option>
+                    </select>
+                  </div>
+                  @if (group.controls.modePaiement.value === 'FRACTIONNE') {
+                    <div class="col-md-4">
+                      <label cLabel>Nombre d'échéances<span class="wz-required">*</span></label>
+                      <input cFormControl formControlName="nombreEcheances" min="2" type="number" />
+                    </div>
+                    <div class="col-md-4">
+                      <label cLabel>Périodicité</label>
+                      <select cSelect formControlName="periodiciteEcheances">
+                        <option value="MENSUELLE">Mensuelle</option>
+                        <option value="TRIMESTRIELLE">Trimestrielle</option>
+                        <option value="SEMESTRIELLE">Semestrielle</option>
+                        <option value="ANNUELLE">Annuelle</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label cLabel>Montant déjà versé (FCFA)</label>
+                      <input cFormControl formControlName="montantDejaVerse" inputmode="numeric" type="text" wzThousandSeparator />
+                      <div class="dl-cell-detail mt-1">Laissez à 0 si rien n'a encore été versé.</div>
+                    </div>
+                    <div class="col-12">
+                      <div class="dl-cell-detail mb-1">
+                        Aperçu de l'échéancier — reste à financer {{ formatAmount(montantRestantAFinancer(i)) }}
+                      </div>
+                      <div class="d-flex flex-wrap gap-2">
+                        @for (echeance of echeancesPreview(i); track echeance.numero) {
+                          <span class="dl-tag">
+                            Échéance {{ echeance.numero }} — {{ formatAmount(echeance.montant) }} — {{ formatDate(echeance.date) }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+                  <div class="col-md-4">
+                    <label cLabel>Prime (FCFA)<span class="wz-required">*</span></label>
+                    <input cFormControl formControlName="premium" inputmode="numeric" type="text" wzThousandSeparator />
+                  </div>
+                  <div class="col-md-4">
+                    <label cLabel>Taux de commission (%)<span class="wz-required">*</span></label>
+                    <input cFormControl formControlName="commissionRate" min="0" step="0.01" type="number" />
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                    <button (click)="recomputeCommission(i)" cButton class="dl-btn w-100" type="button">Recalculer la commission</button>
+                  </div>
+                  <div class="col-md-4">
+                    <label cLabel>Montant de la commission (FCFA)<span class="wz-required">*</span></label>
+                    <input cFormControl formControlName="commissionAmount" inputmode="numeric" type="text" wzThousandSeparator />
+                  </div>
+                  @if (!isDirectAt(i)) {
+                    <div class="col-md-4">
+                      <label cLabel>Part reversée au partenaire (FCFA)<span class="wz-required">*</span></label>
+                      <input cFormControl formControlName="partnerShare" inputmode="numeric" type="text" wzThousandSeparator />
+                    </div>
+                  }
+                  <div class="col-md-4">
+                    <label cLabel>Statut commission</label>
+                    <select cSelect formControlName="commissionStatus">
+                      <option value="pending">En attente</option>
+                      <option value="paid">Payée</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Étape 5 : Récapitulatif -->
+        @if (currentStep() === 4) {
+          <h6 class="fw-semibold mb-2">Récapitulatif</h6>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="mc-kpi-card mc-kpi-card--primary">
+                <span class="mc-kpi-icon">
+                  <svg cIcon name="cilLayers" size="lg"></svg>
+                </span>
+                <div class="mc-kpi-body">
+                  <div class="mc-kpi-value">{{ recapTotals().count }}</div>
+                  <div class="mc-kpi-label">Produit{{ recapTotals().count > 1 ? 's' : '' }} souscrit{{ recapTotals().count > 1 ? 's' : '' }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mc-kpi-card mc-kpi-card--info">
+                <span class="mc-kpi-icon">
+                  <svg cIcon name="cilCreditCard" size="lg"></svg>
+                </span>
+                <div class="mc-kpi-body">
+                  <div class="mc-kpi-value">{{ formatAmount(recapTotals().premium) }}</div>
+                  <div class="mc-kpi-label">Prime totale</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mc-kpi-card mc-kpi-card--success">
+                <span class="mc-kpi-icon">
+                  <svg cIcon name="cilTags" size="lg"></svg>
+                </span>
+                <div class="mc-kpi-body">
+                  <div class="mc-kpi-value">{{ formatAmount(recapTotals().commission) }}</div>
+                  <div class="mc-kpi-label">Commission totale</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <c-accordion [alwaysOpen]="true" class="wz-recap-accordion">
+            <c-accordion-item [visible]="true">
+              <ng-template cTemplateId="accordionHeader">
+                <span class="wz-recap-icon"><svg cIcon name="cilUser" size="lg"></svg></span>
+                <span class="wz-recap-header-title">Assuré</span>
+              </ng-template>
+              <ng-template cTemplateId="accordionBody">
+                <div class="dl-detail-grid">
+                  <div>
+                    <div class="dl-cell-detail">Nom complet</div>
+                    <div>{{ form.controls.insured.controls.nom.value }} {{ form.controls.insured.controls.prenoms.value }}</div>
+                  </div>
+                  <div>
+                    <div class="dl-cell-detail">Téléphone</div>
+                    <div>{{ form.controls.insured.controls.clientPhone.value || '—' }}</div>
+                  </div>
+                  @if (form.controls.insured.controls.clientPhone2.value) {
+                    <div>
+                      <div class="dl-cell-detail">2e téléphone</div>
+                      <div>{{ form.controls.insured.controls.clientPhone2.value }}</div>
+                    </div>
+                  }
+                  <div>
+                    <div class="dl-cell-detail">Ville</div>
+                    <div>{{ form.controls.insured.controls.clientCity.value || '—' }}</div>
+                  </div>
+                  <div>
+                    <div class="dl-cell-detail">Email</div>
+                    <div>{{ form.controls.insured.controls.clientEmail.value || '—' }}</div>
+                  </div>
+                  <div>
+                    <div class="dl-cell-detail">Type de client</div>
+                    <div>{{ typeClientLabel(form.controls.insured.controls.typeClient.value) }}</div>
+                  </div>
+                </div>
+              </ng-template>
+            </c-accordion-item>
+
+            <c-accordion-item [visible]="false">
+              <ng-template cTemplateId="accordionHeader">
+                <span class="wz-recap-icon"><svg cIcon name="cilLayers" size="lg"></svg></span>
+                <span class="wz-recap-header-title">Produit</span>
+              </ng-template>
+              <ng-template cTemplateId="accordionBody">
+                @for (recap of recapContracts(); track recap.index; let last = $last) {
+                  <div [class.mb-3]="!last">
+                    <div class="wz-recap-card-title">Produit {{ recap.index + 1 }} — {{ recap.productName }}</div>
+                    <div class="dl-detail-grid">
+                      <div>
+                        <div class="dl-cell-detail">Compagnie</div>
+                        <div>{{ recap.compagnieName }}</div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">Partenaire</div>
+                        <div>{{ recap.partenaireName }}</div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">Statut</div>
+                        <div>{{ recap.statusLabel }}</div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">N° de police</div>
+                        <div>{{ recap.policyNumber }}</div>
+                      </div>
+                      @if (recap.renouvellementLabel) {
+                        <div>
+                          <div class="dl-cell-detail">Renouvellement</div>
+                          <div>{{ recap.renouvellementLabel }}</div>
+                        </div>
+                      }
+                    </div>
+                    @if (recap.notes) {
+                      <div class="mt-2">
+                        <div class="dl-cell-detail">Notes</div>
+                        <div>{{ recap.notes }}</div>
+                      </div>
+                    }
+                  </div>
+                }
+              </ng-template>
+            </c-accordion-item>
+
+            <c-accordion-item [visible]="false">
+              <ng-template cTemplateId="accordionHeader">
+                <span class="wz-recap-icon"><svg cIcon name="cilCalendar" size="lg"></svg></span>
+                <span class="wz-recap-header-title">Couverture</span>
+              </ng-template>
+              <ng-template cTemplateId="accordionBody">
+                @for (recap of recapContracts(); track recap.index; let last = $last) {
+                  <div [class.mb-3]="!last">
+                    <div class="wz-recap-card-title">Produit {{ recap.index + 1 }} — {{ recap.productName }}</div>
+                    <div class="dl-detail-grid">
+                      <div>
+                        <div class="dl-cell-detail">Durée</div>
+                        <div>{{ recap.duree }}</div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">Date d'effet</div>
+                        <div>{{ formatDate(recap.dateEffet) }}</div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">Date d'échéance</div>
+                        <div>{{ formatDate(recap.dateEcheance) }}</div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">Signé le</div>
+                        <div>{{ formatDate(recap.signedAt) }}</div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </ng-template>
+            </c-accordion-item>
+
+            <c-accordion-item [visible]="false">
+              <ng-template cTemplateId="accordionHeader">
+                <span class="wz-recap-icon"><svg cIcon name="cilCreditCard" size="lg"></svg></span>
+                <span class="wz-recap-header-title">Paiement</span>
+              </ng-template>
+              <ng-template cTemplateId="accordionBody">
+                @for (recap of recapContracts(); track recap.index; let last = $last) {
+                  <div [class.mb-3]="!last">
+                    <div class="wz-recap-card-title">Produit {{ recap.index + 1 }} — {{ recap.productName }}</div>
+                    <div class="dl-detail-grid">
+                      <div>
+                        <div class="dl-cell-detail">Mode de paiement</div>
+                        <div>
+                          {{ recap.modePaiementLabel }}
+                          @if (recap.echeancesInfo) {
+                            <div class="dl-cell-detail">{{ recap.echeancesInfo }}</div>
+                          }
+                        </div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">Prime</div>
+                        <div>{{ formatAmount(recap.premium) }}</div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">Commission</div>
+                        <div>{{ formatAmount(recap.commissionAmount) }} ({{ recap.commissionRate }} %)</div>
+                      </div>
+                      <div>
+                        <div class="dl-cell-detail">Part partenaire</div>
+                        <div>{{ recap.partenaireName === '—' ? 'Sans objet (vente directe)' : formatAmount(recap.partnerShare) }}</div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </ng-template>
+            </c-accordion-item>
+          </c-accordion>
+        }
+
+        <div class="d-flex align-items-center justify-content-between mt-4">
+          <button
+            (click)="prevStep()"
+            [disabled]="currentStep() === 0"
+            cButton
+            color="secondary"
+            type="button"
+            variant="outline"
+          >
+            ← Précédent
+          </button>
+
+          @if (currentStep() < steps.length - 1) {
+            <button (click)="nextStep()" cButton color="primary" type="button">Suivant →</button>
+          } @else {
+            <button [disabled]="saving()" cButton color="primary" type="submit">
+              @if (saving()) {
+                <c-spinner size="sm" />
+              }
+              Enregistrer la souscription
+            </button>
+          }
+        </div>
+      </form>
+    }
+  </div>
+</section>

@@ -1,0 +1,49 @@
+@if (visible()) {
+  <div class="modal-backdrop-custom" (click)="onBackdropClick()">
+    <div
+      (click)="$event.stopPropagation()"
+      [class.modal-card-custom--lg]="size() === 'lg'"
+      [class.modal-card-custom--xl]="size() === 'xl'"
+      [class.modal-card-custom--xxl]="size() === 'xxl'"
+      [class.modal-card-custom--full]="size() === 'full'"
+      [class.modal-card-custom--brand]="variant() === 'brand'"
+      aria-modal="true"
+      class="modal-card-custom"
+      role="dialog"
+    >
+      @if (variant() === 'brand') {
+        <div class="modal-brand-header">
+          <div class="modal-brand-header-row">
+            <div class="modal-brand-header-main">
+              @if (icon()) {
+                <span class="modal-brand-icon"><svg cIcon [name]="icon()" size="xl"></svg></span>
+              }
+              <div>
+                <h5>{{ title() }}</h5>
+                @if (subtitle()) {
+                  <div class="modal-brand-subtitle">{{ subtitle() }}</div>
+                }
+                <ng-content select="[modalHeaderSub]" />
+              </div>
+            </div>
+            <div class="modal-brand-header-side">
+              <ng-content select="[modalHeaderActions]" />
+              <button (click)="closed.emit()" aria-label="Fermer" class="modal-brand-close" type="button">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+              </button>
+            </div>
+          </div>
+          <ng-content select="[modalHeaderExtra]" />
+        </div>
+      } @else {
+        <div class="modal-card-header">
+          <h5>{{ title() }}</h5>
+          <button (click)="closed.emit()" aria-label="Fermer" cButtonClose></button>
+        </div>
+      }
+      <div class="modal-card-body" [class.modal-card-body--flush]="variant() === 'brand'">
+        <ng-content />
+      </div>
+    </div>
+  </div>
+}

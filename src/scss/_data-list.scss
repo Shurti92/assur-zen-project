@@ -1,0 +1,1248 @@
+// Shared chrome for filterable/searchable list pages (logs, audit, and future
+// entity list views): toolbar, filter pills, summary strip, table with a
+// severity/status stripe, soft-tint chips. Semantic colors are generic
+// (success/info/warning/danger/neutral) so each page can map its own domain
+// (log level, audit action, entity status…) onto the same visual language.
+.dl-font-mono {
+  font-family: "Consolas", ui-monospace, "SFMono-Regular", "Cascadia Mono", "Roboto Mono", "Liberation Mono", monospace;
+}
+
+.dl-panel {
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 28px -14px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.dl-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.1rem 1.3rem;
+  border-bottom: 1px solid var(--cui-border-color);
+}
+
+.dl-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-right: auto;
+
+  h2 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    margin: 0;
+  }
+}
+
+.dl-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cui-success-text-emphasis, var(--cui-success));
+  background: var(--cui-success-bg-subtle);
+  padding: 0.22rem 0.55rem 0.22rem 0.45rem;
+  border-radius: 999px;
+}
+
+.dl-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cui-success);
+  animation: dl-pulse 2.2s ease-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes dl-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(var(--cui-success-rgb, 27, 158, 62), 0.45); }
+  70% { box-shadow: 0 0 0 7px rgba(var(--cui-success-rgb, 27, 158, 62), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--cui-success-rgb, 27, 158, 62), 0); }
+}
+
+.dl-search {
+  position: relative;
+  flex: 1 1 220px;
+  max-width: 320px;
+
+  svg {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--cui-secondary-color);
+    pointer-events: none;
+  }
+
+  input {
+    width: 100%;
+    font: inherit;
+    font-size: 0.86rem;
+    padding: 0.5rem 0.75rem 0.5rem 2.05rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--cui-border-color);
+    background: var(--cui-tertiary-bg);
+    color: var(--cui-body-color);
+    outline: none;
+
+    &:focus-visible {
+      border-color: var(--cui-primary);
+      box-shadow: 0 0 0 3px rgba(var(--cui-primary-rgb), 0.2);
+    }
+  }
+}
+
+.dl-pillgroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  background: var(--cui-tertiary-bg);
+  padding: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--cui-border-color);
+}
+
+// Variante pleine largeur — pour un groupe qui remplace un <select>/<input> dans une grille de
+// formulaire (ex. "Type de flotte", "Type d'entité") plutôt qu'un sélecteur d'onglets compact :
+// le cadre occupe toute la largeur de la ligne et chaque pastille se partage l'espace à égalité.
+.dl-pillgroup--stretch {
+  width: 100%;
+
+  .dl-pill {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+
+.dl-pill {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cui-secondary-color);
+  padding: 0.38rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:focus-visible {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: 2px;
+  }
+
+  &[data-active='true'] {
+    background: var(--cui-body-bg);
+    color: var(--cui-emphasis-color, var(--cui-body-color));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  &--success[data-active='true'] { color: var(--cui-success-text-emphasis, var(--cui-success)); }
+  &--info[data-active='true'] { color: var(--cui-info-text-emphasis, var(--cui-info)); }
+  &--warning[data-active='true'] { color: var(--cui-warning-text-emphasis, var(--cui-warning)); }
+  &--danger[data-active='true'] { color: var(--cui-danger-text-emphasis, var(--cui-danger)); }
+
+  // Variante "onglet" — remplissage bleu plein plutôt que le fond blanc/ombre discret par
+  // défaut. Pour les groupes de pastilles qui font office de vrais onglets de section
+  // (ex. modale détail Partenaire, modale Contrats de Commissions), pas les filtres de liste.
+  &--solid[data-active='true'] {
+    background: var(--cui-primary);
+    color: #fff;
+    box-shadow: none;
+  }
+}
+
+.dl-pill-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.dl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.dl-btn {
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dl-btn-primary {
+  background: var(--cui-primary);
+  border-color: var(--cui-primary);
+  color: #fff;
+}
+
+.dl-btn-toggle {
+  border: 1px solid var(--cui-border-color);
+  border-radius: var(--cui-border-radius, 0.5625rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--cui-body-bg);
+  color: var(--cui-secondary-color);
+  padding: 0.42rem 0.75rem;
+
+  &[data-active='true'] {
+    border-color: var(--cui-primary);
+    color: var(--cui-primary);
+    background: rgba(var(--cui-primary-rgb), 0.06);
+  }
+
+  .dl-pill-count {
+    background: var(--cui-primary);
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.05rem 0.4rem;
+    opacity: 1;
+  }
+}
+
+.dl-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 1.1rem 1.25rem;
+  padding: 1rem 1.3rem;
+  background: var(--cui-tertiary-bg);
+  border-bottom: 1px solid var(--cui-border-color);
+
+  // Inside the "Filtres avancés" modal, the modal body already supplies its
+  // own padding/surface — the drawer's tint and border would just double up.
+  // The modal has more room to breathe than the inline strip, so its fields
+  // get a bit more space too.
+  &--modal {
+    padding: 0;
+    background: transparent;
+    border-bottom: none;
+    gap: 1.4rem 1.5rem;
+  }
+}
+
+.dl-filters-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.6rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--cui-border-color);
+}
+
+.dl-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--cui-secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  select,
+  input {
+    font: inherit;
+    font-size: 0.86rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--cui-border-color);
+    background: var(--cui-body-bg);
+    color: var(--cui-body-color);
+    outline: none;
+
+    &:focus-visible {
+      border-color: var(--cui-primary);
+      box-shadow: 0 0 0 3px rgba(var(--cui-primary-rgb), 0.2);
+    }
+  }
+}
+
+.dl-chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0 1.3rem 1rem;
+}
+
+.dl-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(var(--cui-primary-rgb), 0.08);
+  color: var(--cui-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.25rem 0.4rem 0.25rem 0.65rem;
+  border-radius: 999px;
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(var(--cui-primary-rgb), 0.16);
+    color: inherit;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover { background: rgba(var(--cui-primary-rgb), 0.28); }
+  }
+}
+
+// Avatar-style initials badge for the "Assuré" table cell.
+.dl-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(var(--cui-primary-rgb), 0.12);
+  color: var(--cui-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+
+  // Larger identity avatar for detail-modal headers.
+  &--lg {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.05rem;
+  }
+}
+
+// Icon + label/value pair used in richer detail-modal headers (e.g. assuré, contrat).
+.dl-identity-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.86rem;
+
+  svg {
+    flex-shrink: 0;
+    color: var(--cui-secondary-color);
+  }
+}
+
+.dl-row--flagged { --row-accent: var(--brand-orange); }
+
+.dl-insured {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dl-insured-name {
+  font-weight: 700;
+}
+
+.dl-insured-meta {
+  font-size: 0.76rem;
+  color: var(--cui-secondary-color);
+}
+
+// Two-column key/value grid used in read-only detail modals (contract, claim…).
+.dl-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dl-row-actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.dl-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--cui-border-color);
+  background: var(--cui-body-bg);
+  color: var(--cui-secondary-color);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: var(--cui-tertiary-bg);
+    color: var(--cui-body-color);
+  }
+
+  &--danger:hover {
+    background: var(--cui-danger-bg-subtle);
+    color: var(--cui-danger);
+    border-color: var(--cui-danger);
+  }
+}
+
+.dl-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.5rem;
+  padding: 0.85rem 1.3rem;
+  background: var(--cui-tertiary-bg);
+  border-bottom: 1px solid var(--cui-border-color);
+  font-size: 0.8rem;
+
+  dl {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin: 0;
+  }
+
+  dt {
+    color: var(--cui-secondary-color);
+    font-weight: 500;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    @extend .dl-font-mono;
+  }
+}
+
+.dl-stat--success { color: var(--cui-success); }
+.dl-stat--warning { color: var(--cui-warning); }
+.dl-stat--danger { color: var(--cui-danger); }
+
+.dl-empty {
+  margin: 0;
+  padding: 1.5rem 1.3rem;
+  color: var(--cui-secondary-color);
+}
+
+.dl-table-scroll {
+  overflow-x: auto;
+}
+
+.dl-panel table,
+.dl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--cui-body-bg);
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--cui-secondary-color);
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--cui-border-color);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--cui-border-color);
+    box-shadow: inset 3px 0 0 0 var(--row-accent, transparent);
+    transition: background 0.12s ease;
+
+    &:last-child { border-bottom: none; }
+
+    &:hover {
+      background: rgba(var(--cui-primary-rgb), 0.05);
+    }
+
+    &.dl-row--danger { --row-accent: var(--cui-danger); }
+    &.dl-row--warning { --row-accent: var(--cui-warning); }
+  }
+
+  td {
+    padding: 0.65rem 1rem;
+    vertical-align: top;
+    color: var(--cui-body-color);
+  }
+}
+
+// Compact contract/history tables embedded inside a modal (no surrounding
+// .dl-panel to inherit from) — same language as .dl-table, slightly airier
+// rows and a faint zebra stripe since these lists are read at a glance.
+.dl-table--modal {
+  thead th {
+    position: static;
+    background: transparent;
+    padding-top: 0;
+  }
+
+  tbody tr {
+    &:nth-child(even) {
+      background: var(--cui-tertiary-bg);
+    }
+
+    &:hover {
+      background: rgba(var(--cui-primary-rgb), 0.06);
+    }
+  }
+
+  td {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+}
+
+.dl-timestamp {
+  @extend .dl-font-mono;
+  font-variant-numeric: tabular-nums;
+  color: var(--cui-secondary-color);
+  white-space: nowrap;
+}
+
+.dl-rel {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--cui-secondary-color);
+  opacity: 0.75;
+}
+
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+
+  &--neutral { background: var(--cui-secondary-bg-subtle); color: var(--cui-secondary-text-emphasis, var(--cui-secondary)); }
+  &--success { background: var(--cui-success-bg-subtle); color: var(--cui-success-text-emphasis, var(--cui-success)); }
+  &--info { background: var(--cui-info-bg-subtle); color: var(--cui-info-text-emphasis, var(--cui-info)); }
+  &--warning { background: var(--cui-warning-bg-subtle); color: var(--cui-warning-text-emphasis, var(--cui-warning)); }
+  &--danger { background: var(--cui-danger-bg-subtle); color: var(--cui-danger-text-emphasis, var(--cui-danger)); }
+}
+
+.dl-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dl-tag {
+  @extend .dl-font-mono;
+  font-size: 0.78rem;
+  color: var(--cui-body-color);
+  background: var(--cui-tertiary-bg);
+  border: 1px solid var(--cui-border-color);
+  padding: 0.16rem 0.45rem;
+  border-radius: 0.4rem;
+  white-space: nowrap;
+}
+
+.dl-code-block {
+  @extend .dl-font-mono;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.78rem;
+  color: var(--cui-body-color);
+  background: var(--cui-tertiary-bg);
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.5rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.dl-cell {
+  line-height: 1.5;
+  max-width: 32rem;
+}
+
+.dl-cell-detail {
+  margin-top: 0.15rem;
+  @extend .dl-font-mono;
+  font-size: 0.78rem;
+  color: var(--cui-secondary-color);
+}
+
+.dl-footnote {
+  padding: 0.9rem 1.3rem;
+  font-size: 0.78rem;
+  color: var(--cui-secondary-color);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  strong {
+    color: var(--cui-body-color);
+    @extend .dl-font-mono;
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 720px) {
+  .dl-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dl-toolbar-title {
+    margin-right: 0;
+  }
+
+  .dl-search {
+    max-width: none;
+    // In column mode the flex-basis above applies to height, not width — reset it
+    // so the search box doesn't stretch to a tall box with its icon floating inside.
+    flex: 1 1 auto;
+  }
+}
+
+// ---------- Champ de recherche avec suggestions (autocomplétion) ----------
+// Générique — utilisé pour tout champ "rechercher puis sélectionner un enregistrement"
+// (ex. assuré) plutôt qu'un <select> listant des centaines d'options. Initialement écrit
+// dans souscription.component.scss (préfixe wz-), promu ici en 2026-09-02 quand un
+// deuxième écran (Flotte) en a eu besoin.
+
+.dl-autocomplete-box {
+  position: relative;
+}
+
+.dl-autocomplete-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--cui-secondary-color);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--cui-danger);
+    background: var(--cui-tertiary-bg);
+  }
+}
+
+.dl-autocomplete-dropdown {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.6rem;
+  background: var(--cui-body-bg);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+}
+
+.dl-autocomplete-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--cui-secondary-color);
+}
+
+.dl-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--cui-tertiary-bg);
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--cui-border-color);
+  }
+}
+
+.dl-autocomplete-item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  strong {
+    font-size: 0.88rem;
+  }
+}
+
+// Ligne "Créer un nouvel assuré «…»" ajoutée en fin de liste — offre la création à la volée
+// sans quitter le champ de recherche (Flotte, 2026-09-02).
+.dl-autocomplete-item--create {
+  color: var(--cui-primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-top: 1px solid var(--cui-border-color);
+}
+
+// État "résolu" de dl-autocomplete-box une fois qu'un enregistrement est sélectionné —
+// remplace le champ de recherche par une fiche (avatar + libellé + sous-info), pour ne pas
+// laisser un champ texte muet une fois rempli (modale Nouvelle flotte, 2026-09-09).
+.dl-autocomplete-picked {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid var(--cui-border-color);
+  border-radius: var(--cui-border-radius, 0.5625rem);
+  background: var(--cui-tertiary-bg);
+  padding: 0.5rem 0.6rem;
+}
+
+.dl-autocomplete-picked-info {
+  min-width: 0;
+  flex: 1 1 auto;
+
+  strong {
+    display: block;
+    font-size: 0.88rem;
+  }
+}
+
+.dl-autocomplete-picked-change {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: none;
+  background: none;
+  color: var(--cui-secondary-color);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--cui-primary);
+    background: rgba(var(--cui-primary-rgb), 0.08);
+  }
+}
+
+// Barre d'occupation générique (ex. véhicules actifs / total d'une flotte) — largeur du
+// remplissage pilotée par la variable inline --dl-progress-value (ex. "40%"), 2026-09-13.
+.dl-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cui-tertiary-bg);
+  overflow: hidden;
+}
+
+.dl-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cui-primary);
+  width: var(--dl-progress-value, 0%);
+}
+
+// ---------- Formulaire en sections nommées (remplace une grille plate de champs) ----------
+// Introduit pour la modale Nouvelle flotte (2026-09-09), pensé générique pour tout formulaire
+// de modale un peu long.
+.dl-form-section {
+  padding: 1rem 0;
+  border-top: 1px solid var(--cui-border-color);
+
+  &:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+}
+
+.dl-form-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cui-secondary-color);
+  margin-bottom: 0.85rem;
+}
+
+// Champ avec icône de contexte à gauche (téléphone, email, n° de flotte…).
+.dl-field-icon {
+  position: relative;
+
+  svg {
+    position: absolute;
+    left: 0.7rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--cui-secondary-color);
+    pointer-events: none;
+  }
+
+  input,
+  select {
+    padding-left: 2.1rem !important;
+  }
+}
+
+// Bloc "période" — début et fin reliés visuellement plutôt que deux dates isolées.
+.dl-period {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--cui-border-color);
+  border-radius: var(--cui-border-radius, 0.5625rem);
+  padding: 0.4rem 0.65rem;
+
+  > svg:first-child {
+    flex-shrink: 0;
+    color: var(--cui-secondary-color);
+  }
+}
+
+.dl-period-arrow {
+  flex-shrink: 0;
+  color: var(--cui-secondary-color);
+}
+
+.dl-period-field {
+  flex: 1 1 0;
+  min-width: 0;
+
+  span {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--cui-secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.1rem;
+  }
+
+  input {
+    border: none !important;
+    padding: 0 !important;
+    background: none !important;
+
+    &:focus {
+      box-shadow: none !important;
+    }
+  }
+}
+
+// ---------- Sélecteur fermé cliquable (variante bouton de .dl-chip) ----------
+// Contour neutre au repos, se remplit de la couleur sémantique une fois actif — utilisé pour
+// des échelles fermées comme le niveau de confidentialité GED (modale Déposer un document,
+// 2026-09-09). Réutilise les tokens *-bg-subtle/*-text-emphasis déjà utilisés par .dl-chip.
+.dl-chip-toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+// Variante pleine largeur — même idée que .dl-pillgroup--stretch, pour un groupe de chips qui
+// remplace un <select> dans une grille de formulaire (ex. "Niveau de confidentialité") plutôt
+// qu'une rangée de filtres/tags dont la largeur suit son contenu.
+.dl-chip-toggle-group--stretch {
+  .dl-chip-toggle {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+
+.dl-chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1.5px solid var(--cui-border-color);
+  background: var(--cui-body-bg);
+  color: var(--cui-secondary-color);
+  cursor: pointer;
+
+  &[data-active='true'] {
+    border-color: transparent;
+  }
+
+  &--neutral[data-active='true'] { background: var(--cui-secondary-bg-subtle); color: var(--cui-secondary-text-emphasis, var(--cui-secondary)); }
+  &--success[data-active='true'] { background: var(--cui-success-bg-subtle); color: var(--cui-success-text-emphasis, var(--cui-success)); }
+  &--info[data-active='true'] { background: var(--cui-info-bg-subtle); color: var(--cui-info-text-emphasis, var(--cui-info)); }
+  &--warning[data-active='true'] { background: var(--cui-warning-bg-subtle); color: var(--cui-warning-text-emphasis, var(--cui-warning)); }
+  &--danger[data-active='true'] { background: var(--cui-danger-bg-subtle); color: var(--cui-danger-text-emphasis, var(--cui-danger)); }
+}
+
+// ---------- Zone de dépôt de fichier (remplace l'input file natif) ----------
+// Modale Déposer un document (GED, 2026-09-09) — l'input natif reste dans le DOM (caché),
+// piloté via une ref de template ; ce bouton ne fait que déclencher son .click().
+.dl-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.3rem;
+  width: 100%;
+  border: 1.5px dashed var(--cui-border-color);
+  border-radius: var(--cui-border-radius-lg, 0.875rem);
+  padding: 1.4rem 1rem;
+  background: var(--cui-tertiary-bg);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  svg {
+    color: var(--cui-primary);
+    width: 26px;
+    height: 26px;
+  }
+
+  strong {
+    font-size: 0.86rem;
+  }
+
+  span {
+    font-size: 0.78rem;
+    color: var(--cui-secondary-color);
+  }
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--cui-primary);
+    background: rgba(var(--cui-primary-rgb), 0.06);
+  }
+}
+
+// Fiche du fichier retenu — remplace le texte système "Aucun fichier choisi" une fois un
+// fichier sélectionné (par la zone de dépôt ci-dessus ou un glisser-déposer).
+.dl-file-picked {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--cui-border-color);
+  border-radius: var(--cui-border-radius, 0.5625rem);
+  background: var(--cui-tertiary-bg);
+  padding: 0.6rem 0.75rem;
+}
+
+.dl-file-picked-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.65rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-orange-soft);
+  color: var(--brand-orange);
+}
+
+.dl-file-picked-info {
+  min-width: 0;
+  flex: 1 1 auto;
+
+  strong {
+    display: block;
+    font-size: 0.86rem;
+  }
+}
+
+.dl-file-picked-change {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--cui-secondary-color);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--cui-primary);
+    background: rgba(var(--cui-primary-rgb), 0.08);
+  }
+}
+
+// Liste de sélection recherchable (ex. choix d'un partenaire/commercial apporteur) — boutons
+// empilés dans un cadre scrollable, un seul sélectionnable à la fois via [attr.data-active].
+.dl-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--cui-border-color);
+  border-radius: var(--cui-border-radius-lg, 0.875rem);
+  padding: 0.5rem;
+}
+
+.dl-pick-item {
+  text-align: left;
+  border: 1.5px solid transparent;
+  border-radius: var(--cui-border-radius, 0.5625rem);
+  background: var(--cui-tertiary-bg);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: rgba(var(--cui-primary-rgb), 0.4);
+  }
+
+  &[data-active='true'] {
+    border-color: var(--cui-primary);
+    background: rgba(var(--cui-primary-rgb), 0.08);
+    color: var(--cui-primary);
+  }
+}
+
+// Bandeau de résultat inline (ex. confirmation "Vérifier" sur une entité associée) — remplace
+// une simple ligne dl-cell-detail par un résultat visible au premier coup d'œil.
+.dl-inline-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--cui-border-radius, 0.5625rem);
+  font-size: 0.82rem;
+  font-weight: 600;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  &--success { background: var(--cui-success-bg-subtle); color: var(--cui-success-text-emphasis, var(--cui-success)); }
+  &--danger { background: var(--cui-danger-bg-subtle); color: var(--cui-danger-text-emphasis, var(--cui-danger)); }
+  &--info { background: var(--cui-info-bg-subtle, rgba(var(--cui-primary-rgb), 0.08)); color: var(--cui-info-text-emphasis, var(--cui-primary)); }
+}
+
+// ---------- Champ avec suffixe fixe (ex. montant en FCFA) ----------
+.dl-field-suffix {
+  position: relative;
+
+  input {
+    padding-right: 3.4rem !important;
+  }
+
+  span {
+    position: absolute;
+    right: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--cui-secondary-color);
+    pointer-events: none;
+  }
+}
+
+// ---------- Ligne d'aperçu identité (avatar + nom en direct) — Assuré/Commercial, 2026-09-09 ----------
+.dl-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+
+  .dl-avatar-info {
+    strong {
+      display: block;
+      font-size: 0.92rem;
+    }
+
+    span {
+      font-size: 0.78rem;
+      color: var(--cui-secondary-color);
+    }
+  }
+}
+
+// ---------- Carte "avantage" à bascule (ex. prime de transport/téléphone) ----------
+// Remplace un bloc gris neutre par une carte identifiable par icône, tout en gardant le même
+// contrôle form-check/switch CoreUI existant à l'intérieur.
+.dl-benefit-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid var(--cui-border-color);
+  border-radius: var(--cui-border-radius, 0.5625rem);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--cui-body-bg);
+}
+
+.dl-benefit-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.65rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-orange-soft);
+  color: var(--brand-orange);
+}
+
+.dl-benefit-body {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 0.86rem;
+  }
+
+  input {
+    margin-top: 0.6rem;
+  }
+}
+
+.dl-benefit-switch {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+// Frise des rappels d'échéance d'un contrat de flotte (onglet Échéances) — introduit le
+// 2026-09-13 pour remplacer une liste plate de chips par un vrai calendrier de suivi.
+.dl-timeline-card {
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.dl-timeline-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  background: var(--cui-tertiary-bg);
+  border-bottom: 1px solid var(--cui-border-color);
+}
+
+.dl-timeline-head-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+
+  strong {
+    font-size: 0.88rem;
+  }
+}
+
+.dl-timeline-body {
+  padding: 0.9rem 1rem 1rem;
+}
+
+.dl-timeline-due {
+  font-size: 0.78rem;
+  color: var(--cui-secondary-color);
+  margin-bottom: 0.7rem;
+
+  strong {
+    color: var(--cui-body-color);
+  }
+}
+
+.dl-timeline-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3rem 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding-bottom: 1rem;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 1.5rem;
+    top: 1.7rem;
+    bottom: -0.3rem;
+    width: 2px;
+    background: var(--cui-border-color);
+    transform: translateX(-50%);
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+
+    &::before {
+      display: none;
+    }
+  }
+}
+
+.dl-timeline-dot {
+  @extend .dl-font-mono;
+  min-width: 2.15rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 0.64rem;
+  font-weight: 700;
+  background: rgba(var(--cui-primary-rgb), 0.12);
+  color: var(--cui-primary);
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+
+  &--final {
+    background: var(--brand-orange-soft);
+    color: var(--brand-orange);
+  }
+}
+
+.dl-timeline-type {
+  display: block;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.dl-timeline-date {
+  font-size: 0.78rem;
+  color: var(--cui-secondary-color);
+}

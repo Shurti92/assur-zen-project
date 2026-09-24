@@ -1,0 +1,125 @@
+<section class="dl-panel mb-3">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Grand livre</h2>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetchComptes()" [disabled]="comptesLoading()" cButton class="dl-btn" type="button">
+        @if (comptesLoading()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="refresh" size="sm"></svg>
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  <div class="mc-body">
+    @if (comptesError()) {
+      <p class="dl-empty m-0">{{ comptesError() }} <button (click)="fetchComptes()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else {
+      <div class="row g-3">
+        <div class="col-sm-6 col-lg-4">
+          <label cLabel for="gl-compte">Compte</label>
+          <select
+            cSelect
+            id="gl-compte"
+            [disabled]="comptesLoading()"
+            (change)="onCompteSelected($any($event.target).value)"
+          >
+            <option value="">Sélectionner un compte…</option>
+            @for (compte of comptes(); track compte.id) {
+              <option [value]="compte.id">{{ compte.code }} — {{ compte.libelle }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    }
+
+    @if (!selectedCompteId()) {
+      <p class="dl-empty m-0">Sélectionnez un compte ci-dessus pour afficher son grand livre.</p>
+    } @else {
+      <c-row class="g-3">
+        <c-col sm="6" xl="3">
+          <div class="mc-kpi-card mc-kpi-card--primary">
+            <span class="mc-kpi-icon"><svg cIcon name="cilList" size="lg"></svg></span>
+            <div class="mc-kpi-body">
+              <div class="mc-kpi-value">{{ lines().length }}</div>
+              <div class="mc-kpi-label">Mouvements</div>
+            </div>
+          </div>
+        </c-col>
+        <c-col sm="6" xl="3">
+          <div class="mc-kpi-card mc-kpi-card--primary">
+            <span class="mc-kpi-icon"><svg cIcon name="dollar" size="lg"></svg></span>
+            <div class="mc-kpi-body">
+              <div class="mc-kpi-value">{{ formatAmount(statTotalDebit()) }}</div>
+              <div class="mc-kpi-label">Total débit</div>
+            </div>
+          </div>
+        </c-col>
+        <c-col sm="6" xl="3">
+          <div class="mc-kpi-card mc-kpi-card--primary">
+            <span class="mc-kpi-icon"><svg cIcon name="trendUp" size="lg"></svg></span>
+            <div class="mc-kpi-body">
+              <div class="mc-kpi-value">{{ formatAmount(statTotalCredit()) }}</div>
+              <div class="mc-kpi-label">Total crédit</div>
+            </div>
+          </div>
+        </c-col>
+        <c-col sm="6" xl="3">
+          <div class="mc-kpi-card mc-kpi-card--flag">
+            <span class="mc-kpi-icon"><svg cIcon name="targetCheck" size="lg"></svg></span>
+            <div class="mc-kpi-body">
+              <div class="mc-kpi-value">{{ formatAmount(statSolde()) }}</div>
+              <div class="mc-kpi-label">Solde — {{ selectedCompte()?.code }}</div>
+            </div>
+          </div>
+        </c-col>
+      </c-row>
+
+      @if (linesError()) {
+        <p class="dl-empty m-0">{{ linesError() }}</p>
+      } @else if (linesLoading()) {
+        <p class="dl-empty m-0">Chargement du grand livre…</p>
+      } @else if (lines().length === 0) {
+        <p class="dl-empty m-0">Aucun mouvement pour ce compte.</p>
+      } @else {
+        <div class="dl-table-scroll">
+          <table class="dl-table">
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Référence</th>
+                <th scope="col">Type</th>
+                <th scope="col">Libellé</th>
+                <th scope="col">Débit</th>
+                <th scope="col">Crédit</th>
+                <th scope="col">Solde progressif</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of lines(); track $index) {
+                <tr>
+                  <td class="dl-timestamp">{{ formatDate(line.dateEcriture) }}</td>
+                  <td><span class="dl-tag">{{ line.ecritureReference }}</span></td>
+                  <td>
+                    <span [class]="'dl-chip dl-chip--' + typeVariant(line.typeOperation)">
+                      <span class="dl-chip-dot"></span>{{ typeLabel(line.typeOperation) }}
+                    </span>
+                  </td>
+                  <td>{{ line.libelle }}</td>
+                  <td class="dl-timestamp">{{ line.montantDebit ? formatAmount(line.montantDebit) : '—' }}</td>
+                  <td class="dl-timestamp">{{ line.montantCredit ? formatAmount(line.montantCredit) : '—' }}</td>
+                  <td class="dl-timestamp">{{ formatAmount(line.soldeProgressif) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </div>
+</section>

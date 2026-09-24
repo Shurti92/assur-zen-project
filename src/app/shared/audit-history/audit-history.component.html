@@ -1,0 +1,21 @@
+@if (loading()) {
+  <p class="dl-empty">Chargement de l'historique…</p>
+} @else if (unavailable()) {
+  <p class="dl-empty">Historique indisponible pour le moment.</p>
+} @else if (events().length === 0) {
+  <p class="dl-empty">Aucun évènement pour le moment.</p>
+} @else {
+  <ul class="list-unstyled d-flex flex-column gap-2">
+    @for (event of events(); track event.id) {
+      <li class="dl-cell-detail">
+        <span [class]="'dl-chip dl-chip--' + actionVariant[event.action]">
+          <span class="dl-chip-dot"></span>{{ actionLabel[event.action] }}
+        </span>
+        @if (event.description) { — {{ event.description }} }
+        @else if (event.motif) { — {{ event.motif }} }
+        @if (event.username) { <span>par {{ event.username }}</span> }
+        <div>{{ formatDateTime(event.createdAt) }}</div>
+      </li>
+    }
+  </ul>
+}

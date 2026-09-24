@@ -1,0 +1,117 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Historique des connexions</h2>
+    </div>
+    <div class="dl-actions">
+      <button (click)="refresh()" [disabled]="loading() || statsLoading()" cButton class="dl-btn" type="button">
+        @if (loading() || statsLoading()) { <c-spinner size="sm" /> } @else { <svg cIcon name="refresh" size="sm"></svg> }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  <div class="mc-body">
+    @if (statsError()) {
+      <p class="dl-empty">{{ statsError() }} <button (click)="fetchStatistics()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else {
+      <c-row class="g-3">
+        @for (kpi of kpis(); track kpi.key) {
+          <c-col sm="6" xl="4">
+            <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+              <div class="ldb-kpi-head">
+                <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                <span class="ldb-kpi-icon">
+                  <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                </span>
+              </div>
+              <div class="ldb-kpi-value">
+                @if (statsLoading()) { <c-spinner size="sm" /> } @else { {{ kpi.value }} }
+              </div>
+            </div>
+          </c-col>
+        }
+      </c-row>
+    }
+  </div>
+
+  <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" cForm class="dl-filters">
+    <div class="dl-filter-field">
+      <label for="hc-date-debut">Date début</label>
+      <input cFormControl formControlName="dateDebut" id="hc-date-debut" type="date" />
+    </div>
+    <div class="dl-filter-field">
+      <label for="hc-date-fin">Date fin</label>
+      <input cFormControl formControlName="dateFin" id="hc-date-fin" type="date" />
+    </div>
+    <div class="dl-filter-field">
+      <label for="hc-user-id">ID utilisateur</label>
+      <input cFormControl formControlName="userId" id="hc-user-id" type="number" />
+    </div>
+    <div class="dl-filter-field">
+      <label for="hc-partenaire-id">ID partenaire</label>
+      <input cFormControl formControlName="partenaireId" id="hc-partenaire-id" type="number" />
+    </div>
+    <div class="dl-filter-field justify-content-end">
+      <div class="d-flex gap-2">
+        <button cButton class="dl-btn" type="button" (click)="resetFilters()">Réinitialiser</button>
+        <button cButton class="dl-btn dl-btn-primary" type="submit">Rechercher</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="dl-cell-detail px-3 pt-3">
+    <strong>{{ formatInt(totalElements()) }}</strong> connexion(s)
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetchLogs()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement de l'historique des connexions…</p>
+  } @else if (items().length === 0) {
+    <p class="dl-empty">Aucune connexion ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Date/heure</th>
+            <th scope="col">Utilisateur</th>
+            <th scope="col">IP</th>
+            <th scope="col">Device</th>
+            <th scope="col">Navigateur</th>
+            <th scope="col">OS</th>
+            <th scope="col">Localisation</th>
+            <th scope="col">FAI</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td class="dl-timestamp">{{ formatDateTime(item.dateHeure) }}</td>
+              <td>{{ item.username ?? '—' }}</td>
+              <td>{{ item.ip ?? '—' }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + deviceVariant(item.deviceType)">
+                  <span class="dl-chip-dot"></span>{{ deviceLabel(item.deviceType) }}
+                </span>
+              </td>
+              <td>{{ item.browser ?? '—' }}</td>
+              <td>{{ item.os ?? '—' }}</td>
+              <td>{{ localisation(item) }}</td>
+              <td>{{ item.isp ?? '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="dl-footnote">
+      <span>Page {{ pageIndex() + 1 }} sur {{ totalPages() }}</span>
+      <div class="dl-actions">
+        <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+</section>

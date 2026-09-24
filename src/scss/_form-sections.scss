@@ -1,0 +1,103 @@
+// Shared visual language for sectioned forms (declare-sinistre, sinistre follow-up…):
+// icon+title section headers, a right-hand sticky "récapitulatif" card, and a
+// textarea character counter. Reused across any form that benefits from grouping
+// fields into labeled blocks instead of one flat grid.
+
+.fs-section {
+  padding-bottom: 1.4rem;
+  margin-bottom: 1.4rem;
+  border-bottom: 1px solid var(--cui-border-color);
+
+  &:last-of-type {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+  }
+}
+
+.fs-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+
+  svg {
+    color: var(--cui-primary);
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-size: 0.92rem;
+    font-weight: 700;
+    margin: 0;
+  }
+}
+
+.fs-counter {
+  display: block;
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--cui-secondary-color);
+  margin-top: 0.25rem;
+}
+
+.fs-preview {
+  position: sticky;
+  top: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.85rem;
+  background: var(--cui-tertiary-bg);
+}
+
+.fs-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+
+  svg {
+    color: var(--cui-primary);
+  }
+}
+
+.fs-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.6rem;
+  padding: 1.5rem 0.5rem;
+  color: var(--cui-secondary-color);
+  font-size: 0.85rem;
+
+  svg {
+    opacity: 0.5;
+  }
+}
+
+.fs-preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--cui-border-color);
+  font-size: 0.85rem;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  dt {
+    color: var(--cui-secondary-color);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    text-align: right;
+  }
+}

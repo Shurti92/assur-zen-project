@@ -1,0 +1,596 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>{{ title() }}</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Vue">
+      <button (click)="setView('dashboard')" [attr.data-active]="view() === 'dashboard'" class="dl-pill" type="button">Tableau de bord</button>
+      <button (click)="setView('configurations')" [attr.data-active]="view() === 'configurations'" class="dl-pill" type="button">Configurations</button>
+      <button (click)="setView('categories')" [attr.data-active]="view() === 'categories'" class="dl-pill" type="button">Catégories</button>
+      <button (click)="setView('modules')" [attr.data-active]="view() === 'modules'" class="dl-pill" type="button">Modules</button>
+      <button (click)="setView('historique')" [attr.data-active]="view() === 'historique'" class="dl-pill" type="button">Historique</button>
+    </div>
+
+    @if (view() === 'configurations') {
+      <div class="dl-actions">
+        <button (click)="refreshAll()" [disabled]="refreshingAll()" cButton class="dl-btn" type="button">
+          @if (refreshingAll()) { <c-spinner size="sm" /> } @else { <svg cIcon name="refresh" size="sm"></svg> }
+          Tout rafraîchir
+        </button>
+        <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouvelle configuration
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }}</p>
+  }
+
+  <!-- ================= Tableau de bord ================= -->
+  @if (view() === 'dashboard') {
+    @if (allConfigsLoading()) {
+      <p class="dl-empty">Chargement du tableau de bord…</p>
+    } @else {
+      <div class="mc-body">
+        <div>
+          <div class="mc-section-head">
+            <h3>Indicateurs clés</h3>
+          </div>
+          <div class="row g-3">
+            <div class="col-sm-6 col-xl-4">
+              <div class="ldb-kpi-card ldb-kpi-card--primary">
+                <div class="ldb-kpi-head"><span class="ldb-kpi-label">Total configurations</span><span class="ldb-kpi-icon"><svg cIcon name="cilNotes" size="lg"></svg></span></div>
+                <div class="ldb-kpi-value">{{ formatInt(kpis().total) }}</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <div class="ldb-kpi-card ldb-kpi-card--success">
+                <div class="ldb-kpi-head"><span class="ldb-kpi-label">Actives</span><span class="ldb-kpi-icon"><svg cIcon name="cilCheckCircle" size="lg"></svg></span></div>
+                <div class="ldb-kpi-value">{{ formatInt(kpis().actives) }}</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <div class="ldb-kpi-card ldb-kpi-card--danger">
+                <div class="ldb-kpi-head"><span class="ldb-kpi-label">Inactives</span><span class="ldb-kpi-icon"><svg cIcon name="cilXCircle" size="lg"></svg></span></div>
+                <div class="ldb-kpi-value">{{ formatInt(kpis().inactives) }}</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <div class="ldb-kpi-card ldb-kpi-card--info">
+                <div class="ldb-kpi-head"><span class="ldb-kpi-label">Modifiables</span><span class="ldb-kpi-icon"><svg cIcon name="cilPencil" size="lg"></svg></span></div>
+                <div class="ldb-kpi-value">{{ formatInt(kpis().modifiables) }}</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <div class="ldb-kpi-card ldb-kpi-card--warning">
+                <div class="ldb-kpi-head"><span class="ldb-kpi-label">Sensibles</span><span class="ldb-kpi-icon"><svg cIcon name="cilLockLocked" size="lg"></svg></span></div>
+                <div class="ldb-kpi-value">{{ formatInt(kpis().sensibles) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="mc-section-head">
+            <h3>Nécessitent une attention</h3>
+          </div>
+          @if (attentionRequise().length === 0) {
+            <p class="dl-empty">Aucune configuration ne nécessite d'attention particulière.</p>
+          } @else {
+            <div class="dl-table-scroll">
+              <table>
+                <thead><tr><th scope="col">Clé</th><th scope="col">Module</th><th scope="col">Statut</th><th scope="col"></th></tr></thead>
+                <tbody>
+                  @for (c of attentionRequise(); track c.id) {
+                    <tr>
+                      <td class="dl-font-mono">{{ c.configKey }}</td>
+                      <td>{{ c.module ?? '—' }}</td>
+                      <td>
+                        @if (!c.active) { <span class="dl-chip dl-chip--danger"><span class="dl-chip-dot"></span>Inactive</span> }
+                        @if (c.restartRequired && c.active) { <span class="dl-chip dl-chip--warning ms-1"><span class="dl-chip-dot"></span>Redémarrage requis</span> }
+                      </td>
+                      <td><button (click)="openDetail(c)" cButton class="dl-btn" size="sm" type="button">Voir</button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+
+        <div>
+          <div class="mc-section-head">
+            <h3>Dernières modifications</h3>
+          </div>
+          @if (dernieresModifications().length === 0) {
+            <p class="dl-empty">Aucune modification récente.</p>
+          } @else {
+            <div class="dl-table-scroll">
+              <table>
+                <thead><tr><th scope="col">Clé</th><th scope="col">Modifié par</th><th scope="col">Le</th></tr></thead>
+                <tbody>
+                  @for (c of dernieresModifications(); track c.id) {
+                    <tr>
+                      <td class="dl-font-mono">{{ c.configKey }}</td>
+                      <td>{{ c.updatedBy ?? '—' }}</td>
+                      <td class="dl-timestamp">{{ formatDateTime(c.updatedAt) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ================= Configurations ================= -->
+  @if (view() === 'configurations') {
+    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" cForm class="dl-filters">
+      <div class="dl-filter-field">
+        <label for="cf-q">Recherche</label>
+        <input cFormControl formControlName="q" id="cf-q" placeholder="Clé, description…" type="text" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="cf-module">Module</label>
+        <input cFormControl formControlName="module" id="cf-module" type="text" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="cf-category">Catégorie</label>
+        <select cSelect formControlName="category" id="cf-category">
+          <option value="">Toutes</option>
+          @for (c of categoryOrder; track c) { <option [value]="c">{{ categoryLabel[c] }}</option> }
+        </select>
+      </div>
+      <div class="dl-filter-field">
+        <label for="cf-type">Type</label>
+        <select cSelect formControlName="valueType" id="cf-type">
+          <option value="">Tous</option>
+          @for (t of valueTypeOrder; track t) { <option [value]="t">{{ valueTypeLabel[t] }}</option> }
+        </select>
+      </div>
+      <div class="dl-filter-field">
+        <label for="cf-env">Environnement</label>
+        <select cSelect formControlName="environment" id="cf-env">
+          <option value="">Tous</option>
+          @for (e of environmentOrder; track e) { <option [value]="e">{{ environmentLabel[e] }}</option> }
+        </select>
+      </div>
+      <div class="dl-filter-field">
+        <label for="cf-active">Actif</label>
+        <select cSelect formControlName="active" id="cf-active">
+          <option value="">Tous</option>
+          <option value="true">Actif</option>
+          <option value="false">Inactif</option>
+        </select>
+      </div>
+      <div class="dl-filter-field">
+        <label for="cf-editable">Modifiable</label>
+        <select cSelect formControlName="editable" id="cf-editable">
+          <option value="">Tous</option>
+          <option value="true">Modifiable</option>
+          <option value="false">Lecture seule</option>
+        </select>
+      </div>
+      <div class="dl-filter-field">
+        <label for="cf-sensitive">Sensible</label>
+        <select cSelect formControlName="sensitive" id="cf-sensitive">
+          <option value="">Toutes</option>
+          <option value="true">Sensible</option>
+          <option value="false">Non sensible</option>
+        </select>
+      </div>
+      <div class="dl-filter-field justify-content-end">
+        <div class="d-flex gap-2">
+          <button cButton class="dl-btn" type="button" (click)="resetFilters()">Réinitialiser</button>
+          <button cButton class="dl-btn dl-btn-primary" type="submit">Rechercher</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="dl-cell-detail px-3 pt-3">
+      <strong>{{ formatInt(totalElements()) }}</strong> configuration(s)
+    </div>
+
+    @if (loading()) {
+      <p class="dl-empty">Chargement des configurations…</p>
+    } @else if (items().length === 0) {
+      <p class="dl-empty">Aucune configuration ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Clé</th>
+              <th scope="col">Description</th>
+              <th scope="col">Module</th>
+              <th scope="col">Catégorie</th>
+              <th scope="col">Type</th>
+              <th scope="col">Valeur</th>
+              <th scope="col">Env.</th>
+              <th scope="col">Actif</th>
+              <th scope="col">Dernière modif.</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of items(); track c.id) {
+              <tr>
+                <td class="dl-font-mono">
+                  {{ c.configKey }}
+                  @if (c.sensitive) { <svg cIcon class="ms-1" name="cilLockLocked" size="sm"></svg> }
+                  @if (!c.editable) { <svg cIcon class="ms-1" name="cilLockLocked" size="sm"></svg> }
+                </td>
+                <td>{{ c.description ?? '—' }}</td>
+                <td>{{ c.module ?? '—' }}</td>
+                <td>{{ c.category ? categoryLabel[c.category] : '—' }}</td>
+                <td>{{ valueTypeLabel[c.valueType] }}</td>
+                <td class="dl-font-mono">{{ maskedValue(c) }}</td>
+                <td>
+                  @if (c.environment) {
+                    <span [class]="'dl-chip dl-chip--' + environmentVariant[c.environment]"><span class="dl-chip-dot"></span>{{ environmentLabel[c.environment] }}</span>
+                  } @else { — }
+                </td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + (c.active ? 'success' : 'danger')"><span class="dl-chip-dot"></span>{{ c.active ? 'Actif' : 'Inactif' }}</span>
+                </td>
+                <td class="dl-timestamp">{{ formatDateTime(c.updatedAt) }}</td>
+                <td>
+                  <div class="dl-actions">
+                    <button (click)="openDetail(c)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                    @if (c.editable) {
+                      <button (click)="openEdit(c)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+                    }
+                    <button (click)="askToggleActive(c)" cButton class="dl-btn" size="sm" type="button">{{ c.active ? 'Désactiver' : 'Activer' }}</button>
+                    <button (click)="refreshOne(c)" [disabled]="refreshingKey() === c.configKey" cButton class="dl-btn" size="sm" type="button">
+                      @if (refreshingKey() === c.configKey) { <c-spinner size="sm" /> } @else { Rafraîchir }
+                    </button>
+                    <button (click)="openHistory(c)" cButton class="dl-btn" size="sm" type="button">Historique</button>
+                    <button (click)="askDelete(c)" cButton class="dl-btn" color="danger" size="sm" variant="outline" type="button">
+                      <svg cIcon name="cilTrash" size="sm"></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dl-footnote">
+        <span>Page {{ pageIndex() + 1 }} sur {{ totalPages() }}</span>
+        <div class="dl-actions">
+          <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+          <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ================= Catégories ================= -->
+  @if (view() === 'categories') {
+    @if (allConfigsLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (parCategorie().length === 0) {
+      <p class="dl-empty">Aucune configuration.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead><tr><th scope="col">Catégorie</th><th scope="col">Configurations</th><th scope="col"></th></tr></thead>
+          <tbody>
+            @for (row of parCategorie(); track row.category) {
+              <tr>
+                <td>{{ categoryLabel[row.category] }}</td>
+                <td>{{ formatInt(row.total) }}</td>
+                <td><button (click)="filterByCategory(row.category)" cButton class="dl-btn" size="sm" type="button">Voir les configurations</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ================= Modules ================= -->
+  @if (view() === 'modules') {
+    @if (allConfigsLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (parModule().length === 0) {
+      <p class="dl-empty">Aucune configuration.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead><tr><th scope="col">Module</th><th scope="col">Configurations</th><th scope="col"></th></tr></thead>
+          <tbody>
+            @for (row of parModule(); track row.module) {
+              <tr>
+                <td>{{ row.module }}</td>
+                <td>{{ formatInt(row.total) }}</td>
+                <td><button (click)="filterByModule(row.module)" cButton class="dl-btn" size="sm" type="button">Voir les configurations</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ================= Historique ================= -->
+  @if (view() === 'historique') {
+    <div class="dl-filters">
+      <div class="dl-filter-field">
+        <label for="hs-key">Clé de configuration</label>
+        <input
+          [ngModel]="historySearchKey()"
+          (ngModelChange)="historySearchKey.set($event)"
+          (keydown.enter)="searchHistoryByKey()"
+          [ngModelOptions]="{ standalone: true }"
+          cFormControl
+          id="hs-key"
+          placeholder="Ex. REFERRAL_REWARD"
+          type="text"
+        />
+      </div>
+      <div class="dl-filter-field justify-content-end">
+        <button (click)="searchHistoryByKey()" cButton class="dl-btn dl-btn-primary" type="button">Rechercher</button>
+      </div>
+    </div>
+
+    @if (!historyKey()) {
+      <p class="dl-empty">Saisissez une clé de configuration pour consulter son historique.</p>
+    } @else if (historyError()) {
+      <p class="dl-empty">{{ historyError() }}</p>
+    } @else if (historyLoading()) {
+      <p class="dl-empty">Chargement de l'historique…</p>
+    } @else if (historyItems().length === 0) {
+      <p class="dl-empty">Aucun évènement pour « {{ historyKey() }} ».</p>
+    } @else {
+      <ul class="list-unstyled d-flex flex-column gap-2 px-3 pb-3">
+        @for (entry of historyItems(); track entry.id) {
+          <li class="dl-cell-detail" style="border-bottom: 1px solid var(--cui-border-color); padding-bottom: 0.6rem;">
+            <strong class="text-body">{{ entry.action }}</strong>
+            @if (entry.description) { — {{ entry.description }} }
+            <div>{{ formatDateTime(entry.createdAt) }} @if (entry.username) { — {{ entry.username }} }</div>
+            @if (entry.ancienneValeur || entry.nouvelleValeur) {
+              <div class="mt-1">
+                <span class="dl-tag">{{ entry.ancienneValeur ?? '—' }}</span>
+                →
+                <span class="dl-tag">{{ entry.nouvelleValeur ?? '—' }}</span>
+              </div>
+            }
+            <div class="mt-1">
+              <button (click)="askRestore(entry)" cButton class="dl-btn" size="sm" type="button">Restaurer cette version</button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>
+
+<!-- ================= Détail ================= -->
+<app-modal [visible]="detailVisible()" size="lg" title="Configuration" (closed)="detailVisible.set(false)">
+  @if (selectedConfig(); as c) {
+    @if (c.sensitive) {
+      <app-alert-message class="d-block mb-3" variant="warning" message="Cette configuration contient une valeur sensible — elle n'est jamais affichée en clair." />
+    }
+    <div class="row g-3">
+      <div class="col-sm-6"><div class="dl-cell-detail">Clé</div><div class="dl-font-mono">{{ c.configKey }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Type</div><div>{{ valueTypeLabel[c.valueType] }}</div></div>
+      <div class="col-12"><div class="dl-cell-detail">Valeur actuelle</div><div class="dl-font-mono">{{ maskedValue(c) }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Description</div><div>{{ c.description ?? '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Valeur par défaut</div><div>{{ c.defaultValue ?? '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Module</div><div>{{ c.module ?? '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Catégorie</div><div>{{ c.category ? categoryLabel[c.category] : '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Environnement</div><div>{{ c.environment ? environmentLabel[c.environment] : '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Statut</div><div><span [class]="'dl-chip dl-chip--' + (c.active ? 'success' : 'danger')"><span class="dl-chip-dot"></span>{{ c.active ? 'Actif' : 'Inactif' }}</span></div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Dernière modification</div><div>{{ formatDateTime(c.updatedAt) }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Modifié par</div><div>{{ c.updatedBy ?? '—' }}</div></div>
+    </div>
+  }
+</app-modal>
+
+<!-- ================= Création / modification ================= -->
+<app-modal [visible]="formVisible()" size="lg" [title]="editingKey() ? 'Modifier « ' + editingKey() + ' »' : 'Nouvelle configuration'" (closed)="formVisible.set(false)">
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  @if (configForm.getRawValue().sensitive) {
+    <app-alert-message class="d-block mb-3" variant="warning" message="Cette configuration contient une valeur sensible." />
+  }
+  <form [formGroup]="configForm" cForm (ngSubmit)="submitForm()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="cfg-key">Clé</label>
+        <input cFormControl formControlName="configKey" id="cfg-key" [readonly]="!!editingKey()" maxlength="100" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cfg-type">Type de valeur</label>
+        <select cSelect formControlName="valueType" id="cfg-type">
+          @for (t of valueTypeOrder; track t) { <option [value]="t">{{ valueTypeLabel[t] }}</option> }
+        </select>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label cLabel for="cfg-value">Valeur</label>
+      @if (!clearSensitiveValue()) {
+        <app-configuration-value-editor
+          [valueType]="configForm.controls.valueType.value"
+          [allowedValues]="configForm.controls.allowedValues.value"
+          [value]="configForm.controls.configValue.value"
+          (valueChange)="configForm.controls.configValue.setValue($event)"
+        />
+      }
+      @if (editingWasSensitive()) {
+        @if (!clearSensitiveValue()) {
+          <div class="dl-cell-detail mt-1">Valeur masquée — laissez vide pour conserver la valeur actuelle, ou saisissez-en une nouvelle pour la remplacer.</div>
+        }
+        <div class="form-check mt-2">
+          <input cFormCheckInput id="cfg-clear-sensitive" type="checkbox" [checked]="clearSensitiveValue()" (change)="toggleClearSensitiveValue($any($event.target).checked)" />
+          <label cLabel for="cfg-clear-sensitive">Vider la valeur enregistrée</label>
+        </div>
+        @if (clearSensitiveValue()) {
+          <app-alert-message class="d-block mt-2" variant="warning" message="La valeur enregistrée sera supprimée. L'application utilisera alors la variable d'environnement du serveur, si elle existe." />
+        }
+      }
+    </div>
+
+    @if (configForm.controls.valueType.value === 'ENUM') {
+      <div class="mb-3">
+        <label cLabel for="cfg-allowed">Valeurs autorisées (séparées par des virgules)</label>
+        <input cFormControl formControlName="allowedValues" id="cfg-allowed" placeholder="DRAFT, ACTIVE, SUSPENDED, CLOSED" type="text" />
+      </div>
+    }
+
+    <div class="mb-3">
+      <label cLabel for="cfg-description">Description</label>
+      <textarea cFormControl formControlName="description" id="cfg-description" rows="2"></textarea>
+    </div>
+
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="cfg-module">Module</label>
+        <input cFormControl formControlName="module" id="cfg-module" maxlength="50" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cfg-category">Catégorie</label>
+        <select cSelect formControlName="category" id="cfg-category">
+          <option value="">—</option>
+          @for (c of categoryOrder; track c) { <option [value]="c">{{ categoryLabel[c] }}</option> }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cfg-env">Environnement</label>
+        <select cSelect formControlName="environment" id="cfg-env">
+          <option value="">—</option>
+          @for (e of environmentOrder; track e) { <option [value]="e">{{ environmentLabel[e] }}</option> }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cfg-default">Valeur par défaut</label>
+        <input cFormControl formControlName="defaultValue" id="cfg-default" type="text" [readOnly]="configForm.controls.sensitive.value" [placeholder]="configForm.controls.sensitive.value ? 'Non autorisée pour une valeur sensible' : ''" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cfg-validation">Règle de validation</label>
+        <input cFormControl formControlName="validationRule" id="cfg-validation" maxlength="300" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cfg-order">Ordre d'affichage</label>
+        <input cFormControl formControlName="displayOrder" id="cfg-order" type="number" />
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-4 mb-3 mt-2">
+      <div class="form-check form-switch">
+        <input cFormCheckInput formControlName="active" id="cfg-active" switch type="checkbox" />
+        <label cLabel for="cfg-active">Active</label>
+      </div>
+      <div class="form-check form-switch">
+        <input cFormCheckInput formControlName="editable" id="cfg-editable" switch type="checkbox" />
+        <label cLabel for="cfg-editable">Modifiable</label>
+      </div>
+      <div class="form-check form-switch">
+        <input cFormCheckInput formControlName="sensitive" id="cfg-sensitive" switch type="checkbox" [title]="sensitiveSwitchTitle()" />
+        <label cLabel for="cfg-sensitive">Sensible</label>
+      </div>
+      <div class="form-check form-switch">
+        <input cFormCheckInput formControlName="restartRequired" id="cfg-restart" switch type="checkbox" />
+        <label cLabel for="cfg-restart">Redémarrage requis</label>
+      </div>
+      <div class="form-check form-switch">
+        <input cFormCheckInput formControlName="cacheEnabled" id="cfg-cache" switch type="checkbox" />
+        <label cLabel for="cfg-cache">Cache activé</label>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" variant="outline" type="button">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-modal [visible]="pendingSubmit() !== null" title="Confirmer la modification" (closed)="cancelSensitiveConfirm()">
+  <p>Cette configuration contient une valeur sensible. Confirmez-vous l'enregistrement de la nouvelle valeur ?</p>
+  <div class="mb-3">
+    <label cLabel for="sensitive-motif">Motif (optionnel)</label>
+    <textarea
+      (input)="sensitiveMotif.set($any($event.target).value)"
+      [value]="sensitiveMotif()"
+      cFormControl
+      id="sensitive-motif"
+      rows="2"
+    ></textarea>
+  </div>
+  <div class="d-flex align-items-center justify-content-end gap-2">
+    <button (click)="cancelSensitiveConfirm()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+    <button (click)="confirmSensitiveSubmit()" cButton color="primary" type="button">Confirmer</button>
+  </div>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="toggleTarget() !== null"
+  [title]="toggleTarget()?.activate ? 'Activer la configuration' : 'Désactiver la configuration'"
+  [message]="'Voulez-vous vraiment ' + (toggleTarget()?.activate ? 'activer' : 'désactiver') + ' « ' + (toggleTarget()?.config?.configKey ?? '') + ' » ?'"
+  [confirmLabel]="toggleTarget()?.activate ? 'Activer' : 'Désactiver'"
+  (cancelled)="cancelToggleActive()"
+  (confirmed)="confirmToggleActive()"
+/>
+
+<app-confirm-dialog
+  [visible]="deleteTarget() !== null"
+  title="Supprimer cette configuration ?"
+  [message]="'La configuration « ' + (deleteTarget()?.configKey ?? '') + ' » sera définitivement supprimée.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="cancelDelete()"
+  (confirmed)="confirmDelete()"
+/>
+
+<app-confirm-dialog
+  [visible]="restoreTarget() !== null"
+  title="Restaurer cette version ?"
+  [message]="'Vous êtes sur le point de restaurer « ' + (historyKey() ?? '') + ' » vers la valeur : ' + (restoreTarget()?.ancienneValeur ?? restoreTarget()?.nouvelleValeur ?? '—')"
+  confirmLabel="Restaurer"
+  (cancelled)="cancelRestore()"
+  (confirmed)="confirmRestore()"
+/>
+
+<!-- ================= Historique (par clé) ================= -->
+<app-modal [visible]="historyVisible()" size="lg" [title]="'Historique — ' + (historyKey() ?? '')" (closed)="historyVisible.set(false)">
+  @if (historyError()) {
+    <p class="dl-empty">{{ historyError() }}</p>
+  } @else if (historyLoading()) {
+    <p class="dl-empty">Chargement…</p>
+  } @else if (historyItems().length === 0) {
+    <p class="dl-empty">Aucun évènement pour le moment.</p>
+  } @else {
+    <ul class="list-unstyled d-flex flex-column gap-2">
+      @for (entry of historyItems(); track entry.id) {
+        <li class="dl-cell-detail" style="border-bottom: 1px solid var(--cui-border-color); padding-bottom: 0.6rem;">
+          <strong class="text-body">{{ entry.action }}</strong>
+          @if (entry.description) { — {{ entry.description }} }
+          <div>{{ formatDateTime(entry.createdAt) }} @if (entry.username) { — {{ entry.username }} }</div>
+          @if (entry.ancienneValeur || entry.nouvelleValeur) {
+            <div class="mt-1">
+              <span class="dl-tag">{{ entry.ancienneValeur ?? '—' }}</span>
+              →
+              <span class="dl-tag">{{ entry.nouvelleValeur ?? '—' }}</span>
+            </div>
+          }
+          <div class="mt-1">
+            <button (click)="askRestore(entry)" cButton class="dl-btn" size="sm" type="button">Restaurer cette version</button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</app-modal>

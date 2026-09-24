@@ -1,0 +1,185 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Types de produit</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher un code, un nom…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+      <button (click)="setActifFilter('all')" [attr.data-active]="actifFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      <button (click)="setActifFilter('active')" [attr.data-active]="actifFilter() === 'active'" class="dl-pill dl-pill--success" type="button">Actifs</button>
+      <button (click)="setActifFilter('inactive')" [attr.data-active]="actifFilter() === 'inactive'" class="dl-pill dl-pill--neutral" type="button">Inactifs</button>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus"></svg>Nouveau type
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des types de produit…</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="dl-empty">Aucun type de produit ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Produits</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.id) {
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span style="width: 0.6rem; height: 0.6rem; border-radius: 50%; flex-shrink: 0;" [style.background]="item.couleur ?? 'var(--cui-secondary)'"></span>
+                  <div>
+                    <div>{{ item.nom }}@if (item.systeme) { <span class="dl-tag ms-1">Système</span> }</div>
+                    <div class="dl-cell-detail">{{ item.code }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="dl-timestamp">{{ item.nombreProduits }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (item.actif ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ item.actif ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <c-dropdown alignment="end" [popperOptions]="{ strategy: 'fixed' }">
+                    <button [caret]="false" cDropdownToggle class="dl-icon-btn" title="Actions" type="button">
+                      <svg cIcon name="cilOptions" size="sm"></svg>
+                    </button>
+                    <div cDropdownMenu>
+                      <button
+                        (click)="toggleActive(item)"
+                        [disabled]="togglingId() === item.id"
+                        cDropdownItem
+                        class="hdr-user-menu-item"
+                        type="button"
+                      >
+                        <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                          <svg cIcon [name]="item.actif ? 'cilXCircle' : 'cilCheckCircle'" size="lg"></svg>
+                        </span>
+                        {{ item.actif ? 'Désactiver' : 'Activer' }}
+                      </button>
+                      <button (click)="openEdit(item)" cDropdownItem class="hdr-user-menu-item" type="button">
+                        <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                          <svg cIcon name="cilPencil" size="lg"></svg>
+                        </span>
+                        Modifier
+                      </button>
+                      <hr class="dropdown-divider" />
+                      <button
+                        (click)="confirmDelete(item)"
+                        [disabled]="item.systeme"
+                        cDropdownItem
+                        class="hdr-user-menu-item hdr-user-menu-item--danger"
+                        [title]="item.systeme ? 'Type système — non supprimable' : ''"
+                        type="button"
+                      >
+                        <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--danger">
+                          <svg cIcon name="cilTrash" size="lg"></svg>
+                        </span>
+                        Supprimer
+                      </button>
+                    </div>
+                  </c-dropdown>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredItems().length }}</strong> sur {{ items().length }} types de produit</span>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" size="lg" title="{{ editingId() ? 'Modifier le type de produit' : 'Nouveau type de produit' }}" (closed)="formVisible.set(false)">
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="save()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-4">
+        <label cLabel for="pt-code">Code</label>
+        <input cFormControl formControlName="code" id="pt-code" placeholder="AUTO" type="text" />
+      </div>
+      <div class="col-sm-8">
+        <label cLabel for="pt-nom">Nom</label>
+        <input cFormControl formControlName="nom" id="pt-nom" placeholder="Assurance Automobile" type="text" />
+      </div>
+      <div class="col-sm-3">
+        <label cLabel for="pt-ordre">Ordre</label>
+        <input cFormControl formControlName="ordre" id="pt-ordre" type="number" />
+      </div>
+      <div class="col-sm-3">
+        <label cLabel for="pt-couleur">Couleur</label>
+        <input cFormControl formControlName="couleur" id="pt-couleur" type="color" style="height: calc(1.5em + 0.75rem + 2px); padding: 0.25rem;" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="pt-icone">Icône</label>
+        <input cFormControl formControlName="icone" id="pt-icone" placeholder="cilCar" type="text" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="pt-description">Description</label>
+        <textarea cFormControl formControlName="description" id="pt-description" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="actif" id="pt-actif" switch type="checkbox" />
+      <label cLabel for="pt-actif">Type actif</label>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteTarget()"
+  title="Supprimer ce type de produit ?"
+  [message]="'Le type « ' + (deleteTarget()?.nom ?? '') + ' » sera définitivement supprimé.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteTarget.set(null)"
+  (confirmed)="performDelete()"
+/>

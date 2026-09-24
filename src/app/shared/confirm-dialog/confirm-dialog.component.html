@@ -1,0 +1,28 @@
+@if (visible()) {
+  <div class="confirm-dialog-backdrop" (click)="onCancel()">
+    <div
+      (click)="$event.stopPropagation()"
+      aria-modal="true"
+      class="confirm-dialog-card"
+      role="alertdialog"
+    >
+      <button (click)="onCancel()" aria-label="Fermer" cButtonClose class="confirm-dialog-close"></button>
+
+      <div class="confirm-dialog-icon-badge">
+        <svg cIcon class="confirm-dialog-icon" [name]="icon()" size="xl"></svg>
+      </div>
+
+      <h5 class="confirm-dialog-title">{{ title() }}</h5>
+      <p class="confirm-dialog-message">{{ message() }}</p>
+
+      <div class="confirm-dialog-actions">
+        <button (click)="onCancel()" class="btn confirm-dialog-btn-cancel" type="button">
+          {{ cancelLabel() }}
+        </button>
+        <button (click)="onConfirm()" class="btn confirm-dialog-btn-confirm" type="button">
+          {{ confirmLabel() }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

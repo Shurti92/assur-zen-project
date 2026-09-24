@@ -1,0 +1,210 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Programmes de fidélité</h2>
+    </div>
+
+    <select (change)="onInsuredChange($any($event.target).value)" [disabled]="insuredsLoading()" cSelect style="max-width: 320px;">
+      <option [value]="0">{{ insuredsLoading() ? 'Chargement des assurés…' : 'Sélectionner un assuré…' }}</option>
+      @for (insured of insureds(); track insured.id) {
+        <option [value]="insured.id">{{ insuredLabel(insured) }}</option>
+      }
+    </select>
+  </div>
+
+  <p class="dl-cell-detail px-3 pt-3 mb-0">
+    Recherchez un assuré pour consulter son compte fidélité, ajuster son solde de points ou échanger une récompense.
+  </p>
+
+  @if (!selectedInsuredId()) {
+    <p class="dl-empty">Sélectionnez un assuré ci-dessus pour commencer.</p>
+  } @else {
+    <div class="mc-body">
+      @if (compteLoading()) {
+        <p class="dl-empty">Chargement du compte fidélité…</p>
+      } @else if (compteError()) {
+        <p class="dl-empty">{{ compteError() }}</p>
+      } @else if (compteNotFound()) {
+        <div class="fs-section">
+          <div class="fs-section-head">
+            <svg cIcon name="person" size="lg"></svg>
+            <h3>{{ selectedInsured() ? insuredLabel(selectedInsured()!) : 'Assuré' }}</h3>
+          </div>
+          <p class="dl-empty">Cet assuré n'est pas encore adhérent au programme de fidélité.</p>
+          <button (click)="adherer()" [disabled]="adhering()" cButton color="primary" type="button">
+            @if (adhering()) {
+              <c-spinner size="sm" />
+            }
+            Adhérer au programme
+          </button>
+        </div>
+      } @else if (compte(); as c) {
+        <div class="fs-section">
+          <div class="fs-section-head">
+            <svg cIcon name="person" size="lg"></svg>
+            <h3>{{ c.insuredName }}</h3>
+          </div>
+          <div class="dl-detail-grid">
+            <div>
+              <div class="dl-cell-detail">Solde de points</div>
+              <div>{{ formatPoints(c.soldePoints) }}</div>
+            </div>
+            <div>
+              <div class="dl-cell-detail">Points cumulés (total)</div>
+              <div>{{ formatPoints(c.pointsCumulesTotal) }}</div>
+            </div>
+            <div>
+              <div class="dl-cell-detail">Palier actuel</div>
+              <div>{{ c.palierLibelle ?? '—' }}</div>
+            </div>
+            <div>
+              <div class="dl-cell-detail">Adhésion</div>
+              <div>{{ formatDate(c.dateAdhesion) }}</div>
+            </div>
+            <div>
+              <div class="dl-cell-detail">Statut</div>
+              <div>
+                <span [class]="'dl-chip dl-chip--' + (c.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ c.active ? 'Actif' : 'Inactif' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fs-section">
+          <div class="fs-section-head">
+            <svg cIcon name="cilPencil" size="lg"></svg>
+            <h3>Ajustement manuel de points</h3>
+          </div>
+          @if (ajustementError(); as message) {
+            <app-alert-message class="d-block mb-3" [message]="message" />
+          }
+          <form [formGroup]="ajustementForm" cForm (ngSubmit)="submitAjustement()">
+            <div class="row g-3 mb-1">
+              <div class="col-sm-4">
+                <label cLabel for="pg-points">Points (négatif pour retirer)</label>
+                <input cFormControl formControlName="points" id="pg-points" type="number" />
+              </div>
+              <div class="col-sm-8">
+                <label cLabel for="pg-motif">Motif</label>
+                <input cFormControl formControlName="motif" id="pg-motif" type="text" />
+              </div>
+            </div>
+            <div class="d-flex justify-content-end mt-2">
+              <button [disabled]="ajustementSaving()" cButton color="primary" type="submit">
+                @if (ajustementSaving()) {
+                  <c-spinner size="sm" />
+                }
+                Enregistrer l'ajustement
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="fs-section">
+          <div class="fs-section-head">
+            <svg cIcon name="cilBasket" size="lg"></svg>
+            <h3>Échanger une récompense</h3>
+          </div>
+          @if (echangeError(); as message) {
+            <app-alert-message class="d-block mb-3" [message]="message" />
+          }
+          <form [formGroup]="echangeForm" cForm (ngSubmit)="submitEchange()">
+            <div class="row g-3 mb-1 align-items-end">
+              <div class="col-sm-8">
+                <label cLabel for="pg-recompense">Récompense</label>
+                <select cSelect formControlName="recompenseId" id="pg-recompense">
+                  <option [value]="0">Sélectionner…</option>
+                  @for (r of recompenses(); track r.id) {
+                    <option [value]="r.id" [disabled]="r.coutPoints > c.soldePoints">{{ r.nom }} — {{ formatPoints(r.coutPoints) }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-sm-4">
+                <button [disabled]="echangeSaving()" cButton color="primary" type="submit">
+                  @if (echangeSaving()) {
+                    <c-spinner size="sm" />
+                  }
+                  Échanger
+                </button>
+              </div>
+            </div>
+          </form>
+
+          @if (lastEchange(); as e) {
+            <div class="mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                  <strong>{{ e.recompenseNom }}</strong>
+                  <span class="dl-cell-detail"> — {{ formatPoints(e.pointsUtilises) }}, {{ formatDateTime(e.dateEchange) }}</span>
+                </div>
+                <span [class]="'dl-chip dl-chip--' + echangeStatutVariant(e.statut)">
+                  <span class="dl-chip-dot"></span>{{ echangeStatutLabel[e.statut] }}
+                </span>
+              </div>
+              @if (e.statut === 'EN_ATTENTE' || e.statut === 'VALIDE') {
+                <div class="d-flex gap-2 mt-2">
+                  @if (e.statut === 'EN_ATTENTE') {
+                    <button (click)="traiterEchange('VALIDE')" [disabled]="echangeTraiting()" cButton class="dl-btn" size="sm" type="button">Valider</button>
+                  }
+                  @if (e.statut === 'VALIDE') {
+                    <button (click)="traiterEchange('LIVREE')" [disabled]="echangeTraiting()" cButton class="dl-btn" size="sm" type="button">Marquer livrée</button>
+                  }
+                  <button (click)="traiterEchange('ANNULEE')" [disabled]="echangeTraiting()" cButton color="danger" size="sm" type="button">Annuler</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="fs-section">
+          <div class="fs-section-head">
+            <svg cIcon name="cilList" size="lg"></svg>
+            <h3>Historique de points</h3>
+          </div>
+          @if (historiqueError()) {
+            <p class="dl-empty">{{ historiqueError() }}</p>
+          } @else if (historiqueLoading()) {
+            <p class="dl-empty">Chargement de l'historique…</p>
+          } @else if (historique().length === 0) {
+            <p class="dl-empty">Aucun mouvement de points pour le moment.</p>
+          } @else {
+            <div class="dl-table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Type</th>
+                    <th scope="col">Points</th>
+                    <th scope="col">Solde après</th>
+                    <th scope="col">Motif</th>
+                    <th scope="col">Contrat</th>
+                    <th scope="col">Auteur</th>
+                    <th scope="col">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (h of historique(); track h.id) {
+                    <tr>
+                      <td>
+                        <span [class]="'dl-chip dl-chip--' + mouvementVariant(h.typeMouvement)">
+                          <span class="dl-chip-dot"></span>{{ mouvementLabel[h.typeMouvement] }}
+                        </span>
+                      </td>
+                      <td>{{ h.points > 0 ? '+' : '' }}{{ formatPoints(h.points) }}</td>
+                      <td>{{ formatPoints(h.soldeApres) }}</td>
+                      <td>{{ h.motif ?? '—' }}</td>
+                      <td>{{ h.contratPolicyNumber ?? '—' }}</td>
+                      <td>{{ h.auteur ?? '—' }}</td>
+                      <td class="dl-timestamp">{{ formatDateTime(h.createdAt) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</section>

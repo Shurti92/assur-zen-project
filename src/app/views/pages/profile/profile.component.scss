@@ -1,0 +1,312 @@
+:host {
+  --profile-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+  display: block;
+}
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+// ---------- Left: identity card ----------
+.profile-identity {
+  position: sticky;
+  top: 1.5rem;
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 28px -14px rgba(0, 0, 0, 0.18);
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+}
+
+.profile-avatar-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 1rem;
+}
+
+.profile-avatar {
+  width: 88px;
+  height: 88px;
+}
+
+.profile-avatar-edit {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--cui-primary);
+  color: #fff;
+  border: 3px solid var(--cui-body-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+
+  &:disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+  }
+}
+
+.profile-identity h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--cui-emphasis-color, var(--cui-body-color));
+  margin: 0 0 0.2rem;
+}
+
+.profile-role {
+  font-size: 0.82rem;
+  color: var(--cui-primary);
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.profile-loc {
+  font-size: 0.8rem;
+  color: var(--cui-secondary-color);
+  margin-bottom: 1.1rem;
+}
+
+.profile-completion {
+  text-align: left;
+  margin-bottom: 1.25rem;
+}
+
+.profile-completion-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: var(--cui-secondary-color);
+  margin-bottom: 0.4rem;
+
+  strong {
+    color: var(--cui-body-color);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.profile-completion-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cui-tertiary-bg);
+  overflow: hidden;
+}
+
+.profile-completion-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cui-primary), var(--cui-success));
+}
+
+.profile-socials {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+
+  a {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cui-secondary-color);
+    border: 1px solid var(--cui-border-color);
+    transition: color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      color: var(--cui-primary);
+      border-color: var(--cui-primary);
+    }
+  }
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+// ---------- Right: sectioned settings ----------
+.profile-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color);
+  border-radius: 999px;
+  padding: 0.3rem;
+  width: fit-content;
+
+  button {
+    appearance: none;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--cui-secondary-color);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--cui-primary);
+      outline-offset: 2px;
+    }
+
+    &[data-active='true'] {
+      background: var(--cui-primary);
+      color: #fff;
+    }
+  }
+}
+
+.profile-panel {
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 28px -14px rgba(0, 0, 0, 0.18);
+  margin-bottom: 1.25rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.profile-panel-head {
+  padding: 1.15rem 1.4rem;
+  border-bottom: 1px solid var(--cui-border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--cui-emphasis-color, var(--cui-body-color));
+  }
+
+  p {
+    margin: 0.2rem 0 0;
+    font-size: 0.8rem;
+    color: var(--cui-secondary-color);
+  }
+}
+
+.profile-panel-body {
+  padding: 1.4rem;
+
+  &--rows {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+}
+
+.profile-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem 1.5rem;
+}
+
+.profile-field {
+  label {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--cui-secondary-color);
+    margin-bottom: 0.35rem;
+  }
+
+  .value {
+    font-size: 0.92rem;
+    color: var(--cui-body-color);
+    font-weight: 500;
+
+    &.muted {
+      color: var(--cui-secondary-color);
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    &.mono {
+      font-family: var(--profile-font-mono);
+      font-size: 0.85rem;
+    }
+  }
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+
+  & + .profile-row {
+    border-top: 1px solid var(--cui-border-color);
+  }
+}
+
+.profile-row-text {
+  strong {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--cui-body-color);
+    margin-bottom: 0.2rem;
+  }
+
+  span {
+    font-size: 0.8rem;
+    color: var(--cui-secondary-color);
+  }
+}
+
+.profile-badge-soon {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cui-secondary-color);
+  background: var(--cui-tertiary-bg);
+  border: 1px solid var(--cui-border-color);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.profile-panel--danger {
+  border-color: rgba(var(--cui-danger-rgb), 0.35);
+
+  .profile-panel-head {
+    background: var(--cui-danger-bg-subtle);
+    border-radius: 1rem 1rem 0 0;
+
+    h3 {
+      color: var(--cui-danger-text-emphasis, var(--cui-danger));
+    }
+  }
+}
+
+@media (max-width: 860px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-identity {
+    position: static;
+  }
+
+  .profile-field-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,413 @@
+<c-row class="g-3 mb-3">
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="cilLayers" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statTotal() }}</div>
+        <div class="mc-kpi-label">Segments</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="cilList" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statStatiques() }}</div>
+        <div class="mc-kpi-label">Statiques</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="cilSettings" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statDynamiques() }}</div>
+        <div class="mc-kpi-label">Dynamiques</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--flag">
+      <span class="mc-kpi-icon"><svg cIcon name="cilCheckCircle" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statActifs() }}</div>
+        <div class="mc-kpi-label">Actifs</div>
+      </div>
+    </div>
+  </c-col>
+</c-row>
+
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Segments d'audience</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        placeholder="Rechercher un segment…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par type">
+      <button (click)="setTypeFilter('all')" [attr.data-active]="typeFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      @for (type of typeOrder; track type) {
+        <button (click)="setTypeFilter(type)" [attr.data-active]="typeFilter() === type" class="dl-pill" type="button">
+          {{ typeLabelMap[type] }}
+        </button>
+      }
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="refresh" size="sm"></svg>
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus" size="sm"></svg>
+        Nouveau segment
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des segments…</p>
+  } @else if (filteredSegments().length === 0) {
+    <p class="dl-empty">Aucun segment ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">Segment</th>
+            <th scope="col">Type</th>
+            <th scope="col">Règles / Membres</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (segment of filteredSegments(); track segment.id) {
+            <tr>
+              <td><span style="display:inline-block;width:0.75rem;height:0.75rem;border-radius:50%;" [style.background]="segment.couleur || '#9aa5b1'"></span></td>
+              <td>
+                <span class="dl-tag">{{ segment.code }}</span>
+                <div class="dl-cell-detail">{{ segment.nom }}</div>
+              </td>
+              <td>{{ typeLabelMap[segment.type] }}</td>
+              <td class="dl-timestamp">{{ segment.type === 'DYNAMIC' ? segment.nbRegles + ' règle(s)' : segment.nbMembres + ' membre(s)' }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (segment.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ segment.active ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEdit(segment)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+                  <button (click)="openDetail(segment)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredSegments().length }}</strong> segment(s)</span>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" [title]="formMode() === 'create' ? 'Nouveau segment' : 'Modifier le segment'" (closed)="closeForm()">
+  @if (formError()) {
+    <app-alert-message class="d-block mb-3" [message]="formError()!" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="submitForm()">
+    <div class="row g-3">
+      <div class="col-sm-6">
+        <label cLabel for="seg-code">Code</label>
+        <input cFormControl formControlName="code" id="seg-code" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="seg-nom">Nom</label>
+        <input cFormControl formControlName="nom" id="seg-nom" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="seg-type">Type</label>
+        <select cSelect formControlName="type" id="seg-type">
+          @for (type of typeOrder; track type) {
+            <option [value]="type">{{ typeLabelMap[type] }}</option>
+          }
+        </select>
+        <span class="dl-cell-detail">Statique : liste d'assurés choisie manuellement. Dynamique : calculé par des règles.</span>
+      </div>
+      <div class="col-sm-3">
+        <label cLabel for="seg-priorite">Priorité</label>
+        <input cFormControl formControlName="priorite" id="seg-priorite" min="0" type="number" />
+      </div>
+      <div class="col-sm-3">
+        <label cLabel for="seg-couleur">Couleur</label>
+        <input cFormControl class="form-control-color" formControlName="couleur" id="seg-couleur" type="color" />
+      </div>
+      <div class="col-12">
+        <div class="form-check">
+          <input class="form-check-input" formControlName="active" id="seg-active" type="checkbox" />
+          <label class="form-check-label" for="seg-active">Actif</label>
+        </div>
+      </div>
+      <div class="col-12">
+        <label cLabel for="seg-description">Description</label>
+        <textarea cFormControl formControlName="description" id="seg-description" rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button (click)="closeForm()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-modal [visible]="detailVisible()" size="lg" title="Segment {{ selectedSegment()?.code }}" (closed)="detailVisible.set(false)">
+  @if (selectedSegment(); as segment) {
+    <span [class]="'dl-chip dl-chip--' + (segment.active ? 'success' : 'neutral') + ' mb-3 d-inline-flex'">
+      <span class="dl-chip-dot"></span>{{ segment.active ? 'Actif' : 'Inactif' }}
+    </span>
+
+    <div class="dl-detail-grid mb-3">
+      <div>
+        <div class="dl-cell-detail">Nom</div>
+        <div>{{ segment.nom }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Type</div>
+        <div>{{ typeLabelMap[segment.type] }}</div>
+      </div>
+      @if (segment.priorite != null) {
+        <div>
+          <div class="dl-cell-detail">Priorité</div>
+          <div>{{ segment.priorite }}</div>
+        </div>
+      }
+      <div>
+        <div class="dl-cell-detail">Créé par</div>
+        <div>{{ segment.createdBy }} — {{ formatDateTime(segment.createdAt) }}</div>
+      </div>
+    </div>
+
+    @if (segment.description) {
+      <div class="mb-3">
+        <div class="dl-cell-detail mb-1">Description</div>
+        <div>{{ segment.description }}</div>
+      </div>
+    }
+
+    <div class="d-flex gap-2 mb-3">
+      @if (!segment.active) {
+        <button (click)="askEnable(segment)" cButton class="dl-btn dl-btn-primary" size="sm" type="button">Activer</button>
+      } @else {
+        <button (click)="askDisable(segment)" cButton class="dl-btn" color="danger" size="sm" type="button">Désactiver</button>
+      }
+      <button (click)="askDelete(segment)" cButton class="dl-btn" color="danger" size="sm" type="button">Supprimer</button>
+    </div>
+
+    @if (isDynamic()) {
+      <div class="pt-3" style="border-top: 1px solid var(--cui-border-color);">
+        <div class="fs-section-head">
+          <svg cIcon name="cilSettings" size="lg"></svg>
+          <h3>Règles</h3>
+        </div>
+
+        @if (rulesLoading()) {
+          <p class="dl-empty">Chargement des règles…</p>
+        } @else if (rules().length === 0) {
+          <p class="dl-empty">Aucune règle définie pour le moment.</p>
+        } @else {
+          <ul class="list-unstyled d-flex flex-column gap-2 m-0 mb-3">
+            @for (rule of rules(); track rule.id; let isFirst = $first) {
+              <li class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+                <div class="flex-grow-1">
+                  @if (!isFirst) {
+                    <span class="dl-chip dl-chip--info me-1"><span class="dl-chip-dot"></span>{{ rule.operateurLogique ?? 'AND' }}</span>
+                  }
+                  <strong>{{ champLabel(rule.champ) }}</strong> {{ operateurLabel(rule.operateur) }}
+                  @if (rule.valeur) {
+                    « {{ rule.valeur }} »
+                  }
+                  <span class="dl-cell-detail">groupe {{ rule.groupe ?? 1 }}</span>
+                </div>
+                <button (click)="openEditRule(rule)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+                <button (click)="deleteRule(rule)" cButton class="dl-btn" color="danger" size="sm" type="button">Retirer</button>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (ruleError()) {
+          <app-alert-message class="d-block mb-2" [message]="ruleError()!" />
+        }
+        <form [formGroup]="ruleForm" cForm (ngSubmit)="submitRule()" class="row g-2 align-items-end mb-3">
+          <div class="col-sm-3">
+            <label cLabel for="rule-champ">Champ</label>
+            <select cSelect formControlName="champ" id="rule-champ">
+              @for (champ of champOrder; track champ) {
+                <option [value]="champ">{{ champLabelMap[champ] }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-sm-3">
+            <label cLabel for="rule-operateur">Opérateur</label>
+            <select cSelect formControlName="operateur" id="rule-operateur">
+              @for (operateur of operateurOrder; track operateur) {
+                <option [value]="operateur">{{ operateurLabelMap[operateur] }}</option>
+              }
+            </select>
+          </div>
+          @if (ruleNeedsValeur()) {
+            <div class="col-sm-2">
+              <label cLabel for="rule-valeur">Valeur</label>
+              <input cFormControl formControlName="valeur" id="rule-valeur" type="text" />
+            </div>
+          }
+          <div class="col-sm-1">
+            <label cLabel for="rule-groupe">Groupe</label>
+            <input cFormControl formControlName="groupe" id="rule-groupe" min="1" type="number" />
+          </div>
+          <div class="col-sm-2">
+            <label cLabel for="rule-logique">Combiné avec</label>
+            <select cSelect formControlName="operateurLogique" id="rule-logique">
+              <option value="AND">ET</option>
+              <option value="OR">OU</option>
+            </select>
+          </div>
+          <div class="col-sm-1">
+            <button [disabled]="ruleSaving()" cButton class="dl-btn dl-btn-primary w-100" type="submit">
+              @if (ruleSaving()) {
+                <c-spinner size="sm" />
+              } @else {
+                {{ editingRuleId() ? 'Modifier' : 'Ajouter' }}
+              }
+            </button>
+          </div>
+        </form>
+
+        <div class="pt-3" style="border-top: 1px solid var(--cui-border-color);">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h4 class="m-0" style="font-size: 0.95rem;">Aperçu des assurés concernés</h4>
+            <button (click)="generateResolvePreview()" [disabled]="resolveLoading()" cButton class="dl-btn" size="sm" type="button">
+              @if (resolveLoading()) {
+                <c-spinner size="sm" />
+              }
+              Calculer l'aperçu
+            </button>
+          </div>
+          @if (resolveError()) {
+            <app-alert-message class="d-block mb-2" [message]="resolveError()!" />
+          }
+          @if (resolvePreview(); as preview) {
+            @if (preview.length === 0) {
+              <p class="dl-empty">Aucun assuré ne correspond actuellement à ces règles.</p>
+            } @else {
+              <p class="dl-cell-detail mb-2">{{ preview.length }} assuré(s) correspondent actuellement.</p>
+              <div class="dl-table-scroll">
+                <table class="dl-table">
+                  <thead><tr><th scope="col">Assuré</th><th scope="col">Ville</th><th scope="col">Téléphone</th></tr></thead>
+                  <tbody>
+                    @for (insured of preview; track insured.id) {
+                      <tr>
+                        <td>{{ insured.nom }} {{ insured.prenoms }}</td>
+                        <td>{{ insured.clientCity }}</td>
+                        <td class="dl-timestamp">{{ insured.clientPhone }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="pt-3" style="border-top: 1px solid var(--cui-border-color);">
+        <div class="fs-section-head">
+          <svg cIcon name="cilList" size="lg"></svg>
+          <h3>Membres</h3>
+        </div>
+
+        @if (membreError()) {
+          <app-alert-message class="d-block mb-2" [message]="membreError()!" />
+        }
+
+        @if (membresLoading()) {
+          <p class="dl-empty">Chargement des membres…</p>
+        } @else if (membres().length === 0) {
+          <p class="dl-empty">Aucun membre pour le moment.</p>
+        } @else {
+          <ul class="list-unstyled d-flex flex-column gap-2 m-0 mb-3">
+            @for (membre of membres(); track membre.id) {
+              <li class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+                <div class="flex-grow-1">
+                  {{ membre.insuredName }}
+                  <div class="dl-cell-detail">Ajouté le {{ formatDateTime(membre.createdAt) }}</div>
+                </div>
+                <button (click)="removeMembre(membre)" [disabled]="membreSaving()" cButton class="dl-btn" color="danger" size="sm" type="button">
+                  Retirer
+                </button>
+              </li>
+            }
+          </ul>
+        }
+
+        <div class="d-flex gap-2 align-items-end">
+          <div class="flex-grow-1">
+            <label cLabel for="membre-select">Ajouter un assuré</label>
+            <select cSelect (change)="membreToAdd.set($any($event.target).value)" id="membre-select">
+              <option value="">Sélectionner un assuré…</option>
+              @for (insured of availableInsureds(); track insured.id) {
+                <option [value]="insured.id">{{ insured.nom }} {{ insured.prenoms }}</option>
+              }
+            </select>
+          </div>
+          <button (click)="addMembre()" [disabled]="membreSaving() || !membreToAdd()" cButton class="dl-btn dl-btn-primary" type="button">
+            @if (membreSaving()) {
+              <c-spinner size="sm" />
+            }
+            Ajouter
+          </button>
+        </div>
+      </div>
+    }
+  }
+</app-modal>
+
+<app-confirm-dialog
+  cancelLabel="Annuler"
+  confirmLabel="Confirmer"
+  icon="cilWarning"
+  [message]="pendingActionMessage()"
+  [title]="pendingActionTitle()"
+  [visible]="pendingAction() !== null"
+  (cancelled)="cancelPendingAction()"
+  (confirmed)="confirmPendingAction()"
+/>

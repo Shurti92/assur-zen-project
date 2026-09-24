@@ -1,0 +1,159 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Compagnies d'assurances</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher une compagnie…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+      <button (click)="setActiveFilter('all')" [attr.data-active]="activeFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      <button (click)="setActiveFilter('active')" [attr.data-active]="activeFilter() === 'active'" class="dl-pill dl-pill--success" type="button">Actifs</button>
+      <button (click)="setActiveFilter('inactive')" [attr.data-active]="activeFilter() === 'inactive'" class="dl-pill dl-pill--warning" type="button">Inactifs</button>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus"></svg>Nouvelle compagnie
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des compagnies…</p>
+  } @else if (items().length === 0) {
+    <p class="dl-empty">Aucune compagnie ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Code</th>
+            <th scope="col">Nom</th>
+            <th scope="col">Type</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Créée le</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td class="dl-timestamp">{{ item.codeCompagnie || '—' }}</td>
+              <td>{{ item.nom }}</td>
+              <td>
+                @if (item.type) {
+                  <span [class]="'dl-chip dl-chip--' + (item.type === 'VIE' ? 'info' : 'neutral')">
+                    <span class="dl-chip-dot"></span>{{ typeLabel(item.type) }}
+                  </span>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (item.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ item.active ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td class="dl-timestamp">{{ formatDate(item.creation) }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEdit(item)" class="dl-icon-btn" title="Modifier" type="button">
+                    <svg cIcon name="cilPencil" size="sm"></svg>
+                  </button>
+                  <button (click)="confirmDelete(item)" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                    <svg cIcon name="cilTrash" size="sm"></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span>
+      <strong>{{ items().length }}</strong> sur {{ totalElements() }} compagnies
+      (page {{ pageIndex() + 1 }} sur {{ totalPages() || 1 }})
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">
+        Précédent
+      </button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">
+        Suivant
+      </button>
+    </div>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" title="{{ editingId() ? 'Modifier la compagnie' : 'Nouvelle compagnie' }}" (closed)="formVisible.set(false)">
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="save()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-4">
+        <label cLabel for="compagnie-code">Code compagnie</label>
+        <input cFormControl formControlName="codeCompagnie" id="compagnie-code" type="text" />
+      </div>
+      <div class="col-sm-8">
+        <label cLabel for="compagnie-nom">Nom de la compagnie</label>
+        <input cFormControl formControlName="nom" id="compagnie-nom" type="text" />
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="compagnie-type">Type</label>
+        <select cSelect formControlName="type" id="compagnie-type">
+          <option value="">— Non précisé —</option>
+          <option value="VIE">Vie</option>
+          <option value="NON_VIE">Non-vie</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="active" id="compagnie-active" switch type="checkbox" />
+      <label cLabel for="compagnie-active">Compagnie active</label>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteTarget()"
+  title="Supprimer cette compagnie ?"
+  [message]="'La compagnie « ' + (deleteTarget()?.nom ?? '') + ' » sera définitivement supprimée.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteTarget.set(null)"
+  (confirmed)="performDelete()"
+/>

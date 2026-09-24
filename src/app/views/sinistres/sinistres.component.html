@@ -1,0 +1,380 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>{{ titleKey | transloco }}</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        [placeholder]="'sinistres.toolbar.rechercher' | transloco"
+        type="search"
+      />
+    </div>
+
+    @if (isSuiviMode) {
+      <button (click)="toggleShowClosed()" [attr.data-active]="showClosedInSuivi()" class="dl-pill" type="button">
+        {{ (showClosedInSuivi() ? 'sinistres.toolbar.tousDossiers' : 'sinistres.toolbar.dossiersEnCours') | transloco }}
+      </button>
+    } @else {
+      <select (change)="setStatusFilter($any($event.target).value)" cSelect style="max-width: 220px;">
+        <option value="all">{{ 'sinistres.toolbar.tousStatuts' | transloco }}</option>
+        @for (status of statusOrder; track status) {
+          <option [value]="status">{{ statusLabelKey(status) | transloco }}</option>
+        }
+      </select>
+    }
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        {{ 'common.actions.refresh' | transloco }}
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() | transloco }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">{{ 'common.actions.retry' | transloco }}</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">{{ 'sinistres.empty.chargement' | transloco }}</p>
+  } @else if (pagedItems().length === 0) {
+    <p class="dl-empty">{{ 'sinistres.empty.aucunResultat' | transloco }}</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{{ 'sinistres.table.numero' | transloco }}</th>
+            <th scope="col">{{ 'sinistres.fields.assure' | transloco }}</th>
+            <th scope="col">{{ 'sinistres.fields.contrat' | transloco }}</th>
+            <th scope="col">{{ 'sinistres.fields.nature' | transloco }}</th>
+            <th scope="col">{{ 'sinistres.fields.dateSurvenance' | transloco }}</th>
+            <th scope="col">{{ 'sinistres.table.statut' | transloco }}</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (sinistre of pagedItems(); track sinistre.id) {
+            <tr>
+              <td><span class="dl-tag">{{ sinistre.numero }}</span></td>
+              <td>{{ sinistre.insuredName }}</td>
+              <td class="dl-timestamp">{{ sinistre.contractPolicyNumber }}</td>
+              <td>{{ sinistre.nature }}</td>
+              <td class="dl-timestamp">{{ formatDate(sinistre.dateSurvenance) }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statusVariant(sinistre.status)">
+                  <span class="dl-chip-dot"></span>{{ statusLabelKey(sinistre.status) | transloco }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openDetail(sinistre)" cButton class="dl-btn" size="sm" type="button">{{ 'sinistres.table.suivre' | transloco }}</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span>{{ 'sinistres.footnote.pagination' | transloco: { count: pagedItems().length, total: filteredItems().length, page: pageIndex() + 1, totalPages: totalPages() } }}</span>
+    <div class="d-flex align-items-center gap-2">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">
+        {{ 'common.actions.previous' | transloco }}
+      </button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">
+        {{ 'common.actions.next' | transloco }}
+      </button>
+    </div>
+  </div>
+</section>
+
+<app-modal [visible]="detailVisible()" size="lg" [title]="('sinistres.detail.titre' | transloco: { numero: selectedSinistre()?.numero })" (closed)="detailVisible.set(false)">
+  @if (selectedSinistre(); as sinistre) {
+    <div class="fs-section">
+      <div class="d-flex align-items-center justify-content-end mb-2">
+        @if (!editMode()) {
+          <button (click)="startEdit()" cButton class="dl-btn" size="sm" type="button">
+            <svg cIcon name="cilPencil" size="sm"></svg>
+            {{ 'sinistres.detail.modifier' | transloco }}
+          </button>
+        }
+      </div>
+      <div class="dl-detail-grid">
+        <div>
+          <div class="dl-cell-detail">{{ 'sinistres.fields.assure' | transloco }}</div>
+          <div>{{ sinistre.insuredName }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">{{ 'sinistres.fields.contrat' | transloco }}</div>
+          <div>{{ sinistre.contractPolicyNumber }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">{{ 'sinistres.fields.nature' | transloco }}</div>
+          <div>{{ sinistre.nature }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">{{ 'sinistres.fields.statutActuel' | transloco }}</div>
+          <div>
+            <span [class]="'dl-chip dl-chip--' + statusVariant(sinistre.status)">
+              <span class="dl-chip-dot"></span>{{ statusLabelKey(sinistre.status) | transloco }}
+            </span>
+          </div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">{{ 'sinistres.fields.dateSurvenance' | transloco }}</div>
+          <div>{{ formatDate(sinistre.dateSurvenance) }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">{{ 'sinistres.fields.dateDeclaration' | transloco }}</div>
+          <div>{{ formatDate(sinistre.dateDeclaration) }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">{{ 'sinistres.fields.montantEstime' | transloco }}</div>
+          <div>{{ formatAmount(sinistre.montantEstime) }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">{{ 'sinistres.fields.montantIndemnise' | transloco }}</div>
+          <div>{{ formatAmount(sinistre.montantIndemnise) }}</div>
+        </div>
+        @if (sinistre.declarant) {
+          <div>
+            <div class="dl-cell-detail">{{ 'sinistres.fields.declarant' | transloco }}</div>
+            <div>{{ sinistre.declarant }}</div>
+          </div>
+        }
+        @if (sinistre.assignee) {
+          <div>
+            <div class="dl-cell-detail">{{ 'sinistres.fields.assigneA' | transloco }}</div>
+            <div>{{ sinistre.assignee }}</div>
+          </div>
+        }
+        @if (sinistre.compagnieNom) {
+          <div>
+            <div class="dl-cell-detail">{{ 'sinistres.fields.compagnie' | transloco }}</div>
+            <div>{{ sinistre.compagnieNom }}</div>
+          </div>
+        }
+        @if (sinistre.gestionnaireNom) {
+          <div>
+            <div class="dl-cell-detail">{{ 'sinistres.fields.gestionnaire' | transloco }}</div>
+            <div>{{ sinistre.gestionnaireNom }}</div>
+          </div>
+        }
+      </div>
+
+      @if (sinistre.description) {
+        <div class="mt-3">
+          <div class="dl-cell-detail mb-1">{{ 'sinistres.fields.description' | transloco }}</div>
+          <div>{{ sinistre.description }}</div>
+        </div>
+      }
+
+      @if (editMode()) {
+        <div class="mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+          @if (editError(); as key) {
+            <app-alert-message class="d-block mb-3" [message]="key | transloco" />
+          }
+          <form [formGroup]="editForm" cForm (ngSubmit)="submitEdit()">
+            <div class="row g-3 mb-1">
+              <div class="col-sm-6">
+                <label cLabel for="edit-nature">{{ 'sinistres.fields.nature' | transloco }}</label>
+                <input cFormControl formControlName="nature" id="edit-nature" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="edit-date">{{ 'sinistres.fields.dateSurvenance' | transloco }}</label>
+                <input cFormControl formControlName="dateSurvenance" id="edit-date" type="date" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="edit-montant">{{ 'sinistres.fields.montantEstime' | transloco }}</label>
+                <input cFormControl formControlName="montantEstime" id="edit-montant" inputmode="numeric" type="text" wzThousandSeparator />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="edit-compagnie">{{ 'sinistres.fields.compagnie' | transloco }}</label>
+                <select cSelect formControlName="compagnieId" id="edit-compagnie">
+                  <option [value]="0">—</option>
+                  @for (compagnie of compagnies(); track compagnie.id) {
+                    <option [value]="compagnie.id">{{ compagnie.nom }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="edit-assignee">{{ 'sinistres.fields.assigneA' | transloco }}</label>
+                <select cSelect formControlName="assigneeId" id="edit-assignee">
+                  <option [value]="0">—</option>
+                  @for (profile of gestionnaires(); track profile.id) {
+                    <option [value]="profile.userId">{{ gestionnaireLabel(profile) }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-12">
+                <label cLabel for="edit-description">{{ 'sinistres.fields.description' | transloco }}</label>
+                <textarea cFormControl formControlName="description" id="edit-description" rows="3"></textarea>
+              </div>
+              <div class="col-12">
+                <label cLabel for="edit-notes">{{ 'sinistres.fields.notes' | transloco }}</label>
+                <textarea cFormControl formControlName="notes" id="edit-notes" rows="2"></textarea>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-2">
+              <button (click)="cancelEdit()" cButton class="dl-btn" type="button">{{ 'common.actions.cancel' | transloco }}</button>
+              <button [disabled]="editSaving()" cButton color="primary" type="submit">
+                @if (editSaving()) {
+                  <c-spinner size="sm" />
+                }
+                {{ 'sinistres.detail.enregistrerModifications' | transloco }}
+              </button>
+            </div>
+          </form>
+        </div>
+      }
+    </div>
+
+    <div class="fs-section">
+      <div class="fs-section-head">
+        <svg cIcon name="cilList" size="lg"></svg>
+        <h3>{{ 'sinistres.historique.titre' | transloco }}</h3>
+      </div>
+      @if (suivisError()) {
+        <p class="dl-empty">{{ suivisError() | transloco }}</p>
+      } @else if (suivisLoading()) {
+        <p class="dl-empty">{{ 'sinistres.historique.chargement' | transloco }}</p>
+      } @else if (suivis().length === 0) {
+        <p class="dl-empty">{{ 'sinistres.historique.vide' | transloco }}</p>
+      } @else {
+        <ul class="list-unstyled d-flex flex-column gap-2 m-0">
+          @for (suivi of suivis(); track suivi.id) {
+            <li class="d-flex align-items-start gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+              <span [class]="'dl-chip dl-chip--' + statusVariant(suivi.statut)">
+                <span class="dl-chip-dot"></span>{{ statusLabelKey(suivi.statut) | transloco }}
+              </span>
+              <div class="flex-grow-1">
+                @if (suivi.commentaire) {
+                  <div>{{ suivi.commentaire }}</div>
+                }
+                <div class="dl-cell-detail">
+                  {{ formatDateTime(suivi.createdAt) }}@if (suivi.auteur) { — {{ suivi.auteur }} }
+                  @if (suivi.notificationEnvoyee) {
+                    <span class="dl-chip dl-chip--info ms-1"><span class="dl-chip-dot"></span>{{ 'sinistres.historique.smsEnvoye' | transloco }}</span>
+                  }
+                </div>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="fs-section">
+      <div class="fs-section-head">
+        <svg cIcon name="cilPaperclip" size="lg"></svg>
+        <h3>{{ 'sinistres.photos.titre' | transloco }}</h3>
+      </div>
+      @if (photoError(); as key) {
+        <app-alert-message class="d-block mb-3" [message]="key | transloco" />
+      }
+      @if (photosLoading()) {
+        <p class="dl-empty">{{ 'sinistres.photos.chargement' | transloco }}</p>
+      } @else if (photos().length === 0) {
+        <p class="dl-empty">{{ 'sinistres.photos.vide' | transloco }}</p>
+      } @else {
+        <ul class="list-unstyled d-flex flex-column gap-2 m-0 mb-3">
+          @for (photo of photos(); track photo.id) {
+            <li class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+              <svg cIcon class="flex-shrink-0" name="cilFile" size="lg"></svg>
+              <div class="flex-grow-1">
+                <div>{{ photo.fileName }}</div>
+                <div class="dl-cell-detail">
+                  {{ formatFileSize(photo.sizeBytes) }} — {{ photo.uploadedBy }}, {{ formatDateTime(photo.createdAt) }}
+                </div>
+              </div>
+              <button
+                (click)="viewPhoto(photo)"
+                [disabled]="viewingPhotoId() === photo.id"
+                cButton
+                class="dl-btn"
+                size="sm"
+                type="button"
+              >
+                @if (viewingPhotoId() === photo.id) {
+                  <c-spinner size="sm" />
+                }
+                {{ 'common.actions.view' | transloco }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+
+      <label cButton class="dl-btn" [class.disabled]="photoUploading()">
+        @if (photoUploading()) {
+          <c-spinner size="sm" />
+        }
+        {{ 'sinistres.photos.joindre' | transloco }}
+        <input (change)="onPhotoSelected($event)" [disabled]="photoUploading()" accept="image/*" class="d-none" type="file" />
+      </label>
+    </div>
+
+    <div class="fs-section">
+      <app-entity-documents [entityId]="sinistre.id" entityType="CLAIM" />
+    </div>
+
+    <div class="fs-section">
+      <div class="fs-section-head">
+        <svg cIcon name="cilNotes" size="lg"></svg>
+        <h3>{{ 'sinistres.auditHistorique.titre' | transloco }}</h3>
+      </div>
+      <app-audit-history entiteNom="Sinistre" [entiteId]="sinistre.id" />
+    </div>
+
+    <div class="fs-section">
+      <div class="fs-section-head">
+        <svg cIcon name="cilPencil" size="lg"></svg>
+        <h3>{{ 'sinistres.suiviForm.titre' | transloco }}</h3>
+      </div>
+      @if (suiviError(); as key) {
+        <app-alert-message class="d-block mb-3" [message]="key | transloco" />
+      }
+      <form [formGroup]="suiviForm" cForm (ngSubmit)="submitSuivi()">
+        <div class="row g-3 mb-1">
+          <div class="col-sm-6">
+            <label cLabel for="suivi-statut">{{ 'sinistres.suiviForm.nouveauStatut' | transloco }}</label>
+            <select cSelect formControlName="statut" id="suivi-statut">
+              @for (status of statusOrder; track status) {
+                <option [value]="status">{{ statusLabelKey(status) | transloco }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label cLabel for="suivi-montant">{{ 'sinistres.suiviForm.montantIndemnise' | transloco }}</label>
+            <input cFormControl formControlName="montantIndemnise" id="suivi-montant" inputmode="numeric" type="text" wzThousandSeparator />
+          </div>
+          <div class="col-12">
+            <label cLabel for="suivi-commentaire">{{ 'sinistres.suiviForm.commentaire' | transloco }}</label>
+            <textarea cFormControl formControlName="commentaire" id="suivi-commentaire" [maxlength]="commentaireMaxLength" rows="3"></textarea>
+            <span class="fs-counter">{{ commentaireLength() }} / {{ commentaireMaxLength }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between gap-2 mt-2">
+          <span class="dl-cell-detail">{{ 'sinistres.suiviForm.notificationSms' | transloco }}</span>
+          <button [disabled]="suiviSaving()" cButton color="primary" type="submit">
+            @if (suiviSaving()) {
+              <c-spinner size="sm" />
+            }
+            {{ 'sinistres.suiviForm.enregistrer' | transloco }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</app-modal>

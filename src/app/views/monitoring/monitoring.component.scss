@@ -1,0 +1,22 @@
+.mc-section-head--raw {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.mon-raw-table {
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.75rem;
+  max-height: 28rem;
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .mc-section-head--raw {
+    flex-direction: column;
+    align-items: stretch;
+
+    .dl-search {
+      max-width: none;
+    }
+  }
+}

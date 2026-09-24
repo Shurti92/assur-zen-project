@@ -1,0 +1,76 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Indicateurs métier</h2>
+      @if (!loading() && !error()) {
+        <span class="dl-live">
+          <span class="dl-live-dot"></span>
+          Auto-actualisation 30s
+        </span>
+      }
+    </div>
+
+    @if (relativeUpdate()) {
+      <span class="mc-updated">Mis à jour {{ relativeUpdate() }}</span>
+    }
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading() || refreshing()" cButton class="dl-btn" type="button">
+        @if (refreshing()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des indicateurs métier…</p>
+  } @else {
+    <div class="mc-body">
+      <div>
+        <div class="mc-section-head">
+          <h3>Volumes du jour</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of volumeKpis(); track kpi.key) {
+            <c-col sm="6" xl="3">
+              <div [class]="'mc-kpi-card mc-kpi-card--' + kpi.color">
+                <span class="mc-kpi-icon">
+                  <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                </span>
+                <div class="mc-kpi-body">
+                  <div class="mc-kpi-value">{{ kpi.value }}</div>
+                  <div class="mc-kpi-label">{{ kpi.label }}</div>
+                </div>
+              </div>
+            </c-col>
+          }
+        </c-row>
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Performance & fiabilité</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of performanceKpis(); track kpi.key) {
+            <c-col sm="6" xl="4">
+              <div [class]="'mc-kpi-card mc-kpi-card--' + kpi.color">
+                <span class="mc-kpi-icon">
+                  <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                </span>
+                <div class="mc-kpi-body">
+                  <div class="mc-kpi-value">{{ kpi.value }}</div>
+                  <div class="mc-kpi-label">{{ kpi.label }}</div>
+                </div>
+              </div>
+            </c-col>
+          }
+        </c-row>
+      </div>
+    </div>
+  }
+</section>

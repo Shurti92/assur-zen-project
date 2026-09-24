@@ -1,0 +1,76 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Primes non reversées</h2>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  <div class="dl-cell-detail mb-1" style="padding: 0 1.3rem;">
+    Contrats signés dont la prime encaissée par le partenaire n'a pas encore été reversée à la compagnie.
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement…</p>
+  } @else if (items().length === 0) {
+    <p class="dl-empty">Aucun contrat en attente de reversement.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">N° police</th>
+            <th scope="col">Client</th>
+            <th scope="col">Partenaire</th>
+            <th scope="col">Prime</th>
+            <th scope="col">Signé le</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td><span class="dl-tag">{{ item.policyNumber }}</span></td>
+              <td>{{ clientLabel(item) }}</td>
+              <td>{{ item.partenaireName || '—' }}</td>
+              <td class="dl-timestamp">{{ formatAmount(item.premium) }}</td>
+              <td class="dl-timestamp">{{ formatDate(item.signedAt) }}</td>
+              <td>
+                <button (click)="askReverser(item)" cButton class="dl-btn" size="sm" type="button">
+                  <svg cIcon name="cilCheckCircle" size="sm"></svg>Marquer reversée
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="dl-footnote">
+      <span>Page {{ pageIndex() + 1 }} sur {{ totalPages() }} — {{ totalElements() }} contrat(s)</span>
+      <div class="dl-actions">
+        <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+</section>
+
+<app-confirm-dialog
+  [visible]="reverserTarget() !== null"
+  title="Marquer la prime comme reversée ?"
+  [message]="'Confirmez-vous que le partenaire a bien reversé la prime du contrat « ' + (reverserTarget()?.policyNumber ?? '') + ' » à la compagnie ?'"
+  confirmLabel="Confirmer"
+  (cancelled)="cancelReverser()"
+  (confirmed)="confirmReverser()"
+/>

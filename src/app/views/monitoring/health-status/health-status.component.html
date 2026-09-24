@@ -1,0 +1,72 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>État technique</h2>
+      @if (!loading() && !error()) {
+        <span class="dl-live">
+          <span class="dl-live-dot"></span>
+          Auto-actualisation 30s
+        </span>
+      }
+    </div>
+
+    @if (relativeUpdate()) {
+      <span class="mc-updated">Mis à jour {{ relativeUpdate() }}</span>
+    }
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading() || refreshing()" cButton class="dl-btn" type="button">
+        @if (refreshing()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement de l'état technique…</p>
+  } @else {
+    <div class="mc-body">
+      <div class="mc-overall">
+        <span [class]="'dl-chip dl-chip--' + overallVariant()">
+          <span class="dl-chip-dot"></span>État global — {{ variantLabel(overallVariant()) }}
+        </span>
+      </div>
+
+      @if (components().length === 0) {
+        <p class="dl-empty">Aucun composant remonté par le service de supervision.</p>
+      } @else {
+        <c-row class="g-3">
+          @for (component of components(); track component.name) {
+            <c-col sm="6" lg="3">
+              <div [class]="'mc-health-card mc-health-card--' + component.variant">
+                <div class="mc-health-card-head">
+                  <span class="mc-health-icon">
+                    <svg cIcon [name]="component.icon" size="lg"></svg>
+                  </span>
+                  <span [class]="'dl-chip dl-chip--' + component.variant">
+                    <span class="dl-chip-dot"></span>{{ component.status }}
+                  </span>
+                </div>
+                <div class="mc-health-name">{{ component.name }}</div>
+                @if (component.details.length > 0) {
+                  <dl class="mc-health-details">
+                    @for (detail of component.details; track detail[0]) {
+                      <div>
+                        <dt>{{ detail[0] }}</dt>
+                        <dd>{{ detail[1] }}</dd>
+                      </div>
+                    }
+                  </dl>
+                }
+              </div>
+            </c-col>
+          }
+        </c-row>
+      }
+    </div>
+  }
+</section>

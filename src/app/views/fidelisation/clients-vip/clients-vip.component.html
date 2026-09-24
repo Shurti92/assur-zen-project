@@ -1,0 +1,419 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Clients VIP</h2>
+    </div>
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error() && !loading()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  }
+
+  @if (loading()) {
+    <p class="dl-empty">Chargement du tableau de bord VIP…</p>
+  } @else {
+    <div class="mc-body">
+      <div>
+        <div class="mc-section-head">
+          <h3>Indicateurs clés</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of kpis(); track kpi.key) {
+            <c-col sm="6" xl="3">
+              <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                <div class="ldb-kpi-head">
+                  <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                  <span class="ldb-kpi-icon">
+                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                  </span>
+                </div>
+                <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                <div class="ldb-kpi-sub">{{ kpi.sub }}</div>
+              </div>
+            </c-col>
+          }
+        </c-row>
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Analyses</h3>
+        </div>
+        <c-row class="g-3">
+          <c-col lg="7">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Évolution mensuelle</h3>
+                <span class="ldb-panel-sub">Entrées / sorties VIP, {{ mensuel().length }} mois</span>
+              </div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box ldb-chart-box--tall">
+                  @if (mensuelData) {
+                    <c-chart type="line" [data]="mensuelData" [options]="mensuelOptions" />
+                  } @else {
+                    <p class="dl-empty p-0">Aucune donnée mensuelle.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </c-col>
+
+          <c-col lg="5">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Répartition par niveau</h3>
+                <span class="ldb-panel-sub">Comptes fidélité</span>
+              </div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box">
+                  @if (niveauData) {
+                    <c-chart type="doughnut" [data]="niveauData" [options]="niveauOptions" />
+                  } @else {
+                    <p class="dl-empty p-0">Aucune donnée.</p>
+                  }
+                </div>
+                <div class="ldb-legend">
+                  @for (row of niveauLegend(); track row.label) {
+                    <div class="ldb-legend-row">
+                      <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                      <span class="ldb-legend-label">{{ row.label }}@if (row.estVip) { <svg cIcon name="cilStar" size="sm"></svg> }</span>
+                      <span class="ldb-legend-value">{{ row.value }}</span>
+                    </div>
+                  }
+                  @if (niveauLegend().length === 0) {
+                    <p class="dl-empty p-0">Aucun palier.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </c-col>
+        </c-row>
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Répartition VIP par dimension</h3>
+        </div>
+        <c-row class="g-3">
+          <c-col lg="4">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head"><h3>Par courtier</h3></div>
+              <div class="ldb-panel-body p-0">
+                @if (parCourtier().length === 0) {
+                  <p class="dl-empty">Aucune donnée.</p>
+                } @else {
+                  <div class="dl-table-scroll">
+                    <table>
+                      <thead><tr><th scope="col">Courtier</th><th scope="col">VIP</th><th scope="col">Prime</th></tr></thead>
+                      <tbody>
+                        @for (row of parCourtier(); track row.id) {
+                          <tr><td>{{ row.nom }}</td><td>{{ row.nombreVip }}</td><td class="dl-timestamp">{{ formatAmount(row.primeTotale) }}</td></tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+          </c-col>
+          <c-col lg="4">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head"><h3>Par gestionnaire</h3></div>
+              <div class="ldb-panel-body p-0">
+                @if (parGestionnaire().length === 0) {
+                  <p class="dl-empty">Aucune donnée.</p>
+                } @else {
+                  <div class="dl-table-scroll">
+                    <table>
+                      <thead><tr><th scope="col">Gestionnaire</th><th scope="col">VIP</th><th scope="col">Prime</th></tr></thead>
+                      <tbody>
+                        @for (row of parGestionnaire(); track row.id) {
+                          <tr><td>{{ row.nom }}</td><td>{{ row.nombreVip }}</td><td class="dl-timestamp">{{ formatAmount(row.primeTotale) }}</td></tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+          </c-col>
+          <c-col lg="4">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head"><h3>Par produit</h3></div>
+              <div class="ldb-panel-body p-0">
+                @if (parProduit().length === 0) {
+                  <p class="dl-empty">Aucune donnée.</p>
+                } @else {
+                  <div class="dl-table-scroll">
+                    <table>
+                      <thead><tr><th scope="col">Produit</th><th scope="col">VIP</th><th scope="col">Prime</th></tr></thead>
+                      <tbody>
+                        @for (row of parProduit(); track row.id) {
+                          <tr><td>{{ row.nom }}</td><td>{{ row.nombreVip }}</td><td class="dl-timestamp">{{ formatAmount(row.primeTotale) }}</td></tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+          </c-col>
+        </c-row>
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Top clients</h3>
+        </div>
+        <div class="ldb-panel">
+          <div class="ldb-panel-body p-0">
+            @if (topClients().length === 0) {
+              <p class="dl-empty">Aucun client VIP.</p>
+            } @else {
+              <div class="dl-table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Assuré</th>
+                      <th scope="col">Score fidélité</th>
+                      <th scope="col">Palier</th>
+                      <th scope="col">Solde points</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of topClients(); track row.insuredId) {
+                      <tr>
+                        <td>{{ row.insuredName }}</td>
+                        <td>{{ row.scoreFidelite }}</td>
+                        <td>{{ row.palierLibelle ?? '—' }}</td>
+                        <td class="dl-timestamp">{{ formatInt(row.soldePoints) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</section>
+
+<section class="dl-panel mt-4">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Comptes VIP</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input (input)="onSearchInput($any($event.target).value)" autocomplete="off" placeholder="Rechercher un assuré…" type="search" />
+    </div>
+
+    <select (change)="setStatutVipFilter($any($event.target).value)" cSelect style="max-width: 220px;">
+      <option value="all">Tous les statuts VIP</option>
+      @for (statut of statutVipOrder; track statut) {
+        <option [value]="statut">{{ statutVipLabel[statut] }}</option>
+      }
+    </select>
+
+    <div class="dl-actions">
+      <button (click)="fetchComptes()" [disabled]="comptesLoading()" cButton class="dl-btn" type="button">
+        @if (comptesLoading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (comptesError()) {
+    <p class="dl-empty">{{ comptesError() }} <button (click)="fetchComptes()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (comptesLoading()) {
+    <p class="dl-empty">Chargement des comptes…</p>
+  } @else if (filteredComptes().length === 0) {
+    <p class="dl-empty">Aucun compte ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Assuré</th>
+            <th scope="col">Statut VIP</th>
+            <th scope="col">Palier</th>
+            <th scope="col">Score</th>
+            <th scope="col">Solde points</th>
+            <th scope="col">Gestionnaire dédié</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (compte of filteredComptes(); track compte.id) {
+            <tr>
+              <td>{{ compte.insuredName }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statutVipVariant(compte.statutVip)">
+                  <span class="dl-chip-dot"></span>{{ statutVipLabel[compte.statutVip] }}
+                </span>
+              </td>
+              <td>{{ compte.palierLibelle ?? '—' }}</td>
+              <td>{{ compte.scoreFidelite ?? '—' }}</td>
+              <td class="dl-timestamp">{{ formatInt(compte.soldePoints) }}</td>
+              <td>{{ compte.gestionnaireDedieNom ?? '—' }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openDetail(compte)" cButton class="dl-btn" size="sm" type="button">Gérer</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredComptes().length }}</strong> sur {{ comptes().length }} comptes</span>
+  </div>
+</section>
+
+<app-modal [visible]="detailVisible()" size="lg" title="{{ selectedCompte()?.insuredName }}" (closed)="detailVisible.set(false)">
+  @if (selectedCompte(); as compte) {
+    <div class="fs-section">
+      <div class="dl-detail-grid">
+        <div>
+          <div class="dl-cell-detail">Statut VIP</div>
+          <div>
+            <span [class]="'dl-chip dl-chip--' + statutVipVariant(compte.statutVip)">
+              <span class="dl-chip-dot"></span>{{ statutVipLabel[compte.statutVip] }}
+            </span>
+          </div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Palier</div>
+          <div>{{ compte.palierLibelle ?? '—' }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Score de fidélité</div>
+          <div>{{ compte.scoreFidelite ?? '—' }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Solde de points</div>
+          <div>{{ formatInt(compte.soldePoints) }}</div>
+        </div>
+        @if (compte.dateEntreeVip) {
+          <div>
+            <div class="dl-cell-detail">Entrée VIP</div>
+            <div>{{ formatShortDate(compte.dateEntreeVip) }}</div>
+          </div>
+        }
+        @if (compte.dateSortieVip) {
+          <div>
+            <div class="dl-cell-detail">Sortie VIP</div>
+            <div>{{ formatShortDate(compte.dateSortieVip) }}</div>
+          </div>
+        }
+        <div>
+          <div class="dl-cell-detail">Gestionnaire dédié</div>
+          <div>{{ compte.gestionnaireDedieNom ?? '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fs-section">
+      <div class="fs-section-head">
+        <svg cIcon name="cilStar" size="lg"></svg>
+        <h3>Statut VIP</h3>
+      </div>
+      @if (statutVipError(); as message) {
+        <app-alert-message class="d-block mb-3" [message]="message" />
+      }
+      <form [formGroup]="statutVipForm" cForm (ngSubmit)="submitStatutVip()">
+        <div class="row g-3 mb-1">
+          <div class="col-sm-6">
+            <label cLabel for="vip-statut">Nouveau statut</label>
+            <select cSelect formControlName="statut" id="vip-statut">
+              @for (statut of statutVipOrder; track statut) {
+                <option [value]="statut">{{ statutVipLabel[statut] }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label cLabel for="vip-motif">Motif (optionnel)</label>
+            <input cFormControl formControlName="motif" id="vip-motif" type="text" />
+          </div>
+        </div>
+        <div class="d-flex justify-content-end mt-2">
+          <button [disabled]="statutVipSaving()" cButton color="primary" type="submit">
+            @if (statutVipSaving()) {
+              <c-spinner size="sm" />
+            }
+            Mettre à jour
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="fs-section">
+      <div class="fs-section-head">
+        <svg cIcon name="person" size="lg"></svg>
+        <h3>Gestionnaire dédié</h3>
+      </div>
+      @if (gestionnaireError(); as message) {
+        <app-alert-message class="d-block mb-3" [message]="message" />
+      }
+      <form [formGroup]="gestionnaireForm" cForm (ngSubmit)="submitGestionnaire()">
+        <div class="row g-3 mb-1 align-items-end">
+          <div class="col-sm-8">
+            <label cLabel for="vip-gestionnaire">Gestionnaire</label>
+            <select cSelect formControlName="gestionnaireId" id="vip-gestionnaire">
+              <option [value]="0">Sélectionner…</option>
+              @for (g of gestionnaires(); track g.id) {
+                <option [value]="g.userId">{{ gestionnaireName(g) }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-sm-4">
+            <button [disabled]="gestionnaireSaving()" cButton color="primary" type="submit">
+              @if (gestionnaireSaving()) {
+                <c-spinner size="sm" />
+              }
+              Assigner
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="fs-section">
+      <div class="fs-section-head">
+        <svg cIcon name="cilSpeedometer" size="lg"></svg>
+        <h3>Score de fidélité</h3>
+      </div>
+      @if (recalculateError(); as message) {
+        <app-alert-message class="d-block mb-3" [message]="message" />
+      }
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <span class="dl-cell-detail">Recalcule le score à partir de l'activité actuelle de l'assuré.</span>
+        <button (click)="recalculerScore()" [disabled]="recalculating()" cButton class="dl-btn" type="button">
+          @if (recalculating()) {
+            <c-spinner size="sm" />
+          }
+          Recalculer le score
+        </button>
+      </div>
+    </div>
+  }
+</app-modal>

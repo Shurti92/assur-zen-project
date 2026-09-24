@@ -1,0 +1,131 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Types de profil</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher un type de profil…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus"></svg>Nouveau type de profil
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des types de profil…</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="dl-empty">Aucun type de profil ne correspond à cette recherche.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Libellé</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Création de compte</th>
+            <th scope="col">Créé le</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.id) {
+            <tr>
+              <td>{{ item.libelle }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (item.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ item.active ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td>
+                @if (item.declencheCreationCompte) {
+                  <span class="dl-chip dl-chip--info"><span class="dl-chip-dot"></span>Automatique</span>
+                } @else {
+                  —
+                }
+              </td>
+              <td class="dl-timestamp">{{ formatDate(item.creation) }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEdit(item)" class="dl-icon-btn" title="Modifier" type="button">
+                    <svg cIcon name="cilPencil" size="sm"></svg>
+                  </button>
+                  <button (click)="confirmDelete(item)" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                    <svg cIcon name="cilTrash" size="sm"></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredItems().length }}</strong> sur {{ items().length }} types de profil</span>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" title="{{ editingId() ? 'Modifier le type de profil' : 'Nouveau type de profil' }}" (closed)="formVisible.set(false)">
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="save()">
+    <div class="mb-3">
+      <label cLabel for="type-profile-libelle">Libellé</label>
+      <input cFormControl formControlName="libelle" id="type-profile-libelle" type="text" />
+    </div>
+    <div class="form-check form-switch mb-1">
+      <input cFormCheckInput formControlName="active" id="type-profile-active" switch type="checkbox" />
+      <label cLabel for="type-profile-active">Type de profil actif</label>
+    </div>
+    <div class="form-check form-switch mb-1">
+      <input cFormCheckInput formControlName="declencheCreationCompte" id="type-profile-declenche" switch type="checkbox" />
+      <label cLabel for="type-profile-declenche">Déclenche la création automatique d'un compte de connexion</label>
+    </div>
+    <div class="dl-cell-detail mb-2">
+      À cocher uniquement pour le type utilisé par les partenaires ayant besoin d'un accès à l'application mobile (ex. "REPRESENTANT") — le compte est créé automatiquement dès qu'un partenaire d'affaire est enregistré avec ce type.
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteTarget()"
+  title="Supprimer ce type de profil ?"
+  [message]="'Le type de profil « ' + (deleteTarget()?.libelle ?? '') + ' » sera définitivement supprimé.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteTarget.set(null)"
+  (confirmed)="performDelete()"
+/>

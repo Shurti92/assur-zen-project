@@ -1,0 +1,641 @@
+<c-row class="g-3 mb-3">
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="targetCheck" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statTotal() }}</div>
+        <div class="mc-kpi-label">{{ title }}</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="dollar" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ formatAmount(statVolume()) }}</div>
+        <div class="mc-kpi-label">Volume de primes</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="trendUp" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ formatAmount(statMoyenne()) }}</div>
+        <div class="mc-kpi-label">Prime moyenne</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    @if (isCycleMode) {
+      <div class="mc-kpi-card mc-kpi-card--flag">
+        <span class="mc-kpi-icon"><svg cIcon name="clock" size="lg"></svg></span>
+        <div class="mc-kpi-body">
+          <div class="mc-kpi-value">{{ statFlagValue() }}</div>
+          <div class="mc-kpi-label">{{ statFlagLabel() }}</div>
+        </div>
+      </div>
+    } @else {
+      <button
+        (click)="toggleFlagFilter()"
+        [attr.aria-pressed]="flagFilterActive()"
+        [title]="(flagFilterActive() ? 'Retirer le filtre : ' : 'Filtrer sur : ') + statFlagLabel()"
+        class="mc-kpi-card mc-kpi-card--flag mc-kpi-card--clickable"
+        type="button"
+      >
+        <span class="mc-kpi-icon"><svg cIcon name="clock" size="lg"></svg></span>
+        <div class="mc-kpi-body">
+          <div class="mc-kpi-value">{{ statFlagValue() }}</div>
+          <div class="mc-kpi-label">{{ statFlagLabel() }}</div>
+        </div>
+      </button>
+    }
+  </c-col>
+</c-row>
+
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>{{ title }}</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        placeholder="Rechercher une police, un assuré, un produit…"
+        type="search"
+      />
+    </div>
+
+    @if (isCycleMode) {
+      <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+        <button (click)="setStatusFilter('all')" [attr.data-active]="statusFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+        <button (click)="setStatusFilter('draft')" [attr.data-active]="statusFilter() === 'draft'" class="dl-pill" type="button">Brouillon</button>
+        <button (click)="setStatusFilter('pending')" [attr.data-active]="statusFilter() === 'pending'" class="dl-pill dl-pill--warning" type="button">En attente</button>
+        <button (click)="setStatusFilter('signed')" [attr.data-active]="statusFilter() === 'signed'" class="dl-pill dl-pill--success" type="button">Signé</button>
+        <button (click)="setStatusFilter('cancelled')" [attr.data-active]="statusFilter() === 'cancelled'" class="dl-pill dl-pill--danger" type="button">Annulé</button>
+      </div>
+    }
+
+    <div class="dl-actions">
+      <button (click)="toggleAdvancedFilters()" [attr.data-active]="advancedFiltersOpen()" class="dl-btn dl-btn-toggle" type="button">
+        <svg cIcon name="sliders" size="sm"></svg>
+        Filtres avancés
+        @if (activeAdvancedFilterCount() > 0) {
+          <span class="dl-pill-count">{{ activeAdvancedFilterCount() }}</span>
+        }
+      </button>
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="refresh" size="sm"></svg>
+        }
+        Actualiser
+      </button>
+      <button (click)="export()" [disabled]="exporting() || filteredContracts().length === 0" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (exporting()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="download" size="sm"></svg>
+        }
+        Exporter (.csv)
+      </button>
+    </div>
+  </div>
+
+  @if (activeFilterChips().length > 0) {
+    <div class="dl-chiprow">
+      @for (chip of activeFilterChips(); track chip.key) {
+        <span class="dl-filter-chip">
+          {{ chip.label }}
+          <button (click)="removeFilterChip(chip.key)" [attr.aria-label]="'Retirer le filtre ' + chip.label" type="button">×</button>
+        </span>
+      }
+    </div>
+  }
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des contrats…</p>
+  } @else if (pagedContracts().length === 0) {
+    <p class="dl-empty">Aucun contrat ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">N° police</th>
+            <th scope="col">Assuré</th>
+            <th scope="col">Produit</th>
+            <th scope="col">Prime</th>
+            <th scope="col">Paiement</th>
+            @if (isCycleMode) {
+              <th scope="col">Cycle de vie</th>
+            } @else {
+              <th scope="col">Échéance</th>
+            }
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (contract of pagedContracts(); track contract.id) {
+            <tr [class.dl-row--flagged]="isRowFlagged(contract)">
+              <td><span class="dl-tag">{{ contract.policyNumber }}</span></td>
+              <td>
+                <div class="dl-insured">
+                  <span class="dl-avatar">{{ insuredInitials(contract.insuredName) }}</span>
+                  <div>
+                    <div class="dl-insured-name">{{ contract.insuredName }}</div>
+                    <div class="dl-insured-meta">{{ contract.partenaireName }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ contract.productName }}</td>
+              <td class="dl-timestamp">{{ formatAmount(contract.premium) }}</td>
+              <td>
+                @if (contract.modePaiement === 'FRACTIONNE') {
+                  <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>Fractionné{{ contract.nombreEcheances ? ' · ' + contract.nombreEcheances + 'x' : '' }}</span>
+                } @else {
+                  <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Comptant</span>
+                }
+              </td>
+              @if (isCycleMode) {
+                <td>
+                  @if (contract.status === 'cancelled') {
+                    <span class="dl-chip dl-chip--danger"><span class="dl-chip-dot"></span>Annulé</span>
+                  } @else {
+                    <div class="ct-stepper">
+                      @for (step of lifecycleSteps; track step) {
+                        <span [class]="'ct-step ct-step--' + stepState(contract, step)" [title]="statusLabel(step)"></span>
+                      }
+                    </div>
+                  }
+                </td>
+              } @else {
+                <td class="dl-timestamp">
+                  {{ formatDate(contract.dateEcheance) }}
+                  @if (flagNote(contract); as note) {
+                    <div class="dl-rel" style="color: var(--brand-orange); opacity: 1;">{{ note }}</div>
+                  }
+                </td>
+              }
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openDetail(contract)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                  @if (contract.status === 'signed' && !contract.contratRenouvellementId && !contract.vehiculeId) {
+                    <button (click)="renewContract(contract)" cButton class="dl-btn dl-btn-primary" size="sm" type="button">Renouveler</button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span>
+      <strong>{{ pagedContracts().length }}</strong> sur {{ filteredContracts().length }} contrats
+      (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">
+        Précédent
+      </button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">
+        Suivant
+      </button>
+    </div>
+  </div>
+</section>
+
+<app-modal [visible]="advancedFiltersOpen()" size="lg" title="Filtres avancés" (closed)="closeAdvancedFilters()">
+  <div class="dl-filters dl-filters--modal">
+    <div class="dl-filter-field">
+      <label for="ct-filter-produit">Produit</label>
+      <select (change)="updateAdvancedFilter('productName', $any($event.target).value)" [value]="advancedFilters().productName" cSelect id="ct-filter-produit">
+        <option value="all">Tous les produits</option>
+        @for (product of productOptions(); track product) {
+          <option [value]="product">{{ product }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-compagnie">Compagnie</label>
+      <select (change)="updateAdvancedFilter('compagnieName', $any($event.target).value)" [value]="advancedFilters().compagnieName" cSelect id="ct-filter-compagnie">
+        <option value="all">Toutes les compagnies</option>
+        @for (compagnie of compagnieOptions(); track compagnie) {
+          <option [value]="compagnie">{{ compagnie }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-partenaire">Partenaire</label>
+      <select (change)="updateAdvancedFilter('partenaireName', $any($event.target).value)" [value]="advancedFilters().partenaireName" cSelect id="ct-filter-partenaire">
+        <option value="all">Tous les partenaires</option>
+        @for (partenaire of partenaireOptions(); track partenaire) {
+          <option [value]="partenaire">{{ partenaire }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-mode-paiement">Mode de paiement</label>
+      <select (change)="updateAdvancedFilter('modePaiement', $any($event.target).value)" [value]="advancedFilters().modePaiement" cSelect id="ct-filter-mode-paiement">
+        <option value="all">Tous</option>
+        <option value="COMPTANT">Comptant</option>
+        <option value="FRACTIONNE">Fractionné</option>
+      </select>
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-prime-min">Prime min (FCFA)</label>
+      <input (input)="updateAdvancedFilter('primeMin', $any($event.target).value)" [value]="advancedFilters().primeMin" id="ct-filter-prime-min" min="0" type="number" />
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-prime-max">Prime max (FCFA)</label>
+      <input (input)="updateAdvancedFilter('primeMax', $any($event.target).value)" [value]="advancedFilters().primeMax" id="ct-filter-prime-max" min="0" type="number" />
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-effet-from">Date d'effet — du</label>
+      <input (input)="updateAdvancedFilter('dateEffetFrom', $any($event.target).value)" [value]="advancedFilters().dateEffetFrom" id="ct-filter-effet-from" type="date" />
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-effet-to">Date d'effet — au</label>
+      <input (input)="updateAdvancedFilter('dateEffetTo', $any($event.target).value)" [value]="advancedFilters().dateEffetTo" id="ct-filter-effet-to" type="date" />
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-echeance-from">Date d'échéance — du</label>
+      <input (input)="updateAdvancedFilter('dateEcheanceFrom', $any($event.target).value)" [value]="advancedFilters().dateEcheanceFrom" id="ct-filter-echeance-from" type="date" />
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="ct-filter-echeance-to">Date d'échéance — au</label>
+      <input (input)="updateAdvancedFilter('dateEcheanceTo', $any($event.target).value)" [value]="advancedFilters().dateEcheanceTo" id="ct-filter-echeance-to" type="date" />
+    </div>
+
+    @if (mode === 'echeance-proche') {
+      <div class="dl-filter-field">
+        <label for="ct-filter-echeance-proche">Échéance dans les prochains…</label>
+        <select (change)="setEcheanceProcheJours($any($event.target).value)" [value]="advancedFilters().echeanceProcheJours" cSelect id="ct-filter-echeance-proche">
+          <option value="">Toutes (≤ 30 j)</option>
+          <option value="1">&lt; 1 j</option>
+          <option value="2">&lt; 2 j</option>
+          <option value="5">&lt; 5 j</option>
+          <option value="7">&lt; 7 j</option>
+          <option value="10">&lt; 10 j</option>
+          <option value="custom">Personnalisé…</option>
+        </select>
+      </div>
+
+      @if (advancedFilters().echeanceProcheJours === 'custom') {
+        <div class="dl-filter-field">
+          <label for="ct-filter-echeance-proche-custom">Nombre de jours (≤)</label>
+          <input
+            (input)="updateAdvancedFilter('echeanceProcheJoursCustom', $any($event.target).value)"
+            [value]="advancedFilters().echeanceProcheJoursCustom"
+            id="ct-filter-echeance-proche-custom"
+            min="1"
+            type="number"
+          />
+        </div>
+      }
+    }
+  </div>
+
+  <div class="dl-filters-modal-actions">
+    <button (click)="resetAdvancedFilters()" [disabled]="activeAdvancedFilterCount() === 0" cButton class="dl-btn" type="button">
+      Réinitialiser
+    </button>
+    <button (click)="closeAdvancedFilters()" cButton class="dl-btn dl-btn-primary" type="button">
+      Appliquer
+    </button>
+  </div>
+</app-modal>
+
+<app-modal [visible]="detailVisible()" size="full" title="Contrat {{ selectedContract()?.policyNumber }}" (closed)="detailVisible.set(false)">
+  @if (selectedContract(); as contract) {
+    @if (contract.status === 'cancelled') {
+      <span class="dl-chip dl-chip--danger mb-3 d-inline-flex"><span class="dl-chip-dot"></span>Contrat annulé</span>
+    } @else {
+      <div class="ct-stepper ct-stepper--lg mb-3">
+        @for (step of lifecycleSteps; track step) {
+          <div class="ct-step-wrap">
+            <span [class]="'ct-step ct-step--' + stepState(contract, step)"></span>
+            <span class="ct-step-label">{{ statusLabel(step) }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="ct-detail-header">
+      <span class="dl-avatar dl-avatar--lg">{{ insuredInitials(contract.insuredName) }}</span>
+      <div class="ct-detail-header-body">
+        <div class="ct-detail-header-name">{{ contract.insuredName }}</div>
+        <div class="ct-detail-header-phone">
+          <svg cIcon name="cilPhone" size="sm"></svg>
+          @if (selectedInsuredLoading()) {
+            <c-spinner size="sm" />
+          } @else {
+            {{ selectedInsuredDetail()?.clientPhone || '—' }}
+          }
+        </div>
+      </div>
+      <div class="ct-detail-header-prime">
+        <div class="ct-detail-header-prime-value">{{ formatAmount(contract.premium) }}</div>
+        <div class="ct-detail-header-prime-label">Prime</div>
+      </div>
+      @if (contract.status === 'signed' && !contract.contratRenouvellementId && !contract.vehiculeId) {
+        <button (click)="renewContract(contract)" cButton class="dl-btn dl-btn-primary" size="sm" type="button">
+          <svg cIcon name="refresh" size="sm"></svg>Renouveler
+        </button>
+      }
+    </div>
+
+    <div class="ct-detail-section">
+      <div class="ct-detail-section-title"><svg cIcon name="cilDescription" size="sm"></svg>Contrat</div>
+      <div class="dl-detail-grid">
+        <div>
+          <div class="dl-cell-detail">Produit</div>
+          <div>{{ contract.productName }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Compagnie</div>
+          <div>{{ contract.compagnieName }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Partenaire</div>
+          <div>{{ contract.partenaireName || '—' }}</div>
+        </div>
+        @if (contract.salesRep) {
+          <div>
+            <div class="dl-cell-detail">Commercial</div>
+            <div>{{ contract.salesRep }}</div>
+          </div>
+        }
+        <div>
+          <div class="dl-cell-detail">Exercice comptable</div>
+          <div>{{ contract.exerciceComptableLibelle || '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ct-detail-section">
+      <div class="ct-detail-section-title"><svg cIcon name="cilCalendar" size="sm"></svg>Dates &amp; durée</div>
+      <div class="dl-detail-grid">
+        <div>
+          <div class="dl-cell-detail">Durée</div>
+          <div>{{ contract.duree }} mois</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Date d'effet</div>
+          <div>{{ formatDate(contract.dateEffet) }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Date d'échéance</div>
+          <div>{{ formatDate(contract.dateEcheance) }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Signé le</div>
+          <div>{{ formatDate(contract.signedAt) }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Créé le</div>
+          <div>{{ formatDateTime(contract.createdAt) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ct-detail-section">
+      <div class="ct-detail-section-title"><svg cIcon name="dollar" size="sm"></svg>Paiement &amp; commission</div>
+      <div class="dl-detail-grid">
+        <div>
+          <div class="dl-cell-detail">Mode de paiement</div>
+          <div>
+            <span [class]="'dl-chip dl-chip--' + (contract.modePaiement === 'FRACTIONNE' ? 'warning' : 'info')">
+              <span class="dl-chip-dot"></span>{{ contract.modePaiement === 'FRACTIONNE' ? 'Fractionné' : 'Comptant' }}
+            </span>
+            @if (contract.modePaiement === 'FRACTIONNE' && contract.nombreEcheances) {
+              <span class="dl-cell-detail">{{ contract.nombreEcheances }} échéance(s) — {{ contract.periodiciteEcheances }}</span>
+            }
+          </div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Commission</div>
+          <div>{{ formatAmount(contract.commissionAmount) }} ({{ contract.commissionRate }} %)</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Statut commission</div>
+          <div>
+            <span [class]="'dl-chip dl-chip--' + (contract.commissionStatus === 'paid' ? 'success' : 'warning')">
+              <span class="dl-chip-dot"></span>{{ contract.commissionStatus === 'paid' ? 'Payée' : 'En attente' }}
+            </span>
+          </div>
+        </div>
+        @if (contract.partenaireId) {
+          <div>
+            <div class="dl-cell-detail">Prime reversée à la compagnie</div>
+            <div>
+              <span [class]="'dl-chip dl-chip--' + (contract.primeReversementStatus === 'reverse' ? 'success' : 'warning')">
+                <span class="dl-chip-dot"></span>{{ contract.primeReversementStatus === 'reverse' ? 'Reversée' : 'Non reversée' }}
+              </span>
+            </div>
+          </div>
+        }
+        @if (!contract.partenaireId && contract.commercialCommissionAmount > 0) {
+          <div>
+            <div class="dl-cell-detail">Commission commercial</div>
+            <div>
+              {{ formatAmount(contract.commercialCommissionAmount) }}
+              @if (contract.commercialCommissionRate !== null) {
+                ({{ contract.commercialCommissionRate }} %)
+              }
+            </div>
+          </div>
+          <div>
+            <div class="dl-cell-detail">Statut commission commercial</div>
+            <div>
+              <span [class]="'dl-chip dl-chip--' + (contract.commercialCommissionStatus === 'paid' ? 'success' : 'warning')">
+                <span class="dl-chip-dot"></span>{{ contract.commercialCommissionStatus === 'paid' ? 'Payée' : 'En attente' }}
+              </span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (contract.contratPrecedentId || contract.contratRenouvellementId) {
+      <div class="ct-detail-section">
+        <div class="ct-detail-section-title"><svg cIcon name="cilFile" size="sm"></svg>Historique</div>
+        <div class="dl-detail-grid">
+          @if (contract.contratPrecedentId) {
+            <div>
+              <div class="dl-cell-detail">Contrat précédent</div>
+              <div><span class="dl-tag">{{ contract.contratPrecedentPolicyNumber }}</span></div>
+            </div>
+          }
+          @if (contract.contratRenouvellementId) {
+            <div>
+              <div class="dl-cell-detail">Renouvelé par</div>
+              <div><span class="dl-tag">{{ contract.contratRenouvellementPolicyNumber }}</span></div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (contract.notes) {
+      <div class="ct-detail-section">
+        <div class="ct-detail-section-title"><svg cIcon name="cilNotes" size="sm"></svg>Notes</div>
+        <div>{{ contract.notes }}</div>
+      </div>
+    }
+
+    <div class="ct-detail-section">
+      <div class="ct-detail-section-title d-flex align-items-center justify-content-between">
+        <span class="d-flex align-items-center gap-2"><svg cIcon name="cilListNumbered" size="sm"></svg>Avenants</span>
+        @if (contract.status === 'signed') {
+          <button (click)="toggleAvenantForm()" cButton class="dl-btn" size="sm" type="button">
+            @if (avenantFormOpen()) { Annuler } @else { Créer un avenant }
+          </button>
+        }
+      </div>
+
+      @if (avenantsLoading()) {
+        <p class="dl-empty">Chargement des avenants…</p>
+      } @else if (avenantsError()) {
+        <p class="dl-empty">{{ avenantsError() }}</p>
+      } @else if (avenants().length === 0) {
+        <p class="dl-empty">Aucun avenant sur ce contrat.</p>
+      } @else {
+        <ul class="list-unstyled d-flex flex-column gap-2 m-0">
+          @for (avenant of avenants(); track avenant.id) {
+            <li class="dl-cell-detail" style="padding-bottom: 0.6rem; border-bottom: 1px dashed var(--cui-border-color);">
+              <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                <span class="dl-tag">Avenant n°{{ avenant.numero }}</span>
+                <span [class]="'dl-chip dl-chip--' + avenantCategorieVariant[avenant.categorie]">
+                  <span class="dl-chip-dot"></span>{{ avenantCategorieLabel[avenant.categorie] }}
+                </span>
+                <span>{{ avenantTypeLabel[avenant.type] }}</span>
+              </div>
+              <div>Date d'effet : {{ formatDate(avenant.dateEffet) }}</div>
+              <div>Motif : {{ avenant.motif }}</div>
+              @if (avenant.description) {
+                <div>{{ avenant.description }}</div>
+              }
+              @for (change of avenantChanges(avenant); track change.label) {
+                <div>{{ change.label }} : {{ change.from }} → {{ change.to }}</div>
+              }
+              <div class="mt-1">Créé par {{ avenant.createdByUsername }} le {{ formatDateTime(avenant.createdAt) }}</div>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (avenantFormOpen()) {
+        <div class="mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+          @if (avenantError()) {
+            <p class="dl-empty">{{ avenantError() }}</p>
+          }
+          <div class="dl-filters dl-filters--modal">
+            <div class="dl-filter-field">
+              <label for="av-type">Type d'avenant</label>
+              <select (change)="updateAvenantForm('type', $any($event.target).value)" [value]="avenantForm().type" cSelect id="av-type">
+                @for (group of avenantTypeGroups; track group.label) {
+                  <optgroup [label]="group.label">
+                    @for (type of group.types; track type) {
+                      <option [value]="type">{{ avenantTypeLabel[type] }}</option>
+                    }
+                  </optgroup>
+                }
+              </select>
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="av-date-effet">Date d'effet *</label>
+              <input (input)="updateAvenantForm('dateEffet', $any($event.target).value)" [value]="avenantForm().dateEffet" id="av-date-effet" type="date" />
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="av-motif">Motif *</label>
+              <input (input)="updateAvenantForm('motif', $any($event.target).value)" [value]="avenantForm().motif" id="av-motif" maxlength="500" type="text" />
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="av-description">Description</label>
+              <input (input)="updateAvenantForm('description', $any($event.target).value)" [value]="avenantForm().description" id="av-description" type="text" />
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="av-premium">Nouvelle prime (FCFA)</label>
+              <input (input)="updateAvenantForm('premium', $any($event.target).value)" [value]="avenantForm().premium" id="av-premium" min="0" type="number" />
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="av-commission-rate">Nouveau taux de commission (%)</label>
+              <input (input)="updateAvenantForm('commissionRate', $any($event.target).value)" [value]="avenantForm().commissionRate" id="av-commission-rate" min="0" step="0.01" type="number" />
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="av-commission-amount">Nouveau montant de commission (FCFA)</label>
+              <input (input)="updateAvenantForm('commissionAmount', $any($event.target).value)" [value]="avenantForm().commissionAmount" id="av-commission-amount" min="0" type="number" />
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="av-partenaire">Nouveau partenaire</label>
+              <select (change)="updateAvenantForm('partenaireId', $any($event.target).value)" [value]="avenantForm().partenaireId" cSelect id="av-partenaire">
+                <option value="">—</option>
+                @for (partenaire of avenantPartenaires(); track partenaire.id) {
+                  <option [value]="partenaire.id">{{ partenaire.nom }} {{ partenaire.prenoms }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="av-compagnie">Nouvelle compagnie</label>
+              <select (change)="updateAvenantForm('compagnieId', $any($event.target).value)" [value]="avenantForm().compagnieId" cSelect id="av-compagnie">
+                <option value="">—</option>
+                @for (compagnie of avenantCompagnies(); track compagnie.id) {
+                  <option [value]="compagnie.id">{{ compagnie.nom }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end mt-3">
+            <button (click)="submitAvenant()" [disabled]="avenantSaving()" cButton class="dl-btn dl-btn-primary" type="button">
+              @if (avenantSaving()) {
+                <c-spinner size="sm" />
+              }
+              Enregistrer l'avenant
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+      <app-entity-documents [entityId]="contract.id" entityType="CONTRACT" />
+    </div>
+
+    <div class="mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+      <h6 class="fw-semibold mb-2">Journal d'audit</h6>
+      <app-audit-history entiteNom="Contrat" [entiteId]="contract.id" />
+    </div>
+  }
+</app-modal>

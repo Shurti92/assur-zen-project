@@ -1,0 +1,461 @@
+@if (!isAdmin()) {
+  <p class="dl-empty">Ce tableau de bord est réservé aux administrateurs.</p>
+} @else {
+  <form [formGroup]="rangeForm" (ngSubmit)="applyRange()" cForm class="dl-filters">
+    <div class="dl-filter-field">
+      <label for="kpi-date-debut">Du</label>
+      <input cFormControl formControlName="dateDebut" id="kpi-date-debut" type="date" />
+    </div>
+    <div class="dl-filter-field">
+      <label for="kpi-date-fin">Au</label>
+      <input cFormControl formControlName="dateFin" id="kpi-date-fin" type="date" />
+    </div>
+    <div class="dl-filter-field justify-content-end">
+      <button cButton class="dl-btn dl-btn-primary" type="submit">Appliquer</button>
+    </div>
+  </form>
+
+    <!-- ===== Global ===== -->
+    @if (activeView() === 'global') {
+      @if (globalLoading()) {
+        <p class="dl-empty">Chargement du tableau de bord global…</p>
+      } @else if (globalError(); as message) {
+        <p class="dl-empty">{{ message }} <button (click)="applyRange()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+      } @else if (globalData()) {
+        <div class="mc-body">
+          <div>
+            <div class="mc-section-head"><h3>Assurés</h3></div>
+            <c-row class="g-3">
+              @for (kpi of globalAssureCards(); track kpi.key) {
+                <c-col sm="6" xl="3">
+                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                    <div class="ldb-kpi-head">
+                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
+                    </div>
+                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
+                  </div>
+                </c-col>
+              }
+            </c-row>
+          </div>
+          <div>
+            <div class="mc-section-head"><h3>Vignettes moto</h3></div>
+            <c-row class="g-3">
+              @for (kpi of globalVignetteCards(); track kpi.key) {
+                <c-col sm="6" xl="3">
+                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                    <div class="ldb-kpi-head">
+                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
+                    </div>
+                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
+                  </div>
+                </c-col>
+              }
+            </c-row>
+          </div>
+          <div>
+            <div class="mc-section-head"><h3>Sorties de fonds</h3></div>
+            <c-row class="g-3">
+              @for (kpi of globalSortieFondsCards(); track kpi.key) {
+                <c-col sm="6" xl="3">
+                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                    <div class="ldb-kpi-head">
+                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
+                    </div>
+                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
+                  </div>
+                </c-col>
+              }
+            </c-row>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- ===== Vignettes ===== -->
+    @if (activeView() === 'vignettes') {
+      @if (vignetteLoading()) {
+        <p class="dl-empty">Chargement du tableau de bord vignettes…</p>
+      } @else if (vignetteError(); as message) {
+        <p class="dl-empty">{{ message }} <button (click)="applyRange()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+      } @else if (vignetteData()) {
+        <div class="mc-body">
+          <div>
+            <div class="mc-section-head"><h3>Indicateurs clés</h3></div>
+            @if (vignetteDelaiMoyen() === null) {
+              <p class="dl-cell-detail mb-2">Délai moyen de traitement : non disponible pour l'instant (workflow paiement/édition/livraison pas encore en place).</p>
+            }
+            <c-row class="g-3">
+              @for (kpi of vignetteCards(); track kpi.key) {
+                <c-col sm="6" xl="3">
+                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                    <div class="ldb-kpi-head">
+                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
+                    </div>
+                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
+                  </div>
+                </c-col>
+              }
+            </c-row>
+          </div>
+
+          <div>
+            <div class="mc-section-head"><h3>Analyses</h3></div>
+            <c-row class="g-3">
+              <c-col xs="12">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Évolution</h3><span class="ldb-panel-sub">Demandes et montant sur la période</span></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box ldb-chart-box--tall">
+                      @if (vignetteEvolutionChart(); as chart) {
+                        <c-chart type="line" [data]="chart.data" [options]="chart.options" />
+                      } @else {
+                        <p class="dl-empty p-0">Aucune donnée sur la période.</p>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col lg="6">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par statut</h3></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box">
+                      @if (vignetteParStatutChart(); as chart) {
+                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
+                      }
+                    </div>
+                    <div class="ldb-legend">
+                      @for (row of vignetteParStatutLegend(); track row.label) {
+                        <div class="ldb-legend-row">
+                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                          <span class="ldb-legend-label">{{ row.label }}</span>
+                          <span class="ldb-legend-value">{{ row.value }}</span>
+                        </div>
+                      }
+                      @if (vignetteParStatutLegend().length === 0) { <p class="dl-empty p-0">Aucune demande.</p> }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col lg="6">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par type de demande</h3></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box">
+                      @if (vignetteParTypeDemandeChart(); as chart) {
+                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
+                      }
+                    </div>
+                    <div class="ldb-legend">
+                      @for (row of vignetteParTypeDemandeLegend(); track row.label) {
+                        <div class="ldb-legend-row">
+                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                          <span class="ldb-legend-label">{{ row.label }}</span>
+                          <span class="ldb-legend-value">{{ row.value }}</span>
+                        </div>
+                      }
+                      @if (vignetteParTypeDemandeLegend().length === 0) { <p class="dl-empty p-0">Aucune demande.</p> }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col lg="6">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par cylindrée</h3></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box">
+                      @if (vignetteParCylindreeChart(); as chart) {
+                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
+                      }
+                    </div>
+                    <div class="ldb-legend">
+                      @for (row of vignetteParCylindreeLegend(); track row.label) {
+                        <div class="ldb-legend-row">
+                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                          <span class="ldb-legend-label">{{ row.label }}</span>
+                          <span class="ldb-legend-value">{{ row.value }}</span>
+                        </div>
+                      }
+                      @if (vignetteParCylindreeLegend().length === 0) { <p class="dl-empty p-0">Aucune demande.</p> }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col lg="6">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par âge de la moto</h3></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box">
+                      @if (vignetteParAgeMotoChart(); as chart) {
+                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
+                      }
+                    </div>
+                    <div class="ldb-legend">
+                      @for (row of vignetteParAgeMotoLegend(); track row.label) {
+                        <div class="ldb-legend-row">
+                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                          <span class="ldb-legend-label">{{ row.label }}</span>
+                          <span class="ldb-legend-value">{{ row.value }}</span>
+                        </div>
+                      }
+                      @if (vignetteParAgeMotoLegend().length === 0) { <p class="dl-empty p-0">Aucune demande.</p> }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col xs="12">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par zone de livraison</h3></div>
+                  <div class="ldb-panel-body">
+                    @if (vignetteParZoneLivraisonRanked().length === 0) {
+                      <p class="dl-empty p-0">Aucune demande.</p>
+                    } @else {
+                      <div class="dl-table-scroll">
+                        <table class="dl-table dl-table--modal">
+                          <thead><tr><th scope="col">Zone</th><th scope="col">Demandes</th></tr></thead>
+                          <tbody>
+                            @for (zone of vignetteParZoneLivraisonRanked(); track zone.zoneCode) {
+                              <tr><td>{{ zone.zoneCode }}</td><td class="dl-timestamp">{{ formatInt(zone.nombre) }}</td></tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </c-col>
+            </c-row>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- ===== Sorties de fonds ===== -->
+    @if (activeView() === 'sortiesFonds') {
+      @if (sortieFondsLoading()) {
+        <p class="dl-empty">Chargement du tableau de bord sorties de fonds…</p>
+      } @else if (sortieFondsError(); as message) {
+        <p class="dl-empty">{{ message }} <button (click)="applyRange()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+      } @else if (sortieFondsData()) {
+        <div class="mc-body">
+          <div>
+            <div class="mc-section-head"><h3>Indicateurs clés</h3></div>
+            @if (sortieFondsMaxMontant(); as max) {
+              <p class="dl-cell-detail mb-2">Plus grosse sortie sur la période : <strong>{{ formatAmount(max) }}</strong> (valeur brute, sans comparaison à la période précédente).</p>
+            }
+            <c-row class="g-3">
+              @for (kpi of sortieFondsCards(); track kpi.key) {
+                <c-col sm="6" xl="3">
+                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                    <div class="ldb-kpi-head">
+                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
+                    </div>
+                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
+                  </div>
+                </c-col>
+              }
+            </c-row>
+          </div>
+
+          <div>
+            <div class="mc-section-head"><h3>Analyses</h3></div>
+            <c-row class="g-3">
+              <c-col xs="12">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Évolution</h3><span class="ldb-panel-sub">Sorties et montant sur la période</span></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box ldb-chart-box--tall">
+                      @if (sortieFondsEvolutionChart(); as chart) {
+                        <c-chart type="line" [data]="chart.data" [options]="chart.options" />
+                      } @else {
+                        <p class="dl-empty p-0">Aucune donnée sur la période.</p>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col lg="6">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par statut</h3></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box">
+                      @if (sortieFondsParStatutChart(); as chart) {
+                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
+                      }
+                    </div>
+                    <div class="ldb-legend">
+                      @for (row of sortieFondsParStatutLegend(); track row.label) {
+                        <div class="ldb-legend-row">
+                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                          <span class="ldb-legend-label">{{ row.label }}</span>
+                          <span class="ldb-legend-value">{{ row.value }}</span>
+                        </div>
+                      }
+                      @if (sortieFondsParStatutLegend().length === 0) { <p class="dl-empty p-0">Aucune sortie.</p> }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col lg="6">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par type</h3><span class="ldb-panel-sub">Montant</span></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box">
+                      @if (sortieFondsParTypeChart(); as chart) {
+                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
+                      }
+                    </div>
+                    <div class="ldb-legend">
+                      @for (row of sortieFondsParTypeLegend(); track row.label) {
+                        <div class="ldb-legend-row">
+                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                          <span class="ldb-legend-label">{{ row.label }}</span>
+                          <span class="ldb-legend-value">{{ row.value }}</span>
+                        </div>
+                      }
+                      @if (sortieFondsParTypeLegend().length === 0) { <p class="dl-empty p-0">Aucune sortie.</p> }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col xs="12">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par bénéficiaire</h3><span class="ldb-panel-sub">Classement par montant</span></div>
+                  <div class="ldb-panel-body">
+                    @if (sortieFondsParBeneficiaireRanked().length === 0) {
+                      <p class="dl-empty p-0">Aucune sortie.</p>
+                    } @else {
+                      <div class="dl-table-scroll">
+                        <table class="dl-table dl-table--modal">
+                          <thead><tr><th scope="col">Bénéficiaire</th><th scope="col">Sorties</th><th scope="col">Montant</th></tr></thead>
+                          <tbody>
+                            @for (row of sortieFondsParBeneficiaireRanked(); track row.beneficiaire) {
+                              <tr><td>{{ row.beneficiaire }}</td><td class="dl-timestamp">{{ formatInt(row.nombre) }}</td><td class="dl-timestamp">{{ formatAmount(row.montant) }}</td></tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </c-col>
+            </c-row>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- ===== Assurés ===== -->
+    @if (activeView() === 'assures') {
+      @if (assureLoading()) {
+        <p class="dl-empty">Chargement du tableau de bord assurés…</p>
+      } @else if (assureError(); as message) {
+        <p class="dl-empty">{{ message }} <button (click)="applyRange()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+      } @else if (assureData()) {
+        <div class="mc-body">
+          <div>
+            <div class="mc-section-head"><h3>Indicateurs clés</h3></div>
+            <p class="dl-cell-detail mb-2">Répartitions par ville et par type de client non filtrées par période — portrait structurel de la base assurés.</p>
+            <c-row class="g-3">
+              @for (kpi of assureCards(); track kpi.key) {
+                <c-col sm="6" xl="3">
+                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                    <div class="ldb-kpi-head">
+                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
+                    </div>
+                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
+                  </div>
+                </c-col>
+              }
+            </c-row>
+          </div>
+
+          <div>
+            <div class="mc-section-head"><h3>Analyses</h3></div>
+            <c-row class="g-3">
+              <c-col xs="12">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Évolution cumulative</h3><span class="ldb-panel-sub">Nouveaux assurés et total cumulé</span></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box ldb-chart-box--tall">
+                      @if (assureEvolutionChart(); as chart) {
+                        <c-chart type="line" [data]="chart.data" [options]="chart.options" />
+                      } @else {
+                        <p class="dl-empty p-0">Aucune donnée sur la période.</p>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col lg="6">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par type de client</h3></div>
+                  <div class="ldb-panel-body">
+                    <div class="ldb-chart-box">
+                      @if (assureParTypeClientChart(); as chart) {
+                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
+                      }
+                    </div>
+                    <div class="ldb-legend">
+                      @for (row of assureParTypeClientLegend(); track row.label) {
+                        <div class="ldb-legend-row">
+                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                          <span class="ldb-legend-label">{{ row.label }}</span>
+                          <span class="ldb-legend-value">{{ row.value }}</span>
+                        </div>
+                      }
+                      @if (assureParTypeClientLegend().length === 0) { <p class="dl-empty p-0">Aucun assuré.</p> }
+                    </div>
+                  </div>
+                </div>
+              </c-col>
+
+              <c-col lg="6">
+                <div class="ldb-panel">
+                  <div class="ldb-panel-head"><h3>Répartition par ville</h3><span class="ldb-panel-sub">Classement par nombre</span></div>
+                  <div class="ldb-panel-body">
+                    @if (assureParVilleRanked().length === 0) {
+                      <p class="dl-empty p-0">Aucun assuré.</p>
+                    } @else {
+                      <div class="dl-table-scroll">
+                        <table class="dl-table dl-table--modal">
+                          <thead><tr><th scope="col">Ville</th><th scope="col">Assurés</th></tr></thead>
+                          <tbody>
+                            @for (row of assureParVilleRanked(); track row.ville) {
+                              <tr><td>{{ row.ville }}</td><td class="dl-timestamp">{{ formatInt(row.nombre) }}</td></tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </c-col>
+            </c-row>
+          </div>
+        </div>
+      }
+    }
+}

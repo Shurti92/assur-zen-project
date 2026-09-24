@@ -1,0 +1,963 @@
+@if (!isAdmin()) {
+  <p class="dl-empty">Ce module est réservé aux administrateurs.</p>
+} @else {
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Sorties de fonds &amp; Prêts</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Vue">
+      <button (click)="setView('sorties')" [attr.data-active]="view() === 'sorties'" class="dl-pill" type="button">Sorties de fonds</button>
+      <button (click)="setView('prets')" [attr.data-active]="view() === 'prets'" class="dl-pill" type="button">Prêts</button>
+      <button (click)="setView('types')" [attr.data-active]="view() === 'types'" class="dl-pill" type="button">Types de sortie</button>
+    </div>
+
+    @if (view() === 'sorties') {
+      <div class="dl-actions">
+        <button (click)="fetchOutflows()" [disabled]="outflowsLoading()" cButton class="dl-btn" type="button">
+          @if (outflowsLoading()) { <c-spinner size="sm" /> }
+          Actualiser
+        </button>
+        <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouvelle sortie
+        </button>
+      </div>
+    }
+    @if (view() === 'prets') {
+      <div class="dl-actions">
+        <button (click)="fetchLoans()" [disabled]="loansLoading()" cButton class="dl-btn" type="button">
+          @if (loansLoading()) { <c-spinner size="sm" /> }
+          Actualiser
+        </button>
+      </div>
+    }
+    @if (view() === 'types') {
+      <div class="dl-actions">
+        <button (click)="openCreateType()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouveau type
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- ================= SORTIES DE FONDS ================= -->
+  @if (view() === 'sorties') {
+    <div class="d-flex flex-wrap align-items-center gap-2 p-3" style="border-bottom: 1px solid var(--cui-border-color);">
+      <div class="dl-search" style="max-width: 200px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="onReferenceFilterInput($any($event.target).value)" [value]="referenceFilter()" autocomplete="off" placeholder="Référence…" type="search" />
+      </div>
+      <select (change)="setTypeFilter($any($event.target).value)" [value]="typeFilter()" cSelect style="max-width: 180px;">
+        <option value="">Tous les types</option>
+        @for (t of types(); track t.id) {
+          <option [value]="t.id">{{ t.nom }}</option>
+        }
+      </select>
+      <select (change)="setStatusFilter($any($event.target).value)" [value]="statusFilter()" cSelect style="max-width: 180px;">
+        <option value="all">Tous statuts</option>
+        <option value="DRAFT">Brouillon</option>
+        <option value="SUBMITTED">Soumise</option>
+        <option value="UNDER_REVIEW">En cours d'examen</option>
+        <option value="APPROVED">Approuvée</option>
+        <option value="AUTHORIZED">Autorisée</option>
+        <option value="DISBURSED">Décaissée</option>
+        <option value="PARTIALLY_REPAID">Partiellement remboursée</option>
+        <option value="REPAID">Remboursée</option>
+        <option value="REJECTED">Rejetée</option>
+        <option value="CANCELLED">Annulée</option>
+        <option value="CLOSED">Clôturée</option>
+      </select>
+      <select (change)="setPriorityFilter($any($event.target).value)" [value]="priorityFilter()" cSelect style="max-width: 150px;">
+        <option value="all">Toute priorité</option>
+        <option value="LOW">Basse</option>
+        <option value="NORMAL">Normale</option>
+        <option value="HIGH">Haute</option>
+        <option value="URGENT">Urgente</option>
+      </select>
+      <button (click)="resetFilters()" cButton class="dl-btn" size="sm" type="button">Réinitialiser</button>
+    </div>
+
+    @if (outflowsError()) {
+      <p class="dl-empty">{{ outflowsError() }} <button (click)="fetchOutflows()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (outflowsLoading()) {
+      <p class="dl-empty">Chargement des sorties de fonds…</p>
+    } @else if (outflows().length === 0) {
+      <p class="dl-empty">Aucune sortie de fonds ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Référence</th>
+              <th scope="col">Type</th>
+              <th scope="col">Bénéficiaire</th>
+              <th scope="col">Montant</th>
+              <th scope="col">Priorité</th>
+              <th scope="col">Statut</th>
+              <th scope="col">Créée le</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (o of outflows(); track o.id) {
+              <tr>
+                <td><span class="dl-tag">{{ o.reference }}</span></td>
+                <td>{{ o.outflowTypeNom }}</td>
+                <td class="dl-cell-detail">{{ o.beneficiaryLabel || (o.beneficiaryType && o.beneficiaryId ? o.beneficiaryType + ' #' + o.beneficiaryId : '—') }}</td>
+                <td class="dl-timestamp">{{ formatAmount(o.amount) }}</td>
+                <td class="dl-cell-detail">{{ priorityLabel[o.priority || 'NORMAL'] }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + statusVariant(o.status)">
+                    <span class="dl-chip-dot"></span>{{ statusLabel[o.status] }}
+                  </span>
+                </td>
+                <td class="dl-timestamp">{{ formatDate(o.createdAt) }}</td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openDetail(o)" class="dl-icon-btn" title="Voir" type="button">
+                      <svg cIcon name="cilInfo" size="sm"></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <div class="dl-footnote">
+      <span><strong>{{ outflows().length }}</strong> sur {{ outflowsTotalElements() }} sorties (page {{ outflowsPage() + 1 }} sur {{ outflowsTotalPages() }})</span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToOutflowsPage(outflowsPage() - 1)" [disabled]="outflowsPage() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToOutflowsPage(outflowsPage() + 1)" [disabled]="outflowsPage() + 1 >= outflowsTotalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= PRÊTS ================= -->
+  @if (view() === 'prets') {
+    <div class="d-flex flex-wrap align-items-center gap-2 p-3" style="border-bottom: 1px solid var(--cui-border-color);">
+      <div class="dl-search" style="max-width: 220px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="onLoanReferenceFilterInput($any($event.target).value)" [value]="loanReferenceFilter()" [disabled]="overdueOnly()" autocomplete="off" placeholder="Référence du prêt…" type="search" />
+      </div>
+      <button (click)="toggleOverdueOnly()" [attr.data-active]="overdueOnly()" class="dl-pill dl-pill--warning" type="button">En retard uniquement</button>
+    </div>
+
+    @if (loansError()) {
+      <p class="dl-empty">{{ loansError() }} <button (click)="fetchLoans()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (loansLoading()) {
+      <p class="dl-empty">Chargement des prêts…</p>
+    } @else if (loans().length === 0) {
+      <p class="dl-empty">Aucun prêt ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Référence</th>
+              <th scope="col">Partenaire</th>
+              <th scope="col">Principal</th>
+              <th scope="col">Solde restant</th>
+              <th scope="col">Échéances</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of loans(); track l.id) {
+              <tr>
+                <td><span class="dl-tag">{{ l.loanReference }}</span></td>
+                <td>{{ l.partnerName }} <span class="dl-cell-detail">({{ l.partnerCode }})</span></td>
+                <td class="dl-timestamp">{{ formatAmount(l.principalAmount) }}</td>
+                <td class="dl-timestamp">{{ formatAmount(l.remainingBalance) }}</td>
+                <td class="dl-cell-detail">{{ l.numberOfInstallments }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + statusVariant(l.status)">
+                    <span class="dl-chip-dot"></span>{{ statusLabel[l.status] }}
+                  </span>
+                  @if (l.overdue) {
+                    <span class="dl-chip dl-chip--danger ms-1"><span class="dl-chip-dot"></span>En retard</span>
+                  }
+                </td>
+                <td>
+                  <button (click)="openLoanDetail(l)" class="dl-icon-btn" title="Voir" type="button">
+                    <svg cIcon name="cilInfo" size="sm"></svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <div class="dl-footnote">
+      <span><strong>{{ loans().length }}</strong> sur {{ loansTotalElements() }} prêts (page {{ loansPage() + 1 }} sur {{ loansTotalPages() }})</span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToLoansPage(loansPage() - 1)" [disabled]="loansPage() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToLoansPage(loansPage() + 1)" [disabled]="loansPage() + 1 >= loansTotalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= TYPES DE SORTIE ================= -->
+  @if (view() === 'types') {
+    <div class="d-flex flex-wrap align-items-center gap-2 p-3" style="border-bottom: 1px solid var(--cui-border-color);">
+      <div class="dl-search" style="max-width: 260px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="typesSearch.set($any($event.target).value)" autocomplete="off" placeholder="Rechercher un code, un nom…" type="search" />
+      </div>
+      <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+        <button (click)="typesActifFilter.set('all')" [attr.data-active]="typesActifFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+        <button (click)="typesActifFilter.set('active')" [attr.data-active]="typesActifFilter() === 'active'" class="dl-pill dl-pill--success" type="button">Actifs</button>
+        <button (click)="typesActifFilter.set('inactive')" [attr.data-active]="typesActifFilter() === 'inactive'" class="dl-pill dl-pill--warning" type="button">Inactifs</button>
+      </div>
+    </div>
+
+    @if (typesError()) {
+      <p class="dl-empty">{{ typesError() }}</p>
+    } @else if (typesLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (filteredTypes().length === 0) {
+      <p class="dl-empty">Aucun type de sortie ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Code</th>
+              <th scope="col">Nom</th>
+              <th scope="col">Ordre</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of filteredTypes(); track item.id) {
+              <tr>
+                <td><span class="dl-tag">{{ item.code }}</span></td>
+                <td>{{ item.nom }}</td>
+                <td class="dl-timestamp">{{ item.ordre ?? '—' }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + (item.actif ? 'success' : 'neutral')">
+                    <span class="dl-chip-dot"></span>{{ item.actif ? 'Actif' : 'Inactif' }}
+                  </span>
+                  @if (item.systeme) {
+                    <span class="dl-chip dl-chip--info ms-1">Système</span>
+                  }
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditType(item)" class="dl-icon-btn" title="Modifier" type="button">
+                      <svg cIcon name="cilPencil" size="sm"></svg>
+                    </button>
+                    <button (click)="confirmDeleteType(item)" [disabled]="item.systeme" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                      <svg cIcon name="cilTrash" size="sm"></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
+
+<!-- ===== Modale : nouvelle sortie de fonds ===== -->
+<app-modal [visible]="createFormVisible()" size="lg" title="{{ editingOutflowId() ? 'Modifier la sortie de fonds' : 'Nouvelle sortie de fonds' }}" (closed)="createFormVisible.set(false)">
+  @if (createError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="createForm" cForm (ngSubmit)="submitCreate()">
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Sortie</div>
+      <div class="row g-3 mb-1">
+        <div class="col-sm-6">
+          <label cLabel for="fo-type">Type de sortie</label>
+          <select (change)="onCreateTypeChange($any($event.target).value)" cSelect formControlName="outflowTypeId" id="fo-type">
+            <option value="">Sélectionner…</option>
+            @for (t of types(); track t.id) {
+              <option [value]="t.id">{{ t.nom }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="fo-amount">Montant</label>
+          <div class="dl-field-suffix">
+            <input cFormControl formControlName="amount" id="fo-amount" type="number" />
+            <span>FCFA</span>
+          </div>
+        </div>
+        <div class="col-12">
+          <label cLabel for="fo-reason">Motif</label>
+          <input cFormControl formControlName="reason" id="fo-reason" type="text" />
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Bénéficiaire</div>
+      @if (isLoanType(createForm.controls.outflowTypeId.value)) {
+        <div class="dl-autocomplete-box mb-2">
+          <input
+            autocomplete="off"
+            cFormControl
+            formControlName="partnerSearchQuery"
+            id="fo-partner-search"
+            placeholder="Rechercher un partenaire par nom ou code…"
+            type="text"
+            (focus)="partnerSearchOpen.set(createForm.controls.partnerSearchQuery.value.trim().length > 0)"
+            (input)="onPartnerSearchInput($any($event.target).value)"
+          />
+          @if (selectedPartner()) {
+            <button (click)="clearPartnerSelection()" class="dl-autocomplete-clear" title="Changer de partenaire" type="button">
+              <svg cIcon name="cilXCircle" size="sm"></svg>
+            </button>
+          }
+          @if (partnerSearchOpen()) {
+            <div class="dl-autocomplete-dropdown">
+              @if (partnerSearchLoading()) {
+                <div class="dl-autocomplete-empty"><c-spinner size="sm" /> Recherche…</div>
+              } @else if (partnerSearchError()) {
+                <div class="dl-autocomplete-empty">{{ partnerSearchError() }}</div>
+              } @else if (createForm.controls.partnerSearchQuery.value.trim().length < 2) {
+                <div class="dl-autocomplete-empty">Continuez à saisir… (2 caractères minimum)</div>
+              } @else if (partnerSearchResults().length === 0) {
+                <div class="dl-autocomplete-empty">Aucun partenaire trouvé.</div>
+              } @else {
+                @for (p of partnerSearchResults(); track p.id) {
+                  <button (mousedown)="selectPartner(p)" class="dl-autocomplete-item" type="button">
+                    <span class="dl-autocomplete-item-info">
+                      <strong>{{ p.nom }} {{ p.prenoms }}</strong>
+                      <span class="dl-cell-detail">{{ p.codePartenaire || '—' }}</span>
+                    </span>
+                  </button>
+                }
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="row g-3 mb-1">
+          <div class="col-sm-4">
+            <label cLabel for="fo-beneficiary-type">Type de bénéficiaire (optionnel)</label>
+            <div class="dl-field-icon">
+              <svg cIcon name="cilTags" size="sm"></svg>
+              <input cFormControl formControlName="beneficiaryType" id="fo-beneficiary-type" placeholder="ex. PARTNER" type="text" />
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <label cLabel for="fo-beneficiary-id">Identifiant (optionnel)</label>
+            <input (change)="resolveBeneficiary()" cFormControl formControlName="beneficiaryId" id="fo-beneficiary-id" type="number" />
+          </div>
+          <div class="col-sm-4">
+            <label cLabel for="fo-beneficiary-label">Libellé bénéficiaire (optionnel)</label>
+            <input cFormControl formControlName="beneficiaryLabel" id="fo-beneficiary-label" type="text" />
+          </div>
+        </div>
+        @if (resolvingBeneficiary()) {
+          <div class="dl-cell-detail"><c-spinner size="sm" /> Vérification…</div>
+        } @else if (resolvedBeneficiaryLabel(); as label) {
+          <div class="dl-inline-banner dl-inline-banner--success">
+            <svg cIcon name="cilCheckCircle" size="sm"></svg>
+            Trouvé : <strong>{{ label }}</strong>
+          </div>
+        }
+      }
+    </div>
+
+    @if (isLoanType(createForm.controls.outflowTypeId.value)) {
+      <div class="dl-form-section">
+      <div class="dl-form-section-label">Conditions du prêt <span class="fw-normal text-lowercase">(optionnel ici, obligatoire avant décaissement)</span></div>
+      @if (editingOutflowId()) {
+        <div class="dl-cell-detail mb-2">Les valeurs déjà saisies ne sont pas ré-affichées ici — ressaisissez-les si besoin.</div>
+      }
+      <div class="row g-3 mb-1">
+        <div class="col-sm-4">
+          <label cLabel for="fo-loan-rate">Taux d'intérêt (%, optionnel)</label>
+          <input cFormControl formControlName="loanInterestRate" id="fo-loan-rate" step="0.01" type="number" />
+        </div>
+        <div class="col-sm-4">
+          <label cLabel for="fo-loan-start">Date de début (optionnel)</label>
+          <div class="dl-autocomplete-box">
+            <input
+              cFormControl
+              formControlName="loanStartDate"
+              id="fo-loan-start"
+              type="date"
+              (focus)="loanStartShortcutsOpen.set(true)"
+              (blur)="loanStartShortcutsOpen.set(false)"
+            />
+            @if (loanStartShortcutsOpen()) {
+              <div class="dl-autocomplete-dropdown">
+                @for (shortcut of dateShortcuts; track shortcut.label) {
+                  <button (mousedown)="applyLoanStartShortcut(shortcut.days)" class="dl-autocomplete-item" type="button">
+                    <span class="dl-autocomplete-item-info">{{ shortcut.label }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <label cLabel for="fo-loan-end">Date de fin prévue (optionnel)</label>
+          <div class="dl-autocomplete-box">
+            <input
+              cFormControl
+              formControlName="loanExpectedEndDate"
+              id="fo-loan-end"
+              type="date"
+              (focus)="loanEndShortcutsOpen.set(true)"
+              (blur)="loanEndShortcutsOpen.set(false)"
+            />
+            @if (loanEndShortcutsOpen()) {
+              <div class="dl-autocomplete-dropdown">
+                @for (shortcut of dateShortcuts; track shortcut.label) {
+                  <button (mousedown)="applyLoanEndShortcut(shortcut.days)" class="dl-autocomplete-item" type="button">
+                    <span class="dl-autocomplete-item-info">{{ shortcut.label }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="fo-loan-frequency">Fréquence de remboursement (optionnel)</label>
+          <select cSelect formControlName="loanRepaymentFrequency" id="fo-loan-frequency">
+            <option value="MONTHLY">Mensuelle</option>
+            <option value="WEEKLY">Hebdomadaire</option>
+            <option value="BIWEEKLY">Bimensuelle</option>
+            <option value="QUARTERLY">Trimestrielle</option>
+            <option value="CUSTOM">Personnalisée</option>
+          </select>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="fo-loan-installments">Nombre d'échéances (optionnel)</label>
+          <input cFormControl formControlName="loanNumberOfInstallments" id="fo-loan-installments" type="number" />
+        </div>
+      </div>
+      <div class="dl-cell-detail">Le prêt et son échéancier seront créés automatiquement après le décaissement.</div>
+      </div>
+    }
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Suivi</div>
+      <div class="mb-3">
+        <label>Priorité</label>
+        <div class="dl-chip-toggle-group" role="group" aria-label="Priorité">
+          @for (opt of priorityOptions; track opt.value) {
+            <button
+              (click)="createForm.controls.priority.setValue(opt.value)"
+              [attr.data-active]="createForm.controls.priority.value === opt.value"
+              [class]="'dl-chip-toggle dl-chip-toggle--' + opt.variant"
+              type="button"
+            >
+              <span class="dl-chip-dot"></span>{{ opt.label }}
+            </button>
+          }
+        </div>
+      </div>
+      <div class="row g-3 mb-1">
+        <div class="col-sm-6">
+          <label cLabel for="fo-due-date">Date d'échéance (optionnel)</label>
+          <div class="dl-autocomplete-box dl-field-icon">
+            <svg cIcon name="cilCalendar" size="sm"></svg>
+            <input
+              cFormControl
+              formControlName="dueDate"
+              id="fo-due-date"
+              type="date"
+              (focus)="dueDateShortcutsOpen.set(true)"
+              (blur)="dueDateShortcutsOpen.set(false)"
+            />
+            @if (dueDateShortcutsOpen()) {
+              <div class="dl-autocomplete-dropdown">
+                @for (shortcut of dateShortcuts; track shortcut.label) {
+                  <button (mousedown)="applyDueDateShortcut(shortcut.days)" class="dl-autocomplete-item" type="button">
+                    <span class="dl-autocomplete-item-info">{{ shortcut.label }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+        <div class="col-12">
+          <label cLabel for="fo-description">Description (optionnel)</label>
+          <textarea cFormControl formControlName="description" id="fo-description" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="createFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="createSaving()" cButton color="primary" type="submit">
+        @if (createSaving()) { <c-spinner size="sm" /> }
+        {{ editingOutflowId() ? 'Enregistrer' : 'Créer' }}
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : détail d'une sortie de fonds ===== -->
+<app-modal [visible]="detailVisible()" size="lg" title="{{ selectedOutflow()?.reference }}" (closed)="closeDetail()">
+  @if (selectedOutflow(); as outflow) {
+    @if (detailActionError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    <div class="dl-detail-grid mb-3">
+      <div><div class="dl-cell-detail">Type</div><div>{{ outflow.outflowTypeNom }}</div></div>
+      <div>
+        <div class="dl-cell-detail">Statut</div>
+        <div>
+          <span [class]="'dl-chip dl-chip--' + statusVariant(outflow.status)">
+            <span class="dl-chip-dot"></span>{{ statusLabel[outflow.status] }}
+          </span>
+        </div>
+      </div>
+      <div><div class="dl-cell-detail">Montant</div><div>{{ formatAmount(outflow.amount) }}</div></div>
+      <div><div class="dl-cell-detail">Priorité</div><div>{{ priorityLabel[outflow.priority || 'NORMAL'] }}</div></div>
+      <div><div class="dl-cell-detail">Bénéficiaire</div><div>{{ outflow.beneficiaryLabel || (outflow.beneficiaryType && outflow.beneficiaryId ? outflow.beneficiaryType + ' #' + outflow.beneficiaryId : '—') }}</div></div>
+      <div><div class="dl-cell-detail">Échéance</div><div>{{ formatDate(outflow.dueDate) }}</div></div>
+      <div><div class="dl-cell-detail">Motif</div><div>{{ outflow.reason }}</div></div>
+      <div><div class="dl-cell-detail">Créée le</div><div>{{ formatDateTime(outflow.createdAt) }}@if (outflow.createdBy) { — {{ outflow.createdBy }} }</div></div>
+      @if (outflow.status === 'REJECTED' && outflow.rejectionReason) {
+        <div><div class="dl-cell-detail">Motif du rejet</div><div>{{ outflow.rejectionReason }}</div></div>
+      }
+      @if (outflow.description) {
+        <div style="grid-column: 1 / -1;"><div class="dl-cell-detail">Description</div><div>{{ outflow.description }}</div></div>
+      }
+    </div>
+
+    @if (outflow.loanId) {
+      <button (click)="viewLinkedLoan(outflow.loanId)" cButton class="dl-btn mb-3" type="button">
+        <svg cIcon name="cilCreditCard" size="sm"></svg>Voir le prêt lié
+      </button>
+    }
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      @if (canSubmit(outflow.status)) {
+        <button (click)="doSubmit(outflow)" [disabled]="detailActionPending()" cButton class="dl-btn dl-btn-primary" type="button">Soumettre</button>
+      }
+      @if (canReview(outflow.status)) {
+        <button (click)="doReview(outflow)" [disabled]="detailActionPending()" cButton class="dl-btn dl-btn-primary" type="button">Examiner</button>
+      }
+      @if (canApprove(outflow.status)) {
+        <button (click)="doApprove(outflow)" [disabled]="detailActionPending()" cButton class="dl-btn" color="success" type="button">Approuver</button>
+      }
+      @if (canReject(outflow.status)) {
+        <button (click)="askReject()" cButton class="dl-btn" color="danger" type="button">Rejeter</button>
+      }
+      @if (canAuthorize(outflow.status)) {
+        <button (click)="doAuthorize(outflow)" [disabled]="detailActionPending()" cButton class="dl-btn" color="success" type="button">Autoriser</button>
+      }
+      @if (canDisburse(outflow.status)) {
+        <button (click)="askDisburse()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilCloudUpload" size="sm"></svg>Décaisser
+        </button>
+      }
+      @if (canCancel(outflow.status)) {
+        <button (click)="askCancel()" cButton class="dl-btn" color="danger" variant="outline" type="button">Annuler</button>
+      }
+      @if (canClose(outflow.status)) {
+        <button (click)="doClose(outflow)" [disabled]="detailActionPending()" cButton class="dl-btn" type="button">Clôturer</button>
+      }
+      @if (canEdit(outflow.status)) {
+        <button (click)="openEditOutflow(outflow)" class="dl-icon-btn" title="Modifier" type="button">
+          <svg cIcon name="cilPencil" size="sm"></svg>
+        </button>
+      }
+      @if (canDelete(outflow.status)) {
+        <button (click)="confirmDeleteOutflow(outflow)" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+          <svg cIcon name="cilTrash" size="sm"></svg>
+        </button>
+      }
+      @if (detailActionPending()) { <c-spinner size="sm" /> }
+    </div>
+
+    <h6 class="fw-semibold mb-2">Historique</h6>
+    @if (historyLoading()) {
+      <p class="dl-empty">Chargement de l'historique…</p>
+    } @else if (history().length === 0) {
+      <p class="dl-empty">Aucun évènement pour le moment.</p>
+    } @else {
+      <ul class="list-unstyled d-flex flex-column gap-2 m-0">
+        @for (h of history(); track h.id) {
+          <li class="d-flex align-items-start gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+            <span [class]="'dl-chip dl-chip--' + actionVariant[h.action]"><span class="dl-chip-dot"></span>{{ actionLabel[h.action] }}</span>
+            <div class="flex-grow-1">
+              @if (h.motif) { <div>{{ h.motif }}</div> }
+              @if (h.description) { <div class="dl-cell-detail">{{ h.description }}</div> }
+              <div class="dl-cell-detail">{{ formatDateTime(h.createdAt) }}@if (h.username) { — {{ h.username }} }</div>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</app-modal>
+
+<!-- ===== Modale : rejet / annulation (motif obligatoire) ===== -->
+<app-modal [visible]="!!reasonModalMode()" title="{{ reasonModalMode() === 'reject' ? 'Rejeter la sortie de fonds' : 'Annuler la sortie de fonds' }}" (closed)="reasonModalMode.set(null)">
+  @if (reasonError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="reasonForm" cForm (ngSubmit)="submitReason()">
+    <div class="mb-3">
+      <label cLabel for="fo-reason-text">Motif</label>
+      <textarea cFormControl formControlName="reason" id="fo-reason-text" rows="3"></textarea>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="reasonModalMode.set(null)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="reasonSaving()" cButton color="danger" type="submit">
+        @if (reasonSaving()) { <c-spinner size="sm" /> }
+        Confirmer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : décaissement ===== -->
+<app-modal [visible]="disburseFormVisible()" title="Décaisser la sortie de fonds" (closed)="disburseFormVisible.set(false)">
+  @if (disburseError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="disburseForm" cForm (ngSubmit)="submitDisburse()">
+    <div class="mb-3">
+      <label cLabel for="fo-disburse-method">Moyen de paiement</label>
+      <select cSelect formControlName="method" id="fo-disburse-method">
+        <option value="BANK_TRANSFER">Virement bancaire</option>
+        <option value="ORANGE_MONEY">Orange Money</option>
+        <option value="MTN_MONEY">MTN Money</option>
+        <option value="MOOV_MONEY">Moov Money</option>
+        <option value="WAVE">Wave</option>
+        <option value="CASH">Espèces</option>
+        <option value="CHEQUE">Chèque</option>
+        <option value="OTHER">Autre</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label cLabel for="fo-disburse-ref">Référence de paiement (optionnel)</label>
+      <input cFormControl formControlName="paymentReference" id="fo-disburse-ref" type="text" />
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="disburseFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="disburseSaving()" cButton color="primary" type="submit">
+        @if (disburseSaving()) { <c-spinner size="sm" /> }
+        Décaisser
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : détail d'un prêt ===== -->
+<app-modal [visible]="loanDetailVisible()" size="xl" title="{{ selectedLoan()?.loanReference }}" (closed)="closeLoanDetail()">
+  @if (selectedLoan(); as loan) {
+    @if (loanActionError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    <div class="dl-detail-grid mb-3">
+      <div><div class="dl-cell-detail">Partenaire</div><div>{{ loan.partnerName }} ({{ loan.partnerCode }})</div></div>
+      <div>
+        <div class="dl-cell-detail">Statut</div>
+        <div>
+          <span [class]="'dl-chip dl-chip--' + statusVariant(loan.status)">
+            <span class="dl-chip-dot"></span>{{ statusLabel[loan.status] }}
+          </span>
+          @if (loan.overdue) {
+            <span class="dl-chip dl-chip--danger ms-1"><span class="dl-chip-dot"></span>En retard</span>
+          }
+        </div>
+      </div>
+      <div><div class="dl-cell-detail">Montant principal</div><div>{{ formatAmount(loan.principalAmount) }}</div></div>
+      <div><div class="dl-cell-detail">Taux d'intérêt</div><div>{{ loan.interestRate }} %</div></div>
+      <div><div class="dl-cell-detail">Montant total</div><div>{{ formatAmount(loan.totalAmount) }}</div></div>
+      <div><div class="dl-cell-detail">Solde restant</div><div>{{ formatAmount(loan.remainingBalance) }}</div></div>
+      <div><div class="dl-cell-detail">Date de début</div><div>{{ formatDate(loan.startDate) }}</div></div>
+      <div><div class="dl-cell-detail">Fin prévue</div><div>{{ formatDate(loan.expectedEndDate) }}</div></div>
+      <div><div class="dl-cell-detail">Échéances</div><div>{{ loan.numberOfInstallments }}</div></div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      @if (loan.remainingBalance > 0) {
+        <button (click)="openRepaymentForm()" cButton class="dl-btn dl-btn-primary" type="button">Enregistrer un remboursement</button>
+        <button (click)="askEarlyRepayment()" cButton class="dl-btn" type="button">Solder par anticipation</button>
+      }
+    </div>
+
+    <h6 class="fw-semibold mb-2">Échéancier</h6>
+    @if (installmentsLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (installments().length === 0) {
+      <p class="dl-empty">Aucune échéance.</p>
+    } @else {
+      <div class="dl-table-scroll mb-4">
+        <table class="dl-table dl-table--modal">
+          <thead>
+            <tr>
+              <th scope="col">N°</th>
+              <th scope="col">Échéance</th>
+              <th scope="col">Dû</th>
+              <th scope="col">Payé</th>
+              <th scope="col">Restant</th>
+              <th scope="col">Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of installments(); track i.id) {
+              <tr>
+                <td class="dl-timestamp">{{ i.installmentNumber }}</td>
+                <td class="dl-timestamp">{{ formatDate(i.dueDate) }}</td>
+                <td class="dl-timestamp">{{ formatAmount(i.totalDue) }}</td>
+                <td class="dl-timestamp">{{ formatAmount(i.paidAmount) }}</td>
+                <td class="dl-timestamp">{{ formatAmount(i.remainingAmount) }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + installmentStatusVariant(i.status)">
+                    <span class="dl-chip-dot"></span>{{ installmentStatusLabel[i.status] }}
+                    @if (i.daysOverdue > 0) { ({{ i.daysOverdue }}j) }
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <h6 class="fw-semibold mb-2">Remboursements</h6>
+    @if (repaymentsLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (repayments().length === 0) {
+      <p class="dl-empty">Aucun remboursement enregistré.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table dl-table--modal">
+          <thead>
+            <tr>
+              <th scope="col">Référence</th>
+              <th scope="col">Montant</th>
+              <th scope="col">Moyen</th>
+              <th scope="col">Date</th>
+              <th scope="col">Répartition</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of repayments(); track r.id) {
+              <tr>
+                <td><span class="dl-tag">{{ r.reference }}</span></td>
+                <td class="dl-timestamp">{{ formatAmount(r.amount) }}</td>
+                <td class="dl-cell-detail">{{ disbursementMethodLabel[r.paymentMethod] }}</td>
+                <td class="dl-timestamp">{{ formatDate(r.paymentDate) }}</td>
+                <td class="dl-cell-detail">
+                  @for (a of r.allocations; track a.installmentId) {
+                    <div>Échéance {{ a.installmentNumber }} : {{ formatAmount(a.allocatedAmount) }}</div>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</app-modal>
+
+<!-- ===== Modale : enregistrer un remboursement ===== -->
+<app-modal [visible]="repaymentFormVisible()" title="Enregistrer un remboursement" (closed)="repaymentFormVisible.set(false)">
+  @if (repaymentError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="repaymentForm" cForm (ngSubmit)="submitRepayment()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="rp-amount">Montant (FCFA)</label>
+        <input cFormControl formControlName="amount" id="rp-amount" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="rp-date">Date de paiement</label>
+        <div class="dl-autocomplete-box">
+          <input
+            cFormControl
+            formControlName="paymentDate"
+            id="rp-date"
+            type="date"
+            (focus)="repaymentDateShortcutsOpen.set(true)"
+            (blur)="repaymentDateShortcutsOpen.set(false)"
+          />
+          @if (repaymentDateShortcutsOpen()) {
+            <div class="dl-autocomplete-dropdown">
+              @for (shortcut of dateShortcuts; track shortcut.label) {
+                <button (mousedown)="applyRepaymentDateShortcut(shortcut.days)" class="dl-autocomplete-item" type="button">
+                  <span class="dl-autocomplete-item-info">{{ shortcut.label }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="rp-method">Moyen de paiement</label>
+        <select cSelect formControlName="paymentMethod" id="rp-method">
+          <option value="BANK_TRANSFER">Virement bancaire</option>
+          <option value="ORANGE_MONEY">Orange Money</option>
+          <option value="MTN_MONEY">MTN Money</option>
+          <option value="MOOV_MONEY">Moov Money</option>
+          <option value="WAVE">Wave</option>
+          <option value="CASH">Espèces</option>
+          <option value="CHEQUE">Chèque</option>
+          <option value="OTHER">Autre</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="rp-ref">Référence (optionnel)</label>
+        <input cFormControl formControlName="paymentReference" id="rp-ref" type="text" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="rp-comment">Commentaire (optionnel)</label>
+        <textarea cFormControl formControlName="comment" id="rp-comment" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="repaymentFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="repaymentSaving()" cButton color="primary" type="submit">
+        @if (repaymentSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : solder par anticipation ===== -->
+<app-modal [visible]="!!earlyRepaymentTarget()" title="Solder le prêt par anticipation" (closed)="earlyRepaymentTarget.set(null)">
+  @if (earlyRepaymentError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <p class="dl-cell-detail mb-3">
+    Solde restant à régler : <strong>{{ formatAmount(earlyRepaymentTarget()?.remainingBalance ?? 0) }}</strong>. Le prêt sera automatiquement clôturé.
+  </p>
+  <form [formGroup]="earlyRepaymentForm" cForm (ngSubmit)="submitEarlyRepayment()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="er-date">Date de paiement</label>
+        <div class="dl-autocomplete-box">
+          <input
+            cFormControl
+            formControlName="paymentDate"
+            id="er-date"
+            type="date"
+            (focus)="earlyRepaymentDateShortcutsOpen.set(true)"
+            (blur)="earlyRepaymentDateShortcutsOpen.set(false)"
+          />
+          @if (earlyRepaymentDateShortcutsOpen()) {
+            <div class="dl-autocomplete-dropdown">
+              @for (shortcut of dateShortcuts; track shortcut.label) {
+                <button (mousedown)="applyEarlyRepaymentDateShortcut(shortcut.days)" class="dl-autocomplete-item" type="button">
+                  <span class="dl-autocomplete-item-info">{{ shortcut.label }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="er-method">Moyen de paiement</label>
+        <select cSelect formControlName="paymentMethod" id="er-method">
+          <option value="BANK_TRANSFER">Virement bancaire</option>
+          <option value="ORANGE_MONEY">Orange Money</option>
+          <option value="MTN_MONEY">MTN Money</option>
+          <option value="MOOV_MONEY">Moov Money</option>
+          <option value="WAVE">Wave</option>
+          <option value="CASH">Espèces</option>
+          <option value="CHEQUE">Chèque</option>
+          <option value="OTHER">Autre</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="er-ref">Référence (optionnel)</label>
+        <input cFormControl formControlName="paymentReference" id="er-ref" type="text" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="er-comment">Commentaire (optionnel)</label>
+        <textarea cFormControl formControlName="comment" id="er-comment" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="earlyRepaymentTarget.set(null)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="earlyRepaymentSaving()" cButton color="primary" type="submit">
+        @if (earlyRepaymentSaving()) { <c-spinner size="sm" /> }
+        Solder le prêt
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : création / modification d'un type de sortie ===== -->
+<app-modal [visible]="typeFormVisible()" title="{{ editingTypeId() ? 'Modifier le type de sortie' : 'Nouveau type de sortie' }}" (closed)="typeFormVisible.set(false)">
+  @if (typeFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="typeForm" cForm (ngSubmit)="saveType()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="fotype-code">Code</label>
+        <input cFormControl formControlName="code" id="fotype-code" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="fotype-nom">Nom</label>
+        <input cFormControl formControlName="nom" id="fotype-nom" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="fotype-ordre">Ordre</label>
+        <input cFormControl formControlName="ordre" id="fotype-ordre" type="number" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="fotype-description">Description (optionnel)</label>
+        <textarea cFormControl formControlName="description" id="fotype-description" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="actif" id="fotype-actif" switch type="checkbox" />
+      <label cLabel for="fotype-actif">Actif</label>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="typeFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="typeFormSaving()" cButton color="primary" type="submit">
+        @if (typeFormSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteTypeTarget()"
+  title="Supprimer ce type de sortie ?"
+  [message]="'Le type « ' + (deleteTypeTarget()?.nom ?? '') + ' » sera définitivement supprimé.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteTypeTarget.set(null)"
+  (confirmed)="performDeleteType()"
+/>
+
+<app-confirm-dialog
+  [visible]="!!deleteOutflowTarget()"
+  title="Supprimer cette sortie de fonds ?"
+  [message]="'La sortie « ' + (deleteOutflowTarget()?.reference ?? '') + ' » sera définitivement supprimée.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteOutflowTarget.set(null)"
+  (confirmed)="performDeleteOutflow()"
+/>
+}

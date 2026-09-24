@@ -1,0 +1,153 @@
+// Shared layout for the public auth pages (login, otp, change-password, register)
+.auth-page {
+  min-height: 100vh;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  background: linear-gradient(135deg, #eef3fc 0%, #dde6f8 100%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 500px;
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.auth-brand-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+// Split-screen shell for the redesigned auth pages (login, OTP…): a brand
+// panel (see app-auth-brand-panel) paired with a centered form. Shared here
+// so every page using it gets the same grid/breakpoint/entrance motion.
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+.auth-formside {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 2rem;
+}
+
+.auth-formwrap {
+  width: 100%;
+  max-width: 400px;
+  animation: auth-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-formwrap {
+    animation: none;
+  }
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-mobile-lockup {
+  display: none;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.75rem;
+
+  svg {
+    width: 26px;
+    height: 26px;
+    color: var(--accent, var(--cui-primary));
+  }
+
+  span {
+    font-family: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .auth-mobile-lockup {
+    display: flex;
+  }
+}
+
+.otp-digit {
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  text-align: center;
+  font-size: 1.25rem;
+}
+
+.otp-timer {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--cui-body-color);
+}
+
+.otp-timer-warning {
+  color: var(--cui-danger);
+}
+
+.otp-timer-expired {
+  color: var(--cui-secondary-color);
+}
+
+c-alert.alert-message {
+  // !important: CoreUI's own encapsulated host styles set `display: block`
+  // with higher effective specificity, so a plain class rule can't win.
+  display: flex !important;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-left: 4px solid var(--cui-alert-color, currentcolor);
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-size: 0.925rem;
+}
+
+.alert-message-icon {
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.05rem;
+}
+
+.alert-message-text {
+  line-height: 1.4;
+}
+
+.password-requirements {
+  li {
+    display: flex;
+    align-items: center;
+    line-height: 1.6;
+  }
+}
+
+.requirement-dot {
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+}

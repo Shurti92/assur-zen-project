@@ -1,0 +1,292 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Souscription en masse — Téléverser un fichier</h2>
+    </div>
+  </div>
+
+  <div class="mc-body">
+    @if (referenceError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    @if (referenceLoading()) {
+      <p class="dl-empty">Chargement des données de référence…</p>
+    } @else {
+      <nav class="wz-stepper" aria-label="Étapes de l'import">
+        @for (label of steps; track label; let i = $index; let last = $last) {
+          <span [class]="'wz-step' + (i === currentStep() ? ' wz-step--active' : '') + (i < currentStep() ? ' wz-step--done' : '')">
+            <span class="wz-step-circle">
+              @if (i < currentStep()) {
+                <svg cIcon name="cilCheck" size="sm"></svg>
+              } @else {
+                {{ i + 1 }}
+              }
+            </span>
+            <span class="wz-step-label">{{ label }}</span>
+          </span>
+          @if (!last) {
+            <span [class]="'wz-step-connector' + (i < currentStep() ? ' wz-step-connector--done' : '')"></span>
+          }
+        }
+      </nav>
+
+      <!-- Étape 1 : Fichier -->
+      @if (currentStep() === 0) {
+        <h6 class="fw-semibold mb-2">1. Téléchargez le modèle</h6>
+        <p class="dl-cell-detail mb-2">
+          Une ligne = un produit souscrit. Pour un même client souscrivant plusieurs produits, répétez son nom,
+          prénoms et téléphone identiques sur plusieurs lignes — les lignes partageant le même numéro de téléphone
+          seront regroupées en une seule souscription (un assuré, plusieurs contrats), exactement comme le
+          formulaire manuel.
+        </p>
+        <button (click)="downloadTemplate()" cButton class="dl-btn mb-4" type="button">
+          <svg cIcon name="cilCloudDownload"></svg>
+          Télécharger le modèle (CSV)
+        </button>
+
+        <h6 class="fw-semibold mb-2">Colonnes du fichier</h6>
+        <div class="table-responsive mb-4">
+          <table class="dl-table">
+            <thead>
+              <tr>
+                <th>Colonne</th>
+                <th>Obligatoire</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>nom</td><td>Oui</td><td>Nom de l'assuré</td></tr>
+              <tr><td>prenoms</td><td>Oui</td><td>Prénoms de l'assuré</td></tr>
+              <tr><td>telephone</td><td>Oui</td><td>Téléphone — sert aussi à regrouper les lignes d'un même client</td></tr>
+              <tr><td>ville</td><td>Oui</td><td>Ville de l'assuré</td></tr>
+              <tr><td>email</td><td>Non</td><td>Adresse email de l'assuré</td></tr>
+              <tr><td>type_client</td><td>Non</td><td>PARTICULIER ou ENTREPRISE (défaut : PARTICULIER)</td></tr>
+              <tr><td>produit</td><td>Oui</td><td>Nom exact du produit (voir Paramétrage → Produit)</td></tr>
+              <tr><td>compagnie</td><td>Oui</td><td>Nom exact de la compagnie d'assurance</td></tr>
+              <tr><td>partenaire</td><td>Non</td><td>Nom du partenaire apporteur (optionnel)</td></tr>
+              <tr><td>prime</td><td>Oui</td><td>Montant de la prime (FCFA)</td></tr>
+              <tr><td>duree_mois</td><td>Non</td><td>Durée en mois (défaut : 12)</td></tr>
+              <tr>
+                <td>date_effet</td>
+                <td>Non</td>
+                <td>
+                  Format AAAA-MM-JJ ou JJ/MM/AAAA (défaut : aujourd'hui). Les dates antérieures à aujourd'hui sont
+                  autorisées — utile pour créer des contrats rétroactifs ou reprendre un historique.
+                </td>
+              </tr>
+              <tr><td>taux_commission</td><td>Non</td><td>Taux (%) — calculé automatiquement si vide</td></tr>
+              <tr><td>numero_police</td><td>Non</td><td>Auto-généré si vide</td></tr>
+              <tr><td>mode_paiement</td><td>Non</td><td>COMPTANT ou FRACTIONNE (défaut : COMPTANT)</td></tr>
+              <tr><td>nombre_echeances</td><td>Non</td><td>Si FRACTIONNE (défaut : 3)</td></tr>
+              <tr><td>periodicite_echeances</td><td>Non</td><td>MENSUELLE / TRIMESTRIELLE / SEMESTRIELLE / ANNUELLE</td></tr>
+              <tr><td>statut_contrat</td><td>Non</td><td>signed / pending / draft / cancelled (défaut : signed)</td></tr>
+              <tr><td>notes</td><td>Non</td><td>Notes libres</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h6 class="fw-semibold mb-2">2. Sélectionnez votre fichier rempli</h6>
+        @if (fileError(); as message) {
+          <app-alert-message class="d-block mb-3" [message]="message" />
+        }
+        <div class="d-flex align-items-center gap-3">
+          <input
+            (change)="onFileSelected($event)"
+            [disabled]="fileReading()"
+            accept=".csv"
+            class="form-control"
+            style="max-width: 420px"
+            type="file"
+          />
+          @if (fileReading()) {
+            <c-spinner size="sm" />
+          }
+        </div>
+        @if (selectedFileName(); as name) {
+          <p class="dl-cell-detail mt-2">Dernier fichier lu : {{ name }}</p>
+        }
+      }
+
+      <!-- Étape 2 : Aperçu -->
+      @if (currentStep() === 1) {
+        <h6 class="fw-semibold mb-2">Aperçu des données importées</h6>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <div class="mc-kpi-card mc-kpi-card--primary">
+              <span class="mc-kpi-icon"><svg cIcon name="cilPeople" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ clientGroups().length }}</div>
+                <div class="mc-kpi-label">Client(s)</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mc-kpi-card mc-kpi-card--info">
+              <span class="mc-kpi-icon"><svg cIcon name="cilLayers" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ totalRows() }}</div>
+                <div class="mc-kpi-label">Ligne(s) — 1 par produit</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mc-kpi-card mc-kpi-card--success">
+              <span class="mc-kpi-icon"><svg cIcon name="cilCheckCircle" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ validGroups().length }}</div>
+                <div class="mc-kpi-label">Client(s) prêt(s)</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mc-kpi-card mc-kpi-card--danger">
+              <span class="mc-kpi-icon"><svg cIcon name="cilWarning" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ rowsWithErrors() }}</div>
+                <div class="mc-kpi-label">Ligne(s) en erreur</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        @if (invalidGroups().length > 0) {
+          <app-alert-message
+            class="d-block mb-3"
+            [message]="invalidGroups().length + ' client(s) comportent au moins une ligne en erreur et ne seront pas importés. Corrigez le fichier et re-téléversez-le, ou lancez la création pour les clients valides uniquement.'"
+          />
+        }
+
+        <div class="table-responsive mb-4">
+          <table class="dl-table">
+            <thead>
+              <tr>
+                <th>Ligne(s)</th>
+                <th>Client</th>
+                <th>Téléphone</th>
+                <th>Produit(s)</th>
+                <th>Prime totale</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (group of clientGroups(); track group.key) {
+                <tr>
+                  <td>{{ group.rows[0].line }}@if (group.rows.length > 1) { — {{ group.rows[group.rows.length - 1].line }} }</td>
+                  <td>{{ group.nom }} {{ group.prenoms }}</td>
+                  <td>{{ group.clientPhone || '—' }}</td>
+                  <td>
+                    @for (row of group.rows; track row.line) {
+                      <div>{{ row.produitNom || '—' }}</div>
+                    }
+                  </td>
+                  <td>{{ formatAmount(sumPremium(group)) }}</td>
+                  <td>
+                    @if (group.hasErrors) {
+                      <span class="dl-tag dl-tag--danger">Erreur</span>
+                    } @else {
+                      <span class="dl-tag dl-tag--success">Prêt</span>
+                    }
+                  </td>
+                </tr>
+                @if (group.hasErrors) {
+                  <tr>
+                    <td colspan="6">
+                      <ul class="mb-0 dl-cell-detail">
+                        @for (row of group.rows; track row.line) {
+                          @for (error of row.errors; track error) {
+                            <li>Ligne {{ row.line }} — {{ error }}</li>
+                          }
+                        }
+                      </ul>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between">
+          <button (click)="backToFile()" cButton color="secondary" type="button" variant="outline">← Retour</button>
+          <button (click)="startImport()" [disabled]="validGroups().length === 0" cButton color="primary" type="button">
+            Lancer la création ({{ validGroups().length }} client(s))
+          </button>
+        </div>
+      }
+
+      <!-- Étape 3 : Résultat -->
+      @if (currentStep() === 2) {
+        <h6 class="fw-semibold mb-2">Traitement en cours</h6>
+        <p class="dl-cell-detail mb-3">{{ processedCount() }} / {{ validGroups().length }} client(s) traité(s)</p>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="mc-kpi-card mc-kpi-card--success">
+              <span class="mc-kpi-icon"><svg cIcon name="cilCheckCircle" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ succeededCount() }}</div>
+                <div class="mc-kpi-label">Réussi(s)</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mc-kpi-card mc-kpi-card--danger">
+              <span class="mc-kpi-icon"><svg cIcon name="cilWarning" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ failedCount() }}</div>
+                <div class="mc-kpi-label">Échec(s)</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mc-kpi-card mc-kpi-card--info">
+              <span class="mc-kpi-icon"><svg cIcon name="cilLayers" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ invalidGroups().length }}</div>
+                <div class="mc-kpi-label">Ignoré(s) (erreurs)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive mb-4">
+          <table class="dl-table">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Téléphone</th>
+                <th>Statut</th>
+                <th>Résultat</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (group of validGroups(); track group.key) {
+                <tr>
+                  <td>{{ group.nom }} {{ group.prenoms }}</td>
+                  <td>{{ group.clientPhone || '—' }}</td>
+                  <td>
+                    @switch (group.status) {
+                      @case ('en_attente') { <span class="dl-tag">En attente</span> }
+                      @case ('en_cours') { <c-spinner size="sm" /> }
+                      @case ('succes') { <span class="dl-tag dl-tag--success">Réussi</span> }
+                      @case ('echec') { <span class="dl-tag dl-tag--danger">Échec</span> }
+                    }
+                  </td>
+                  <td class="dl-cell-detail">{{ group.resultMessage || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between">
+          <button [disabled]="processing()" (click)="resetAll()" cButton color="primary" type="button">
+            Nouvel import
+          </button>
+        </div>
+      }
+    }
+  </div>
+</section>

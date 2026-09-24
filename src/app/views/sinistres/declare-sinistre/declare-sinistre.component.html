@@ -1,0 +1,136 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>{{ 'sinistres.declare.titre' | transloco }}</h2>
+    </div>
+  </div>
+
+  <div class="mc-body">
+    @if (success(); as s) {
+      <app-alert-message class="d-block mb-3" variant="success" [message]="'sinistres.declare.successMessage' | transloco: { numero: s.numero }" />
+    }
+    @if (error(); as key) {
+      <app-alert-message class="d-block mb-3" [message]="key | transloco" />
+    }
+
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <form [formGroup]="form" cForm (ngSubmit)="submit()">
+          <div class="fs-section">
+            <div class="fs-section-head">
+              <svg cIcon name="cilFile" size="lg"></svg>
+              <h3>{{ 'sinistres.declare.section.contrat' | transloco }}</h3>
+            </div>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label cLabel for="sin-contrat">{{ 'sinistres.fields.contrat' | transloco }}<span class="wz-required">*</span></label>
+                <select cSelect formControlName="contractId" id="sin-contrat">
+                  <option [value]="0" disabled>{{ (contractsLoading() ? 'common.labels.loading' : 'sinistres.declare.selectionnerContrat') | transloco }}</option>
+                  @for (contract of contracts(); track contract.id) {
+                    <option [value]="contract.id">{{ contractLabel(contract) }}</option>
+                  }
+                </select>
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="sin-date">{{ 'sinistres.fields.dateSurvenance' | transloco }}<span class="wz-required">*</span></label>
+                <input cFormControl formControlName="dateSurvenance" id="sin-date" type="date" />
+              </div>
+            </div>
+          </div>
+
+          <div class="fs-section">
+            <div class="fs-section-head">
+              <svg cIcon name="cilWarning" size="lg"></svg>
+              <h3>{{ 'sinistres.declare.section.details' | transloco }}</h3>
+            </div>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label cLabel for="sin-nature">{{ 'sinistres.fields.nature' | transloco }}<span class="wz-required">*</span></label>
+                <input cFormControl formControlName="nature" id="sin-nature" maxlength="200" [placeholder]="'sinistres.declare.naturePlaceholder' | transloco" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="sin-montant">{{ 'sinistres.declare.montantEstime' | transloco }}</label>
+                <input cFormControl formControlName="montantEstime" id="sin-montant" inputmode="numeric" type="text" wzThousandSeparator />
+              </div>
+            </div>
+          </div>
+
+          <div class="fs-section">
+            <div class="fs-section-head">
+              <svg cIcon name="cilNotes" size="lg"></svg>
+              <h3>{{ 'sinistres.declare.section.descriptionNotes' | transloco }}</h3>
+            </div>
+            <div class="row g-3">
+              <div class="col-12">
+                <label cLabel for="sin-description">{{ 'sinistres.fields.description' | transloco }}</label>
+                <textarea
+                  cFormControl
+                  formControlName="description"
+                  id="sin-description"
+                  [maxlength]="descriptionMaxLength"
+                  [placeholder]="'sinistres.declare.descriptionPlaceholder' | transloco"
+                  rows="4"
+                ></textarea>
+                <span class="fs-counter">{{ descriptionLength() }} / {{ descriptionMaxLength }}</span>
+              </div>
+              <div class="col-12">
+                <label cLabel for="sin-notes">{{ 'sinistres.declare.notes' | transloco }}</label>
+                <textarea cFormControl formControlName="notes" id="sin-notes" [placeholder]="'sinistres.declare.notesPlaceholder' | transloco" rows="2"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-2">
+            <button (click)="resetForm()" [disabled]="saving()" cButton color="secondary" type="button" variant="outline">
+              {{ 'common.actions.reset' | transloco }}
+            </button>
+            <button [disabled]="saving() || contractsLoading()" cButton color="primary" type="submit">
+              @if (saving()) {
+                <c-spinner size="sm" />
+              }
+              {{ 'sinistres.declare.declarerSinistre' | transloco }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="fs-preview">
+          <div class="fs-preview-title">
+            <svg cIcon name="cilInfo" size="lg"></svg>
+            {{ 'sinistres.declare.recapitulatif' | transloco }}
+          </div>
+          @if (selectedContract(); as c) {
+            <dl class="m-0">
+              <div class="fs-preview-row">
+                <dt>{{ 'sinistres.fields.numeroPolice' | transloco }}</dt>
+                <dd>{{ c.policyNumber }}</dd>
+              </div>
+              <div class="fs-preview-row">
+                <dt>{{ 'sinistres.fields.assure' | transloco }}</dt>
+                <dd>{{ c.insuredName }}</dd>
+              </div>
+              <div class="fs-preview-row">
+                <dt>{{ 'sinistres.fields.produit' | transloco }}</dt>
+                <dd>{{ c.productName }}</dd>
+              </div>
+              <div class="fs-preview-row">
+                <dt>{{ 'sinistres.fields.compagnie' | transloco }}</dt>
+                <dd>{{ c.compagnieName }}</dd>
+              </div>
+              <div class="fs-preview-row">
+                <dt>{{ 'sinistres.fields.prime' | transloco }}</dt>
+                <dd>{{ formatAmount(c.premium) }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <div class="fs-preview-empty">
+              <svg cIcon name="cilFile" size="xl"></svg>
+              <span>{{ 'sinistres.declare.recapVide' | transloco }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,278 @@
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h6 class="fw-semibold m-0">
+    Documents
+    @if (!loading() && totalElements() > 0) {
+      <span class="dl-cell-detail fw-normal">({{ totalElements() }})</span>
+    }
+  </h6>
+  <button (click)="openUploadForm()" cButton class="dl-btn dl-btn-primary" size="sm" type="button">
+    <svg cIcon name="cilCloudUpload" size="sm"></svg>Déposer un document
+  </button>
+</div>
+
+@if (error()) {
+  <app-alert-message class="d-block mb-2" [message]="error()!" />
+}
+
+@if (loading()) {
+  <p class="dl-empty">Chargement des documents…</p>
+} @else if (documents().length === 0) {
+  <div class="cs-empty">
+    <div class="cs-icon"><svg cIcon name="cilFile" size="xl"></svg></div>
+    <div class="cs-title">Aucun document rattaché</div>
+    <p class="cs-lede">Déposez un premier document (contrat, pièce d'identité, justificatif…) pour le retrouver ici.</p>
+  </div>
+} @else {
+  <div class="dl-table-scroll">
+    <table class="dl-table dl-table--modal">
+      <thead>
+        <tr>
+          <th scope="col">Document</th>
+          <th scope="col">Type</th>
+          <th scope="col">Statut</th>
+          <th scope="col">Version</th>
+          <th scope="col">Créé le</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (doc of documents(); track doc.id) {
+          <tr>
+            <td>
+              <div class="dl-insured">
+                <span class="dl-avatar"><svg cIcon name="cilFile" size="sm"></svg></span>
+                <div>
+                  <div class="dl-insured-name">{{ doc.title }}</div>
+                  <div class="dl-insured-meta dl-font-mono">{{ doc.documentNumber }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="dl-cell-detail">{{ doc.documentTypeNom }}</td>
+            <td>
+              <span [class]="'dl-chip dl-chip--' + statusVariant(doc.status)">
+                <span class="dl-chip-dot"></span>{{ statusLabel[doc.status] }}
+              </span>
+            </td>
+            <td class="dl-timestamp">v{{ doc.currentVersionNumber }}</td>
+            <td class="dl-timestamp">{{ formatDate(doc.createdAt) }}</td>
+            <td>
+              <div class="dl-row-actions">
+                <button (click)="openDetail(doc)" class="dl-icon-btn" title="Voir" type="button">
+                  <svg cIcon name="cilInfo" size="sm"></svg>
+                </button>
+                <button (click)="downloadCurrentVersion(doc)" class="dl-icon-btn" title="Télécharger" type="button">
+                  <svg cIcon name="cilCloudDownload" size="sm"></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (totalPages() > 1) {
+    <div class="dl-footnote">
+      <span><strong>{{ documents().length }}</strong> sur {{ totalElements() }} documents (page {{ page() + 1 }} sur {{ totalPages() }})</span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToPage(page() - 1)" [disabled]="page() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToPage(page() + 1)" [disabled]="page() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+}
+
+<!-- ===== Modale : dépôt d'un document (entité déjà rattachée implicitement) ===== -->
+<app-modal [visible]="uploadFormVisible()" title="Déposer un document" (closed)="uploadFormVisible.set(false)">
+  @if (uploadError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  @if (typesError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  @if (categoriesError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="uploadForm" cForm (ngSubmit)="submitUpload()">
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Fichier</div>
+      <input #edFileInput (change)="onFileSelected($event)" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.csv" hidden id="ed-file" type="file" />
+      @if (selectedFile(); as file) {
+        <div class="dl-file-picked">
+          <span class="dl-file-picked-icon"><svg cIcon name="cilFile" size="lg"></svg></span>
+          <span class="dl-file-picked-info">
+            <strong>{{ file.name }}</strong>
+            <span class="dl-cell-detail">{{ formatSize(file.size) }}</span>
+          </span>
+          <button (click)="clearSelectedFile()" class="dl-file-picked-change" type="button">Changer</button>
+        </div>
+      } @else {
+        <button
+          (click)="edFileInput.click()"
+          (drop)="onDropzoneDrop($event)"
+          (dragover)="onDropzoneDragOver($event)"
+          class="dl-dropzone"
+          type="button"
+        >
+          <svg cIcon name="cilCloudUpload"></svg>
+          <strong>Glissez un fichier ici ou cliquez pour parcourir</strong>
+        </button>
+      }
+      <div class="dl-cell-detail mt-2">Formats autorisés : PDF, PNG, JPG, JPEG, DOCX, XLSX, CSV.</div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Informations</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="ed-title">Titre</label>
+          <input cFormControl formControlName="title" id="ed-title" type="text" />
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="ed-type">Type de document</label>
+          <select cSelect formControlName="documentTypeId" id="ed-type">
+            <option value="">Sélectionner…</option>
+            @for (t of types(); track t.id) {
+              <option [value]="t.id">{{ t.nom }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="ed-category">Catégorie (optionnel)</label>
+          <select cSelect formControlName="categoryId" id="ed-category">
+            <option value="">Sélectionner…</option>
+            @for (c of categories(); track c.id) {
+              <option [value]="c.id">{{ c.nom }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-12">
+          <label>Niveau de confidentialité</label>
+          <div class="dl-chip-toggle-group" role="group" aria-label="Niveau de confidentialité">
+            @for (opt of confidentialityOptions; track opt.value) {
+              <button
+                (click)="uploadForm.controls.confidentialityLevel.setValue(opt.value)"
+                [attr.data-active]="uploadForm.controls.confidentialityLevel.value === opt.value"
+                [class]="'dl-chip-toggle dl-chip-toggle--' + opt.variant"
+                type="button"
+              >
+                <span class="dl-chip-dot"></span>{{ opt.label }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="uploadFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="uploadSaving()" cButton color="primary" type="submit">
+        @if (uploadSaving()) { <c-spinner size="sm" /> }
+        Déposer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : détail d'un document ===== -->
+<app-modal [visible]="detailVisible()" size="lg" title="{{ selectedDocument()?.title }} ({{ selectedDocument()?.documentNumber }})" (closed)="closeDetail()">
+  @if (selectedDocument(); as doc) {
+    @if (detailActionError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    <div class="dl-detail-grid mb-3">
+      <div><div class="dl-cell-detail">Type</div><div>{{ doc.documentTypeNom }}</div></div>
+      <div><div class="dl-cell-detail">Catégorie</div><div>{{ doc.categoryNom || '—' }}</div></div>
+      <div>
+        <div class="dl-cell-detail">Statut</div>
+        <div>
+          <span [class]="'dl-chip dl-chip--' + statusVariant(doc.status)">
+            <span class="dl-chip-dot"></span>{{ statusLabel[doc.status] }}
+          </span>
+        </div>
+      </div>
+      <div><div class="dl-cell-detail">Version actuelle</div><div>v{{ doc.currentVersionNumber }}</div></div>
+      <div><div class="dl-cell-detail">Créé le</div><div>{{ formatDateTime(doc.createdAt) }}@if (doc.createdBy) { — {{ doc.createdBy }} }</div></div>
+      @if (doc.status === 'REJECTED' && doc.rejectionReason) {
+        <div><div class="dl-cell-detail">Motif du rejet</div><div>{{ doc.rejectionReason }}</div></div>
+      }
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      <button (click)="downloadCurrentVersion(doc)" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilCloudDownload" size="sm"></svg>Télécharger
+      </button>
+      @if (doc.status === 'UPLOADED') {
+        <button (click)="validateDocument(doc)" [disabled]="detailActionPending()" cButton class="dl-btn" color="success" type="button">
+          @if (detailActionPending()) { <c-spinner size="sm" /> }
+          <svg cIcon name="cilCheckCircle" size="sm"></svg>Valider
+        </button>
+        <button (click)="askReject(doc)" cButton class="dl-btn" color="danger" type="button">
+          <svg cIcon name="cilXCircle" size="sm"></svg>Rejeter
+        </button>
+      }
+      @if (doc.status === 'VALIDATED') {
+        <button (click)="archiveDocument(doc)" [disabled]="detailActionPending()" cButton class="dl-btn" type="button">
+          @if (detailActionPending()) { <c-spinner size="sm" /> }
+          <svg cIcon name="cilInbox" size="sm"></svg>Archiver
+        </button>
+      }
+    </div>
+
+    <h6 class="fw-semibold mb-2">Versions</h6>
+    @if (detailVersionsLoading()) {
+      <p class="dl-empty">Chargement des versions…</p>
+    } @else if (detailVersions().length === 0) {
+      <p class="dl-empty">Aucune version.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table dl-table--modal">
+          <thead>
+            <tr>
+              <th scope="col">Version</th>
+              <th scope="col">Fichier</th>
+              <th scope="col">Taille</th>
+              <th scope="col">Date</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (v of detailVersions(); track v.id) {
+              <tr>
+                <td><span class="dl-tag">v{{ v.versionNumber }}</span></td>
+                <td>{{ v.originalFileName }}</td>
+                <td class="dl-timestamp">{{ formatSize(v.fileSizeBytes) }}</td>
+                <td class="dl-timestamp">{{ formatDateTime(v.createdAt) }}</td>
+                <td>
+                  <button (click)="downloadVersion(v)" class="dl-icon-btn" title="Télécharger" type="button">
+                    <svg cIcon name="cilCloudDownload" size="sm"></svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</app-modal>
+
+<!-- ===== Modale : rejet (motif obligatoire) ===== -->
+<app-modal [visible]="!!rejectTarget()" title="Rejeter « {{ rejectTarget()?.title }} »" (closed)="rejectTarget.set(null)">
+  @if (rejectError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="rejectForm" cForm (ngSubmit)="submitReject()">
+    <div class="mb-3">
+      <label cLabel for="ed-reject-reason">Motif du rejet</label>
+      <textarea cFormControl formControlName="reason" id="ed-reject-reason" rows="3"></textarea>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="rejectTarget.set(null)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="rejectSaving()" cButton color="danger" type="submit">
+        @if (rejectSaving()) { <c-spinner size="sm" /> }
+        Confirmer le rejet
+      </button>
+    </div>
+  </form>
+</app-modal>

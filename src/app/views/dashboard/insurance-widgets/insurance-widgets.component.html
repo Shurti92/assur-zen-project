@@ -1,0 +1,246 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Indicateurs clés</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Période">
+      <button (click)="setPeriod('month')" [attr.data-active]="period() === 'month'" class="dl-pill" type="button">Ce mois</button>
+      <button (click)="setPeriod('all')" [attr.data-active]="period() === 'all'" class="dl-pill" type="button">Tout</button>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des indicateurs…</p>
+  } @else {
+    <div class="mc-body">
+      <div>
+        <div class="mc-section-head">
+          <h3>Objectif global de l'année</h3>
+        </div>
+        @if (hasObjective()) {
+          <div [class]="'mc-kpi-card mc-kpi-card--' + objectiveColor()">
+            <div class="mc-kpi-body" style="flex: 1;">
+              <div class="d-flex justify-content-between align-items-baseline mb-1">
+                <span class="mc-kpi-label">Progression vers l'objectif</span>
+                <span class="mc-kpi-value" style="font-size: 1.05rem;">{{ objectivePercent() }} %</span>
+              </div>
+              <c-progress [value]="objectivePercent()" [color]="objectiveColor()" thin />
+              <div class="mc-kpi-label mt-2">Objectif : {{ formatAmount(kpis()?.objectifGlobal?.montant ?? 0) }}</div>
+            </div>
+          </div>
+        } @else {
+          <p class="dl-empty">Aucun objectif défini pour cette période.</p>
+        }
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Volumes</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of volumeKpis(); track kpi.key) {
+            <c-col sm="6" xl="3">
+              @if (kpi.link) {
+                <a [class]="'mc-kpi-card mc-kpi-card--clickable mc-kpi-card--' + kpi.color" [routerLink]="kpi.link" [queryParams]="kpi.queryParams">
+                  <span class="mc-kpi-icon">
+                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                  </span>
+                  <div class="mc-kpi-body">
+                    <div class="mc-kpi-value">{{ kpi.value }}</div>
+                    <div class="mc-kpi-label">{{ kpi.label }}</div>
+                  </div>
+                </a>
+              } @else {
+                <div [class]="'mc-kpi-card mc-kpi-card--' + kpi.color">
+                  <span class="mc-kpi-icon">
+                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                  </span>
+                  <div class="mc-kpi-body">
+                    <div class="mc-kpi-value">{{ kpi.value }}</div>
+                    <div class="mc-kpi-label">{{ kpi.label }}</div>
+                  </div>
+                </div>
+              }
+            </c-col>
+          }
+        </c-row>
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Finance</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of financeKpis(); track kpi.key) {
+            <c-col sm="6" xl="3">
+              @if (kpi.link) {
+                <a [class]="'mc-kpi-card mc-kpi-card--clickable mc-kpi-card--' + kpi.color" [routerLink]="kpi.link">
+                  <span class="mc-kpi-icon">
+                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                  </span>
+                  <div class="mc-kpi-body">
+                    <div class="mc-kpi-value">{{ kpi.value }}</div>
+                    <div class="mc-kpi-label">{{ kpi.label }}</div>
+                  </div>
+                </a>
+              } @else {
+                <div [class]="'mc-kpi-card mc-kpi-card--' + kpi.color">
+                  <span class="mc-kpi-icon">
+                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                  </span>
+                  <div class="mc-kpi-body">
+                    <div class="mc-kpi-value">{{ kpi.value }}</div>
+                    <div class="mc-kpi-label">{{ kpi.label }}</div>
+                  </div>
+                </div>
+              }
+            </c-col>
+          }
+        </c-row>
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Performance</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of performanceKpis(); track kpi.key) {
+            <c-col sm="6" xl="3">
+              <div [class]="'mc-kpi-card mc-kpi-card--' + kpi.color">
+                <span class="mc-kpi-icon">
+                  <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                </span>
+                <div class="mc-kpi-body">
+                  <div class="mc-kpi-value">{{ kpi.value }}</div>
+                  <div class="mc-kpi-label">{{ kpi.label }}</div>
+                </div>
+              </div>
+            </c-col>
+          }
+        </c-row>
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Cycle de vie des contrats</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of lifecycleKpis(); track kpi.key) {
+            <c-col sm="6" xl="4">
+              <a
+                [class]="'mc-kpi-card mc-kpi-card--clickable mc-kpi-card--' + kpi.color"
+                [routerLink]="kpi.link"
+              >
+                <span class="mc-kpi-icon">
+                  <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                </span>
+                <div class="mc-kpi-body">
+                  <div class="mc-kpi-value">{{ kpi.value }}</div>
+                  <div class="mc-kpi-label">{{ kpi.label }}</div>
+                </div>
+              </a>
+            </c-col>
+          }
+        </c-row>
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Répartition par produit</h3>
+        </div>
+        @if (produitBreakdown().length === 0) {
+          <p class="dl-empty">Aucun contrat pour le moment.</p>
+        } @else {
+          <div class="dl-table-scroll">
+            <table class="dl-table">
+              <thead>
+                <tr>
+                  <th scope="col">Produit</th>
+                  <th scope="col">Contrats</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of produitBreakdown(); track row.productId) {
+                  <tr>
+                    <td>{{ row.productName }}</td>
+                    <td class="dl-timestamp">{{ row.count }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <div>
+        <div class="mc-section-head">
+          <h3>Objectif par apporteur</h3>
+        </div>
+        @if (objectifApporteurRows().length === 0) {
+          <p class="dl-empty">Aucun partenaire n'a d'objectif de production défini.</p>
+        } @else {
+          <div class="dl-table-scroll">
+            <table class="dl-table">
+              <thead>
+                <tr>
+                  <th scope="col">Partenaire</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Objectif</th>
+                  <th scope="col">Réalisé</th>
+                  <th scope="col">Taux</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of objectifApporteurRows(); track row.partenaireId) {
+                  <tr>
+                    <td>{{ row.nom }}</td>
+                    <td>
+                      <span [class]="'dl-chip dl-chip--' + typeVariant(row.type)">
+                        <span class="dl-chip-dot"></span>{{ typeLabel(row.type) }}
+                      </span>
+                    </td>
+                    <td class="dl-timestamp">{{ formatAmount(row.objectif) }}</td>
+                    <td class="dl-timestamp">{{ formatAmount(row.realise) }}</td>
+                    <td>
+                      <span [class]="'dl-chip dl-chip--' + tauxVariant(row.taux)">
+                        <span class="dl-chip-dot"></span>{{ row.taux.toFixed(1) }} %
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="dl-summary">
+            <dl>
+              <dt>Total objectif</dt>
+              <dd>{{ formatAmount(totalObjectifApporteurs()) }}</dd>
+            </dl>
+            <dl>
+              <dt>Total réalisé</dt>
+              <dd>{{ formatAmount(totalRealiseApporteurs()) }}</dd>
+            </dl>
+            <dl>
+              <dt>Taux global</dt>
+              <dd [class]="'dl-stat--' + tauxVariant(tauxGlobalApporteurs())">
+                {{ tauxGlobalApporteurs() === null ? '—' : tauxGlobalApporteurs()!.toFixed(1) + ' %' }}
+              </dd>
+            </dl>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</section>

@@ -1,0 +1,111 @@
+<div class="auth-shell">
+  <app-auth-brand-panel>
+    <ng-container abHeadline>Toute l'activité de votre compagnie, <em>sous un même toit</em>.</ng-container>
+    <ng-container abSub>
+      La plateforme de gestion pensée pour les compagnies et courtiers d'assurance
+      de Côte d'Ivoire — de la souscription au règlement des sinistres.
+    </ng-container>
+    <li abFeatures>
+      <svg cIcon name="cilCheckCircle"></svg>
+      Contrats et sinistres suivis en temps réel
+    </li>
+    <li abFeatures>
+      <svg cIcon name="cilCalculator"></svg>
+      Commissions et comptabilité automatisées
+    </li>
+    <li abFeatures>
+      <svg cIcon name="cilCommentSquare"></svg>
+      Assurés notifiés automatiquement par SMS
+    </li>
+  </app-auth-brand-panel>
+
+  <main class="auth-formside">
+    <div class="auth-formwrap">
+      <div class="auth-mobile-lockup">
+        <svg cIcon name="signet"></svg>
+        <span>CIP AssurZen</span>
+      </div>
+
+      <h1>Bon retour</h1>
+      <p class="login-lede">Connectez-vous pour accéder à votre espace assurance.</p>
+
+      @if (errorMessage(); as message) {
+        <app-alert-message class="d-block mb-3" [message]="message" [variant]="errorVariant()" />
+        @if (lockedCountdownLabel(); as countdown) {
+          <p class="login-lockout-countdown mb-3">Nouvelle tentative possible dans <strong>{{ countdown }}</strong></p>
+        }
+      }
+
+      <form [formGroup]="form" cForm (ngSubmit)="login()">
+        <div class="login-field">
+          <label cLabel for="login-username">Nom d'utilisateur</label>
+          <div class="login-field-control">
+            <svg cIcon class="leading" name="cilUser"></svg>
+            <input cFormControl formControlName="username" id="login-username" maxlength="100" placeholder="0700000000" />
+          </div>
+          @if (form.controls.username.invalid && form.controls.username.touched) {
+            <p class="login-field-error">
+              @if (form.controls.username.errors?.['required']) {
+                Le nom d'utilisateur est requis.
+              } @else if (form.controls.username.errors?.['maxlength']) {
+                100 caractères maximum.
+              }
+            </p>
+          }
+        </div>
+
+        <div class="login-field">
+          <label cLabel for="login-password">Mot de passe</label>
+          <div class="login-field-control">
+            <svg cIcon class="leading" name="cilLockLocked"></svg>
+            <input
+              cFormControl
+              formControlName="password"
+              id="login-password"
+              placeholder="••••••••"
+              style="padding-right: 2.6rem"
+              [type]="passwordVisible() ? 'text' : 'password'"
+            />
+            <button
+              [attr.aria-label]="passwordVisible() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
+              class="login-toggle-visibility"
+              type="button"
+              (click)="togglePasswordVisibility()"
+            >
+              <svg cIcon [name]="passwordVisible() ? 'cilLowVision' : 'eye'"></svg>
+            </button>
+          </div>
+          @if (form.controls.password.invalid && form.controls.password.touched) {
+            <p class="login-field-error">
+              @if (form.controls.password.errors?.['required']) {
+                Le mot de passe est requis.
+              } @else if (form.controls.password.errors?.['minlength']) {
+                6 caractères minimum.
+              }
+            </p>
+          }
+        </div>
+
+        <div class="login-row-between">
+          <label class="login-remember">
+            <input formControlName="rememberDevice" type="checkbox" />
+            Se souvenir de cet appareil
+          </label>
+          <a class="login-forgot" routerLink="/forgot-password">Mot de passe oublié ?</a>
+        </div>
+
+        <button [disabled]="loading() || isLocked()" class="login-submit" type="submit">
+          @if (loading()) {
+            <c-spinner size="sm" />
+          }
+          Se connecter
+        </button>
+
+        <p class="login-secure-note">
+          <svg cIcon name="cilLockLocked"></svg>
+          Connexion chiffrée et sécurisée
+        </p>
+      </form>
+    </div>
+  </main>
+</div>

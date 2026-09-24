@@ -1,0 +1,9 @@
+<app-log-table
+  title="Logs Applicatif"
+  [entries]="entries()"
+  filenamePrefix="assurzen-logs"
+  footerNote="Conservé dans ce navigateur, 500 entrées max"
+  sourceLabel="Catégorie"
+  [showClear]="true"
+  (cleared)="onCleared()"
+/>

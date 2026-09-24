@@ -1,0 +1,473 @@
+<c-row class="g-3 mb-3">
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="cilFile" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statTotal() }}</div>
+        <div class="mc-kpi-label">Modèles</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="cilCheckCircle" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statActifs() }}</div>
+        <div class="mc-kpi-label">Actifs</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--flag">
+      <span class="mc-kpi-icon"><svg cIcon name="cilPencil" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statBrouillons() }}</div>
+        <div class="mc-kpi-label">Brouillons</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--flag">
+      <span class="mc-kpi-icon"><svg cIcon name="cilTrash" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statArchives() }}</div>
+        <div class="mc-kpi-label">Archivés</div>
+      </div>
+    </div>
+  </c-col>
+</c-row>
+
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Modèles de communication</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        placeholder="Rechercher un modèle…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+      <button (click)="setStatutFilter('all')" [attr.data-active]="statutFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      @for (statut of statutOrder; track statut) {
+        <button
+          (click)="setStatutFilter(statut)"
+          [attr.data-active]="statutFilter() === statut"
+          [class]="'dl-pill dl-pill--' + statutVariant(statut)"
+          type="button"
+        >
+          {{ statutLabel(statut) }}
+        </button>
+      }
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="refresh" size="sm"></svg>
+        }
+        Actualiser
+      </button>
+      <button (click)="openRefModal()" cButton class="dl-btn" type="button">Catégories &amp; variables</button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus" size="sm"></svg>
+        Nouveau modèle
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des modèles…</p>
+  } @else if (filteredTemplates().length === 0) {
+    <p class="dl-empty">Aucun modèle ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Modèle</th>
+            <th scope="col">Canal</th>
+            <th scope="col">Catégorie</th>
+            <th scope="col">Langue</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (template of filteredTemplates(); track template.id) {
+            <tr>
+              <td>
+                <span class="dl-tag">{{ template.code }}</span>
+                <div class="dl-cell-detail">{{ template.nom }}</div>
+              </td>
+              <td>{{ canalLabel(template.canal) }}</td>
+              <td>{{ template.categorieLibelle }}</td>
+              <td>{{ template.langueLibelle }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statutVariant(template.statut)">
+                  <span class="dl-chip-dot"></span>{{ statutLabel(template.statut) }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  @if (canEdit(template)) {
+                    <button (click)="openEdit(template)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+                  }
+                  <button (click)="openDetail(template)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredTemplates().length }}</strong> modèle(s)</span>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" size="lg" [title]="formMode() === 'create' ? 'Nouveau modèle' : 'Modifier le modèle'" (closed)="closeForm()">
+  @if (formError()) {
+    <app-alert-message class="d-block mb-3" [message]="formError()!" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="submitForm()">
+    <div class="row g-3">
+      <div class="col-sm-6">
+        <label cLabel for="tpl-code">Code</label>
+        <input cFormControl formControlName="code" id="tpl-code" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="tpl-nom">Nom</label>
+        <input cFormControl formControlName="nom" id="tpl-nom" type="text" />
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="tpl-canal">Canal</label>
+        <select cSelect formControlName="canal" id="tpl-canal">
+          <option value="SMS">SMS</option>
+          <option value="EMAIL">Email</option>
+          <option value="WHATSAPP">WhatsApp</option>
+          <option value="PUSH">Notification push</option>
+          <option value="PDF">PDF</option>
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="tpl-categorie">Catégorie</label>
+        <select cSelect formControlName="categorieId" id="tpl-categorie">
+          <option value="">Sélectionner…</option>
+          @for (cat of categories(); track cat.id) {
+            <option [value]="cat.id">{{ cat.libelle }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="tpl-langue">Langue</label>
+        <select cSelect formControlName="langueId" id="tpl-langue">
+          <option value="">Sélectionner…</option>
+          @for (langue of langues(); track langue.id) {
+            <option [value]="langue.id">{{ langue.libelle }}</option>
+          }
+        </select>
+      </div>
+      @if (showObjet()) {
+        <div class="col-12">
+          <label cLabel for="tpl-objet">Objet</label>
+          <input cFormControl formControlName="objet" id="tpl-objet" type="text" />
+        </div>
+      }
+      <div class="col-12">
+        <label cLabel for="tpl-contenu">Contenu</label>
+        <textarea cFormControl formControlName="contenu" id="tpl-contenu" rows="5"></textarea>
+        <span class="dl-cell-detail">Utilisez <code>{{ '{{code_variable}}' }}</code> pour insérer une variable.</span>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="tpl-max">Nombre max de caractères (optionnel)</label>
+        <input cFormControl formControlName="maxCaracteres" id="tpl-max" min="0" type="number" />
+      </div>
+      <div class="col-sm-6 d-flex align-items-end">
+        <div class="form-check">
+          <input class="form-check-input" formControlName="active" id="tpl-active" type="checkbox" />
+          <label class="form-check-label" for="tpl-active">Actif</label>
+        </div>
+      </div>
+      <div class="col-12">
+        <label cLabel>Variables utilisées</label>
+        <div class="d-flex flex-wrap gap-3">
+          @for (variable of variables(); track variable.id) {
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                [id]="'tpl-var-' + variable.id"
+                [checked]="form.controls.variableCodes.value.includes(variable.code)"
+                (change)="toggleVariable(variable.code, $any($event.target).checked)"
+              />
+              <label class="form-check-label" [for]="'tpl-var-' + variable.id">{{ variable.libelle }}</label>
+            </div>
+          }
+          @if (variables().length === 0) {
+            <span class="dl-cell-detail">Aucune variable définie — ajoutez-en via « Catégories &amp; variables ».</span>
+          }
+        </div>
+      </div>
+      <div class="col-12">
+        <label cLabel for="tpl-description">Description (interne, optionnelle)</label>
+        <textarea cFormControl formControlName="description" id="tpl-description" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button (click)="closeForm()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-modal [visible]="detailVisible()" size="lg" title="Modèle {{ selectedTemplate()?.code }}" (closed)="detailVisible.set(false)">
+  @if (selectedTemplate(); as template) {
+    <span [class]="'dl-chip dl-chip--' + statutVariant(template.statut) + ' mb-3 d-inline-flex'">
+      <span class="dl-chip-dot"></span>{{ statutLabel(template.statut) }}
+    </span>
+
+    <div class="dl-detail-grid mb-3">
+      <div>
+        <div class="dl-cell-detail">Nom</div>
+        <div>{{ template.nom }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Canal</div>
+        <div>{{ canalLabel(template.canal) }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Catégorie</div>
+        <div>{{ template.categorieLibelle }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Langue</div>
+        <div>{{ template.langueLibelle }}</div>
+      </div>
+      @if (template.objet) {
+        <div>
+          <div class="dl-cell-detail">Objet</div>
+          <div>{{ template.objet }}</div>
+        </div>
+      }
+      @if (template.maxCaracteres != null) {
+        <div>
+          <div class="dl-cell-detail">Max caractères</div>
+          <div>{{ template.maxCaracteres }}</div>
+        </div>
+      }
+      <div>
+        <div class="dl-cell-detail">Créé par</div>
+        <div>{{ template.createdBy }} — {{ formatDateTime(template.createdAt) }}</div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <div class="dl-cell-detail mb-1">Contenu</div>
+      <div style="white-space: pre-wrap;">{{ template.contenu }}</div>
+    </div>
+
+    @if (template.description) {
+      <div class="mb-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+        <div class="dl-cell-detail mb-1">Description</div>
+        <div>{{ template.description }}</div>
+      </div>
+    }
+
+    <div class="d-flex gap-2 mb-3">
+      <button (click)="dupliquer(template)" cButton class="dl-btn" size="sm" type="button">Dupliquer</button>
+      @if (canEnable(template)) {
+        <button (click)="askEnable(template)" cButton class="dl-btn dl-btn-primary" size="sm" type="button">Activer</button>
+      }
+      @if (canDisable(template)) {
+        <button (click)="askDisable(template)" cButton class="dl-btn" color="danger" size="sm" type="button">Archiver</button>
+      }
+      @if (canDelete(template)) {
+        <button (click)="askDelete(template)" cButton class="dl-btn" color="danger" size="sm" type="button">Supprimer</button>
+      }
+    </div>
+
+    <div class="pt-3" style="border-top: 1px solid var(--cui-border-color);">
+      <div class="fs-section-head">
+        <svg cIcon name="cilNotes" size="lg"></svg>
+        <h3>Aperçu du rendu</h3>
+      </div>
+      @if (selectedVariables().length === 0) {
+        <p class="dl-cell-detail">Ce modèle n'utilise aucune variable.</p>
+      } @else {
+        <div class="row g-2 mb-2">
+          @for (variable of selectedVariables(); track variable.code) {
+            <div class="col-sm-6">
+              <label cLabel [for]="'prev-' + variable.code">{{ variable.libelle }}</label>
+              <input
+                cFormControl
+                [id]="'prev-' + variable.code"
+                type="text"
+                (input)="setPreviewValue(variable.code, $any($event.target).value)"
+              />
+            </div>
+          }
+        </div>
+      }
+      @if (previewError()) {
+        <app-alert-message class="d-block mb-2" [message]="previewError()!" />
+      }
+      <button (click)="generatePreview()" [disabled]="previewLoading()" cButton class="dl-btn dl-btn-primary" size="sm" type="button">
+        @if (previewLoading()) {
+          <c-spinner size="sm" />
+        }
+        Générer l'aperçu
+      </button>
+
+      @if (previewResult(); as preview) {
+        <div class="mt-3 p-3" style="background: var(--cui-tertiary-bg); border-radius: 0.5rem;">
+          @if (preview.objetResolu) {
+            <div class="dl-cell-detail mb-1">Objet</div>
+            <div class="mb-2">{{ preview.objetResolu }}</div>
+          }
+          <div class="dl-cell-detail mb-1">Contenu</div>
+          <div style="white-space: pre-wrap;">{{ preview.contenuResolu }}</div>
+          <div class="dl-cell-detail mt-2">
+            {{ preview.longueur }} caractère(s)
+            @if (preview.depasseMaxCaracteres) {
+              <span class="dl-chip dl-chip--danger ms-1"><span class="dl-chip-dot"></span>Dépasse la limite</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</app-modal>
+
+<app-modal [visible]="refModalVisible()" size="lg" title="Catégories &amp; variables" (closed)="closeRefModal()">
+  <div class="fs-section-head">
+    <svg cIcon name="cilTags" size="lg"></svg>
+    <h3>Catégories</h3>
+  </div>
+  <div class="dl-table-scroll mb-2">
+    <table class="dl-table">
+      <thead><tr><th scope="col">Code</th><th scope="col">Libellé</th></tr></thead>
+      <tbody>
+        @for (cat of categories(); track cat.id) {
+          <tr>
+            <td><span class="dl-tag">{{ cat.code }}</span></td>
+            <td>{{ cat.libelle }}</td>
+          </tr>
+        }
+        @if (categories().length === 0) {
+          <tr><td colspan="2" class="dl-empty">Aucune catégorie.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (categoryError()) {
+    <app-alert-message class="d-block mb-2" [message]="categoryError()!" />
+  }
+  <form [formGroup]="categoryForm" cForm (ngSubmit)="submitCategory()" class="row g-2 align-items-end mb-4">
+    <div class="col-sm-3">
+      <label cLabel for="cat-code">Code</label>
+      <input cFormControl formControlName="code" id="cat-code" type="text" />
+    </div>
+    <div class="col-sm-4">
+      <label cLabel for="cat-libelle">Libellé</label>
+      <input cFormControl formControlName="libelle" id="cat-libelle" type="text" />
+    </div>
+    <div class="col-sm-3">
+      <label cLabel for="cat-description">Description</label>
+      <input cFormControl formControlName="description" id="cat-description" type="text" />
+    </div>
+    <div class="col-sm-2">
+      <button [disabled]="categorySaving()" cButton class="dl-btn dl-btn-primary w-100" type="submit">
+        @if (categorySaving()) {
+          <c-spinner size="sm" />
+        }
+        Ajouter
+      </button>
+    </div>
+  </form>
+
+  <div class="fs-section-head">
+    <svg cIcon name="cilCode" size="lg"></svg>
+    <h3>Variables</h3>
+  </div>
+  <div class="dl-table-scroll mb-2">
+    <table class="dl-table">
+      <thead><tr><th scope="col">Code</th><th scope="col">Libellé</th><th scope="col">Type</th></tr></thead>
+      <tbody>
+        @for (variable of variables(); track variable.id) {
+          <tr>
+            <td><span class="dl-tag">{{ variable.code }}</span></td>
+            <td>{{ variable.libelle }}</td>
+            <td>{{ variable.typeDonnee }}</td>
+          </tr>
+        }
+        @if (variables().length === 0) {
+          <tr><td colspan="3" class="dl-empty">Aucune variable.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (variableError()) {
+    <app-alert-message class="d-block mb-2" [message]="variableError()!" />
+  }
+  <form [formGroup]="variableForm" cForm (ngSubmit)="submitVariable()" class="row g-2 align-items-end">
+    <div class="col-sm-3">
+      <label cLabel for="var-code">Code</label>
+      <input cFormControl formControlName="code" id="var-code" placeholder="nom_client" type="text" />
+    </div>
+    <div class="col-sm-3">
+      <label cLabel for="var-libelle">Libellé</label>
+      <input cFormControl formControlName="libelle" id="var-libelle" type="text" />
+    </div>
+    <div class="col-sm-3">
+      <label cLabel for="var-type">Type</label>
+      <select cSelect formControlName="typeDonnee" id="var-type">
+        <option value="TEXTE">Texte</option>
+        <option value="NOMBRE">Nombre</option>
+        <option value="DATE">Date</option>
+        <option value="MONTANT">Montant</option>
+      </select>
+    </div>
+    <div class="col-sm-3">
+      <button [disabled]="variableSaving()" cButton class="dl-btn dl-btn-primary w-100" type="submit">
+        @if (variableSaving()) {
+          <c-spinner size="sm" />
+        }
+        Ajouter
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  cancelLabel="Annuler"
+  confirmLabel="Confirmer"
+  icon="cilWarning"
+  [message]="pendingActionMessage()"
+  [title]="pendingActionTitle()"
+  [visible]="pendingAction() !== null"
+  (cancelled)="cancelPendingAction()"
+  (confirmed)="confirmPendingAction()"
+/>

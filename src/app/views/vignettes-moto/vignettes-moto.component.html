@@ -1,0 +1,1220 @@
+<div class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>{{ 'vignettesMoto.title' | transloco }}</h2>
+    </div>
+    <div class="dl-pillgroup" role="tablist" [attr.aria-label]="'vignettesMoto.aria.sectionModule' | transloco">
+      <button (click)="setView('demandes')" [attr.data-active]="view() === 'demandes'" class="dl-pill" type="button">{{ 'vignettesMoto.tabs.demandes' | transloco }}</button>
+      @if (isAdmin()) {
+        <button (click)="setView('tarifs')" [attr.data-active]="view() === 'tarifs'" class="dl-pill" type="button">{{ 'vignettesMoto.tabs.tarifs' | transloco }}</button>
+        <button (click)="setView('livraisons')" [attr.data-active]="view() === 'livraisons'" class="dl-pill" type="button">{{ 'vignettesMoto.tabs.livraisons' | transloco }}</button>
+        <button (click)="setView('commissions')" [attr.data-active]="view() === 'commissions'" class="dl-pill" type="button">{{ 'vignettesMoto.tabs.commissions' | transloco }}</button>
+      }
+    </div>
+    @if (view() === 'demandes') {
+      <button (click)="openCreateDemande()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus" size="sm"></svg>{{ 'vignettesMoto.actions.nouvelleDemande' | transloco }}
+      </button>
+    } @else if (view() === 'tarifs' && isAdmin()) {
+      <button (click)="openCreateTarif()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus" size="sm"></svg>{{ 'vignettesMoto.actions.nouveauTarif' | transloco }}
+      </button>
+    } @else if (view() === 'livraisons' && isAdmin()) {
+      <button (click)="openCreateLivraison()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus" size="sm"></svg>{{ 'vignettesMoto.actions.nouvelleZone' | transloco }}
+      </button>
+    }
+  </div>
+
+  <!-- ===== Demandes ===== -->
+  @if (view() === 'demandes') {
+    <div class="dl-filters">
+      <div class="dl-filter-field">
+        <label for="vm-filter-statut">{{ 'vignettesMoto.fields.statut' | transloco }}</label>
+        <select (change)="setStatutFilter($any($event.target).value)" id="vm-filter-statut">
+          <option value="all">{{ 'vignettesMoto.filters.tousStatuts' | transloco }}</option>
+          @for (s of allStatuts; track s) {
+            <option [value]="s">{{ statutLabelKey(s) | transloco }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (demandesLoading()) {
+      <p class="dl-empty">{{ 'vignettesMoto.empty.chargementDemandes' | transloco }}</p>
+    } @else if (demandesError(); as message) {
+      <p class="dl-empty">{{ message | transloco }}</p>
+    } @else if (demandes().length === 0) {
+      <p class="dl-empty">{{ 'vignettesMoto.empty.aucuneDemande' | transloco }}</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{{ 'vignettesMoto.fields.numeroDemande' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.date' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.assure' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.moto' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.type' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.montant' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.statut' | transloco }}</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (demande of demandes(); track demande.id) {
+              <tr>
+                <td><span class="dl-tag">{{ demande.reference }}</span></td>
+                <td class="dl-timestamp">{{ formatDate(demande.createdAt) }}</td>
+                <td>{{ demande.nomAssure }} {{ demande.prenomsAssure }}</td>
+                <td class="dl-cell-detail">{{ demande.marqueMoto }} {{ demande.modeleMoto }}</td>
+                <td class="dl-cell-detail">{{ typeDemandeLabelKey(demande.typeDemande) | transloco }}</td>
+                <td class="dl-timestamp">{{ formatAmount(demande.montantTotal) }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + statutVariant(demande.statut)">
+                    <span class="dl-chip-dot"></span>{{ statutLabelKey(demande.statut) | transloco }}
+                  </span>
+                </td>
+                <td>
+                  <button (click)="openDetail(demande)" class="dl-icon-btn" [title]="'vignettesMoto.actions.consulter' | transloco" type="button">
+                    <svg cIcon name="cilInfo" size="sm"></svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (demandesTotalPages() > 1) {
+        <div class="dl-footnote">
+          <span>{{ 'vignettesMoto.footnote.paginationDemandes' | transloco: { count: demandes().length, total: demandesTotalElements(), page: demandesPage() + 1, totalPages: demandesTotalPages() } }}</span>
+          <div class="d-flex align-items-center gap-2">
+            <button (click)="goToDemandesPage(demandesPage() - 1)" [disabled]="demandesPage() === 0" cButton class="dl-btn" size="sm" type="button">{{ 'common.actions.previous' | transloco }}</button>
+            <button (click)="goToDemandesPage(demandesPage() + 1)" [disabled]="demandesPage() + 1 >= demandesTotalPages()" cButton class="dl-btn" size="sm" type="button">{{ 'common.actions.next' | transloco }}</button>
+          </div>
+        </div>
+      }
+    }
+  }
+
+  <!-- ===== Tarifs (administration) ===== -->
+  @if (view() === 'tarifs' && isAdmin()) {
+    @if (tarifs().length === 0) {
+      <p class="dl-empty">{{ 'vignettesMoto.empty.aucunTarif' | transloco }}</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{{ 'vignettesMoto.fields.age' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.cylindree' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.vignette' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.fraisOperation' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.validite' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.statut' | transloco }}</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tarif of tarifs(); track tarif.id) {
+              <tr>
+                <td>{{ categorieAgeLabelKey(tarif.categorieAge) | transloco }}</td>
+                <td class="dl-cell-detail">{{ categorieCylindreeLabelKey(tarif.categorieCylindree) | transloco }}</td>
+                <td class="dl-timestamp">{{ formatAmount(tarif.montantVignette) }}</td>
+                <td class="dl-timestamp">{{ formatAmount(tarif.fraisOperation) }}</td>
+                <td class="dl-cell-detail">{{ formatDate(tarif.dateDebutValidite) }} → {{ tarif.dateFinValidite ? formatDate(tarif.dateFinValidite) : '—' }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + (tarif.actif ? 'success' : 'neutral')">
+                    <span class="dl-chip-dot"></span>{{ (tarif.actif ? 'common.status.active' : 'common.status.inactive') | transloco }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditTarif(tarif)" class="dl-icon-btn" [title]="'common.actions.edit' | transloco" type="button">
+                      <svg cIcon name="cilPencil" size="sm"></svg>
+                    </button>
+                    @if (tarif.actif) {
+                      <button (click)="desactiverTarif(tarif)" class="dl-icon-btn" [title]="'vignettesMoto.actions.desactiver' | transloco" type="button">
+                        <svg cIcon name="cilXCircle" size="sm"></svg>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ===== Livraisons (administration) ===== -->
+  @if (view() === 'livraisons' && isAdmin()) {
+    @if (livraisons().length === 0) {
+      <p class="dl-empty">{{ 'vignettesMoto.empty.aucuneZone' | transloco }}</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{{ 'vignettesMoto.fields.code' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.libelle' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.montant' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.statut' | transloco }}</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (zone of livraisons(); track zone.id) {
+              <tr>
+                <td><span class="dl-tag">{{ zone.code }}</span></td>
+                <td>{{ zone.libelle }}</td>
+                <td class="dl-timestamp">{{ formatAmount(zone.montant) }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + (zone.actif ? 'success' : 'neutral')">
+                    <span class="dl-chip-dot"></span>{{ (zone.actif ? 'common.status.active' : 'common.status.inactive') | transloco }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditLivraison(zone)" class="dl-icon-btn" [title]="'common.actions.edit' | transloco" type="button">
+                      <svg cIcon name="cilPencil" size="sm"></svg>
+                    </button>
+                    @if (zone.actif) {
+                      <button (click)="desactiverLivraison(zone)" class="dl-icon-btn" [title]="'vignettesMoto.actions.desactiver' | transloco" type="button">
+                        <svg cIcon name="cilXCircle" size="sm"></svg>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ===== Commissions apporteur (administration) ===== -->
+  @if (view() === 'commissions' && isAdmin()) {
+    <div class="dl-filters">
+      <div class="dl-filter-field">
+        <label for="vm-filter-commission-statut">{{ 'vignettesMoto.fields.statut' | transloco }}</label>
+        <select (change)="setCommissionStatutFilter($any($event.target).value)" id="vm-filter-commission-statut">
+          <option [selected]="commissionStatutFilter() === 'pending'" value="pending">{{ commissionStatutLabelKey('pending') | transloco }}</option>
+          <option [selected]="commissionStatutFilter() === 'paid'" value="paid">{{ commissionStatutLabelKey('paid') | transloco }}</option>
+          <option [selected]="commissionStatutFilter() === 'all'" value="all">{{ 'vignettesMoto.filters.tousStatuts' | transloco }}</option>
+        </select>
+      </div>
+    </div>
+
+    @if (commissionPaymentResult(); as result) {
+      <div class="dl-inline-banner dl-inline-banner--success mb-3">
+        <svg cIcon name="cilCheckCircle" size="sm"></svg>
+        {{ 'vignettesMoto.commissions.paiementSucces' | transloco: { count: result.count } }}
+        @if (result.notificationsEchouees > 0) {
+          {{ 'vignettesMoto.commissions.notificationsEchouees' | transloco: { count: result.notificationsEchouees } }}
+        }
+      </div>
+    }
+
+    @if (commissionsLoading()) {
+      <p class="dl-empty">{{ 'vignettesMoto.empty.chargementCommissions' | transloco }}</p>
+    } @else if (commissionsError(); as message) {
+      <p class="dl-empty">{{ message | transloco }}</p>
+    } @else if (commissions().length === 0) {
+      <p class="dl-empty">{{ 'vignettesMoto.empty.aucuneCommission' | transloco }}</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">
+                <input
+                  (change)="toggleAllPendingCommissions()"
+                  [checked]="allPendingCommissionsSelected()"
+                  [disabled]="pendingCommissions().length === 0"
+                  [title]="'vignettesMoto.commissions.selectionnerTout' | transloco"
+                  cFormCheckInput
+                  type="checkbox"
+                />
+              </th>
+              <th scope="col">{{ 'vignettesMoto.fields.numeroDemande' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.apporteur' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.commission' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.date' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.statut' | transloco }}</th>
+              <th scope="col">{{ 'vignettesMoto.fields.paiement' | transloco }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (commission of commissions(); track commission.id) {
+              <tr>
+                <td>
+                  @if (commission.statut === 'pending') {
+                    <input
+                      (change)="toggleCommission(commission.id)"
+                      [checked]="selectedCommissionIds().has(commission.id)"
+                      cFormCheckInput
+                      type="checkbox"
+                    />
+                  }
+                </td>
+                <td><span class="dl-tag">{{ commission.demandeVignetteMotoReference }}</span></td>
+                <td>
+                  {{ commission.partenaireNom ?? commission.commercialNom }}
+                  <div class="dl-cell-detail">{{ (commission.partenaireId !== null ? 'vignettesMoto.apporteurType.partenaire' : 'vignettesMoto.apporteurType.commercial') | transloco }}</div>
+                </td>
+                <td class="dl-timestamp">{{ formatAmount(commission.montant) }}</td>
+                <td class="dl-timestamp">{{ formatDate(commission.createdAt) }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + commissionStatutVariant(commission.statut)">
+                    <span class="dl-chip-dot"></span>{{ commissionStatutLabelKey(commission.statut) | transloco }}
+                  </span>
+                </td>
+                <td class="dl-cell-detail">
+                  @if (commission.statut === 'paid') {
+                    {{ commission.reference }}
+                    <div>{{ formatDateTime(commission.paidAt) }}@if (commission.paidByUsername) { — {{ commission.paidByUsername }} }</div>
+                  } @else {
+                    —
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (commissionsTotalPages() > 1) {
+        <div class="dl-footnote">
+          <span>{{ 'vignettesMoto.footnote.paginationCommissions' | transloco: { count: commissions().length, total: commissionsTotalElements(), page: commissionsPage() + 1, totalPages: commissionsTotalPages() } }}</span>
+          <div class="d-flex align-items-center gap-2">
+            <button (click)="goToCommissionsPage(commissionsPage() - 1)" [disabled]="commissionsPage() === 0" cButton class="dl-btn" size="sm" type="button">{{ 'common.actions.previous' | transloco }}</button>
+            <button (click)="goToCommissionsPage(commissionsPage() + 1)" [disabled]="commissionsPage() + 1 >= commissionsTotalPages()" cButton class="dl-btn" size="sm" type="button">{{ 'common.actions.next' | transloco }}</button>
+          </div>
+        </div>
+      }
+
+      @if (pendingCommissions().length > 0) {
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3 p-3" style="border-top: 1px solid var(--cui-border-color);">
+          <div>
+            {{ 'vignettesMoto.commissions.selection' | transloco: { count: selectedCommissionIds().size, total: formatAmount(selectedCommissionsTotal()) } }}
+          </div>
+          <button (click)="askPayCommissions()" [disabled]="selectedCommissionIds().size === 0" cButton color="primary" type="button">
+            {{ 'vignettesMoto.actions.payerCommissions' | transloco }}
+          </button>
+        </div>
+      }
+    }
+  }
+</div>
+
+<!-- ===== Modale : paiement des commissions apporteur ===== -->
+<app-modal [visible]="payCommissionsModalVisible()" [title]="'vignettesMoto.modal.payerCommissionsTitre' | transloco" (closed)="payCommissionsModalVisible.set(false)">
+  @if (payCommissionsError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+  }
+  <form [formGroup]="payCommissionsForm" cForm (ngSubmit)="submitPayCommissions()">
+    <p>{{ 'vignettesMoto.modal.payerCommissionsMessage' | transloco: { count: selectedCommissionIds().size, total: formatAmount(selectedCommissionsTotal()) } }}</p>
+    <div class="mb-3">
+      <label cLabel for="vm-pay-reference">{{ 'vignettesMoto.modal.referencePaiementLabel' | transloco }}</label>
+      <input cFormControl formControlName="reference" id="vm-pay-reference" [placeholder]="'vignettesMoto.modal.referencePaiementPlaceholder' | transloco" type="text" />
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="payCommissionsModalVisible.set(false)" cButton color="secondary" type="button" variant="outline">{{ 'common.actions.cancel' | transloco }}</button>
+      <button [disabled]="payCommissionsSaving()" cButton color="primary" type="submit">
+        @if (payCommissionsSaving()) { <c-spinner size="sm" /> }
+        {{ 'vignettesMoto.actions.confirmerPaiement' | transloco }}
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : parcours de demande de vignette moto (refonte d'après la maquette validée) ===== -->
+<app-modal
+  [visible]="createFormVisible()"
+  size="xxl"
+  variant="brand"
+  [icon]="stepMeta[currentStep()].icon"
+  [title]="stepMeta[currentStep()].titleKey | transloco"
+  [subtitle]="(createdDemande() && currentStep() === 6
+    ? ('vignettesMoto.wizard.etapeCreee' | transloco: { n: currentStep() + 1, total: steps.length, reference: createdDemande()?.reference })
+    : ('vignettesMoto.wizard.etape' | transloco: { n: currentStep() + 1, total: steps.length }))"
+  (closed)="closeCreateDemande()"
+>
+  <div class="vw">
+    <nav class="vw-stepper" [attr.aria-label]="'vignettesMoto.aria.etapesDemande' | transloco">
+      @for (labelKey of steps; track labelKey; let i = $index; let last = $last) {
+        <button
+          (click)="goToStep(i)"
+          [disabled]="i > furthestStep() || !!createdDemande()"
+          [class]="'vw-step' + (i === currentStep() ? ' vw-step--active' : '') + (i < currentStep() ? ' vw-step--done' : '')"
+          [attr.aria-current]="i === currentStep() ? 'step' : null"
+          type="button"
+        >
+          <span class="vw-step-circle">
+            @if (i < currentStep()) {
+              <svg cIcon name="cilCheck" size="sm"></svg>
+            } @else {
+              {{ i + 1 }}
+            }
+          </span>
+          <span class="vw-step-label">{{ labelKey | transloco }}</span>
+        </button>
+        @if (!last) {
+          <span [class]="'vw-step-connector' + (i < currentStep() ? ' vw-step-connector--done' : '')"></span>
+        }
+      }
+    </nav>
+
+    <div class="vw-body">
+      @if (wizardError(); as message) {
+        <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+      }
+
+      <form [formGroup]="demandeForm" cForm>
+
+        <!-- Étape 1 : Type de demande -->
+        @if (currentStep() === 0) {
+          <div class="vw-inner">
+            <div class="vw-eyebrow">{{ 'vignettesMoto.fields.typeDemande' | transloco }}</div>
+            <div class="vw-choices" role="group" [attr.aria-label]="'vignettesMoto.fields.typeDemande' | transloco">
+              <button
+                (click)="demandeForm.controls.typeDemande.setValue('NOUVELLE_DEMANDE')"
+                [attr.data-active]="demandeForm.controls.typeDemande.value === 'NOUVELLE_DEMANDE'"
+                class="vw-choice"
+                type="button"
+              >
+                <span class="vw-choice-icon"><svg cIcon name="cilPlus" size="lg"></svg></span>
+                <div class="vw-choice-title">{{ 'vignettesMoto.typeDemande.NOUVELLE_DEMANDE' | transloco }}</div>
+                <div class="vw-choice-desc">{{ 'vignettesMoto.wizard.step1.nouvelleDescription' | transloco }}</div>
+              </button>
+              <button
+                (click)="demandeForm.controls.typeDemande.setValue('RENOUVELLEMENT')"
+                [attr.data-active]="demandeForm.controls.typeDemande.value === 'RENOUVELLEMENT'"
+                class="vw-choice"
+                type="button"
+              >
+                <span class="vw-choice-icon"><svg cIcon name="cilHistory" size="lg"></svg></span>
+                <div class="vw-choice-title">{{ 'vignettesMoto.typeDemande.RENOUVELLEMENT' | transloco }}</div>
+                <div class="vw-choice-desc">{{ 'vignettesMoto.wizard.step1.renouvellementDescription' | transloco }}</div>
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Étape 2 : Assuré -->
+        @if (currentStep() === 1) {
+          <div class="vw-inner">
+            <div class="vw-eyebrow">{{ 'vignettesMoto.wizard.step2.coordonnees' | transloco }}</div>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label cLabel for="vm-nom">{{ 'vignettesMoto.fields.nom' | transloco }}</label>
+                <input cFormControl formControlName="nomAssure" id="vm-nom" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-prenoms">{{ 'vignettesMoto.fields.prenoms' | transloco }}</label>
+                <input cFormControl formControlName="prenomsAssure" id="vm-prenoms" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-telephone">{{ 'vignettesMoto.fields.telephone' | transloco }}</label>
+                <div class="dl-field-icon">
+                  <svg cIcon name="cilPhone" size="sm"></svg>
+                  <input cFormControl formControlName="telephoneAssure" id="vm-telephone" maxlength="20" type="tel" />
+                </div>
+                <div class="dl-cell-detail mt-1">{{ 'vignettesMoto.wizard.step2.telephoneHint' | transloco }}</div>
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-telephone-2">{{ 'vignettesMoto.fields.telephoneSecondaire' | transloco }}</label>
+                <div class="dl-field-icon">
+                  <svg cIcon name="cilPhone" size="sm"></svg>
+                  <input cFormControl formControlName="telephoneAssureSecondaire" id="vm-telephone-2" maxlength="20" type="tel" [placeholder]="'vignettesMoto.wizard.step2.telephoneSecondairePlaceholder' | transloco" />
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-ville">{{ 'vignettesMoto.fields.villeLivraison' | transloco }}</label>
+                <div class="dl-field-icon">
+                  <svg cIcon name="cilLocationPin" size="sm"></svg>
+                  <input cFormControl formControlName="villeLivraison" id="vm-ville" type="text" />
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-zone">{{ 'vignettesMoto.fields.zoneLivraison' | transloco }}</label>
+                <select cSelect formControlName="zoneLivraison" id="vm-zone">
+                  <option value="">{{ 'vignettesMoto.wizard.step2.selectionner' | transloco }}</option>
+                  @for (zone of livraisons(); track zone.id) {
+                    <option [value]="zone.code">{{ zone.libelle }} ({{ formatAmount(zone.montant) }})</option>
+                  }
+                </select>
+                @if (livraisons().length === 0) {
+                  <div class="dl-cell-detail mt-1">{{ 'vignettesMoto.wizard.step2.aucuneZone' | transloco }}</div>
+                }
+              </div>
+              <div class="col-12">
+                <label cLabel for="vm-adresse">{{ 'vignettesMoto.fields.adresseLivraison' | transloco }}</label>
+                <textarea cFormControl formControlName="adresseLivraison" id="vm-adresse" rows="2"></textarea>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Étape 3 : Moto -->
+        @if (currentStep() === 2) {
+          <div class="vw-inner">
+            <div class="vw-eyebrow">{{ 'vignettesMoto.wizard.step3.eyebrow' | transloco }}</div>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label cLabel for="vm-marque">{{ 'vignettesMoto.fields.marque' | transloco }}</label>
+                <input cFormControl formControlName="marqueMoto" id="vm-marque" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-modele">{{ 'vignettesMoto.fields.modele' | transloco }}</label>
+                <input cFormControl formControlName="modeleMoto" id="vm-modele" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-chassis">{{ 'vignettesMoto.fields.numeroChassis' | transloco }}</label>
+                <input cFormControl formControlName="numeroChassisMoto" id="vm-chassis" type="text" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-cylindree">{{ 'vignettesMoto.fields.cylindreeCm3' | transloco }}</label>
+                <input cFormControl formControlName="cylindreeMoto" id="vm-cylindree" min="1" type="number" />
+              </div>
+              <div class="col-sm-6">
+                <label cLabel for="vm-date-circulation">{{ 'vignettesMoto.fields.datePremiereMiseCirculation' | transloco }}</label>
+                <div class="dl-field-icon">
+                  <svg cIcon name="cilCalendar" size="sm"></svg>
+                  <input [max]="today" cFormControl formControlName="datePremiereMiseCirculation" id="vm-date-circulation" type="date" />
+                </div>
+              </div>
+              <div class="col-sm-6 d-flex align-items-end">
+                @if (ageApproximatif(); as age) {
+                  <div class="dl-cell-detail">{{ 'vignettesMoto.wizard.step3.ageApproximatif' | transloco: { age } }}</div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Étape 4 : Origine de l'affaire (apporteur partenaire/commercial, confirmé 2026-09-19) -->
+        @if (currentStep() === 3) {
+          <div class="vw-inner">
+            <div class="vw-eyebrow">{{ 'vignettesMoto.wizard.step4b.question' | transloco }}</div>
+            <div class="vw-choices vw-choices--3 mb-4" role="group" [attr.aria-label]="'vignettesMoto.wizard.step4b.titre' | transloco">
+              <button (click)="setOrigineType('aucun')" [attr.data-active]="origineType() === 'aucun'" class="vw-choice" type="button">
+                <span class="vw-choice-icon"><svg cIcon name="cilXCircle" size="lg"></svg></span>
+                <div class="vw-choice-title">{{ 'vignettesMoto.wizard.step4b.aucun' | transloco }}</div>
+                <div class="vw-choice-desc">{{ 'vignettesMoto.wizard.step4b.aucunDesc' | transloco }}</div>
+              </button>
+              <button (click)="setOrigineType('partenaire')" [attr.data-active]="origineType() === 'partenaire'" class="vw-choice" type="button">
+                <span class="vw-choice-icon"><svg cIcon name="cilPeople" size="lg"></svg></span>
+                <div class="vw-choice-title">{{ 'vignettesMoto.wizard.step4b.partenaire' | transloco }}</div>
+                <div class="vw-choice-desc">{{ 'vignettesMoto.wizard.step4b.partenaireDesc' | transloco }}</div>
+              </button>
+              <button (click)="setOrigineType('commercial')" [attr.data-active]="origineType() === 'commercial'" class="vw-choice" type="button">
+                <span class="vw-choice-icon"><svg cIcon name="cilUser" size="lg"></svg></span>
+                <div class="vw-choice-title">{{ 'vignettesMoto.wizard.step4b.commercial' | transloco }}</div>
+                <div class="vw-choice-desc">{{ 'vignettesMoto.wizard.step4b.commercialDesc' | transloco }}</div>
+              </button>
+            </div>
+
+            @if (origineType() !== 'aucun') {
+              <label cLabel for="vm-origine-search">
+                {{ (origineType() === 'partenaire' ? 'vignettesMoto.wizard.step4b.rechercherPartenaire' : 'vignettesMoto.wizard.step4b.rechercherCommercial') | transloco }}
+              </label>
+              <div class="dl-field-icon mb-3">
+                <svg cIcon name="cilMagnifyingGlass" size="sm"></svg>
+                <input
+                  (input)="origineSearch.set($any($event.target).value)"
+                  [value]="origineSearch()"
+                  cFormControl
+                  id="vm-origine-search"
+                  type="text"
+                  [placeholder]="'vignettesMoto.wizard.step4b.rechercherPlaceholder' | transloco"
+                />
+              </div>
+
+              @if (origineType() === 'partenaire') {
+                @if (partenairesLoading()) {
+                  <p class="dl-empty">{{ 'vignettesMoto.empty.chargement' | transloco }}</p>
+                } @else if (filteredPartenaires().length === 0) {
+                  <p class="dl-empty">{{ 'vignettesMoto.wizard.step4b.aucunResultat' | transloco }}</p>
+                } @else {
+                  <div class="dl-pick-list">
+                    @for (p of filteredPartenaires(); track p.id) {
+                      <button
+                        (click)="selectPartenaireApporteur(p.id)"
+                        [attr.data-active]="selectedPartenaireId() === p.id"
+                        class="dl-pick-item"
+                        type="button"
+                      >
+                        {{ p.nom }} {{ p.prenoms }}
+                      </button>
+                    }
+                  </div>
+                }
+              } @else if (origineType() === 'commercial') {
+                @if (commerciauxLoading()) {
+                  <p class="dl-empty">{{ 'vignettesMoto.empty.chargement' | transloco }}</p>
+                } @else if (filteredCommerciaux().length === 0) {
+                  <p class="dl-empty">{{ 'vignettesMoto.wizard.step4b.aucunResultat' | transloco }}</p>
+                } @else {
+                  <div class="dl-pick-list">
+                    @for (c of filteredCommerciaux(); track c.id) {
+                      <button
+                        (click)="selectCommercialApporteur(c.id)"
+                        [attr.data-active]="selectedCommercialId() === c.id"
+                        class="dl-pick-item"
+                        type="button"
+                      >
+                        {{ c.firstname }} {{ c.lastname }}
+                      </button>
+                    }
+                  </div>
+                }
+              }
+
+              @if (selectedApporteurNom(); as nom) {
+                <div class="dl-inline-banner dl-inline-banner--success mt-3">
+                  <svg cIcon name="cilCheckCircle" size="sm"></svg>
+                  {{ 'vignettesMoto.wizard.step4b.selectionne' | transloco: { nom } }}
+                </div>
+              }
+
+              <div class="vw-note">
+                <svg cIcon name="cilInfo" size="sm"></svg>
+                <span>{{ 'vignettesMoto.wizard.step4b.infoCommission' | transloco }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Étape 5 : Tarification -->
+        @if (currentStep() === 4) {
+          <div class="vw-inner">
+            <div class="vw-eyebrow">{{ 'vignettesMoto.wizard.step4.eyebrow' | transloco }}</div>
+            <p class="dl-cell-detail mb-3">{{ 'vignettesMoto.wizard.step4.description' | transloco }}</p>
+
+            <button (click)="simulerTarif()" [disabled]="simulating()" class="vw-btn vw-btn--primary mb-4" type="button">
+              @if (simulating()) { <c-spinner size="sm" /> }
+              {{ 'vignettesMoto.actions.calculerTarif' | transloco }}
+            </button>
+
+            @if (simulationError(); as message) {
+              <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+            }
+
+            @if (simulationResult(); as tarif) {
+              <div class="vw-summary mb-3">
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.categorieAge' | transloco }}</div><div class="vw-kv-value">{{ tarif.ageMoto }} an(s) — {{ tarif.categorieAge }}</div></div>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.categorieCylindree' | transloco }}</div><div class="vw-kv-value">{{ tarif.categorieCylindree }}</div></div>
+              </div>
+              <ng-container [ngTemplateOutlet]="montantCard" [ngTemplateOutletContext]="{ $implicit: tarif }" />
+            }
+          </div>
+        }
+
+        <!-- Étape 6 : Récapitulatif -->
+        @if (currentStep() === 5) {
+          <div class="vw-inner vw-inner--wide">
+            <div class="vw-recap">
+              <div class="vw-recap-col vw-recap-col--main">
+                <div class="vw-eyebrow">{{ 'vignettesMoto.wizard.step5.detailsDemande' | transloco }}</div>
+                <div class="vw-summary">
+                  <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.typeDemande' | transloco }}</div><div class="vw-kv-value">{{ typeDemandeLabelKey(demandeForm.controls.typeDemande.value) | transloco }}</div></div>
+                  <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.assure' | transloco }}</div><div class="vw-kv-value">{{ demandeForm.controls.nomAssure.value }} {{ demandeForm.controls.prenomsAssure.value }}</div></div>
+                  <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.telephone' | transloco }}</div><div class="vw-kv-value">{{ demandeForm.controls.telephoneAssure.value }}</div></div>
+                  <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.livraison' | transloco }}</div><div class="vw-kv-value">{{ demandeForm.controls.adresseLivraison.value }}, {{ demandeForm.controls.villeLivraison.value }}</div></div>
+                  <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.moto' | transloco }}</div><div class="vw-kv-value">{{ demandeForm.controls.marqueMoto.value }} {{ demandeForm.controls.modeleMoto.value }} — {{ demandeForm.controls.cylindreeMoto.value }} cm³</div></div>
+                  <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.chassis' | transloco }}</div><div class="vw-kv-value">{{ demandeForm.controls.numeroChassisMoto.value }}</div></div>
+                  @if (selectedApporteurNom(); as nom) {
+                    <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.origineAffaire' | transloco }}</div><div class="vw-kv-value">{{ nom }}</div></div>
+                  }
+                </div>
+              </div>
+              <div class="vw-recap-col">
+                <div class="vw-eyebrow">{{ 'vignettesMoto.wizard.step5.montant' | transloco }}</div>
+                @if (simulationResult(); as tarif) {
+                  <ng-container [ngTemplateOutlet]="montantCard" [ngTemplateOutletContext]="{ $implicit: tarif, total: 'vignettesMoto.wizard.step5.totalAPayerMajuscule' }" />
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Étape 7 : Documents (uniquement après création de la demande) -->
+        @if (currentStep() === 6) {
+          <div class="vw-inner vw-inner--wide">
+            <div class="vw-doc-head">
+              <div class="vw-eyebrow mb-0">
+                {{ 'vignettesMoto.wizard.step6.titreListe' | transloco: { type: (typeDemandeLabelKey(demandeForm.controls.typeDemande.value) | transloco), count: documentSlots().length } }}
+              </div>
+              <div class="vw-doc-count">{{ 'vignettesMoto.wizard.step6.deposes' | transloco: { done: documentsDeposes(), total: documentSlots().length } }}</div>
+            </div>
+
+            @for (slot of documentSlots(); track slot.typeCode) {
+              <div
+                (dragover)="onDocumentDragOver($event, slot.typeCode)"
+                (dragleave)="dragOverTypeCode.set(null)"
+                (drop)="onDocumentDropped(slot.typeCode, $event)"
+                [class]="'vw-doc' + (slot.uploaded ? ' vw-doc--done' : '') + (dragOverTypeCode() === slot.typeCode ? ' vw-doc--drag' : '')"
+              >
+                <span class="vw-doc-icon"><svg cIcon [name]="documentIcon(slot.typeCode)" size="lg"></svg></span>
+                <div class="vw-doc-main">
+                  <div class="vw-doc-title">
+                    <span>{{ documentTypeLabelKey(slot.typeCode) | transloco }}</span>
+                    @if (isNewDocumentType(slot.typeCode)) {
+                      <span class="vw-badge">{{ 'vignettesMoto.wizard.step6.nouveau' | transloco }}</span>
+                    }
+                  </div>
+                  <div class="vw-doc-hint">
+                    @if (slot.uploaded) {
+                      {{ slot.file?.name }} — {{ 'vignettesMoto.wizard.step6.depose' | transloco: { numero: slot.uploaded.documentNumber } }}
+                      <button (click)="clearDocument(slot.typeCode)" class="vw-doc-change ms-1" type="button">{{ 'vignettesMoto.actions.changer' | transloco }}</button>
+                    } @else if (isNewDocumentType(slot.typeCode)) {
+                      {{ 'vignettesMoto.documentHint.' + slot.typeCode | transloco }}
+                    } @else {
+                      {{ 'vignettesMoto.wizard.dropzoneHint' | transloco }}
+                    }
+                  </div>
+                </div>
+                @if (slot.uploaded) {
+                  <span class="vw-doc-btn vw-doc-btn--done"><svg cIcon name="cilCheck" size="sm"></svg>{{ 'vignettesMoto.actions.depose' | transloco }}</span>
+                } @else {
+                  <input #fileInput (change)="onDocumentSelected(slot.typeCode, $event)" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.csv" hidden type="file" />
+                  <button (click)="fileInput.click()" [disabled]="slot.uploading" class="vw-doc-btn" type="button">
+                    @if (slot.uploading) {
+                      <c-spinner size="sm" />{{ 'vignettesMoto.wizard.depotEnCours' | transloco }}
+                    } @else {
+                      {{ 'vignettesMoto.actions.deposer' | transloco }}
+                    }
+                  </button>
+                }
+              </div>
+              @if (slot.error; as message) {
+                <div class="dl-inline-banner dl-inline-banner--danger vw-doc-error">
+                  <svg cIcon name="cilXCircle" size="sm"></svg>
+                  {{ message | transloco }}
+                </div>
+              }
+            }
+
+            <div class="dl-cell-detail mt-2">{{ 'vignettesMoto.wizard.formatsAutorises' | transloco }}</div>
+
+            @if (demandeForm.controls.typeDemande.value === 'NOUVELLE_DEMANDE') {
+              <div class="vw-note">
+                <svg cIcon name="cilInfo" size="sm"></svg>
+                <span>{{ 'vignettesMoto.wizard.step6.noteRenouvellement' | transloco }}</span>
+              </div>
+            }
+
+            @if (submitError(); as message) {
+              <app-alert-message class="d-block mt-3" [message]="message | transloco" />
+            }
+
+            @if (submitted()) {
+              <div class="dl-inline-banner dl-inline-banner--success mt-3">
+                <svg cIcon name="cilCheckCircle" size="sm"></svg>
+                {{ 'vignettesMoto.wizard.demandeSoumise' | transloco }}
+              </div>
+            }
+          </div>
+        }
+      </form>
+    </div>
+
+    <div class="vw-footer">
+      <button (click)="prevStep()" [disabled]="currentStep() === 0 || !!createdDemande()" class="vw-btn" type="button">
+        ← {{ 'common.actions.previous' | transloco }}
+      </button>
+
+      @if (currentStep() === 5) {
+        <button (click)="confirmerDemande()" [disabled]="creating()" class="vw-btn vw-btn--primary" type="button">
+          @if (creating()) { <c-spinner size="sm" /> }
+          {{ 'vignettesMoto.actions.confirmerDemande' | transloco }}
+        </button>
+      } @else if (currentStep() === 6) {
+        @if (!submitted()) {
+          <button (click)="soumettreDemande()" [disabled]="submitting()" class="vw-btn vw-btn--primary" type="button">
+            @if (submitting()) { <c-spinner size="sm" /> }
+            {{ 'vignettesMoto.actions.soumettreDemande' | transloco }}
+          </button>
+        } @else {
+          <button (click)="closeCreateDemande()" class="vw-btn vw-btn--primary" type="button">{{ 'common.actions.close' | transloco }}</button>
+        }
+      } @else {
+        <button (click)="nextStep()" class="vw-btn vw-btn--primary" type="button">{{ 'common.actions.next' | transloco }} →</button>
+      }
+    </div>
+  </div>
+</app-modal>
+
+<!-- Carte de montant (fond dégradé) — partagée entre Tarification et Récapitulatif. `total` = clé i18n
+     du libellé du total (par défaut « Total à payer »). -->
+<ng-template #montantCard let-tarif let-total="total">
+  <div class="vw-amount">
+    <div class="vw-amount-row"><span>{{ 'vignettesMoto.fields.vignette' | transloco }}</span><span>{{ formatAmount(tarif.montantVignette) }}</span></div>
+    <div class="vw-amount-row"><span>{{ 'vignettesMoto.fields.fraisOperation' | transloco }}</span><span>{{ formatAmount(tarif.fraisOperation) }}</span></div>
+    <div class="vw-amount-row"><span>{{ 'vignettesMoto.fields.livraison' | transloco }}</span><span>{{ formatAmount(tarif.fraisLivraison) }}</span></div>
+    <div class="vw-amount-row"><span>{{ 'vignettesMoto.fields.fraisAccessoires' | transloco }}</span><span>{{ formatAmount(tarif.fraisAccessoires) }}</span></div>
+    @if (tarif.reductionApporteur) {
+      <div class="vw-amount-row vw-amount-row--reduction">
+        <span><svg cIcon name="cilPeople" size="sm"></svg>{{ 'vignettesMoto.fields.reductionApporteur' | transloco: { nom: selectedApporteurNom() } }}</span>
+        <span>-{{ formatAmount(tarif.reductionApporteur) }}</span>
+      </div>
+    }
+    <div class="vw-amount-total">
+      <span>{{ (total || 'vignettesMoto.fields.totalAPayer') | transloco }}</span>
+      <span>{{ formatAmount(tarif.montantTotal) }}</span>
+    </div>
+  </div>
+</ng-template>
+
+<!-- ===== Modale : détail d'une demande (refonte d'après la maquette « Détail admin ») ===== -->
+@if (selectedDemande(); as demande) {
+  <app-modal
+    [visible]="detailVisible()"
+    size="xxl"
+    variant="brand"
+    icon="cilCarAlt"
+    [title]="demande.reference"
+    (closed)="closeDetail()"
+  >
+    <span modalHeaderSub [class]="'vd-status vd-status--' + statutVariant(demande.statut)">
+      <span class="vd-status-dot"></span>{{ statutLabelKey(demande.statut) | transloco }}
+    </span>
+
+    <div modalHeaderActions style="display: contents">
+      @if (canSubmitDemande(demande.statut)) {
+        <button (click)="doSoumettreDetail()" [disabled]="detailActionPending()" class="vd-act vd-act--solid" type="button">
+          @if (detailActionPending()) { <c-spinner size="sm" /> }
+          {{ 'vignettesMoto.actions.soumettre' | transloco }}
+        </button>
+      }
+      @if (canRejectDemande(demande.statut)) {
+        <button (click)="askRejectDemande()" class="vd-act vd-act--danger" type="button">{{ 'vignettesMoto.actions.rejeter' | transloco }}</button>
+      }
+      @if (canCancelDemande(demande.statut)) {
+        <button (click)="askCancelDemande()" class="vd-act" type="button">{{ 'common.actions.cancel' | transloco }}</button>
+      }
+      @if (isAdmin() && statutsCiblesDisponibles(demande.statut).length > 0) {
+        <button (click)="askChangerStatut()" class="vd-act" type="button">{{ 'vignettesMoto.actions.changerStatut' | transloco }}</button>
+      }
+      @if (isAdmin()) {
+        <button (click)="regenererLienSuivi()" [disabled]="lienRegenerating()" class="vd-act" type="button">
+          @if (lienRegenerating()) { <c-spinner size="sm" /> }
+          {{ 'vignettesMoto.actions.regenererLien' | transloco }}
+        </button>
+        <button (click)="askRevoquerLien()" class="vd-act vd-act--danger" type="button">{{ 'vignettesMoto.actions.revoquerLien' | transloco }}</button>
+      }
+    </div>
+
+    <nav modalHeaderExtra class="vd-stepper" [hidden]="!statutMilestoneIndex(demande.statut)" [attr.aria-label]="'vignettesMoto.aria.suiviStatut' | transloco">
+      @if (statutMilestoneIndex(demande.statut); as milestone) {
+        @for (labelKey of statutMilestones; track labelKey; let i = $index; let last = $last) {
+          <span [class]="'vd-step' + (i === milestone - 1 ? ' vd-step--active' : '') + (i < milestone - 1 ? ' vd-step--done' : '')">
+            <span class="vd-step-circle">
+              @if (i < milestone - 1 || (last && i === milestone - 1)) {
+                <svg cIcon name="cilCheck" size="sm"></svg>
+              } @else {
+                {{ i + 1 }}
+              }
+            </span>
+            <span>{{ labelKey | transloco }}</span>
+          </span>
+          @if (!last) {
+            <span [class]="'vd-step-connector' + (i < milestone - 1 ? ' vd-step-connector--done' : '')"></span>
+          }
+        }
+      }
+    </nav>
+
+    <div class="vd">
+      <div class="vd-body">
+
+        <div class="vd-full">
+          @if (detailActionError(); as message) {
+            <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+          }
+          @if (lienRegenerated(); as lien) {
+            <div class="dl-inline-banner dl-inline-banner--success mb-3">
+              <svg cIcon name="cilCheckCircle" size="sm"></svg>
+              {{ 'vignettesMoto.lien.regenere' | transloco: { expiration: formatDateTime(lien.dateExpiration) } }}
+              <a [href]="lien.lienComplet" target="_blank" rel="noopener">{{ lien.lienComplet }}</a>
+            </div>
+          }
+          @if (lienRegenerateError(); as message) {
+            <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+          }
+          @if (!statutMilestoneIndex(demande.statut)) {
+            <div class="dl-inline-banner dl-inline-banner--danger">
+              <svg cIcon name="cilXCircle" size="sm"></svg>
+              {{ 'vignettesMoto.detail.demandeStatutMinuscule' | transloco: { statut: (statutLabelKey(demande.statut) | transloco | lowercase) } }}
+              @if (demande.motifRejet) { {{ 'vignettesMoto.detail.motif' | transloco: { motif: demande.motifRejet } }} }
+            </div>
+          }
+        </div>
+
+        <!-- Colonne principale : détails + documents -->
+        <div class="vd-col vd-col--main">
+          <section>
+            <div class="vw-eyebrow">{{ 'vignettesMoto.detail.detailsDemande' | transloco }}</div>
+            <div class="vw-summary">
+              <div class="vd-kv">
+                <svg cIcon name="cilTags" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.typeDemande' | transloco }}</div><div class="vw-kv-value">{{ typeDemandeLabelKey(demande.typeDemande) | transloco }}</div></div>
+              </div>
+              <div class="vd-kv">
+                <svg cIcon name="cilCalendar" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.creeLe' | transloco }}</div><div class="vw-kv-value">{{ formatDateTime(demande.createdAt) }}</div></div>
+              </div>
+              <div class="vd-kv">
+                <svg cIcon name="cilUser" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.assure' | transloco }}</div><div class="vw-kv-value">{{ demande.nomAssure }} {{ demande.prenomsAssure }}</div></div>
+              </div>
+              <div class="vd-kv">
+                <svg cIcon name="cilPhone" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.telephone' | transloco }}</div><div class="vw-kv-value">{{ demande.telephoneAssure }}</div></div>
+              </div>
+              @if (demande.telephoneAssureSecondaire) {
+                <div class="vd-kv">
+                  <svg cIcon name="cilPhone" size="sm"></svg>
+                  <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.telephoneSecondaire' | transloco }}</div><div class="vw-kv-value">{{ demande.telephoneAssureSecondaire }}</div></div>
+                </div>
+              }
+              <div class="vd-kv">
+                <svg cIcon name="cilLocationPin" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.livraison' | transloco }}</div><div class="vw-kv-value">{{ demande.adresseLivraison }}, {{ demande.villeLivraison }} ({{ demande.zoneLivraisonCode }})</div></div>
+              </div>
+              <div class="vd-kv">
+                <svg cIcon name="cilCarAlt" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.moto' | transloco }}</div><div class="vw-kv-value">{{ demande.marqueMoto }} {{ demande.modeleMoto }} — {{ demande.cylindreeMoto }} cm³</div></div>
+              </div>
+              <div class="vd-kv">
+                <svg cIcon name="cilNotes" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.chassis' | transloco }}</div><div class="vw-kv-value">{{ demande.numeroChassisMoto }}</div></div>
+              </div>
+              <div class="vd-kv">
+                <svg cIcon name="cilHistory" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.premiereMiseCirculation' | transloco }}</div><div class="vw-kv-value">{{ formatDate(demande.datePremiereMiseCirculation) }} — âge {{ demande.ageMotoCalcule }} an(s)</div></div>
+              </div>
+              <div class="vd-kv">
+                <svg cIcon name="cilLayers" size="sm"></svg>
+                <div><div class="vw-kv-label">{{ 'vignettesMoto.fields.categorieAppliquee' | transloco }}</div><div class="vw-kv-value">{{ categorieAgeLabelKey(demande.categorieAgeAppliquee) | transloco }} / {{ categorieCylindreeLabelKey(demande.categorieCylindreeAppliquee) | transloco }}</div></div>
+              </div>
+              @if (demande.partenaireApporteurNom || demande.commercialApporteurNom) {
+                <div class="vd-kv">
+                  <svg cIcon name="cilPeople" size="sm"></svg>
+                  <div>
+                    <div class="vw-kv-label">{{ 'vignettesMoto.fields.apporteur' | transloco }}</div>
+                    <div class="vw-kv-value">
+                      {{ demande.partenaireApporteurNom || demande.commercialApporteurNom }}
+                      <span class="fw-normal text-body-secondary">({{ (demande.partenaireApporteurNom ? 'vignettesMoto.apporteurType.partenaire' : 'vignettesMoto.apporteurType.commercial') | transloco | lowercase }})</span>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </section>
+
+          <section>
+            <div class="vw-eyebrow">{{ 'vignettesMoto.wizard.step.documents' | transloco }}</div>
+            @if (detailDocumentsLoading()) {
+              <p class="dl-empty">{{ 'vignettesMoto.empty.chargementDocuments' | transloco }}</p>
+            } @else if (detailDocuments().length === 0) {
+              <p class="dl-empty">{{ 'vignettesMoto.empty.aucunDocument' | transloco }}</p>
+            } @else {
+              @for (doc of detailDocuments(); track doc.id) {
+                <div class="vd-doc">
+                  <div class="vd-doc-name">{{ doc.documentNumber }} — {{ doc.documentTypeNom }}</div>
+                  <span [class]="'vd-pill' + (documentPillVariant(doc.status) ? ' vd-pill--' + documentPillVariant(doc.status) : '')">{{ doc.status }}</span>
+                  <button (click)="downloadDetailDocument(doc)" class="vd-icon-btn" [title]="'vignettesMoto.actions.telecharger' | transloco" type="button">
+                    <svg cIcon name="cilCloudDownload" size="sm"></svg>
+                  </button>
+                </div>
+              }
+            }
+
+            @if (demande.statut === 'BROUILLON') {
+              <div class="vd-upload">
+                <div class="row g-3 align-items-end">
+                  <div class="col-sm-5">
+                    <label cLabel for="vm-detail-doctype">{{ 'vignettesMoto.fields.typeDocument' | transloco }}</label>
+                    <select cSelect (change)="newDocTypeCode.set($any($event.target).value)" id="vm-detail-doctype">
+                      <option value="CNI_ASSURE">{{ 'vignettesMoto.documentType.CNI_ASSURE' | transloco }}</option>
+                      <option value="RECU_ACHAT_MOTO">{{ 'vignettesMoto.documentType.RECU_ACHAT_MOTO' | transloco }}</option>
+                      @if (demande.typeDemande === 'RENOUVELLEMENT') {
+                        <option value="ANCIENNE_VIGNETTE">{{ 'vignettesMoto.documentType.ANCIENNE_VIGNETTE' | transloco }}</option>
+                      } @else {
+                        <option value="PHOTO_MOTO">{{ 'vignettesMoto.documentType.PHOTO_MOTO' | transloco }}</option>
+                        <option value="PHOTO_CHASSIS">{{ 'vignettesMoto.documentType.PHOTO_CHASSIS' | transloco }}</option>
+                        <option value="ASSURANCE">{{ 'vignettesMoto.documentType.ASSURANCE' | transloco }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-sm-7">
+                    <input #detailFileInput (change)="onDetailDocSelected($event)" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.csv" hidden type="file" />
+                    <button
+                      (click)="detailFileInput.click()"
+                      (drop)="onDetailDocDropped($event)"
+                      (dragover)="onDetailDocDragOver($event)"
+                      [disabled]="newDocUploading()"
+                      class="dl-dropzone"
+                      type="button"
+                    >
+                      @if (newDocUploading()) {
+                        <c-spinner size="sm" />
+                        <strong>{{ 'vignettesMoto.wizard.depotEnCours' | transloco }}</strong>
+                      } @else {
+                        <svg cIcon name="cilCloudUpload"></svg>
+                        <strong>{{ 'vignettesMoto.wizard.dropzoneHint' | transloco }}</strong>
+                      }
+                    </button>
+                  </div>
+                </div>
+                @if (newDocError(); as message) {
+                  <div class="dl-inline-banner dl-inline-banner--danger mt-2">
+                    <svg cIcon name="cilXCircle" size="sm"></svg>
+                    {{ message | transloco }}
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </div>
+
+        <!-- Colonne latérale : montant + historique du suivi -->
+        <div class="vd-col">
+          <section>
+            <div class="vw-eyebrow">{{ 'vignettesMoto.detail.montant' | transloco }}</div>
+            <div class="vd-amount">
+              <div class="vd-amount-row"><span>{{ 'vignettesMoto.fields.vignette' | transloco }}</span><span>{{ formatAmount(demande.montantVignette) }}</span></div>
+              <div class="vd-amount-row"><span>{{ 'vignettesMoto.fields.fraisOperation' | transloco }}</span><span>{{ formatAmount(demande.fraisOperation) }}</span></div>
+              <div class="vd-amount-row"><span>{{ 'vignettesMoto.fields.livraison' | transloco }}</span><span>{{ formatAmount(demande.fraisLivraison) }}</span></div>
+              <div class="vd-amount-row"><span>{{ 'vignettesMoto.fields.fraisAccessoires' | transloco }}</span><span>{{ formatAmount(demande.fraisAccessoires) }}</span></div>
+              @if (demande.reductionApporteur) {
+                <div class="vd-amount-row vd-amount-row--reduction">
+                  <span>{{ 'vignettesMoto.fields.reductionApporteur' | transloco: { nom: (demande.partenaireApporteurNom || demande.commercialApporteurNom) } }}</span>
+                  <span>-{{ formatAmount(demande.reductionApporteur) }}</span>
+                </div>
+              }
+              <div class="vd-amount-total"><span>{{ 'vignettesMoto.fields.totalAPayer' | transloco }}</span><span>{{ formatAmount(demande.montantTotal) }}</span></div>
+            </div>
+          </section>
+
+          @if (isAdmin()) {
+            <section>
+              <div class="vw-eyebrow">{{ 'vignettesMoto.historique.titre' | transloco }}</div>
+              @if (historiqueLoading()) {
+                <p class="dl-empty">{{ 'vignettesMoto.historique.chargement' | transloco }}</p>
+              } @else if (historiqueError(); as message) {
+                <p class="dl-empty">{{ message | transloco }}</p>
+              } @else if (historique().length === 0) {
+                <p class="dl-empty">{{ 'vignettesMoto.historique.vide' | transloco }}</p>
+              } @else {
+                <div class="vd-tl">
+                  @for (entry of historiqueVisible(); track $index) {
+                    <div class="vd-tl-item">
+                      <span [class]="'vd-tl-dot' + (statutVariant(entry.nouveauStatut) === 'danger' ? ' vd-tl-dot--danger' : '')">
+                        <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+                      </span>
+                      <div>
+                        <div class="vd-tl-title">{{ statutLabelKey(entry.nouveauStatut) | transloco }}</div>
+                        <div class="vd-tl-meta">
+                          {{ formatDateTime(entry.createdAt) }}
+                          @if (entry.auteurNom) { · {{ entry.auteurNom }} }
+                          · {{ 'vignettesMoto.historique.sms' | transloco }} {{ (entry.notificationEnvoyee ? 'vignettesMoto.historique.smsEnvoye' : 'vignettesMoto.historique.smsNonEnvoye') | transloco | lowercase }}
+                        </div>
+                        @if (entry.motif) {
+                          <div class="vd-tl-motif">{{ entry.motif }}</div>
+                        }
+                      </div>
+                    </div>
+                  }
+                  @if (historiqueMasquees() > 0) {
+                    <button (click)="toggleHistoriqueExpanded()" class="vd-more" type="button">
+                      {{ (historiqueExpanded() ? 'vignettesMoto.detail.masquerEtapes' : 'vignettesMoto.detail.etapesPrecedentes') | transloco: { count: historiqueMasquees() } }}
+                    </button>
+                  }
+                </div>
+              }
+            </section>
+          }
+        </div>
+      </div>
+    </div>
+  </app-modal>
+}
+
+<!-- ===== Modale : rejet (motif obligatoire) ===== -->
+<app-modal [visible]="rejectModalVisible()" [title]="'vignettesMoto.modal.rejeterTitre' | transloco: { reference: selectedDemande()?.reference }" (closed)="rejectModalVisible.set(false)">
+  @if (rejectError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+  }
+  <form [formGroup]="rejectForm" cForm (ngSubmit)="submitRejectDemande()">
+    <div class="mb-3">
+      <label cLabel for="vm-reject-motif">{{ 'vignettesMoto.modal.motifRejetLabel' | transloco }}</label>
+      <textarea cFormControl formControlName="motif" id="vm-reject-motif" rows="3"></textarea>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="rejectModalVisible.set(false)" cButton color="secondary" type="button" variant="outline">{{ 'common.actions.cancel' | transloco }}</button>
+      <button [disabled]="rejectSaving()" cButton color="danger" type="submit">
+        @if (rejectSaving()) { <c-spinner size="sm" /> }
+        {{ 'vignettesMoto.actions.confirmerRejet' | transloco }}
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : changer le statut (ADMIN) ===== -->
+<app-modal [visible]="statutChangeModalVisible()" [title]="'vignettesMoto.modal.changerStatutTitre' | transloco: { reference: selectedDemande()?.reference }" (closed)="statutChangeModalVisible.set(false)">
+  @if (statutChangeError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+  }
+  <form [formGroup]="statutChangeForm" cForm (ngSubmit)="submitChangerStatut()">
+    <div class="mb-3">
+      <label cLabel for="vm-statut-cible">{{ 'vignettesMoto.modal.nouveauStatutLabel' | transloco }}</label>
+      <select cSelect formControlName="statut" id="vm-statut-cible">
+        @if (selectedDemande(); as demande) {
+          @for (s of statutsCiblesDisponibles(demande.statut); track s) {
+            <option [value]="s">{{ statutLabelKey(s) | transloco }}</option>
+          }
+        }
+      </select>
+    </div>
+    <div class="mb-3">
+      <label cLabel for="vm-statut-motif">{{ 'vignettesMoto.modal.motifOptionnelLabel' | transloco }}</label>
+      <textarea cFormControl formControlName="motif" id="vm-statut-motif" rows="2"></textarea>
+    </div>
+    <div class="mb-3">
+      <label cLabel for="vm-statut-reference">{{ 'vignettesMoto.modal.referenceOperationLabel' | transloco }}</label>
+      <input cFormControl formControlName="referenceOperation" id="vm-statut-reference" type="text" />
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="statutChangeModalVisible.set(false)" cButton color="secondary" type="button" variant="outline">{{ 'common.actions.cancel' | transloco }}</button>
+      <button [disabled]="statutChangeSaving()" cButton color="primary" type="submit">
+        @if (statutChangeSaving()) { <c-spinner size="sm" /> }
+        {{ 'vignettesMoto.actions.changerStatut' | transloco }}
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : révoquer le lien de suivi (ADMIN, motif obligatoire) ===== -->
+<app-modal [visible]="revokeLienModalVisible()" [title]="'vignettesMoto.modal.revoquerLienTitre' | transloco" (closed)="revokeLienModalVisible.set(false)">
+  @if (revokeLienError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+  }
+  <form [formGroup]="revokeLienForm" cForm (ngSubmit)="submitRevoquerLien()">
+    <div class="mb-3">
+      <label cLabel for="vm-revoke-motif">{{ 'vignettesMoto.modal.motifRevocationLabel' | transloco }}</label>
+      <textarea cFormControl formControlName="motif" id="vm-revoke-motif" rows="3"></textarea>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="revokeLienModalVisible.set(false)" cButton color="secondary" type="button" variant="outline">{{ 'common.actions.cancel' | transloco }}</button>
+      <button [disabled]="revokeLienSaving()" cButton color="danger" type="submit">
+        @if (revokeLienSaving()) { <c-spinner size="sm" /> }
+        {{ 'vignettesMoto.actions.revoquerLien' | transloco }}
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Confirmation : annulation ===== -->
+<app-confirm-dialog
+  [visible]="!!cancelTarget()"
+  [title]="'vignettesMoto.modal.annulerTitre' | transloco"
+  [message]="'vignettesMoto.modal.annulerMessage' | transloco: { reference: cancelTarget()?.reference }"
+  [confirmLabel]="'vignettesMoto.modal.annulerConfirmLabel' | transloco"
+  icon="cilWarning"
+  (confirmed)="confirmCancelDemande()"
+  (cancelled)="cancelTarget.set(null)"
+/>
+
+<!-- ===== Modale : création/modification d'un tarif ===== -->
+<app-modal [visible]="tarifFormVisible()" [title]="(editingTarifId() ? 'vignettesMoto.modal.tarifTitreModifier' : 'vignettesMoto.modal.tarifTitreNouveau') | transloco" (closed)="tarifFormVisible.set(false)">
+  @if (tarifFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+  }
+  <form [formGroup]="tarifForm" cForm (ngSubmit)="saveTarif()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="tarif-age">{{ 'vignettesMoto.fields.categorieAge' | transloco }}</label>
+        <select cSelect formControlName="categorieAge" id="tarif-age">
+          <option value="1_4_ANS">{{ 'vignettesMoto.categorieAge.1_4_ANS' | transloco }}</option>
+          <option value="5_10_ANS">{{ 'vignettesMoto.categorieAge.5_10_ANS' | transloco }}</option>
+          <option value="11_ANS_ET_PLUS">{{ 'vignettesMoto.categorieAge.11_ANS_ET_PLUS' | transloco }}</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="tarif-cylindree">{{ 'vignettesMoto.fields.categorieCylindree' | transloco }}</label>
+        <select cSelect formControlName="categorieCylindree" id="tarif-cylindree">
+          <option value="MOINS_125_CM3">{{ 'vignettesMoto.categorieCylindree.MOINS_125_CM3' | transloco }}</option>
+          <option value="125_CM3_ET_PLUS">{{ 'vignettesMoto.categorieCylindree.125_CM3_ET_PLUS' | transloco }}</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="tarif-vignette">{{ 'vignettesMoto.fields.vignette' | transloco }}</label>
+        <div class="dl-field-suffix">
+          <input cFormControl formControlName="montantVignette" id="tarif-vignette" type="number" />
+          <span>FCFA</span>
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="tarif-operation">{{ 'vignettesMoto.fields.fraisOperation' | transloco }}</label>
+        <div class="dl-field-suffix">
+          <input cFormControl formControlName="fraisOperation" id="tarif-operation" type="number" />
+          <span>FCFA</span>
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="tarif-debut">{{ 'vignettesMoto.fields.dateDebutValidite' | transloco }}</label>
+        <input cFormControl formControlName="dateDebutValidite" id="tarif-debut" type="date" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="tarif-fin">{{ 'vignettesMoto.fields.dateFinValiditeOptionnel' | transloco }}</label>
+        <input cFormControl formControlName="dateFinValidite" id="tarif-fin" type="date" />
+      </div>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="tarifFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">{{ 'common.actions.cancel' | transloco }}</button>
+      <button [disabled]="tarifFormSaving()" cButton color="primary" type="submit">
+        @if (tarifFormSaving()) { <c-spinner size="sm" /> }
+        {{ 'common.actions.save' | transloco }}
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : création/modification d'une zone de livraison ===== -->
+<app-modal [visible]="livraisonFormVisible()" [title]="(editingLivraisonId() ? 'vignettesMoto.modal.livraisonTitreModifier' : 'vignettesMoto.modal.livraisonTitreNouveau') | transloco" (closed)="livraisonFormVisible.set(false)">
+  @if (livraisonFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message | transloco" />
+  }
+  <form [formGroup]="livraisonForm" cForm (ngSubmit)="saveLivraison()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="livraison-code">{{ 'vignettesMoto.fields.code' | transloco }}</label>
+        <input cFormControl formControlName="code" id="livraison-code" [placeholder]="'vignettesMoto.fields.codeExemplePlaceholder' | transloco" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="livraison-libelle">{{ 'vignettesMoto.fields.libelle' | transloco }}</label>
+        <input cFormControl formControlName="libelle" id="livraison-libelle" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="livraison-montant">{{ 'vignettesMoto.fields.montant' | transloco }}</label>
+        <div class="dl-field-suffix">
+          <input cFormControl formControlName="montant" id="livraison-montant" type="number" />
+          <span>FCFA</span>
+        </div>
+      </div>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="livraisonFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">{{ 'common.actions.cancel' | transloco }}</button>
+      <button [disabled]="livraisonFormSaving()" cButton color="primary" type="submit">
+        @if (livraisonFormSaving()) { <c-spinner size="sm" /> }
+        {{ 'common.actions.save' | transloco }}
+      </button>
+    </div>
+  </form>
+</app-modal>

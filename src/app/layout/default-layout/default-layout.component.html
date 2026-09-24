@@ -1,0 +1,61 @@
+<!--sidebar-->
+<c-sidebar
+  #sidebar1="cSidebar"
+  class="d-print-none sidebar sidebar-fixed app-sidebar"
+  colorScheme="light"
+  id="sidebar1"
+  [visible]="sidebarVisible"
+  (visibleChange)="sidebarVisible = $event"
+>
+  <c-sidebar-header class="app-sidebar-header">
+    <c-sidebar-brand [routerLink]="[]">
+      <span class="sidebar-brand-full">
+        <img alt="CIP AssurZen" src="./assets/images/brand/assurzen-logo-mark.png" />
+        <span class="sidebar-brand-name">CIP AssurZen</span>
+      </span>
+      <img alt="CIP AssurZen" class="sidebar-brand-narrow" src="./assets/images/brand/assurzen-logo-mark.png" />
+    </c-sidebar-brand>
+  </c-sidebar-header>
+
+  <ng-scrollbar pointerEventsMethod="scrollbar" visibility="hover">
+    <c-sidebar-nav [navItems]="navItems()" dropdownMode="close" compact />
+  </ng-scrollbar>
+
+  @if (currentUser(); as user) {
+    <a class="app-sidebar-user" [routerLink]="['/profile']">
+      <span class="app-sidebar-user-avatar">
+        @if (user.avatarUrl) {
+          <img [src]="user.avatarUrl" alt="" />
+        } @else {
+          {{ userInitials() }}
+        }
+      </span>
+      @if (!sidebar1.narrow) {
+        <span class="app-sidebar-user-info">
+          <span class="app-sidebar-user-name">{{ user.fullName }}</span>
+          <span class="app-sidebar-user-role">{{ userRoleLabel() }}</span>
+        </span>
+      }
+    </a>
+  }
+
+</c-sidebar>
+
+<!--main-->
+<div class="wrapper d-flex flex-column min-vh-100">
+  <!--app-header-->
+  <app-default-header
+    [cShadowOnScroll]="'sm'"
+    class="mb-4 d-print-none header header-sticky p-0 shadow-sm"
+    position="sticky"
+    sidebarId="sidebar1"
+  />
+  <!--app-body-->
+  <div class="body flex-grow-1">
+    <c-container [fluid]="true"  class="h-auto px-4"> <!--breakpoint="lg"-->
+      <router-outlet />
+    </c-container>
+  </div>
+  <!--app footer-->
+  <app-default-footer />
+</div>

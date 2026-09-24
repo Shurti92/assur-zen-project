@@ -1,0 +1,101 @@
+// Custom confirmation popup (logout / lock session, etc.)
+.confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.confirm-dialog-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 2.5rem 2rem 2rem;
+  text-align: center;
+  background: var(--cui-body-bg);
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+}
+
+.confirm-dialog-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background-color: var(--cui-tertiary-bg);
+  border-radius: 50%;
+  opacity: 1;
+}
+
+.confirm-dialog-icon-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin: 0 auto 1.25rem;
+}
+
+.confirm-dialog-icon-badge::before,
+.confirm-dialog-icon-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--cui-primary-bg-subtle, rgba(var(--cui-primary-rgb), 0.12));
+  border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
+}
+
+.confirm-dialog-icon-badge::after {
+  transform: rotate(45deg);
+}
+
+svg.confirm-dialog-icon {
+  position: relative;
+  z-index: 1;
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  color: var(--cui-primary);
+}
+
+.confirm-dialog-title {
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+}
+
+.confirm-dialog-message {
+  margin-bottom: 1.75rem;
+  color: var(--cui-secondary-color);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.confirm-dialog-btn-cancel,
+.confirm-dialog-btn-confirm {
+  padding: 0.6rem 1.75rem;
+  font-weight: 600;
+  border-radius: 0.75rem;
+}
+
+.confirm-dialog-btn-cancel {
+  color: var(--cui-body-color);
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color);
+}
+
+.confirm-dialog-btn-confirm {
+  color: #fff;
+  background: var(--cui-primary);
+  border: 1px solid var(--cui-primary);
+}

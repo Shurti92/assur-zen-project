@@ -1,0 +1,142 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Audit</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher un utilisateur, une route, un contrat…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+      <button (click)="setBucket('all')" [attr.data-active]="activeBucket() === 'all'" class="dl-pill" type="button">
+        Tous <span class="dl-pill-count">{{ entries().length }}</span>
+      </button>
+      @for (pill of bucketPills(); track pill.bucket) {
+        <button
+          (click)="setBucket(pill.bucket)"
+          [attr.data-active]="activeBucket() === pill.bucket"
+          [class]="'dl-pill dl-pill--' + bucketVariant(pill.bucket)"
+          type="button"
+        >
+          {{ pill.label }} <span class="dl-pill-count">{{ pill.count }}</span>
+        </button>
+      }
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="export()" [disabled]="exporting() || entries().length === 0" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (exporting()) {
+          <c-spinner size="sm" />
+        }
+        Exporter tout (.csv)
+      </button>
+    </div>
+  </div>
+
+  <div class="dl-summary">
+    <dl>
+      <dt>Période</dt>
+      <dd>{{ period() ?? '—' }}</dd>
+    </dl>
+    <dl>
+      <dt>Appels</dt>
+      <dd>{{ entries().length }}</dd>
+    </dl>
+    <dl>
+      <dt>Erreurs client</dt>
+      <dd class="dl-stat--warning">{{ counts()['client-error'] }}</dd>
+    </dl>
+    <dl>
+      <dt>Erreurs serveur</dt>
+      <dd class="dl-stat--danger">{{ counts()['server-error'] }}</dd>
+    </dl>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement du journal d'audit…</p>
+  } @else if (entries().length === 0) {
+    <p class="dl-empty">Aucun appel audité pour le moment.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Utilisateur</th>
+            <th scope="col">Route</th>
+            <th scope="col">Contrat</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Durée</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of filteredEntries(); track entry.id) {
+            <tr [class]="rowClass(entry)">
+              <td class="dl-timestamp">
+                {{ formatTimestamp(entry.creation) }}
+                <span class="dl-rel">{{ relativeTime(entry.creation) }}</span>
+              </td>
+              <td>{{ entry.username }}</td>
+              <td class="dl-cell">
+                <span class="dl-tag">{{ entry.route }}</span>
+                <div class="dl-cell-detail">{{ entry.operation }}</div>
+              </td>
+              <td>
+                @if (entry.numeroContrat) {
+                  <span class="dl-tag">{{ entry.numeroContrat }}</span>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + bucketVariant(entryBucket(entry))">
+                  <span class="dl-chip-dot"></span>{{ entry.statusCode ?? bucketLabel(entryBucket(entry)) }}
+                </span>
+                @if (entry.exceptionMessage) {
+                  <div class="dl-cell-detail">{{ entry.exceptionMessage }}</div>
+                }
+              </td>
+              <td class="dl-timestamp">{{ formatDuration(entry.durationMs) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      @if (filteredEntries().length === 0) {
+        <p class="dl-empty">Aucun résultat pour ces filtres.</p>
+      }
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span>
+      <strong>{{ filteredEntries().length }}</strong> sur {{ entries().length }} appels affichés
+      (page {{ pageIndex() + 1 }} sur {{ totalPages() || 1 }}, {{ totalElements() }} au total)
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">
+        Précédent
+      </button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">
+        Suivant
+      </button>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,72 @@
+// Sections du formulaire Nouveau/Modifier partenaire — cartes visuellement distinctes
+// (contrairement à .fs-section, qui n'est qu'un séparateur, voir _form-sections.scss).
+// Validé sur maquette avant implémentation (2026-08-25).
+.pa-form-section {
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.75rem;
+  padding: 1rem 1.15rem;
+  background: var(--cui-tertiary-bg);
+  margin-bottom: 0.9rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &--accent {
+    background: var(--cui-primary-bg-subtle, rgba(var(--cui-primary-rgb), 0.12));
+    border-color: var(--cui-primary-border-subtle, var(--cui-primary));
+  }
+}
+
+.pa-form-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+
+  svg {
+    color: var(--cui-primary);
+    flex-shrink: 0;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--cui-primary-text-emphasis, var(--cui-primary));
+  }
+}
+
+// Bandeau d'identité + onglets de la modale détail — mêmes couleurs de marque que
+// les cartes du formulaire ci-dessus, validé sur maquette avant implémentation.
+.pa-identity-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.3rem 1.7rem;
+  padding: 0.9rem 1.3rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, var(--cui-primary-bg-subtle, rgba(var(--cui-primary-rgb), 0.12)), var(--cui-tertiary-bg));
+  border: 1px solid var(--cui-primary-border-subtle, var(--cui-border-color));
+}
+
+.pa-identity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pa-identity-k {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cui-secondary-color);
+}
+
+.pa-identity-v {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--cui-primary-text-emphasis, var(--cui-primary));
+}

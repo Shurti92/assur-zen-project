@@ -1,0 +1,139 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Niveaux de fidélité</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        placeholder="Rechercher un palier…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="refresh" size="sm"></svg>
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus" size="sm"></svg>
+        Nouveau palier
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des paliers…</p>
+  } @else if (filteredPaliers().length === 0) {
+    <p class="dl-empty">Aucun palier ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Code</th>
+            <th scope="col">Libellé</th>
+            <th scope="col">Seuil (points)</th>
+            <th scope="col">Avantages</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (palier of filteredPaliers(); track palier.id) {
+            <tr>
+              <td><span class="dl-tag">{{ palier.code }}</span></td>
+              <td>{{ palier.libelle }}</td>
+              <td class="dl-timestamp">{{ palier.seuilPoints }}</td>
+              <td class="dl-cell">{{ palier.avantages || '—' }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (palier.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ palier.active ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEdit(palier)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+                  @if (palier.active) {
+                    <button (click)="askDeactivate(palier)" cButton class="dl-btn" color="danger" size="sm" type="button">Désactiver</button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredPaliers().length }}</strong> palier(s)</span>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" title="{{ formMode() === 'create' ? 'Nouveau palier' : 'Modifier le palier' }}" (closed)="closeForm()">
+  @if (formError()) {
+    <app-alert-message class="d-block mb-3" [message]="formError()!" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="submitForm()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="palier-code">Code</label>
+        <input cFormControl formControlName="code" id="palier-code" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="palier-libelle">Libellé</label>
+        <input cFormControl formControlName="libelle" id="palier-libelle" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="palier-seuil">Seuil (points)</label>
+        <input cFormControl formControlName="seuilPoints" id="palier-seuil" min="0" type="number" />
+      </div>
+      <div class="col-sm-6 d-flex align-items-end">
+        <div class="form-check">
+          <input class="form-check-input" formControlName="active" id="palier-active" type="checkbox" />
+          <label class="form-check-label" for="palier-active">Palier actif</label>
+        </div>
+      </div>
+      <div class="col-12">
+        <label cLabel for="palier-avantages">Avantages</label>
+        <textarea cFormControl formControlName="avantages" id="palier-avantages" rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-2">
+      <button (click)="closeForm()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  cancelLabel="Annuler"
+  confirmLabel="Désactiver"
+  icon="cilWarning"
+  [message]="'Voulez-vous vraiment désactiver le palier « ' + (deactivateTarget()?.libelle ?? '') + ' » ?'"
+  title="Désactiver le palier"
+  [visible]="deactivateTarget() !== null"
+  (cancelled)="cancelDeactivate()"
+  (confirmed)="confirmDeactivate()"
+/>

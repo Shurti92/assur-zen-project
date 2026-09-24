@@ -1,0 +1,258 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Primes d'objectif</h2>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="openRequestModal()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus"></svg>Nouvelle demande
+      </button>
+    </div>
+  </div>
+
+  <div class="dl-pillgroup mb-3" role="tablist" aria-label="Filtrer par statut">
+    <button (click)="setStatutFilter('all')" [attr.data-active]="statutFilter() === 'all'" class="dl-pill" type="button">Toutes</button>
+    <button (click)="setStatutFilter('EN_ATTENTE')" [attr.data-active]="statutFilter() === 'EN_ATTENTE'" class="dl-pill dl-pill--warning" type="button">En attente</button>
+    <button (click)="setStatutFilter('VALIDEE')" [attr.data-active]="statutFilter() === 'VALIDEE'" class="dl-pill dl-pill--info" type="button">Validées</button>
+    <button (click)="setStatutFilter('PAYEE')" [attr.data-active]="statutFilter() === 'PAYEE'" class="dl-pill dl-pill--success" type="button">Payées</button>
+    <button (click)="setStatutFilter('REJETEE')" [attr.data-active]="statutFilter() === 'REJETEE'" class="dl-pill dl-pill--danger" type="button">Rejetées</button>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des demandes…</p>
+  } @else if (items().length === 0) {
+    <p class="dl-empty">Aucune demande de prime d'objectif pour ce filtre.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col">Référence</th>
+            <th scope="col">Partenaire</th>
+            <th scope="col">Exercice</th>
+            <th scope="col">Objectif</th>
+            <th scope="col">Réalisé</th>
+            <th scope="col">Taux</th>
+            <th scope="col">Montant</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Demandée le</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td>{{ item.reference }}</td>
+              <td>{{ item.partenaireNom }}</td>
+              <td>{{ item.exerciceComptableLibelle }}</td>
+              <td class="dl-timestamp">{{ formatAmount(item.objectifProduction) }}</td>
+              <td class="dl-timestamp">{{ formatAmount(item.objectifRealise) }}</td>
+              <td class="dl-timestamp">{{ item.tauxRealisation.toFixed(1) }} %</td>
+              <td class="dl-timestamp"><strong>{{ formatAmount(item.montant) }}</strong></td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statutVariant(item.statut)">
+                  <span class="dl-chip-dot"></span>{{ statutLabel(item.statut) }}
+                </span>
+                @if (item.statut === 'REJETEE' && item.motifRejet) {
+                  <div class="dl-cell-detail mt-1">{{ item.motifRejet }}</div>
+                }
+              </td>
+              <td class="dl-timestamp">{{ formatDateTime(item.dateDemande) }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  @if (item.statut === 'EN_ATTENTE') {
+                    <button (click)="confirmValider(item)" class="dl-icon-btn" title="Valider" type="button">
+                      <svg cIcon name="cilCheckCircle" size="sm"></svg>
+                    </button>
+                    <button (click)="openReject(item)" class="dl-icon-btn dl-icon-btn--danger" title="Rejeter" type="button">
+                      <svg cIcon name="cilXCircle" size="sm"></svg>
+                    </button>
+                  }
+                  @if (item.statut === 'VALIDEE') {
+                    <button (click)="confirmPayer(item)" class="dl-icon-btn" title="Marquer payée" type="button">
+                      <svg cIcon name="cilDollar" size="sm"></svg>
+                    </button>
+                    <button (click)="openReject(item)" class="dl-icon-btn dl-icon-btn--danger" title="Rejeter" type="button">
+                      <svg cIcon name="cilXCircle" size="sm"></svg>
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ items().length }}</strong> sur {{ totalElements() }} demandes (page {{ page() + 1 }} sur {{ totalPages() }})</span>
+    <div class="d-flex gap-2">
+      <button (click)="goToPage(page() - 1)" [disabled]="loading() || page() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+      <button (click)="goToPage(page() + 1)" [disabled]="loading() || page() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+    </div>
+  </div>
+</section>
+
+<app-modal [visible]="requestModalVisible()" size="lg" title="Nouvelle demande de prime d'objectif" (closed)="closeRequestModal()">
+  @if (createError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+
+  @if (!selectedPartner()) {
+    <div class="mb-3">
+      <label cLabel for="prime-objectif-partner-search">Rechercher un partenaire</label>
+      <input
+        (input)="onPartnerSearchInput($any($event.target).value)"
+        [ngModel]="partnerSearchQuery()"
+        cFormControl
+        id="prime-objectif-partner-search"
+        placeholder="Nom, code…"
+        type="search"
+      />
+    </div>
+    @if (partnerSearchLoading()) {
+      <p class="dl-empty">Recherche…</p>
+    } @else if (partnerSearchResults().length > 0) {
+      <ul class="list-unstyled">
+        @for (partner of partnerSearchResults(); track partner.id) {
+          <li>
+            <button
+              (click)="selectPartner(partner)"
+              class="dl-btn w-100 text-start mb-1"
+              type="button"
+            >
+              {{ partner.nom }} {{ partner.prenoms }} — {{ partner.codePartenaire }}
+            </button>
+          </li>
+        }
+      </ul>
+    } @else if (partnerSearchQuery().trim()) {
+      <p class="dl-empty">Aucun partenaire trouvé.</p>
+    }
+  } @else {
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <strong>{{ selectedPartner()?.nom }} {{ selectedPartner()?.prenoms }}</strong>
+        <div class="dl-cell-detail">{{ selectedPartner()?.codePartenaire }}</div>
+      </div>
+      <button (click)="selectedPartner.set(null); simulation.set(null)" cButton class="dl-btn" size="sm" type="button">
+        Changer de partenaire
+      </button>
+    </div>
+
+    @if (simulationLoading()) {
+      <p class="dl-empty">Calcul de la simulation…</p>
+    } @else if (simulationError()) {
+      <app-alert-message class="d-block mb-3" [message]="simulationError()!" />
+    } @else if (simulation(); as sim) {
+      <div class="row g-3 mb-3">
+        <div class="col-sm-4">
+          <div class="dl-cell-detail">Objectif</div>
+          <strong>{{ formatAmount(sim.objectifProduction) }}</strong>
+        </div>
+        <div class="col-sm-4">
+          <div class="dl-cell-detail">Réalisé</div>
+          <strong>{{ formatAmount(sim.objectifRealise) }}</strong>
+        </div>
+        <div class="col-sm-4">
+          <div class="dl-cell-detail">Taux de réalisation</div>
+          <strong>{{ sim.tauxRealisation.toFixed(1) }} %</strong>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="dl-cell-detail">Montant simulé</div>
+        <h3 class="mb-0">{{ formatAmount(sim.montantSimule) }}</h3>
+      </div>
+
+      @if (!sim.eligible) {
+        <app-alert-message
+          class="d-block mb-3"
+          variant="warning"
+          message="Cette demande ne peut pas être créée pour le moment."
+        />
+        <ul class="dl-cell-detail">
+          @if (!sim.primeActivee) {
+            <li>La prime d'objectif n'est pas activée pour ce partenaire.</li>
+          }
+          @if (!sim.exerciceCloture) {
+            <li>L'exercice comptable {{ sim.exerciceComptableLibelle }} n'est pas encore clôturé.</li>
+          }
+          @if (!sim.objectifAtteint) {
+            <li>L'objectif n'est pas atteint pour cet exercice.</li>
+          }
+          @if (sim.demandeDejaExistante) {
+            <li>Une demande existe déjà pour ce partenaire sur cet exercice.</li>
+          }
+        </ul>
+      }
+
+      <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+        <button (click)="closeRequestModal()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+        <button [disabled]="!sim.eligible || creating()" (click)="confirmCreate()" cButton color="primary" type="button">
+          @if (creating()) {
+            <c-spinner size="sm" />
+          }
+          Créer la demande
+        </button>
+      </div>
+    }
+  }
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!statutTarget() && statutAction() === 'VALIDEE'"
+  title="Valider cette demande ?"
+  [message]="'La demande « ' + (statutTarget()?.reference ?? '') + ' » sera validée. Elle pourra ensuite être marquée payée.'"
+  confirmLabel="Valider"
+  icon="cilCheckCircle"
+  (cancelled)="cancelStatutAction()"
+  (confirmed)="performStatutAction()"
+/>
+
+<app-confirm-dialog
+  [visible]="!!statutTarget() && statutAction() === 'PAYEE'"
+  title="Marquer cette prime comme payée ?"
+  [message]="'La prime « ' + (statutTarget()?.reference ?? '') + ' » sera marquée payée — une écriture comptable est générée automatiquement et un SMS est envoyé au partenaire. Action définitive.'"
+  confirmLabel="Marquer payée"
+  icon="cilDollar"
+  (cancelled)="cancelStatutAction()"
+  (confirmed)="performStatutAction()"
+/>
+
+<app-modal [visible]="!!rejectTarget()" title="Rejeter cette demande ?" (closed)="cancelReject()">
+  @if (rejectError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <p>La demande « {{ rejectTarget()?.reference }} » sera rejetée. Action définitive.</p>
+  <div class="mb-3">
+    <label cLabel for="prime-objectif-reject-motif">Motif du rejet<span class="wz-required">*</span></label>
+    <textarea
+      (input)="rejectMotif.set($any($event.target).value)"
+      [ngModel]="rejectMotif()"
+      cFormControl
+      id="prime-objectif-reject-motif"
+      maxlength="500"
+      name="rejectMotif"
+      rows="3"
+    ></textarea>
+  </div>
+  <div class="d-flex align-items-center justify-content-end gap-2">
+    <button (click)="cancelReject()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+    <button [disabled]="rejectPending()" (click)="performReject()" cButton color="danger" type="button">
+      @if (rejectPending()) {
+        <c-spinner size="sm" />
+      }
+      Rejeter
+    </button>
+  </div>
+</app-modal>

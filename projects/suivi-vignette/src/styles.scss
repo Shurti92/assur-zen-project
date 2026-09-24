@@ -1,0 +1,205 @@
+// Tokens de marque répliqués depuis assur-zen-core (src/scss/_custom.scss + _theme.scss) —
+// mêmes noms de variable CSS que la SPA principale pour garder les composants copiés
+// quasi identiques d'un dépôt à l'autre, mais définis ici localement : cette mini-app ne doit
+// dépendre d'aucun fichier SCSS interne d'assur-zen-core (déploiement séparé, voir
+// projects/suivi-vignette/src/app/models/suivi-vignette.model.ts).
+:root {
+  --cui-primary: #1b3b8f;
+  --cui-primary-rgb: 27, 59, 143;
+  --cui-success: #1b9e3e;
+  --cui-success-bg-subtle: #dcf3e2;
+  --cui-success-text-emphasis: #12692a;
+  --cui-info-bg-subtle: #dde5f8;
+  --cui-info-text-emphasis: #1b3b8f;
+  --cui-warning-bg-subtle: #fdf0e2;
+  --cui-warning-text-emphasis: #a85417;
+  --cui-danger-bg-subtle: #fbe2e2;
+  --cui-danger-text-emphasis: #9e2020;
+  --cui-secondary-bg-subtle: #eceef3;
+  --cui-secondary-text-emphasis: #4a5578;
+  --cui-body-bg: #ffffff;
+  --cui-body-color: #1e2a4c;
+  --cui-secondary-color: #6b7590;
+  --cui-tertiary-bg: #f7f8fc;
+  --cui-border-color: #e2e7f2;
+  --cui-border-radius: 0.5625rem;
+  --cui-border-radius-lg: 0.875rem;
+
+  --brand-orange: #ec7c1e;
+  --brand-orange-rgb: 236, 124, 30;
+  --brand-orange-soft: #fdf0e2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  color: var(--cui-body-color);
+  background: var(--cui-tertiary-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+// Équivalent minimal de src/scss/_data-list.scss (.dl-chip) — badge de statut sémantique,
+// texte + pastille (jamais la couleur seule).
+.dl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+
+  &--neutral {
+    background: var(--cui-secondary-bg-subtle);
+    color: var(--cui-secondary-text-emphasis);
+  }
+  &--success {
+    background: var(--cui-success-bg-subtle);
+    color: var(--cui-success-text-emphasis);
+  }
+  &--info {
+    background: var(--cui-info-bg-subtle);
+    color: var(--cui-info-text-emphasis);
+  }
+  &--warning {
+    background: var(--cui-warning-bg-subtle);
+    color: var(--cui-warning-text-emphasis);
+  }
+  &--danger {
+    background: var(--cui-danger-bg-subtle);
+    color: var(--cui-danger-text-emphasis);
+  }
+}
+
+.dl-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+// Équivalent minimal de src/scss/_error-pages.scss (.ep-*) — écrans "token absent/invalide/erreur
+// serveur", même langage visuel que les pages d'erreur d'assur-zen-core.
+.ep-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  background:
+    radial-gradient(70% 55% at 18% 12%, rgba(var(--cui-primary-rgb), 0.06), transparent 60%),
+    radial-gradient(60% 50% at 88% 92%, rgba(var(--brand-orange-rgb), 0.06), transparent 60%),
+    var(--cui-tertiary-bg);
+}
+
+.ep-panel {
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+}
+
+.ep-badge {
+  --ep-tint: var(--cui-primary);
+  --ep-tint-rgb: var(--cui-primary-rgb);
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 1.6rem;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, rgba(var(--ep-tint-rgb), 0.16), rgba(var(--ep-tint-rgb), 0.06));
+  border: 1px solid rgba(var(--ep-tint-rgb), 0.22);
+  color: var(--ep-tint);
+
+  svg {
+    width: 42px;
+    height: 42px;
+  }
+
+  &--warn {
+    --ep-tint: var(--brand-orange);
+    --ep-tint-rgb: var(--brand-orange-rgb);
+  }
+}
+
+.ep-code {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin: 0 0 0.55rem;
+  color: color-mix(in srgb, var(--cui-body-color) 88%, var(--cui-primary) 12%);
+
+  &--warn {
+    color: color-mix(in srgb, var(--cui-body-color) 82%, var(--brand-orange) 18%);
+  }
+}
+
+.ep-title {
+  font-family: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
+  font-size: 1.24rem;
+  font-weight: 700;
+  margin: 0 0 0.55rem;
+  color: var(--cui-body-color);
+  text-wrap: balance;
+}
+
+.ep-lede {
+  margin: 0 0 1.9rem;
+  color: var(--cui-secondary-color);
+  font-size: 0.94rem;
+  line-height: 1.55;
+  text-wrap: balance;
+}
+
+.ep-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.ep-btn {
+  appearance: none;
+  border: none;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.78rem 1.85rem;
+  border-radius: 12px;
+  cursor: pointer;
+  background: var(--cui-primary);
+  color: #fff;
+  box-shadow: 0 10px 24px -10px rgba(var(--cui-primary-rgb), 0.5);
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ep-btn {
+    transition: none;
+  }
+}

@@ -1,0 +1,230 @@
+<c-row class="g-3 mb-3">
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="cilFile" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statTotal() }}</div>
+        <div class="mc-kpi-label">Écritures</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="dollar" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ formatAmount(statTotalDebit()) }}</div>
+        <div class="mc-kpi-label">Total débit</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="trendUp" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ formatAmount(statTotalCredit()) }}</div>
+        <div class="mc-kpi-label">Total crédit</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--flag">
+      <span class="mc-kpi-icon"><svg cIcon name="cilWarning" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statContrepassees() }}</div>
+        <div class="mc-kpi-label">Contre-passées</div>
+      </div>
+    </div>
+  </c-col>
+</c-row>
+
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Écritures comptables</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        placeholder="Rechercher une écriture, un contrat…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par type d'opération">
+      <button (click)="setTypeFilter('all')" [attr.data-active]="typeFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      @for (type of typeOrder; track type) {
+        <button
+          (click)="setTypeFilter(type)"
+          [attr.data-active]="typeFilter() === type"
+          [class]="'dl-pill dl-pill--' + typeVariant(type)"
+          type="button"
+        >
+          {{ typeLabel(type) }}
+        </button>
+      }
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="refresh" size="sm"></svg>
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des écritures…</p>
+  } @else if (pagedItems().length === 0) {
+    <p class="dl-empty">Aucune écriture ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Référence</th>
+            <th scope="col">Date</th>
+            <th scope="col">Libellé</th>
+            <th scope="col">Type</th>
+            <th scope="col">Contrat</th>
+            <th scope="col">Débit</th>
+            <th scope="col">Crédit</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of pagedItems(); track item.id) {
+            <tr>
+              <td>
+                <span class="dl-tag">{{ item.reference }}</span>
+                @if (item.contrepassee) {
+                  <div class="dl-cell-detail">
+                    <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>Contre-passée</span>
+                  </div>
+                }
+              </td>
+              <td class="dl-timestamp">{{ formatDate(item.dateEcriture) }}</td>
+              <td>{{ item.libelle }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + typeVariant(item.typeOperation)">
+                  <span class="dl-chip-dot"></span>{{ typeLabel(item.typeOperation) }}
+                </span>
+              </td>
+              <td class="dl-timestamp">{{ item.contractPolicyNumber }}</td>
+              <td class="dl-timestamp">{{ formatAmount(ligneTotal(item, 'montantDebit')) }}</td>
+              <td class="dl-timestamp">{{ formatAmount(ligneTotal(item, 'montantCredit')) }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openDetail(item)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span>
+      <strong>{{ pagedItems().length }}</strong> sur {{ filteredItems().length }} écritures
+      (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">
+        Précédent
+      </button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">
+        Suivant
+      </button>
+    </div>
+  </div>
+</section>
+
+<app-modal [visible]="selected() !== null" size="lg" title="Écriture {{ selected()?.reference }}" (closed)="closeDetail()">
+  @if (selected(); as item) {
+    <span [class]="'dl-chip dl-chip--' + typeVariant(item.typeOperation) + ' mb-3 d-inline-flex'">
+      <span class="dl-chip-dot"></span>{{ typeLabel(item.typeOperation) }}
+    </span>
+    @if (item.contrepassee) {
+      <span class="dl-chip dl-chip--warning mb-3 ms-2 d-inline-flex"><span class="dl-chip-dot"></span>Contre-passée</span>
+    }
+
+    <div class="dl-detail-grid mb-3">
+      <div>
+        <div class="dl-cell-detail">Libellé</div>
+        <div>{{ item.libelle }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Date</div>
+        <div>{{ formatDate(item.dateEcriture) }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Contrat</div>
+        <div>{{ item.contractPolicyNumber }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Exercice comptable</div>
+        <div>{{ item.exerciceComptableLibelle }}</div>
+      </div>
+      @if (item.ecritureOrigineId) {
+        <div>
+          <div class="dl-cell-detail">Écriture d'origine</div>
+          <div>#{{ item.ecritureOrigineId }}</div>
+        </div>
+      }
+      <div>
+        <div class="dl-cell-detail">Créée le</div>
+        <div>{{ formatDateTime(item.creation) }}</div>
+      </div>
+    </div>
+
+    <div class="pt-3" style="border-top: 1px solid var(--cui-border-color);">
+      <div class="fs-section-head">
+        <svg cIcon name="cilFile" size="lg"></svg>
+        <h3>Lignes d'écriture</h3>
+      </div>
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Compte</th>
+              <th scope="col">Libellé</th>
+              <th scope="col">Débit</th>
+              <th scope="col">Crédit</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ligne of item.lignes; track ligne.id) {
+              <tr>
+                <td><span class="dl-tag">{{ ligne.compteCode }}</span> {{ ligne.compteLibelle }}</td>
+                <td>{{ ligne.libelle }}</td>
+                <td class="dl-timestamp">{{ ligne.montantDebit ? formatAmount(ligne.montantDebit) : '—' }}</td>
+                <td class="dl-timestamp">{{ ligne.montantCredit ? formatAmount(ligne.montantCredit) : '—' }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" class="dl-cell-detail">Total</td>
+              <td class="dl-timestamp"><strong>{{ formatAmount(ligneTotal(item, 'montantDebit')) }}</strong></td>
+              <td class="dl-timestamp"><strong>{{ formatAmount(ligneTotal(item, 'montantCredit')) }}</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  }
+</app-modal>

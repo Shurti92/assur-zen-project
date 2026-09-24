@@ -1,0 +1,32 @@
+<aside class="ab-panel">
+  <svg class="ab-pattern" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern height="110.85" id="ab-hexes" patternUnits="userSpaceOnUse" width="64">
+        <path d="M32 0 62 16.7 62 50.15 32 66.85 2 50.15 2 16.7Z" fill="none" stroke="rgba(122,120,232,0.35)" stroke-width="1" />
+        <path d="M32 55.4 62 72.1 62 105.6 32 122.3 2 105.6 2 72.1Z" fill="none" stroke="rgba(122,120,232,0.35)" stroke-width="1" />
+      </pattern>
+    </defs>
+    <rect fill="url(#ab-hexes)" height="100%" width="100%" />
+  </svg>
+  <div class="ab-glow"></div>
+  <svg cIcon class="ab-watermark" name="signet"></svg>
+
+  <div class="ab-content">
+    <div class="ab-lockup">
+      <svg cIcon class="ab-hex" name="signet"></svg>
+      <span class="ab-word">CIP AssurZen</span>
+    </div>
+
+    <h1 class="ab-headline"><ng-content select="[abHeadline]"></ng-content></h1>
+    <p class="ab-sub"><ng-content select="[abSub]"></ng-content></p>
+
+    <ul class="ab-features">
+      <ng-content select="[abFeatures]"></ng-content>
+    </ul>
+  </div>
+
+  <div class="ab-foot">
+    <svg cIcon name="cilLockLocked"></svg>
+    Connexion chiffrée de bout en bout
+  </div>
+</aside>

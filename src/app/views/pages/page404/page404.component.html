@@ -1,0 +1,67 @@
+<div class="ep-stage">
+  <div class="ep-panel">
+    @if (isSessionExpired) {
+      <div class="ep-badge ep-badge--warn">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="24" cy="26" r="13"></circle>
+          <path d="M24 20v6l4.5 3"></path>
+          <path d="M18 8h12M24 8v5"></path>
+        </svg>
+      </div>
+      <p class="ep-code ep-code--warn">Session</p>
+      <h1 class="ep-title">Votre session a expiré</h1>
+      <p class="ep-lede">
+        Pour votre sécurité, vous avez été déconnecté. Reconnectez-vous pour continuer où vous en étiez.
+      </p>
+      <div class="ep-actions">
+        <button (click)="goToLogin()" class="ep-btn ep-btn--warn" type="button">Se reconnecter</button>
+      </div>
+    } @else if (isRepresentantDenied) {
+      <div class="ep-badge ep-badge--warn">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="24" cy="24" r="15"></circle>
+          <path d="M18 18l12 12M30 18l-12 12"></path>
+        </svg>
+      </div>
+      <p class="ep-code ep-code--warn">Accès refusé</p>
+      <h1 class="ep-title">Cette application n'est pas accessible pour votre profil</h1>
+      <p class="ep-lede">
+        Votre compte est réservé à l'application mobile "Force de Vente". Vous avez été déconnecté de ce back-office.
+      </p>
+      <div class="ep-actions">
+        <button (click)="goToLogin()" class="ep-btn ep-btn--warn" type="button">Retour à la connexion</button>
+      </div>
+    } @else if (isAdminOnly) {
+      <div class="ep-badge ep-badge--warn">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="12" y="22" width="24" height="17" rx="3"></rect>
+          <path d="M17 22v-5a7 7 0 0 1 14 0v5"></path>
+        </svg>
+      </div>
+      <p class="ep-code ep-code--warn">Accès refusé</p>
+      <h1 class="ep-title">Cette page est réservée aux administrateurs</h1>
+      <p class="ep-lede">
+        Votre profil ne permet pas d'accéder à cette fonctionnalité. Contactez un administrateur si vous pensez qu'il s'agit d'une erreur.
+      </p>
+      <div class="ep-actions">
+        <button (click)="goToDashboard()" class="ep-btn ep-btn--warn" type="button">Retour au tableau de bord</button>
+      </div>
+    } @else {
+      <div class="ep-badge">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="21" cy="21" r="13"></circle>
+          <path d="M30.5 30.5 40 40"></path>
+          <path d="M16.5 21h9M21 16.5v9" stroke-dasharray="0.5 5"></path>
+        </svg>
+      </div>
+      <p class="ep-code">404</p>
+      <h1 class="ep-title">Cette page est introuvable</h1>
+      <p class="ep-lede">
+        L'adresse demandée n'existe pas ou a été déplacée. Vérifiez le lien ou retournez au tableau de bord.
+      </p>
+      <div class="ep-actions">
+        <button (click)="goToDashboard()" class="ep-btn" type="button">Retour au tableau de bord</button>
+      </div>
+    }
+  </div>
+</div>

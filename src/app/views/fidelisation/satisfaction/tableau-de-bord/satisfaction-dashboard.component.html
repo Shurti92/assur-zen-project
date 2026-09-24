@@ -1,0 +1,331 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Tableau de bord — Satisfaction Client</h2>
+    </div>
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="exportCsv()" [disabled]="exportingCsv()" cButton class="dl-btn" type="button">
+        @if (exportingCsv()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="download" size="sm"></svg>
+        }
+        Exporter (.csv)
+      </button>
+      <button (click)="exportPdf()" [disabled]="exportingPdf()" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (exportingPdf()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="download" size="sm"></svg>
+        }
+        Exporter (.pdf)
+      </button>
+    </div>
+  </div>
+
+  @if (error() && !loading()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  }
+
+  @if (loading()) {
+    <p class="dl-empty">Chargement du tableau de bord…</p>
+  } @else {
+    <div class="mc-body">
+      <!-- KPIs -->
+      <div>
+        <div class="mc-section-head">
+          <h3>Indicateurs clés</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of kpis(); track kpi.key) {
+            <c-col sm="6" xl="3">
+              <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                <div class="ldb-kpi-head">
+                  <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                  <span class="ldb-kpi-icon">
+                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                  </span>
+                </div>
+                <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                <div [class]="'ldb-kpi-sub' + (kpi.subVariant === 'ok' ? ' dl-stat--success' : kpi.subVariant === 'warning' ? ' dl-stat--danger' : '')">
+                  {{ kpi.sub }}
+                </div>
+              </div>
+            </c-col>
+          }
+        </c-row>
+      </div>
+
+      <!-- Charts -->
+      <div>
+        <div class="mc-section-head">
+          <h3>Analyses</h3>
+        </div>
+        <c-row class="g-3">
+          <c-col xs="12">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Évolution mensuelle</h3>
+                <span class="ldb-panel-sub">Satisfaction moyenne (/10) et NPS, {{ mensuel().length }} mois</span>
+              </div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box ldb-chart-box--tall">
+                  @if (mensuelData) {
+                    <c-chart type="line" [data]="mensuelData" [options]="mensuelOptions" />
+                  } @else {
+                    <p class="dl-empty p-0">Aucune donnée mensuelle.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </c-col>
+
+          <c-col lg="6">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Répartition NPS</h3>
+                <span class="ldb-panel-sub">{{ npsTotal() }} réponse(s)</span>
+              </div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box">
+                  @if (npsData) {
+                    <c-chart type="doughnut" [data]="npsData" [options]="npsOptions" />
+                  } @else {
+                    <p class="dl-empty p-0">Aucune réponse.</p>
+                  }
+                </div>
+                @if (nps(); as n) {
+                  <div class="ldb-legend">
+                    <div class="ldb-legend-row">
+                      <span class="ldb-legend-dot" style="--ldb-dot: var(--cui-success)"></span>
+                      <span class="ldb-legend-label">Promoteurs</span>
+                      <span class="ldb-legend-value">{{ n.promoteurs }}</span>
+                    </div>
+                    <div class="ldb-legend-row">
+                      <span class="ldb-legend-dot" style="--ldb-dot: var(--cui-warning)"></span>
+                      <span class="ldb-legend-label">Passifs</span>
+                      <span class="ldb-legend-value">{{ n.passifs }}</span>
+                    </div>
+                    <div class="ldb-legend-row">
+                      <span class="ldb-legend-dot" style="--ldb-dot: var(--cui-danger)"></span>
+                      <span class="ldb-legend-label">Détracteurs</span>
+                      <span class="ldb-legend-value">{{ n.detracteurs }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </c-col>
+
+          <c-col lg="6">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Répartition des notes</h3>
+                <span class="ldb-panel-sub">{{ repartitionNotes()?.total ?? 0 }} réponse(s)</span>
+              </div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box">
+                  @if (notesData) {
+                    <c-chart type="bar" [data]="notesData" [options]="notesOptions" />
+                  } @else {
+                    <p class="dl-empty p-0">Aucune note enregistrée.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </c-col>
+        </c-row>
+      </div>
+
+      <!-- Breakdowns -->
+      <div>
+        <div class="mc-section-head">
+          <h3>Satisfaction par dimension</h3>
+        </div>
+        <c-row class="g-3">
+          <c-col lg="4">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Par courtier</h3>
+              </div>
+              <div class="ldb-panel-body p-0">
+                @if (parCourtier().length === 0) {
+                  <p class="dl-empty">Aucune donnée.</p>
+                } @else {
+                  <div class="dl-table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">Courtier</th>
+                          <th scope="col">Satisfaction</th>
+                          <th scope="col">NPS</th>
+                          <th scope="col">Réponses</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (row of parCourtier(); track row.id) {
+                          <tr>
+                            <td>{{ row.nom }}</td>
+                            <td>{{ formatDecimal(row.satisfactionMoyenne) }} / 10</td>
+                            <td>{{ row.nps }}</td>
+                            <td class="dl-timestamp">{{ row.reponses }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+          </c-col>
+
+          <c-col lg="4">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Par gestionnaire</h3>
+              </div>
+              <div class="ldb-panel-body p-0">
+                @if (parGestionnaire().length === 0) {
+                  <p class="dl-empty">Aucune donnée.</p>
+                } @else {
+                  <div class="dl-table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">Gestionnaire</th>
+                          <th scope="col">Satisfaction</th>
+                          <th scope="col">NPS</th>
+                          <th scope="col">Réponses</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (row of parGestionnaire(); track row.id) {
+                          <tr>
+                            <td>{{ row.nom }}</td>
+                            <td>{{ formatDecimal(row.satisfactionMoyenne) }} / 10</td>
+                            <td>{{ row.nps }}</td>
+                            <td class="dl-timestamp">{{ row.reponses }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+          </c-col>
+
+          <c-col lg="4">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Par produit</h3>
+              </div>
+              <div class="ldb-panel-body p-0">
+                @if (parProduit().length === 0) {
+                  <p class="dl-empty">Aucune donnée.</p>
+                } @else {
+                  <div class="dl-table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">Produit</th>
+                          <th scope="col">Satisfaction</th>
+                          <th scope="col">NPS</th>
+                          <th scope="col">Réponses</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (row of parProduit(); track row.id) {
+                          <tr>
+                            <td>{{ row.nom }}</td>
+                            <td>{{ formatDecimal(row.satisfactionMoyenne) }} / 10</td>
+                            <td>{{ row.nps }}</td>
+                            <td class="dl-timestamp">{{ row.reponses }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+            </div>
+          </c-col>
+        </c-row>
+      </div>
+
+      <!-- Reclamations -->
+      @if (reclamationsStats(); as rc) {
+        <div>
+          <div class="mc-section-head">
+            <h3>Réclamations</h3>
+          </div>
+          <c-row class="g-3">
+            <c-col lg="6">
+              <div [class]="'ldb-alert-card ' + (rc.ouvertes > 0 ? 'ldb-alert-card--warning' : 'ldb-alert-card--ok')">
+                <div class="ldb-alert-head">
+                  <span class="ldb-alert-icon">
+                    <svg cIcon name="cilWarning" size="lg"></svg>
+                  </span>
+                  <div>
+                    <div class="ldb-alert-count">{{ rc.ouvertes }}</div>
+                    <div class="ldb-alert-label">Réclamations ouvertes</div>
+                  </div>
+                </div>
+                <ul class="ldb-alert-list">
+                  <li class="ldb-alert-item">
+                    <span>Total</span>
+                    <span class="ldb-alert-item-meta">{{ rc.total }}</span>
+                  </li>
+                  <li class="ldb-alert-item">
+                    <span>Résolues</span>
+                    <span class="ldb-alert-item-meta">{{ rc.resolues }}</span>
+                  </li>
+                  <li class="ldb-alert-item">
+                    <span>Fermées</span>
+                    <span class="ldb-alert-item-meta">{{ rc.fermees }}</span>
+                  </li>
+                  <li class="ldb-alert-item">
+                    <span>Créées automatiquement</span>
+                    <span class="ldb-alert-item-meta">{{ rc.creeesAutomatiquement }}</span>
+                  </li>
+                  <li class="ldb-alert-item">
+                    <span>Délai moyen de résolution</span>
+                    <span class="ldb-alert-item-meta">{{ rc.delaiMoyenResolutionHeures == null ? '—' : formatDecimal(rc.delaiMoyenResolutionHeures) + ' h' }}</span>
+                  </li>
+                </ul>
+              </div>
+            </c-col>
+
+            <c-col lg="6">
+              <div class="ldb-alert-card ldb-alert-card--ok">
+                <div class="ldb-alert-head">
+                  <span class="ldb-alert-icon">
+                    <svg cIcon name="cilChartPie" size="lg"></svg>
+                  </span>
+                  <div>
+                    <div class="ldb-alert-count">{{ rc.total }}</div>
+                    <div class="ldb-alert-label">Par priorité</div>
+                  </div>
+                </div>
+                <ul class="ldb-alert-list">
+                  @for (entry of prioriteBreakdown(); track entry[0]) {
+                    <li class="ldb-alert-item">
+                      <span>{{ entry[0] }}</span>
+                      <span class="ldb-alert-item-meta">{{ entry[1] }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            </c-col>
+          </c-row>
+        </div>
+      }
+    </div>
+  }
+</section>

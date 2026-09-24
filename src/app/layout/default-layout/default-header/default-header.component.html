@@ -1,0 +1,144 @@
+<!--<c-header class="mb-4 d-print-none" position="sticky">-->
+<ng-container>
+  <c-container [fluid]="true" class="border-bottom px-4 hdr-bar">
+    <button
+      [cSidebarToggle]="sidebarId()"
+      cHeaderToggler
+      class="hdr-icon-btn"
+      toggle="visible"
+      [attr.aria-label]="'common.header.toggleSidebar' | transloco"
+    >
+      <svg cIcon name="menu" size="lg"></svg>
+    </button>
+
+    @if (envBadge) {
+      <span class="hdr-env-badge" [ngClass]="envBadge.className">{{ envBadge.label }}</span>
+    }
+
+    <c-header-nav class="ms-auto hdr-actions">
+      <a cNavLink class="hdr-icon-btn" [attr.aria-label]="'common.header.notifications' | transloco">
+        <svg cIcon name="bell" size="lg"></svg>
+      </a>
+      <ng-container *ngTemplateOutlet="languageDropdown" />
+      <ng-container *ngTemplateOutlet="themeDropdown" />
+      <ng-container *ngTemplateOutlet="userDropdown" />
+    </c-header-nav>
+  </c-container>
+  <c-container [fluid]="true" class="px-4">
+    <c-breadcrumb-router />
+  </c-container>
+
+  <app-confirm-dialog
+    [cancelLabel]="'common.actions.cancel' | transloco"
+    [confirmLabel]="confirmDialogConfirmLabel()"
+    icon="cilWarning"
+    [message]="confirmDialogMessage()"
+    [title]="confirmDialogTitle()"
+    [visible]="confirmDialogVisible()"
+    (cancelled)="onConfirmDialogCancelled()"
+    (confirmed)="onConfirmDialogConfirmed()"
+  />
+</ng-container>
+<!--</c-header>-->
+
+<ng-template #userDropdown>
+  <c-dropdown [popperOptions]="{ placement: 'bottom-end' }" variant="nav-item">
+    <button [caret]="false" cDropdownToggle class="hdr-user-chip" [attr.aria-label]="'common.header.userMenu.open' | transloco">
+      <c-avatar shape="rounded-circle" size="md" [src]="currentUser()?.avatarUrl ?? undefined" status="success" alt="">
+        @if (!currentUser()?.avatarUrl) {
+          {{ userInitials() }}
+        }
+      </c-avatar>
+      <span class="hdr-user-chip-info d-none d-md-flex">
+        <span class="hdr-user-chip-name">{{ currentUser()?.fullName }}</span>
+        <span class="hdr-user-chip-role">{{ userRoleLabel() }}</span>
+      </span>
+      <svg cIcon class="hdr-user-chip-caret d-none d-md-block" name="chevronDown" size="sm"></svg>
+    </button>
+    <ul cDropdownMenu class="hdr-user-menu pt-0">
+      <li class="hdr-user-menu-header">
+        <c-avatar shape="rounded-circle" size="md" [src]="currentUser()?.avatarUrl ?? undefined" alt="">
+          @if (!currentUser()?.avatarUrl) {
+            {{ userInitials() }}
+          }
+        </c-avatar>
+        <div class="hdr-user-menu-identity">
+          <span class="hdr-user-menu-name">{{ currentUser()?.fullName }}</span>
+          <span class="hdr-user-menu-role">{{ userRoleLabel() }}</span>
+        </div>
+      </li>
+      <li>
+        <hr cDropdownDivider />
+      </li>
+      <li>
+        <a cDropdownItem routerLink="/profile" class="hdr-user-menu-item">
+          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+            <svg cIcon name="cilUser" size="lg"></svg>
+          </span>
+          {{ 'common.header.userMenu.profile' | transloco }}
+        </a>
+      </li>
+      <li>
+        <button (click)="lock()" cDropdownItem class="hdr-user-menu-item w-100 text-start border-0 bg-transparent" type="button">
+          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--warning">
+            <svg cIcon name="cilLockLocked" size="lg"></svg>
+          </span>
+          {{ 'common.header.userMenu.lock' | transloco }}
+        </button>
+      </li>
+      <li>
+        <hr cDropdownDivider />
+      </li>
+      <li>
+        <button (click)="logout()" cDropdownItem class="hdr-user-menu-item hdr-user-menu-item--danger w-100 text-start border-0 bg-transparent" type="button">
+          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--danger">
+            <svg cIcon name="cilAccountLogout" size="lg"></svg>
+          </span>
+          {{ 'common.header.userMenu.logout' | transloco }}
+        </button>
+      </li>
+    </ul>
+  </c-dropdown>
+</ng-template>
+
+<ng-template #themeDropdown>
+  <c-dropdown alignment="end" variant="nav-item">
+    <button [caret]="false" cDropdownToggle class="hdr-icon-btn" [attr.aria-label]="'common.header.themeToggle' | transloco">
+      <svg cIcon [name]="icons()" size="lg"></svg>
+    </button>
+    <div cDropdownMenu>
+      @for (mode of colorModes; track mode.name) {
+        <button
+          (click)="colorMode.set(mode.name)"
+          [active]="colorMode()===mode.name"
+          cDropdownItem
+          class="d-flex align-items-center"
+        >
+          <svg cIcon class="me-2" [name]="mode.icon" size="lg"></svg>
+          {{ mode.textKey | transloco }}
+        </button>
+      }
+    </div>
+  </c-dropdown>
+</ng-template>
+
+<ng-template #languageDropdown>
+  <c-dropdown alignment="end" variant="nav-item">
+    <button [caret]="false" cDropdownToggle class="hdr-icon-btn" [attr.aria-label]="'common.labels.language' | transloco">
+      <svg cIcon name="cilLanguage" size="lg"></svg>
+    </button>
+    <div cDropdownMenu>
+      @for (lang of languageService.availableLanguages(); track lang.code) {
+        <button
+          (click)="languageService.setLanguage(lang.code)"
+          [active]="languageService.currentLanguage()===lang.code"
+          cDropdownItem
+          class="d-flex align-items-center"
+        >
+          <span class="hdr-lang-code">{{ lang.code.toUpperCase() }}</span>
+          {{ lang.libelle }}
+        </button>
+      }
+    </div>
+  </c-dropdown>
+</ng-template>

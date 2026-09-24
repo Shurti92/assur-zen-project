@@ -1,0 +1,141 @@
+// Shared visual language for the standalone error pages (404 / 500): icon
+// badge, big label, headline, single CTA. Two accents: the app's own primary
+// for "something's wrong" states, and a warm terracotta for "you need to
+// (re)authenticate" states, so the two kinds of problem read differently at
+// a glance. Built entirely on --cui-* tokens so it follows the app's
+// light/dark theme automatically.
+
+.ep-stage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  background:
+    radial-gradient(70% 55% at 18% 12%, color-mix(in srgb, var(--cui-primary) 8%, transparent), transparent 60%),
+    radial-gradient(60% 50% at 88% 92%, color-mix(in srgb, #d97a2b 8%, transparent), transparent 60%),
+    var(--cui-body-bg);
+}
+
+.ep-panel {
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+}
+
+.ep-badge {
+  --ep-tint: var(--cui-primary);
+  --ep-tint-rgb: var(--cui-primary-rgb);
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 1.6rem;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, rgba(var(--ep-tint-rgb), 0.16), rgba(var(--ep-tint-rgb), 0.06));
+  border: 1px solid rgba(var(--ep-tint-rgb), 0.22);
+  color: var(--ep-tint);
+
+  svg {
+    width: 42px;
+    height: 42px;
+  }
+
+  &--warn {
+    --ep-tint: #d97a2b;
+    --ep-tint-rgb: 217, 122, 43;
+  }
+}
+
+.ep-code {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin: 0 0 0.55rem;
+  color: color-mix(in srgb, var(--cui-body-color) 88%, var(--cui-primary) 12%);
+
+  &--warn {
+    color: color-mix(in srgb, var(--cui-body-color) 82%, #d97a2b 18%);
+  }
+}
+
+.ep-title {
+  font-size: 1.24rem;
+  font-weight: 700;
+  margin: 0 0 0.55rem;
+  color: var(--cui-body-color);
+  text-wrap: balance;
+}
+
+.ep-lede {
+  margin: 0 0 1.9rem;
+  color: var(--cui-secondary-color);
+  font-size: 0.94rem;
+  line-height: 1.55;
+  text-wrap: balance;
+}
+
+.ep-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.ep-btn {
+  appearance: none;
+  border: none;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.78rem 1.85rem;
+  border-radius: 12px;
+  cursor: pointer;
+  background: var(--cui-primary);
+  color: #fff;
+  box-shadow: 0 10px 24px -10px rgba(var(--cui-primary-rgb), 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: 3px;
+  }
+
+  &--warn {
+    background: #d97a2b;
+    box-shadow: 0 10px 24px -10px rgba(217, 122, 43, 0.5);
+
+    &:focus-visible {
+      outline-color: #d97a2b;
+    }
+  }
+}
+
+.ep-link {
+  appearance: none;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--cui-secondary-color);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--cui-body-color);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ep-btn {
+    transition: none;
+  }
+}

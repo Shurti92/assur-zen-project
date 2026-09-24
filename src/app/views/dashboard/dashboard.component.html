@@ -1,0 +1,15 @@
+<div class="dl-pillgroup mb-3" role="tablist" aria-label="Section du tableau de bord">
+  <button (click)="setView('contrats')" [attr.data-active]="view() === 'contrats'" class="dl-pill" type="button">Contrats</button>
+  @if (isAdmin()) {
+    <button (click)="setView('global')" [attr.data-active]="view() === 'global'" class="dl-pill" type="button">Global</button>
+    <button (click)="setView('vignettes')" [attr.data-active]="view() === 'vignettes'" class="dl-pill" type="button">Vignettes</button>
+    <button (click)="setView('sortiesFonds')" [attr.data-active]="view() === 'sortiesFonds'" class="dl-pill" type="button">Sorties de fonds</button>
+    <button (click)="setView('assures')" [attr.data-active]="view() === 'assures'" class="dl-pill" type="button">Assurés</button>
+  }
+</div>
+
+@if (view() === 'contrats') {
+  <app-insurance-widgets />
+} @else {
+  <app-kpi-dashboard [activeView]="kpiActiveView()" />
+}

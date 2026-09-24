@@ -1,0 +1,159 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Taux de commission</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher un produit ou un libellé…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par type de partenaire">
+      <button (click)="setPartenaireFilter('all')" [attr.data-active]="partenaireFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      <button (click)="setPartenaireFilter('DIRECT')" [attr.data-active]="partenaireFilter() === 'DIRECT'" class="dl-pill dl-pill--info" type="button">Direct</button>
+      <button (click)="setPartenaireFilter('AGENT')" [attr.data-active]="partenaireFilter() === 'AGENT'" class="dl-pill dl-pill--info" type="button">Agent</button>
+      <button (click)="setPartenaireFilter('APPORTEUR')" [attr.data-active]="partenaireFilter() === 'APPORTEUR'" class="dl-pill dl-pill--info" type="button">Apporteur</button>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus"></svg>Nouveau taux
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des taux de commission…</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="dl-empty">Aucun taux de commission ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Produit</th>
+            <th scope="col">Partenaire</th>
+            <th scope="col">Libellé</th>
+            <th scope="col">Taux</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Créé le</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.id) {
+            <tr>
+              <td>{{ item.produitName }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + typeVariant(item.typePartenaire)">
+                  <span class="dl-chip-dot"></span>{{ typeLabel(item.typePartenaire) }}
+                </span>
+              </td>
+              <td class="dl-timestamp">{{ item.libTauxCommission }}</td>
+              <td class="dl-timestamp">{{ formatTaux(item.tauxCommission) }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (item.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ item.active ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td class="dl-timestamp">{{ formatDate(item.creation) }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEdit(item)" class="dl-icon-btn" title="Modifier" type="button">
+                    <svg cIcon name="cilPencil" size="sm"></svg>
+                  </button>
+                  <button (click)="confirmDelete(item)" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                    <svg cIcon name="cilTrash" size="sm"></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredItems().length }}</strong> sur {{ items().length }} taux de commission</span>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" title="{{ editingId() ? 'Modifier le taux de commission' : 'Nouveau taux de commission' }}" (closed)="formVisible.set(false)">
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="save()">
+    <div class="mb-3">
+      <label cLabel for="taux-produit">Produit</label>
+      <select cSelect formControlName="produitId" id="taux-produit">
+        <option [value]="0" disabled>Sélectionner un produit…</option>
+        @for (produit of produits(); track produit.id) {
+          <option [value]="produit.id">{{ produit.nomProduit }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="taux-partenaire">Type de partenaire</label>
+        <select cSelect formControlName="typePartenaire" id="taux-partenaire">
+          <option value="DIRECT">Direct</option>
+          <option value="AGENT">Agent</option>
+          <option value="APPORTEUR">Apporteur</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="taux-libelle">Libellé</label>
+        <input cFormControl formControlName="libTauxCommission" id="taux-libelle" maxlength="10" type="text" />
+      </div>
+    </div>
+
+    <div class="mb-1 mt-2" style="max-width: 220px;">
+      <label cLabel for="taux-valeur">Taux de commission (%)</label>
+      <input cFormControl formControlName="tauxCommission" id="taux-valeur" min="0" step="0.01" type="number" />
+    </div>
+
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="active" id="taux-active" switch type="checkbox" />
+      <label cLabel for="taux-active">Taux actif</label>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteTarget()"
+  title="Supprimer ce taux de commission ?"
+  [message]="'Le taux « ' + (deleteTarget()?.libTauxCommission ?? '') + ' » pour ' + (deleteTarget()?.produitName ?? '') + ' sera définitivement supprimé.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteTarget.set(null)"
+  (confirmed)="performDelete()"
+/>
