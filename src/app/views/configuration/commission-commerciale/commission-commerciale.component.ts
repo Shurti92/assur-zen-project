@@ -15,6 +15,11 @@ import { ProduitCommissionCommercialService } from '../../../core/configuration/
 import { ProduitCommissionCommercialResponse } from '../../../core/configuration/models/produit-commission-commercial.model';
 import { ProduitService } from '../../../core/configuration/produit.service';
 import { ProduitResponse } from '../../../core/configuration/models/produit.model';
+import {
+  COMMISSION_UNITS,
+  formatCommissionValue,
+  isStandardCommissionUnit,
+} from '../../../core/contracts/commission-rate.util';
 import { AlertMessageComponent } from '../../../shared/alert-message/alert-message.component';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import { ModalComponent } from '../../../shared/modal/modal.component';
@@ -51,6 +56,19 @@ export class CommissionCommercialeComponent {
   readonly formVisible = signal(false);
   readonly formSaving = signal(false);
   readonly formError = signal<string | null>(null);
+
+  /** Unités autorisées (validées côté backend) — remplace l'ancien libellé libre. */
+  readonly units = COMMISSION_UNITS;
+  /** Libellé non standard d'une configuration existante, en cours de modification. */
+  readonly legacyUnit = signal<string | null>(null);
+
+  isStandardUnit(lib: string): boolean {
+    return isStandardCommissionUnit(lib);
+  }
+
+  formatValue(item: { tauxCommission: number; libTauxCommission: string }): string {
+    return formatCommissionValue(item);
+  }
   readonly editingId = signal<number | null>(null);
 
   readonly deleteTarget = signal<ProduitCommissionCommercialResponse | null>(null);
@@ -100,16 +118,18 @@ export class CommissionCommercialeComponent {
   openCreate(): void {
     this.editingId.set(null);
     this.formError.set(null);
-    this.form.reset({ produitId: 0, libTauxCommission: '', tauxCommission: 0, active: true });
+    this.form.reset({ produitId: 0, libTauxCommission: '%', tauxCommission: 0, active: true });
+    this.legacyUnit.set(null);
     this.formVisible.set(true);
   }
 
   openEdit(item: ProduitCommissionCommercialResponse): void {
+    this.legacyUnit.set(isStandardCommissionUnit(item.libTauxCommission) ? null : item.libTauxCommission);
     this.editingId.set(item.id);
     this.formError.set(null);
     this.form.reset({
       produitId: item.produitId,
-      libTauxCommission: item.libTauxCommission,
+      libTauxCommission: isStandardCommissionUnit(item.libTauxCommission) ? item.libTauxCommission : '',
       tauxCommission: item.tauxCommission,
       active: item.active,
     });
@@ -122,8 +142,8 @@ export class CommissionCommercialeComponent {
       this.formError.set('Sélectionnez un produit.');
       return;
     }
-    if (!raw.libTauxCommission.trim()) {
-      this.formError.set('Le libellé est requis.');
+    if (!isStandardCommissionUnit(raw.libTauxCommission)) {
+      this.formError.set("Choisissez l'unité : pourcentage ou montant fixe.");
       return;
     }
     const payload = {
@@ -142,9 +162,9 @@ export class CommissionCommercialeComponent {
         this.formVisible.set(false);
         this.fetch();
       },
-      error: () => {
+      error: (err) => {
         this.formSaving.set(false);
-        this.formError.set("Impossible d'enregistrer la commission commerciale. Réessayez.");
+        this.formError.set(err?.error?.message ?? "Impossible d'enregistrer la commission commerciale. Réessayez.");
       },
     });
   }
@@ -184,13 +204,4 @@ export class CommissionCommercialeComponent {
     return new Date(value).toLocaleDateString('fr-FR');
   }
 
-  /** libTauxCommission est l'unité réelle choisie à la config (ex. "%" pour un taux, "FCFA"
-   * pour un montant fixe) — même mécanique double mode que ProduitCommissionTaux côté
-   * partenaire, confirmée par le backend le 2026-09-08. Ne pas supposer "%" à tort. */
-  formatTaux(item: ProduitCommissionCommercialResponse): string {
-    if (item.libTauxCommission.trim() === '%') {
-      return `${item.tauxCommission.toFixed(2)} %`;
-    }
-    return `${new Intl.NumberFormat('fr-FR').format(item.tauxCommission)} ${item.libTauxCommission}`;
-  }
 }

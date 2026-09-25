@@ -12,7 +12,7 @@
       <input
         (input)="onSearchInput($any($event.target).value)"
         autocomplete="off"
-        placeholder="Rechercher un produit ou un libellé…"
+        placeholder="Rechercher un produit…"
         type="search"
       />
     </div>
@@ -50,8 +50,8 @@
           <tr>
             <th scope="col">Produit</th>
             <th scope="col">Partenaire</th>
-            <th scope="col">Libellé</th>
-            <th scope="col">Taux</th>
+            <th scope="col">Unité</th>
+            <th scope="col">Valeur</th>
             <th scope="col">Statut</th>
             <th scope="col">Créé le</th>
             <th scope="col"></th>
@@ -66,8 +66,14 @@
                   <span class="dl-chip-dot"></span>{{ typeLabel(item.typePartenaire) }}
                 </span>
               </td>
-              <td class="dl-timestamp">{{ item.libTauxCommission }}</td>
-              <td class="dl-timestamp">{{ formatTaux(item.tauxCommission) }}</td>
+              <td class="dl-timestamp">
+                @if (isStandardUnit(item.libTauxCommission)) {
+                  {{ item.libTauxCommission === '%' ? 'Pourcentage' : 'Montant fixe' }}
+                } @else {
+                  <span class="dl-chip dl-chip--warning" title="Libellé non standard : lu comme un montant fixe. Modifiez la ligne pour choisir l'unité."><span class="dl-chip-dot"></span>« {{ item.libTauxCommission }} » → montant fixe</span>
+                }
+              </td>
+              <td class="dl-timestamp">{{ formatValue(item) }}</td>
               <td>
                 <span [class]="'dl-chip dl-chip--' + (item.active ? 'success' : 'neutral')">
                   <span class="dl-chip-dot"></span>{{ item.active ? 'Actif' : 'Inactif' }}
@@ -121,13 +127,21 @@
         </select>
       </div>
       <div class="col-sm-6">
-        <label cLabel for="taux-libelle">Libellé</label>
-        <input cFormControl formControlName="libTauxCommission" id="taux-libelle" maxlength="10" type="text" />
+        <label cLabel for="taux-libelle">Unité</label>
+        <select cSelect formControlName="libTauxCommission" id="taux-libelle">
+          <option value="" disabled>Choisir…</option>
+          @for (unit of units; track unit.value) {
+            <option [value]="unit.value">{{ unit.label }}</option>
+          }
+        </select>
+        @if (legacyUnit(); as legacy) {
+          <div class="dl-cell-detail mt-1 text-danger">Ancien libellé « {{ legacy }} » : il était lu comme un montant fixe. Choisissez l'unité correcte.</div>
+        }
       </div>
     </div>
 
     <div class="mb-1 mt-2" style="max-width: 220px;">
-      <label cLabel for="taux-valeur">Taux de commission (%)</label>
+      <label cLabel for="taux-valeur">Valeur {{ form.controls.libTauxCommission.value === '%' ? '(% de la prime)' : '(FCFA)' }}</label>
       <input cFormControl formControlName="tauxCommission" id="taux-valeur" min="0" step="0.01" type="number" />
     </div>
 

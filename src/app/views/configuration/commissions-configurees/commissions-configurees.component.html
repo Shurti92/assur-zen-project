@@ -1,0 +1,211 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Commissions configurées</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher un produit, un partenaire, un commercial…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par bénéficiaire">
+      <button (click)="setBeneficiaireFilter('all')" [attr.data-active]="beneficiaireFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      <button (click)="setBeneficiaireFilter('PARTENAIRE')" [attr.data-active]="beneficiaireFilter() === 'PARTENAIRE'" class="dl-pill dl-pill--info" type="button">Partenaires</button>
+      <button (click)="setBeneficiaireFilter('COMMERCIAL')" [attr.data-active]="beneficiaireFilter() === 'COMMERCIAL'" class="dl-pill dl-pill--info" type="button">Commerciaux</button>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus"></svg>Nouvelle commission
+      </button>
+    </div>
+  </div>
+
+  <p class="dl-cell-detail px-3 mb-0">
+    Montants proposés à la souscription pour la part du partenaire ou la commission du commercial.
+    Pour un partenaire, une configuration à son nom prime sur celle de son type. La valeur reste modifiable contrat par contrat.
+  </p>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des commissions configurées…</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="dl-empty">Aucune commission configurée ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Produit</th>
+            <th scope="col">Bénéficiaire</th>
+            <th scope="col">Cible</th>
+            <th scope="col">Montant</th>
+            <th scope="col">Période</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.id) {
+            <tr>
+              <td>{{ item.produitName ?? '—' }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (item.beneficiaire === 'PARTENAIRE' ? 'info' : 'warning')">
+                  <span class="dl-chip-dot"></span>{{ item.beneficiaire === 'PARTENAIRE' ? 'Partenaire' : 'Commercial' }}
+                </span>
+              </td>
+              <td>{{ cibleLabel(item) }}</td>
+              <td class="dl-timestamp">{{ formatAmount(item.montant) }}</td>
+              <td class="dl-timestamp">{{ periodeLabel(item) }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (item.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ item.active ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEdit(item)" class="dl-icon-btn" title="Modifier" type="button">
+                    <svg cIcon name="cilPencil" size="sm"></svg>
+                  </button>
+                  <button (click)="toggleActive(item)" class="dl-icon-btn" [title]="item.active ? 'Désactiver (conserve l’historique)' : 'Réactiver'" type="button">
+                    <svg cIcon [name]="item.active ? 'cilXCircle' : 'cilCheckCircle'" size="sm"></svg>
+                  </button>
+                  <button (click)="confirmDelete(item)" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer définitivement (erreur de saisie)" type="button">
+                    <svg cIcon name="cilTrash" size="sm"></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredItems().length }}</strong> sur {{ items().length }} commissions configurées</span>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" title="{{ editingId() ? 'Modifier la commission configurée' : 'Nouvelle commission configurée' }}" (closed)="formVisible.set(false)">
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="save()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="pc-produit">Produit</label>
+        <select cSelect formControlName="produitId" id="pc-produit">
+          <option [value]="0" disabled>Sélectionner un produit…</option>
+          @for (produit of produits(); track produit.id) {
+            <option [value]="produit.id">{{ produit.nomProduit }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="pc-beneficiaire">Bénéficiaire</label>
+        <select cSelect formControlName="beneficiaire" id="pc-beneficiaire">
+          <option value="PARTENAIRE">Partenaire</option>
+          <option value="COMMERCIAL">Commercial</option>
+        </select>
+      </div>
+    </div>
+
+    @if (beneficiaire() === 'PARTENAIRE') {
+      <div class="row g-3 mb-1 mt-1">
+        <div class="col-sm-6">
+          <label cLabel for="pc-cible">S'applique à</label>
+          <select cSelect formControlName="cible" id="pc-cible">
+            <option value="PARTENAIRE">Un partenaire précis</option>
+            <option value="TYPE">Tous les partenaires d'un type</option>
+          </select>
+        </div>
+        <div class="col-sm-6">
+          @if (cible() === 'PARTENAIRE') {
+            <label cLabel for="pc-partenaire">Partenaire</label>
+            <select cSelect formControlName="partenaireId" id="pc-partenaire">
+              <option value="" disabled>Sélectionner un partenaire…</option>
+              @for (partenaire of partenaires(); track partenaire.id) {
+                <option [value]="partenaire.id">{{ partenaire.nom }} {{ partenaire.prenoms }}</option>
+              }
+            </select>
+          } @else {
+            <label cLabel for="pc-type">Type de partenaire</label>
+            <select cSelect formControlName="typePartenaire" id="pc-type">
+              @for (type of typesPartenaire; track type.value) {
+                <option [value]="type.value">{{ type.label }}</option>
+              }
+            </select>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="mb-1 mt-2">
+        <label cLabel for="pc-commercial">Commercial</label>
+        <select cSelect formControlName="commercialId" id="pc-commercial">
+          <option value="" disabled>Sélectionner un commercial…</option>
+          @for (profile of commerciaux(); track profile.id) {
+            <option [value]="profile.userId">{{ profile.firstname }} {{ profile.lastname }}</option>
+          }
+        </select>
+        <div class="dl-cell-detail mt-1">Appliquée uniquement en vente directe : avec un partenaire, la commission revient au partenaire.</div>
+      </div>
+    }
+
+    <div class="row g-3 mb-1 mt-1">
+      <div class="col-sm-4">
+        <label cLabel for="pc-montant">Montant (FCFA)</label>
+        <input cFormControl formControlName="montant" id="pc-montant" inputmode="numeric" type="text" wzThousandSeparator />
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="pc-debut">Début (optionnel)</label>
+        <input cFormControl formControlName="dateDebut" id="pc-debut" type="date" />
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="pc-fin">Fin (optionnel)</label>
+        <input cFormControl formControlName="dateFin" id="pc-fin" type="date" />
+      </div>
+    </div>
+
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="active" id="pc-active" switch type="checkbox" />
+      <label cLabel for="pc-active">Commission active</label>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteTarget()"
+  title="Supprimer cette commission configurée ?"
+  [message]="'La commission de ' + (deleteTarget() ? formatAmount(deleteTarget()!.montant) : '') + ' pour ' + (deleteTarget()?.produitName ?? '') + ' sera définitivement supprimée. Pour garder l’historique, préférez « Désactiver ». Les contrats déjà enregistrés ne changent pas.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteTarget.set(null)"
+  (confirmed)="performDelete()"
+/>

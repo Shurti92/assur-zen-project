@@ -24,6 +24,26 @@ export function configuredCommissionAmount(
   return isPercentConfig(config) ? Math.round((premium * config.tauxCommission) / 100) : Math.round(config.tauxCommission);
 }
 
+/** Même règle stricte que le backend ("%".equals(lib)) : « % » avec espace, « 10% » ou « Taux »
+ * sont lus comme un MONTANT FIXE. */
 export function isPercentConfig(config: { libTauxCommission: string }): boolean {
-  return (config.libTauxCommission ?? '').trim() === '%';
+  return config.libTauxCommission === '%';
+}
+
+/** Unités acceptées pour une configuration de commission (validées côté backend depuis le
+ * 2026-09-25) : pourcentage de la prime ou montant fixe en FCFA. */
+export const COMMISSION_UNITS = [
+  { value: '%', label: 'Pourcentage (%)' },
+  { value: 'FCFA', label: 'Montant fixe (FCFA)' },
+] as const;
+
+export function isStandardCommissionUnit(lib: string): boolean {
+  return COMMISSION_UNITS.some((unit) => unit.value === lib);
+}
+
+/** « 15,00 % » ou « 2 000 FCFA » selon l'unité de la configuration. */
+export function formatCommissionValue(config: { tauxCommission: number; libTauxCommission: string }): string {
+  return isPercentConfig(config)
+    ? `${new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(config.tauxCommission)} %`
+    : `${new Intl.NumberFormat('fr-FR').format(config.tauxCommission)} FCFA`;
 }

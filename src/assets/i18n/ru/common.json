@@ -114,6 +114,7 @@
   "nav.configuration.compagnieAssurances": "Страховая компания",
   "nav.configuration.tauxCommission": "Ставка комиссии",
   "nav.configuration.commissionCommerciale": "Комиссия менеджера по продажам",
+  "nav.configuration.commissionsConfigurees": "Настроенные комиссии",
   "nav.configuration.exerciceComptable": "Финансовый год",
   "nav.configuration.sansRedeploiement.title": "Настройка без переразвёртывания",
   "nav.configuration.sansRedeploiement.tableauDeBord": "Панель управления",

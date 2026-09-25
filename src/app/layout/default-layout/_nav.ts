@@ -348,6 +348,11 @@ const adminNavItems: INavData[] = [
         icon: 'nav-icon-bullet',
       },
       {
+        name: 'nav.configuration.commissionsConfigurees',
+        url: '/configuration/commissions-configurees',
+        icon: 'nav-icon-bullet',
+      },
+      {
         name: 'nav.configuration.exerciceComptable',
         url: '/configuration/exercice-comptable',
         icon: 'nav-icon-bullet',

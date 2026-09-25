@@ -114,6 +114,7 @@
   "nav.configuration.compagnieAssurances": "Insurance company",
   "nav.configuration.tauxCommission": "Commission rate",
   "nav.configuration.commissionCommerciale": "Sales rep commission",
+  "nav.configuration.commissionsConfigurees": "Configured commissions",
   "nav.configuration.exerciceComptable": "Fiscal year",
   "nav.configuration.sansRedeploiement.title": "Configuration without redeployment",
   "nav.configuration.sansRedeploiement.tableauDeBord": "Dashboard",

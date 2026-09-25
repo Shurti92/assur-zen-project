@@ -114,6 +114,7 @@
   "nav.configuration.compagnieAssurances": "Compagnie d'assurances",
   "nav.configuration.tauxCommission": "Taux de commission",
   "nav.configuration.commissionCommerciale": "Commission commerciale",
+  "nav.configuration.commissionsConfigurees": "Commissions configurées",
   "nav.configuration.exerciceComptable": "Exercice Comptable",
   "nav.configuration.sansRedeploiement.title": "Configuration sans redéploiement",
   "nav.configuration.sansRedeploiement.tableauDeBord": "Tableau de bord",

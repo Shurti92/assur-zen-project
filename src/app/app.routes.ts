@@ -164,6 +164,16 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'configuration/commissions-configurees',
+        loadComponent: () =>
+          import('./views/configuration/commissions-configurees/commissions-configurees.component').then(
+            (m) => m.CommissionsConfigureesComponent,
+          ),
+        data: {
+          title: 'Commissions configurées',
+        },
+      },
+      {
         path: 'configuration/exercice-comptable',
         loadComponent: () =>
           import('./views/configuration/exercice-comptable/exercice-comptable.component').then(
