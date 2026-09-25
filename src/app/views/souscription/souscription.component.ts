@@ -842,8 +842,9 @@ export class SouscriptionComponent {
         );
         return false;
       }
-      if (!isDirect && Number(contract.partnerShare) > premium) {
-        this.error.set('La part reversée au partenaire ne peut pas dépasser la prime.');
+      // La part partenaire est prélevée sur la commission (règle du 2026-09-25), donc aussi ≤ prime.
+      if (!isDirect && Number(contract.partnerShare) > Number(contract.commissionAmount)) {
+        this.error.set('La part reversée au partenaire ne peut pas dépasser le montant de la commission.');
         return false;
       }
       if (isDirect && contract.salesRepId && Number(contract.commercialCommissionAmount) > premium) {
@@ -941,9 +942,11 @@ export class SouscriptionComponent {
           this.success.set(result);
           this.resetForm();
         },
-        error: () => {
+        error: (err) => {
           this.saving.set(false);
-          this.error.set("Impossible d'enregistrer la souscription. Réessayez.");
+          // 400 métier (ex. part partenaire > commission) : le motif du backend est affiché tel quel.
+          const backendMessage = (err?.error?.message ?? err?.error?.reason) as string | undefined;
+          this.error.set(backendMessage || "Impossible d'enregistrer la souscription. Réessayez.");
         },
       });
   }

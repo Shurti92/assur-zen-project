@@ -3,7 +3,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { IconSetService } from '@coreui/icons-angular';
-import { of } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { of, throwError } from 'rxjs';
 import type { MockInstance } from 'vitest';
 
 import { SouscriptionComponent } from './souscription.component';
@@ -70,7 +71,7 @@ describe('SouscriptionComponent — commissions', () => {
   }
 
   it('cas 1 — une part partenaire saisie (2500) est envoyée telle quelle, en nombre', () => {
-    fillRow('12', 4500, 2000);
+    fillRow('12', 45000, 2000);
     row().controls.partnerShare.setValue(2500);
 
     const contract = submittedContract();
@@ -113,10 +114,10 @@ describe('SouscriptionComponent — commissions', () => {
 
   it('un montant de commission saisi est conservé quand la prime change', () => {
     fillRow('12', 30000, 3000);
-    row().controls.commissionAmount.setValue(2000);
+    row().controls.commissionAmount.setValue(3500);
     row().controls.premium.setValue(32000);
 
-    expect(submittedContract().commissionAmount).toBe(2000);
+    expect(submittedContract().commissionAmount).toBe(3500);
   });
 
   it('configuration en montant fixe (libellé ≠ "%") : montant appliqué tel quel', () => {
@@ -181,14 +182,32 @@ describe('SouscriptionComponent — commissions', () => {
     expect(submittedContract().commercialCommissionAmount).toBeUndefined();
   });
 
-  it('refuse une part partenaire supérieure à la prime', () => {
-    fillRow('12', 3000, 1000);
-    row().controls.commissionAmount.setValue(300);
-    row().controls.partnerShare.setValue(5000);
+  it('refuse une part partenaire supérieure à la commission, même inférieure à la prime', () => {
+    fillRow('12', 30000, 1000);
+    row().controls.partnerShare.setValue(3500);
 
     component.submit();
 
     expect(submitSpy).not.toHaveBeenCalled();
-    expect(component.error()).toContain('ne peut pas dépasser la prime');
+    expect(component.error()).toContain('ne peut pas dépasser le montant de la commission');
+  });
+
+  it('un refus 400 du backend affiche son motif', () => {
+    const motif = 'partnerShare (2 500 FCFA) ne peut pas depasser la commission du contrat (2 000 FCFA)';
+    submitSpy.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 400, error: { code: '400 BAD_REQUEST', message: motif } })),
+    );
+    fillRow('12', 30000, 1000);
+
+    component.submit();
+
+    expect(component.error()).toBe(motif);
+  });
+
+  it('accepte une part partenaire égale à la commission', () => {
+    fillRow('12', 30000, 1000);
+    row().controls.partnerShare.setValue(3000);
+
+    expect(submittedContract().partnerShare).toBe(3000);
   });
 });

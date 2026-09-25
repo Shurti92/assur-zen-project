@@ -83,7 +83,7 @@
               <tr><td>statut_contrat</td><td>Non</td><td>signed / pending / draft / cancelled (défaut : signed)</td></tr>
               <tr><td>notes</td><td>Non</td><td>Notes libres</td></tr>
               <tr><td>montant_commission</td><td>Non</td><td>Montant de la commission en FCFA entiers — s'il est renseigné, il remplace le calcul prime × taux</td></tr>
-              <tr><td>part_partenaire</td><td>Non</td><td>Part reversée au partenaire en FCFA entiers (défaut : commission partenaire configurée — la ligne est refusée s'il n'y en a pas). Uniquement avec un partenaire</td></tr>
+              <tr><td>part_partenaire</td><td>Non</td><td>Part reversée au partenaire en FCFA entiers (défaut : commission partenaire configurée — la ligne est refusée s'il n'y en a pas). Uniquement avec un partenaire, et au plus égale au montant de la commission</td></tr>
             </tbody>
           </table>
         </div>
@@ -220,7 +220,7 @@
 
       <!-- Étape 3 : Résultat -->
       @if (currentStep() === 2) {
-        <h6 class="fw-semibold mb-2">Traitement en cours</h6>
+        <h6 class="fw-semibold mb-2">{{ processing() ? 'Traitement en cours' : 'Traitement terminé' }}</h6>
         <p class="dl-cell-detail mb-3">{{ processedCount() }} / {{ validGroups().length }} client(s) traité(s)</p>
 
         <div class="row g-3 mb-4">

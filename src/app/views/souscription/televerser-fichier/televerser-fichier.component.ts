@@ -478,8 +478,10 @@ export class TeleverserFichierComponent {
       errors.push(`Part partenaire invalide « ${raw['part_partenaire']} » (montant entier en FCFA attendu)`);
     } else if (typeof partPartenaire === 'number') {
       if (!partenaireNom) errors.push('Part partenaire renseignée sans partenaire');
-      else if (Number.isFinite(premium) && partPartenaire > premium) errors.push('La part partenaire ne peut pas dépasser la prime');
-      else partnerShare = partPartenaire;
+      // Règle du 2026-09-25 : la part partenaire est prélevée sur la commission, jamais au-delà.
+      else if (partPartenaire > commissionAmount) {
+        errors.push(`La part partenaire (${partPartenaire}) ne peut pas dépasser la commission (${commissionAmount})`);
+      } else partnerShare = partPartenaire;
     }
 
     const modePaiementRaw = (raw['mode_paiement'] ?? '').trim().toUpperCase();
@@ -625,7 +627,8 @@ export class TeleverserFichierComponent {
               of({
                 group,
                 result: null as InsuredRegistrationResponse | null,
-                error: (err?.error?.message as string | undefined) ?? "Échec de l'enregistrement.",
+                error:
+                  ((err?.error?.message ?? err?.error?.reason) as string | undefined) || "Échec de l'enregistrement.",
               }),
             ),
           );

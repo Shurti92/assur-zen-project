@@ -70,10 +70,16 @@ describe('TeleverserFichierComponent — commission partenaire', () => {
   });
 
   it('montant_commission et part_partenaire remplis : valeurs conservées telles quelles', () => {
-    const parsed = row({ montant_commission: '2 000', part_partenaire: '2 500' });
+    const parsed = row({ montant_commission: '3 500', part_partenaire: '2 500' });
     expect(parsed.errors).toEqual([]);
-    expect(parsed.commissionAmount).toBe(2000);
+    expect(parsed.commissionAmount).toBe(3500);
     expect(parsed.partnerShare).toBe(2500);
+  });
+
+  it('refuse une part partenaire supérieure à la commission', () => {
+    expect(row({ part_partenaire: '3001' }).errors[0]).toContain('ne peut pas dépasser la commission');
+    expect(row({ montant_commission: '2000', part_partenaire: '2500' }).errors[0]).toContain('ne peut pas dépasser la commission');
+    expect(row({ part_partenaire: '3000' }).errors).toEqual([]);
   });
 
   it('refuse un montant décimal ou une part partenaire sans partenaire', () => {
