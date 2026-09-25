@@ -189,6 +189,21 @@
   @if (payError(); as message) {
     <app-alert-message class="d-block mb-3" [message]="message" />
   }
+  @if (payBlockedTransactions().length > 0) {
+    <ul class="list-unstyled mb-3">
+      @for (blocked of payBlockedTransactions(); track blocked.transactionId) {
+        <li class="d-flex align-items-center gap-2 mb-1">
+          <span class="dl-tag">{{ blocked.policyNumber }}</span>
+          @if (blocked.reconcilable) {
+            <span class="dl-cell-detail">Virement {{ blocked.status === 'UNKNOWN' ? 'indéterminé' : 'en cours' }}</span>
+            <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: blocked.transactionId }">Réconcilier</a>
+          } @else {
+            <span class="dl-cell-detail">Virement en attente chez SycaPay — patientez avant de réessayer</span>
+          }
+        </li>
+      }
+    </ul>
+  }
 
   <div class="dl-pillgroup mb-3" role="tablist" aria-label="Filtrer par statut de commission">
     <button (click)="setContractsStatusFilter('all')" [attr.data-active]="contractsStatusFilter() === 'all'" class="dl-pill" type="button">Tous</button>

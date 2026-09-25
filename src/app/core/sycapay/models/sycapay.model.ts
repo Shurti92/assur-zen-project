@@ -90,6 +90,8 @@ export interface SycaPayTransactionFilter {
   beneficiaryType?: SycaPayBeneficiaryType;
   commercialId?: number;
   partenaireId?: number;
+  /** Au plus une transaction par contrat (contrainte d'unicité backend, 2026-09-25). */
+  contractId?: number;
   status?: SycaPayTransactionStatus;
   /** Instant ISO-8601, ex. 2026-09-01T00:00:00Z — filtrent sur requestDate. */
   dateStart?: string;

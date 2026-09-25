@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import {
   SycaPayBalanceResponse,
@@ -43,9 +43,15 @@ export class SycaPayService {
     if (filter?.beneficiaryType) params = params.set('beneficiaryType', filter.beneficiaryType);
     if (filter?.commercialId !== undefined) params = params.set('commercialId', filter.commercialId);
     if (filter?.partenaireId !== undefined) params = params.set('partenaireId', filter.partenaireId);
+    if (filter?.contractId !== undefined) params = params.set('contractId', filter.contractId);
     if (filter?.dateStart) params = params.set('dateStart', filter.dateStart);
     if (filter?.dateEnd) params = params.set('dateEnd', filter.dateEnd);
     return params;
+  }
+
+  /** Transaction du contrat (au plus une par contrat), null s'il n'y en a pas. */
+  getContractTransaction(contractId: number): Observable<SycaPayTransaction | null> {
+    return this.getTransactions(0, 1, { contractId }).pipe(map((page) => page.content[0] ?? null));
   }
 
   getTransaction(id: number): Observable<SycaPayTransaction> {

@@ -1,4 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { catchError, forkJoin, of } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -21,6 +23,19 @@ import { AlertMessageComponent } from '../../shared/alert-message/alert-message.
 import { sycapayErrorMessage } from '../../core/sycapay/sycapay-errors';
 import { ModalComponent } from '../../shared/modal/modal.component';
 import { SycaPayStatus } from '../../core/commercial/models/commercial-commission.model';
+import { SycaPayService } from '../../core/sycapay/sycapay.service';
+import { SycaPayTransaction, SycaPayTransactionStatus } from '../../core/sycapay/models/sycapay.model';
+
+/** Statuts qui bloquent un paiement manuel (409) tant que le virement n'est pas tranché. */
+const OPEN_TRANSACTION_STATUSES = new Set<SycaPayTransactionStatus>(['PENDING', 'PROCESSING', 'UNKNOWN']);
+
+interface BlockedTransaction {
+  transactionId: number;
+  policyNumber: string;
+  status: SycaPayTransactionStatus;
+  /** PROCESSING/UNKNOWN : réconciliable ; PENDING : il faut attendre. */
+  reconcilable: boolean;
+}
 
 const SYCAPAY_STATUS_LABEL: Record<SycaPayStatus, string> = {
   SUCCESS: 'réussi',
@@ -58,6 +73,7 @@ type ContractsModalTab = 'contrats' | 'demandes';
 })
 export class CommissionsComponent {
   private readonly commissionService = inject(CommissionService);
+  private readonly sycapayService = inject(SycaPayService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -87,6 +103,8 @@ export class CommissionsComponent {
   readonly paymentReference = signal('');
   readonly paying = signal(false);
   readonly payError = signal<string | null>(null);
+  /** Après un 409 SYCAPAY_DUPLICATE_PAYMENT : virements encore ouverts des contrats sélectionnés. */
+  readonly payBlockedTransactions = signal<BlockedTransaction[]>([]);
 
   // Demandes de versement anticipé (partial payment requests) --------
   readonly partialPaymentStatus = signal<PartialPaymentStatusResponse | null>(null);
@@ -180,6 +198,7 @@ export class CommissionsComponent {
     this.selectedContractIds.set(new Set());
     this.paymentReference.set('');
     this.payError.set(null);
+    this.payBlockedTransactions.set([]);
     this.contractsStatusFilter.set('pending');
     this.contractsModalTab.set('contrats');
     this.contractsModalVisible.set(true);
@@ -279,6 +298,7 @@ export class CommissionsComponent {
     if (contractIds.length === 0) return;
     this.paying.set(true);
     this.payError.set(null);
+    this.payBlockedTransactions.set([]);
     this.commissionService.pay({ contractIds, reference: this.paymentReference().trim() || undefined }).subscribe({
       next: () => {
         this.paying.set(false);
@@ -293,7 +313,30 @@ export class CommissionsComponent {
       error: (err: unknown) => {
         this.paying.set(false);
         this.payError.set(sycapayErrorMessage(err, 'Impossible de payer cette commission. Réessayez.', 'pay'));
+        if (err instanceof HttpErrorResponse && err.error?.code === 'SYCAPAY_DUPLICATE_PAYMENT') {
+          this.loadBlockedTransactions(contractIds);
+        }
       },
+    });
+  }
+
+  /** Le 409 ne dit ni quel contrat ni quel statut : on retrouve la transaction de chaque contrat
+   * sélectionné (filtre contractId, au plus une par contrat) pour proposer la bonne action. */
+  private loadBlockedTransactions(contractIds: number[]): void {
+    const policyById = new Map(this.contracts().map((c) => [c.contractId, c.policyNumber]));
+    forkJoin(
+      contractIds.map((id) => this.sycapayService.getContractTransaction(id).pipe(catchError(() => of(null)))),
+    ).subscribe((transactions) => {
+      this.payBlockedTransactions.set(
+        transactions
+          .filter((t): t is SycaPayTransaction => !!t && OPEN_TRANSACTION_STATUSES.has(t.status))
+          .map((t) => ({
+            transactionId: t.id,
+            policyNumber: policyById.get(t.contractId) ?? `#${t.contractId}`,
+            status: t.status,
+            reconcilable: t.status === 'PROCESSING' || t.status === 'UNKNOWN',
+          })),
+      );
     });
   }
 
