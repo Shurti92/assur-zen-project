@@ -127,6 +127,9 @@
               <td>
                 @if (payment.automatic) {
                   <span class="dl-chip dl-chip--info" title="Virement SycaPay automatique (fréquence « Immédiatement » ou réconciliation)"><span class="dl-chip-dot"></span>Automatique</span>
+                  @if (payment.sycapayStatus && payment.sycapayStatus !== 'SUCCESS') {
+                    <span [class]="'dl-chip dl-chip--' + sycapayStatusVariant(payment.sycapayStatus)" [title]="payment.sycapayMessage || ''"><span class="dl-chip-dot"></span>Virement {{ sycapayStatusLabel(payment.sycapayStatus) }}</span>
+                  }
                   @if (payment.sycapayTransactionPk) {
                     <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: payment.sycapayTransactionPk }" class="dl-cell-detail d-block">Voir le virement</a>
                   }

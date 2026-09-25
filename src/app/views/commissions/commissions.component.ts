@@ -20,6 +20,23 @@ import {
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 import { sycapayErrorMessage } from '../../core/sycapay/sycapay-errors';
 import { ModalComponent } from '../../shared/modal/modal.component';
+import { SycaPayStatus } from '../../core/commercial/models/commercial-commission.model';
+
+const SYCAPAY_STATUS_LABEL: Record<SycaPayStatus, string> = {
+  SUCCESS: 'réussi',
+  PROCESSING: 'en cours',
+  FAILED: 'échoué',
+  UNKNOWN: 'indéterminé',
+  REJECTED: 'rejeté',
+};
+
+const SYCAPAY_STATUS_VARIANT: Record<SycaPayStatus, string> = {
+  SUCCESS: 'success',
+  PROCESSING: 'info',
+  FAILED: 'danger',
+  UNKNOWN: 'warning',
+  REJECTED: 'danger',
+};
 
 type ContractStatusFilter = 'all' | 'pending' | 'paid';
 type ContractsModalTab = 'contrats' | 'demandes';
@@ -321,6 +338,16 @@ export class CommissionsComponent {
 
   formatAmount(value: number): string {
     return `${new Intl.NumberFormat('fr-FR').format(value)} FCFA`;
+  }
+
+  /** Statut du virement SycaPay d'un paiement automatique — affiché seulement hors SUCCESS,
+   * pour qu'un virement échoué ou indéterminé ne passe pas pour un paiement réglé. */
+  sycapayStatusLabel(status: SycaPayStatus): string {
+    return SYCAPAY_STATUS_LABEL[status];
+  }
+
+  sycapayStatusVariant(status: SycaPayStatus): string {
+    return SYCAPAY_STATUS_VARIANT[status];
   }
 
   formatDate(value: string): string {
