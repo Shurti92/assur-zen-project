@@ -220,7 +220,7 @@
                   </div>
                   <div class="col-sm-6 col-lg-3">
                     <label cLabel>Commercial (optionnel)</label>
-                    <select cSelect formControlName="salesRepId">
+                    <select (change)="onCommercialChange(i)" cSelect formControlName="salesRepId">
                       <option value="">— Aucun —</option>
                       @for (profile of profiles(); track profile.id) {
                         <option [value]="profile.userId">{{ profile.firstname }} {{ profile.lastname }}</option>
@@ -228,7 +228,7 @@
                     </select>
                   </div>
                   <div class="col-sm-6 col-lg-3">
-                    <label cLabel>Signé le</label>
+                    <label cLabel>Date de souscription</label>
                     <input cFormControl formControlName="signedAt" type="date" />
                   </div>
 
@@ -355,16 +355,47 @@
                     <input cFormControl formControlName="commissionRate" min="0" step="0.01" type="number" />
                   </div>
                   <div class="col-md-4 d-flex align-items-end">
-                    <button (click)="recomputeCommission(i)" cButton class="dl-btn w-100" type="button">Recalculer la commission</button>
+                    <button (click)="recomputeCommission(i, true)" cButton class="dl-btn w-100" title="Rétablit les valeurs calculées, y compris celles saisies à la main" type="button">Recalculer la commission</button>
                   </div>
                   <div class="col-md-4">
                     <label cLabel>Montant de la commission (FCFA)<span class="wz-required">*</span></label>
                     <input cFormControl formControlName="commissionAmount" inputmode="numeric" type="text" wzThousandSeparator />
+                    @if (commissionHint(i); as hint) {
+                      <div class="dl-cell-detail mt-1">
+                        Configurée : {{ formatAmount(hint.amount) }}@if (hint.amountModified) { · <strong>modifiée à la main</strong> }
+                      </div>
+                    }
                   </div>
                   @if (!isDirectAt(i)) {
                     <div class="col-md-4">
                       <label cLabel>Part reversée au partenaire (FCFA)<span class="wz-required">*</span></label>
                       <input cFormControl formControlName="partnerShare" inputmode="numeric" type="text" wzThousandSeparator />
+                      @if (commissionHint(i); as hint) {
+                        <div class="dl-cell-detail mt-1">
+                          @if (hint.shareLoading) {
+                            Recherche de la commission configurée…
+                          } @else if (hint.share === null) {
+                            <span class="text-danger">Aucune commission configurée pour ce produit et ce partenaire — saisie obligatoire.</span>
+                          } @else {
+                            Configurée : {{ formatAmount(hint.share) }}@if (hint.shareModified) { · <strong>modifiée à la main</strong> }
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                  @if (isCommercialCommissionVisible(i)) {
+                    <div class="col-md-4">
+                      <label cLabel>Commission du commercial (FCFA)</label>
+                      <input cFormControl formControlName="commercialCommissionAmount" inputmode="numeric" type="text" wzThousandSeparator />
+                      @if (commissionHint(i); as hint) {
+                        <div class="dl-cell-detail mt-1">
+                          @if (hint.commercialLoading) {
+                            Recherche de la commission configurée…
+                          } @else {
+                            Configurée : {{ formatAmount(hint.commercial) }}@if (hint.commercialModified) { · <strong>modifiée à la main</strong> }
+                          }
+                        </div>
+                      }
                     </div>
                   }
                   <div class="col-md-4">
@@ -525,7 +556,7 @@
                         <div>{{ formatDate(recap.dateEcheance) }}</div>
                       </div>
                       <div>
-                        <div class="dl-cell-detail">Signé le</div>
+                        <div class="dl-cell-detail">Date de souscription</div>
                         <div>{{ formatDate(recap.signedAt) }}</div>
                       </div>
                     </div>

@@ -21,6 +21,7 @@ import { ProduitCommissionTauxService } from '../../../core/configuration/produi
 import { ProduitCommissionTauxResponse } from '../../../core/configuration/models/produit-commission-taux.model';
 import { PartenaireService } from '../../../core/partenaire/partenaire.service';
 import { PartenaireResponse } from '../../../core/partenaire/models/partenaire.model';
+import { configuredCommissionAmount, isPercentConfig, percentToApiRate } from '../../../core/contracts/commission-rate.util';
 import { AlertMessageComponent } from '../../../shared/alert-message/alert-message.component';
 
 function today(): string {
@@ -43,6 +44,14 @@ function isValidYmd(y: number, m: number, d: number): boolean {
 
 /** Accepte AAAA-MM-JJ (ISO) ou JJ/MM/AAAA / JJ-MM-AAAA (format courant pour des données historiques à rétrodater).
  * Aucune borne sur le passé : une date antérieure à aujourd'hui est une date valide (contrat rétroactif). */
+/** Montant optionnel en FCFA entiers : null si la cellule est vide, 'invalid' si ce n'est pas
+ * un entier positif (espaces de milliers tolérés). */
+function parseWholeAmount(raw: string | undefined): number | null | 'invalid' {
+  const value = (raw ?? '').replace(/[\s\u00a0\u202f]/g, '');
+  if (!value) return null;
+  return /^\d+$/.test(value) ? Number(value) : 'invalid';
+}
+
 function parseFlexibleDate(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -82,6 +91,8 @@ const TEMPLATE_COLUMNS = [
   'periodicite_echeances',
   'statut_contrat',
   'notes',
+  'montant_commission',
+  'part_partenaire',
 ];
 
 const TEMPLATE_EXAMPLE_ROWS: string[][] = [
@@ -203,6 +214,9 @@ interface ParsedRow {
   dateEcheance: string;
   commissionRate: number;
   commissionAmount: number;
+  /** Part reversée au partenaire (FCFA entiers) : colonne part_partenaire si remplie, sinon
+   * undefined (commission configurée côté backend), 0 sans partenaire. */
+  partnerShare: number | undefined;
   policyNumber: string;
   modePaiement: ModePaiement;
   nombreEcheances: number;
@@ -297,7 +311,8 @@ export class TeleverserFichierComponent {
   }
 
   downloadTemplate(): void {
-    const lines = [TEMPLATE_COLUMNS, ...TEMPLATE_EXAMPLE_ROWS].map((cols) => cols.join(';'));
+    const exampleRows = TEMPLATE_EXAMPLE_ROWS.map((row) => [...row, ...Array(TEMPLATE_COLUMNS.length - row.length).fill('')]);
+    const lines = [TEMPLATE_COLUMNS, ...exampleRows].map((cols) => cols.join(';'));
     const csv = '﻿' + lines.join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -425,6 +440,7 @@ export class TeleverserFichierComponent {
     const dateEcheance = computeEcheance(dateEffet, Number(duree) || 12);
 
     let commissionRate = 0;
+    let tauxConfig: ProduitCommissionTauxResponse | null = null;
     const tauxRaw = (raw['taux_commission'] ?? '').trim().replace(',', '.');
     if (tauxRaw) {
       commissionRate = Number(tauxRaw);
@@ -432,9 +448,39 @@ export class TeleverserFichierComponent {
     } else if (produit) {
       const type = partenaireId ? (this.partenaires().find((p) => p.id === partenaireId)?.type ?? 'DIRECT') : 'DIRECT';
       const match = this.commissionTaux().find((t) => t.produitId === produit.id && t.typePartenaire === type && t.active);
-      commissionRate = match?.tauxCommission ?? 0;
+      tauxConfig = match ?? null;
+      commissionRate = match && isPercentConfig(match) ? match.tauxCommission : 0;
     }
-    const commissionAmount = Number.isFinite(premium) ? Math.round((premium * commissionRate) / 100) : 0;
+    // montant_commission / part_partenaire : montants en FCFA entiers, prioritaires sur le calcul
+    // à partir du taux (un montant saisi est toujours conservé tel quel).
+    const montantCommission = parseWholeAmount(raw['montant_commission']);
+    if (montantCommission === 'invalid') {
+      errors.push(`Montant de commission invalide « ${raw['montant_commission']} » (montant entier en FCFA attendu)`);
+    }
+    let commissionAmount = !Number.isFinite(premium)
+      ? 0
+      : tauxConfig && !isPercentConfig(tauxConfig)
+        ? configuredCommissionAmount(tauxConfig, premium)
+        : Math.round((premium * commissionRate) / 100);
+    if (tauxConfig && !isPercentConfig(tauxConfig) && premium > 0) {
+      commissionRate = Math.round((commissionAmount / premium) * 10000) / 100;
+    }
+    if (typeof montantCommission === 'number') {
+      commissionAmount = montantCommission;
+      if (!tauxRaw && premium > 0) commissionRate = Math.round((montantCommission / premium) * 10000) / 100;
+    }
+
+    const partPartenaire = parseWholeAmount(raw['part_partenaire']);
+    // Sans colonne part_partenaire, le backend applique la commission partenaire configurée
+    // (/partner-commissions) — ou refuse la ligne en 400 s'il n'y en a pas.
+    let partnerShare: number | undefined = partenaireId ? undefined : 0;
+    if (partPartenaire === 'invalid') {
+      errors.push(`Part partenaire invalide « ${raw['part_partenaire']} » (montant entier en FCFA attendu)`);
+    } else if (typeof partPartenaire === 'number') {
+      if (!partenaireNom) errors.push('Part partenaire renseignée sans partenaire');
+      else if (Number.isFinite(premium) && partPartenaire > premium) errors.push('La part partenaire ne peut pas dépasser la prime');
+      else partnerShare = partPartenaire;
+    }
 
     const modePaiementRaw = (raw['mode_paiement'] ?? '').trim().toUpperCase();
     const modePaiement: ModePaiement = modePaiementRaw === 'FRACTIONNE' ? 'FRACTIONNE' : 'COMPTANT';
@@ -477,6 +523,7 @@ export class TeleverserFichierComponent {
       dateEcheance,
       commissionRate,
       commissionAmount,
+      partnerShare,
       policyNumber: (raw['numero_police'] ?? '').trim(),
       modePaiement,
       nombreEcheances,
@@ -561,9 +608,9 @@ export class TeleverserFichierComponent {
               partenaireId: row.partenaireId ?? undefined,
               compagnieId: row.compagnieId as number,
               premium: row.premium,
-              commissionRate: row.commissionRate,
+              commissionRate: percentToApiRate(row.commissionRate),
               commissionAmount: row.commissionAmount,
-              partnerShare: row.commissionAmount,
+              partnerShare: row.partnerShare,
               status: row.status,
               commissionStatus: row.commissionStatus,
               modePaiement: row.modePaiement,
@@ -574,8 +621,12 @@ export class TeleverserFichierComponent {
           };
           return this.souscriptionService.submit(payload).pipe(
             map((result) => ({ group, result, error: null as string | null })),
-            catchError(() =>
-              of({ group, result: null as InsuredRegistrationResponse | null, error: "Échec de l'enregistrement." }),
+            catchError((err) =>
+              of({
+                group,
+                result: null as InsuredRegistrationResponse | null,
+                error: (err?.error?.message as string | undefined) ?? "Échec de l'enregistrement.",
+              }),
             ),
           );
         }),

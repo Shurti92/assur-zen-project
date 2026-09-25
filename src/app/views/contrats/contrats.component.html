@@ -135,6 +135,7 @@
             <th scope="col">N° police</th>
             <th scope="col">Assuré</th>
             <th scope="col">Produit</th>
+            <th scope="col">Date de souscription</th>
             <th scope="col">Prime</th>
             <th scope="col">Paiement</th>
             @if (isCycleMode) {
@@ -159,6 +160,7 @@
                 </div>
               </td>
               <td>{{ contract.productName }}</td>
+              <td class="dl-timestamp">{{ formatDate(contract.signedAt) }}</td>
               <td class="dl-timestamp">{{ formatAmount(contract.premium) }}</td>
               <td>
                 @if (contract.modePaiement === 'FRACTIONNE') {
@@ -411,7 +413,7 @@
           <div>{{ formatDate(contract.dateEcheance) }}</div>
         </div>
         <div>
-          <div class="dl-cell-detail">Signé le</div>
+          <div class="dl-cell-detail">Date de souscription</div>
           <div>{{ formatDate(contract.signedAt) }}</div>
         </div>
         <div>
@@ -437,7 +439,7 @@
         </div>
         <div>
           <div class="dl-cell-detail">Commission</div>
-          <div>{{ formatAmount(contract.commissionAmount) }} ({{ contract.commissionRate }} %)</div>
+          <div>{{ formatAmount(contract.commissionAmount) }} ({{ ratePercent(contract.commissionRate) }} %)</div>
         </div>
         <div>
           <div class="dl-cell-detail">Statut commission</div>

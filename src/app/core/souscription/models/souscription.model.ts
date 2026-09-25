@@ -31,9 +31,17 @@ export interface ContractSubscriptionRequest {
   partenaireId?: number;
   compagnieId: number;
   premium: number;
+  /** FRACTION (0.10 = 10 %) — voir percentToApiRate(). */
   commissionRate: number;
   commissionAmount: number;
-  partnerShare: number;
+  /** Commission partenaire en FCFA entiers (backend du 2026-09-25) : fournie → conservée ;
+   * absente → commission configurée (/partner-commissions), sinon 400. 0 sans partenaire.
+   * Bornes : 0 ≤ montant ≤ premium. */
+  partnerShare?: number;
+  /** Commission du commercial (salesRepId) en FCFA entiers, optionnelle : fournie → conservée ;
+   * absente → configuration du commercial, puis du produit, sinon 0. Doit être nulle/absente
+   * quand un partenaire est lié au contrat (400 sinon). */
+  commercialCommissionAmount?: number;
   status?: ContractStatus;
   commissionStatus?: ContractCommissionStatus;
   signedAt?: string;

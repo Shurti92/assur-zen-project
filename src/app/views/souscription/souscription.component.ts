@@ -14,9 +14,18 @@ import {
   SpinnerComponent,
   TemplateIdDirective,
 } from '@coreui/angular';
-import { forkJoin } from 'rxjs';
+import { Subscription, forkJoin, map, of, switchMap } from 'rxjs';
 
 import { SouscriptionService } from '../../core/souscription/souscription.service';
+import { PartnerCommissionService } from '../../core/partner-commission/partner-commission.service';
+import { ProduitCommissionCommercialService } from '../../core/configuration/produit-commission-commercial.service';
+import { ProduitCommissionCommercialResponse } from '../../core/configuration/models/produit-commission-commercial.model';
+import {
+  apiRateToPercent,
+  configuredCommissionAmount,
+  isPercentConfig,
+  percentToApiRate,
+} from '../../core/contracts/commission-rate.util';
 import { InsuredRegistrationResponse } from '../../core/souscription/models/souscription.model';
 import { InsuredService } from '../../core/insured/insured.service';
 import { InsuredResponse, TypeClient } from '../../core/insured/models/insured.model';
@@ -149,6 +158,8 @@ export class SouscriptionComponent {
   private readonly produitService = inject(ProduitService);
   private readonly compagnieService = inject(CompagnieService);
   private readonly tauxService = inject(ProduitCommissionTauxService);
+  private readonly partnerCommissionService = inject(PartnerCommissionService);
+  private readonly commissionCommercialService = inject(ProduitCommissionCommercialService);
   private readonly partenaireService = inject(PartenaireService);
   private readonly profileService = inject(ProfileService);
   private readonly villePartenaireService = inject(VillePartenaireService);
@@ -182,7 +193,40 @@ export class SouscriptionComponent {
   /** The furthest step reached so far in this pass — governs which step headers are clickable. */
   readonly furthestStep = signal(0);
 
+  /** État par ligne de contrat. Un champ de commission modifié par l'utilisateur n'est plus
+   * jamais écrasé par un recalcul automatique, sauf via le bouton « Recalculer ». Les mises à
+   * jour programmatiques passent par emitEvent: false, donc seuls les changements faits par
+   * l'utilisateur déclenchent les abonnements ci-dessous. */
+  private readonly commissionState = new WeakMap<object, CommissionRowState>();
+
   private createContractGroup() {
+    const group = this.buildContractGroup();
+    const state: CommissionRowState = {
+      rateManual: false,
+      amountManual: false,
+      shareManual: false,
+      commercialManual: false,
+      tauxConfig: null,
+      configuredShare: undefined,
+      commercialConfig: undefined,
+      shareRequest: null,
+      commercialRequest: null,
+    };
+    this.commissionState.set(group, state);
+    const c = group.controls;
+    c.premium.valueChanges.subscribe(() => this.applyAutoCommission(group));
+    c.commissionRate.valueChanges.subscribe(() => {
+      state.rateManual = true;
+      this.applyAutoCommission(group);
+    });
+    c.commissionAmount.valueChanges.subscribe(() => (state.amountManual = true));
+    c.partnerShare.valueChanges.subscribe(() => (state.shareManual = true));
+    c.commercialCommissionAmount.valueChanges.subscribe(() => (state.commercialManual = true));
+    return group;
+  }
+
+  /** Public uniquement pour le type ContractGroup (ReturnType), pas pour le template. */
+  buildContractGroup() {
     const dateEffet = today();
     const duree = '12';
     return this.fb.nonNullable.group({
@@ -194,7 +238,8 @@ export class SouscriptionComponent {
       premium: [0],
       commissionRate: [0],
       commissionAmount: [0],
-      partnerShare: [0],
+      partnerShare: [null as number | null],
+      commercialCommissionAmount: [0],
       dateEffet: [dateEffet],
       signedAt: [dateEffet],
       dateEcheance: [computeEcheance(dateEffet, Number(duree))],
@@ -347,24 +392,39 @@ export class SouscriptionComponent {
     this.contractsArray.removeAt(index);
   }
 
-  recomputeCommission(index: number): void {
+  /** Changement de produit ou de partenaire (force=false), ou bouton « Recalculer » (force=true,
+   * qui abandonne les saisies manuelles de la ligne). Recharge les trois commissions proposées :
+   * - commission AssurZen : taux configuré (produits-commission-taux, produit + type partenaire),
+   *   pourcentage de la prime si libTauxCommission = "%", montant fixe sinon ;
+   * - commission partenaire : /partner-commissions (partenaire précis, sinon son type) ;
+   * - commission du commercial (vente directe uniquement) : voir loadCommercialCommission(). */
+  recomputeCommission(index: number, force = false): void {
     const group = this.contractsArray.at(index);
+    const state = this.commissionState.get(group)!;
+    if (force) {
+      state.rateManual = false;
+      state.amountManual = false;
+      state.shareManual = false;
+      state.commercialManual = false;
+    }
     const productId = Number(group.controls.productId.value);
     const partenaireIdRaw = group.controls.partenaireId.value;
     const partenaireId = partenaireIdRaw ? Number(partenaireIdRaw) : null;
-    const premium = Number(group.controls.premium.value) || 0;
 
     const partner = partenaireId ? this.partenaires().find((p) => p.id === partenaireId) : null;
     const type = partner?.type ?? 'DIRECT';
     const match = this.commissionTaux().find(
       (t) => t.produitId === productId && t.typePartenaire === type && t.active,
     );
+    state.tauxConfig = match ?? null;
 
     if (!match) {
       // No configured rate for this produit + type de partenaire combination — reset
       // rather than leaving whatever the previous selection computed, which would look
       // like a valid automatic result even though it doesn't apply to this combination.
-      group.patchValue({ commissionRate: 0, commissionAmount: 0, partnerShare: 0 });
+      // Les montants saisis à la main sont conservés.
+      if (!state.rateManual) group.controls.commissionRate.setValue(0, { emitEvent: false });
+      if (!state.amountManual) group.controls.commissionAmount.setValue(0, { emitEvent: false });
       const produit = this.produits().find((p) => p.id === productId);
       this.commissionWarning.set(
         produit
@@ -373,17 +433,160 @@ export class SouscriptionComponent {
             : `Aucun taux de commission configuré pour "${produit.nomProduit}" avec un partenaire de type ${this.typePartenaireLabel(type)}. Configurez-le dans Configuration → Taux de commission, ou saisissez le taux manuellement.`
           : null,
       );
+    } else {
+      this.commissionWarning.set(null);
+    }
+    this.applyAutoCommission(group);
+    this.loadPartnerCommission(group);
+    this.loadCommercialCommission(group);
+  }
+
+  /** Sélection d'un commercial : recharge sa commission configurée. */
+  onCommercialChange(index: number): void {
+    this.loadCommercialCommission(this.contractsArray.at(index));
+  }
+
+  /** Recalcule les champs NON modifiés à la main à partir de la configuration chargée. */
+  private applyAutoCommission(group: ContractGroup): void {
+    const state = this.commissionState.get(group)!;
+    const c = group.controls;
+    const premium = Number(c.premium.value) || 0;
+    if (!state.rateManual && state.tauxConfig) {
+      const rate = isPercentConfig(state.tauxConfig)
+        ? state.tauxConfig.tauxCommission
+        : premium > 0
+          ? Math.round((state.tauxConfig.tauxCommission / premium) * 10000) / 100
+          : 0;
+      c.commissionRate.setValue(rate, { emitEvent: false });
+    }
+    if (!state.amountManual) {
+      c.commissionAmount.setValue(this.autoCommissionAmount(group), { emitEvent: false });
+    }
+    if (!state.shareManual) {
+      c.partnerShare.setValue(this.autoPartnerShare(group), { emitEvent: false });
+    }
+    if (!state.commercialManual) {
+      c.commercialCommissionAmount.setValue(this.autoCommercialCommission(group), { emitEvent: false });
+    }
+  }
+
+  private autoCommissionAmount(group: ContractGroup): number {
+    const state = this.commissionState.get(group)!;
+    const premium = Number(group.controls.premium.value) || 0;
+    if (state.tauxConfig && !state.rateManual) return configuredCommissionAmount(state.tauxConfig, premium);
+    const rate = Number(group.controls.commissionRate.value) || 0;
+    return Math.round((premium * rate) / 100);
+  }
+
+  /** Commission partenaire configurée ; null = aucune configuration (saisie obligatoire),
+   * 0 en vente directe. */
+  private autoPartnerShare(group: ContractGroup): number | null {
+    if (!group.controls.partenaireId.value) return 0;
+    return this.commissionState.get(group)!.configuredShare ?? null;
+  }
+
+  private autoCommercialCommission(group: ContractGroup): number {
+    const config = this.commissionState.get(group)!.commercialConfig;
+    if (!config || !this.isCommercialCommissionApplicable(group)) return 0;
+    if (config.kind === 'fixed') return config.amount;
+    return configuredCommissionAmount(config.config, Number(group.controls.premium.value) || 0);
+  }
+
+  private isCommercialCommissionApplicable(group: ContractGroup): boolean {
+    return !!group.controls.salesRepId.value && !group.controls.partenaireId.value;
+  }
+
+  /** La commission du commercial n'existe qu'en vente directe (règle du 2026-09-08) : avec un
+   * partenaire, la commission revient au partenaire et le backend refuse un montant non nul. */
+  isCommercialCommissionVisible(index: number): boolean {
+    return this.isCommercialCommissionApplicable(this.contractsArray.at(index));
+  }
+
+  private loadPartnerCommission(group: ContractGroup): void {
+    const state = this.commissionState.get(group)!;
+    state.shareRequest?.unsubscribe();
+    state.shareRequest = null;
+    const productId = Number(group.controls.productId.value);
+    const partenaireId = Number(group.controls.partenaireId.value) || null;
+    if (!productId || !partenaireId) {
+      state.configuredShare = undefined;
+      this.applyAutoCommission(group);
       return;
     }
+    state.configuredShare = undefined;
+    state.shareRequest = this.partnerCommissionService
+      .configuredForPartner(productId, partenaireId, group.controls.dateEffet.value || undefined)
+      .subscribe({
+        next: (amount) => {
+          state.configuredShare = amount;
+          this.applyAutoCommission(group);
+        },
+        // Erreur réseau : on se comporte comme sans configuration, la saisie reste possible.
+        error: () => {
+          state.configuredShare = null;
+          this.applyAutoCommission(group);
+        },
+      });
+  }
 
-    this.commissionWarning.set(null);
-    const amount = Math.round((premium * match.tauxCommission) / 100);
-    group.patchValue({
-      commissionRate: match.tauxCommission,
-      commissionAmount: amount,
-      // Sans partenaire (vente directe), il n'y a personne à qui reverser une part.
-      partnerShare: partenaireId ? amount : 0,
-    });
+  /** Commission configurée du commercial : sa configuration propre (/partner-commissions),
+   * sinon la commission du produit (produits-commission-commercial), sinon 0. */
+  private loadCommercialCommission(group: ContractGroup): void {
+    const state = this.commissionState.get(group)!;
+    state.commercialRequest?.unsubscribe();
+    state.commercialRequest = null;
+    const productId = Number(group.controls.productId.value);
+    const commercialId = Number(group.controls.salesRepId.value) || null;
+    state.commercialConfig = undefined;
+    if (!productId || !commercialId || !this.isCommercialCommissionApplicable(group)) {
+      this.applyAutoCommission(group);
+      return;
+    }
+    state.commercialRequest = this.partnerCommissionService
+      .configuredForCommercial(productId, commercialId, group.controls.dateEffet.value || undefined)
+      .pipe(
+        switchMap((amount) =>
+          amount !== null
+            ? of<CommercialCommissionConfig | null>({ kind: 'fixed', amount })
+            : this.commissionCommercialService.list(productId).pipe(
+                map((configs) => {
+                  const config = configs.find((cfg) => cfg.produitId === productId && cfg.active);
+                  return config ? ({ kind: 'product', config } as CommercialCommissionConfig) : null;
+                }),
+              ),
+        ),
+      )
+      .subscribe({
+        next: (config) => {
+          state.commercialConfig = config;
+          this.applyAutoCommission(group);
+        },
+        error: () => {
+          state.commercialConfig = null;
+          this.applyAutoCommission(group);
+        },
+      });
+  }
+
+  /** Valeurs proposées automatiquement, affichées sous les champs pour distinguer la valeur
+   * configurée de la valeur appliquée (celle réellement envoyée à l'API). */
+  commissionHint(index: number): CommissionHint {
+    const group = this.contractsArray.at(index);
+    const state = this.commissionState.get(group)!;
+    const c = group.controls;
+    const amount = this.autoCommissionAmount(group);
+    const share = this.autoPartnerShare(group);
+    const commercial = this.autoCommercialCommission(group);
+    return {
+      amount,
+      amountModified: state.amountManual && Number(c.commissionAmount.value) !== amount,
+      shareLoading: !!c.partenaireId.value && !!Number(c.productId.value) && state.configuredShare === undefined,
+      share,
+      shareModified: state.shareManual && share !== null && Number(c.partnerShare.value) !== share,
+      commercialLoading: this.isCommercialCommissionApplicable(group) && !!Number(c.productId.value) && state.commercialConfig === undefined,
+      commercial,
+      commercialModified: state.commercialManual && Number(c.commercialCommissionAmount.value) !== commercial,
+    };
   }
 
   /** Vrai quand aucun partenaire n'est sélectionné sur la ligne — vente directe. */
@@ -461,16 +664,23 @@ export class SouscriptionComponent {
     const dateEffet = contract.dateEcheance ? dayAfter(contract.dateEcheance) : today();
     const duree = contract.duree;
 
-    this.contractsArray.at(0).patchValue({
+    const renewedGroup = this.contractsArray.at(0);
+    const renewedState = this.commissionState.get(renewedGroup)!;
+    renewedState.rateManual = true;
+    renewedState.amountManual = true;
+    renewedState.shareManual = true;
+    renewedState.commercialManual = true;
+    renewedGroup.patchValue({
       productId: contract.productId,
       compagnieId: contract.compagnieId,
       compagnieQuery: compagnie?.nom ?? '',
       partenaireId: contract.partenaireId ? String(contract.partenaireId) : '',
       duree,
       premium: contract.premium,
-      commissionRate: contract.commissionRate,
+      commissionRate: apiRateToPercent(contract.commissionRate),
       commissionAmount: contract.commissionAmount,
       partnerShare: contract.partnerShare,
+      commercialCommissionAmount: contract.commercialCommissionAmount ?? 0,
       dateEffet,
       signedAt: dateEffet,
       dateEcheance: computeEcheance(dateEffet, Number(duree)),
@@ -480,7 +690,7 @@ export class SouscriptionComponent {
       periodiciteEcheances: contract.periodiciteEcheances ?? 'MENSUELLE',
       isRenouvellement: true,
       contratPrecedentId: String(contract.id),
-    });
+    }, { emitEvent: false });
   }
 
   clearExistingInsuredSelection(): void {
@@ -615,14 +825,29 @@ export class SouscriptionComponent {
       // revient entièrement à l'entreprise. La part partenaire, elle, n'a de sens que
       // lorsqu'un partenaire est sélectionné.
       const isDirect = !contract.partenaireId;
-      if (!contract.premium || !contract.commissionRate || !contract.commissionAmount) {
+      const premium = Number(contract.premium) || 0;
+      if (!premium || !contract.commissionAmount) {
         this.error.set(
           'Renseignez la prime et les informations de commission pour chaque produit (utilisez « Recalculer » si besoin, ou saisissez-les manuellement pour un produit en vente directe).',
         );
         return false;
       }
-      if (!isDirect && !contract.partnerShare) {
-        this.error.set('Renseignez la part reversée au partenaire pour chaque produit avec partenaire.');
+      if (Number(contract.commissionAmount) > premium) {
+        this.error.set('Le montant de la commission ne peut pas dépasser la prime.');
+        return false;
+      }
+      if (!isDirect && (contract.partnerShare === null || contract.partnerShare === undefined)) {
+        this.error.set(
+          'Aucune commission partenaire n\'est configurée pour ce produit et ce partenaire : saisissez la part reversée au partenaire.',
+        );
+        return false;
+      }
+      if (!isDirect && Number(contract.partnerShare) > premium) {
+        this.error.set('La part reversée au partenaire ne peut pas dépasser la prime.');
+        return false;
+      }
+      if (isDirect && contract.salesRepId && Number(contract.commercialCommissionAmount) > premium) {
+        this.error.set('La commission du commercial ne peut pas dépasser la prime.');
         return false;
       }
       if (
@@ -680,9 +905,14 @@ export class SouscriptionComponent {
           partenaireId: contract.partenaireId ? Number(contract.partenaireId) : undefined,
           compagnieId: Number(contract.compagnieId),
           premium: Number(contract.premium),
-          commissionRate: Number(contract.commissionRate),
+          commissionRate: percentToApiRate(
+            Number(contract.commissionRate) ||
+              (Number(contract.commissionAmount) / Number(contract.premium)) * 100,
+          ),
           commissionAmount: Number(contract.commissionAmount),
-          partnerShare: Number(contract.partnerShare),
+          partnerShare: contract.partenaireId ? Number(contract.partnerShare) : 0,
+          commercialCommissionAmount:
+            contract.salesRepId && !contract.partenaireId ? Number(contract.commercialCommissionAmount) || 0 : undefined,
           status: contract.status as ContractStatus,
           commissionStatus: contract.commissionStatus as ContractCommissionStatus,
           signedAt: contract.signedAt || undefined,
@@ -813,3 +1043,37 @@ export class SouscriptionComponent {
     return `Souscription enregistrée pour ${result.insured.nom} ${result.insured.prenoms} — ${result.contracts.length} contrat(s) créé(s) (${numbers}). ${sms} ${reminders}`;
   }
 }
+
+interface CommissionRowState {
+  /** Champs saisis à la main — plus recalculés automatiquement (sauf « Recalculer »). */
+  rateManual: boolean;
+  amountManual: boolean;
+  shareManual: boolean;
+  commercialManual: boolean;
+  /** Taux configuré (produit + type partenaire) appliqué à la ligne. */
+  tauxConfig: ProduitCommissionTauxResponse | null;
+  /** Commission partenaire configurée : undefined = pas encore chargée (ou sans partenaire),
+   * null = aucune configuration. */
+  configuredShare: number | null | undefined;
+  /** Commission configurée du commercial : undefined = pas encore chargée, null = aucune. */
+  commercialConfig: CommercialCommissionConfig | null | undefined;
+  shareRequest: Subscription | null;
+  commercialRequest: Subscription | null;
+}
+
+type CommercialCommissionConfig =
+  | { kind: 'fixed'; amount: number }
+  | { kind: 'product'; config: ProduitCommissionCommercialResponse };
+
+interface CommissionHint {
+  amount: number;
+  amountModified: boolean;
+  shareLoading: boolean;
+  share: number | null;
+  shareModified: boolean;
+  commercialLoading: boolean;
+  commercial: number;
+  commercialModified: boolean;
+}
+
+type ContractGroup = ReturnType<SouscriptionComponent['buildContractGroup']>;

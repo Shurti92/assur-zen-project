@@ -44,6 +44,7 @@ import { CompagnieService } from '../../core/configuration/compagnie.service';
 import { CompagnieResponse } from '../../core/configuration/models/compagnie.model';
 import { ContractService } from '../../core/contracts/contract.service';
 import { ContractRequest, ContractResponse, ContractStatus } from '../../core/contracts/models/contract.model';
+import { percentToApiRate } from '../../core/contracts/commission-rate.util';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
@@ -1018,7 +1019,8 @@ export class FleetComponent {
       partnerShare: 0,
       status: raw.status,
       signedAt: raw.status === 'signed' ? dateEffet : undefined,
-      commissionRate: raw.commissionRate || undefined,
+      // Saisi en pourcentage, envoyé en fraction (0.10 = 10 %) — voir percentToApiRate().
+      commissionRate: raw.commissionRate ? percentToApiRate(Number(raw.commissionRate)) : undefined,
       commissionAmount: raw.commissionAmount || undefined,
     };
     this.contractService.create(payload).subscribe({

@@ -6,6 +6,7 @@ import { ButtonDirective, ColComponent, FormSelectDirective, RowComponent, Spinn
 
 import { ContractService } from '../../core/contracts/contract.service';
 import { ContractPage, ContractResponse, ContractStatus, ModePaiement } from '../../core/contracts/models/contract.model';
+import { apiRateToPercent } from '../../core/contracts/commission-rate.util';
 import { InsuredService } from '../../core/insured/insured.service';
 import { InsuredResponse } from '../../core/insured/models/insured.model';
 import { ModalComponent } from '../../shared/modal/modal.component';
@@ -675,6 +676,11 @@ export class ContratsComponent {
     const first = parts[0]?.[0] ?? '';
     const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
     return (first + last).toUpperCase();
+  }
+
+  /** commissionRate est une fraction côté API (0.10 = 10 %), sauf anciens contrats — voir apiRateToPercent(). */
+  ratePercent(rate: number | null): number {
+    return apiRateToPercent(rate);
   }
 
   formatDate(value: string | null): string {

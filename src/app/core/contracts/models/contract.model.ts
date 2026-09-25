@@ -17,7 +17,8 @@ export interface ContractRequest {
   compagnieId: number;
   duree: string;
   premium: number;
-  partnerShare: number;
+  /** Optionnel depuis le 2026-09-25 — même règle que ContractSubscriptionRequest.partnerShare. */
+  partnerShare?: number;
   vehiculeId?: number;
   partenaireId?: number;
   dateEffet?: string;
@@ -27,8 +28,11 @@ export interface ContractRequest {
   policyNumber?: string;
   salesRepId?: number;
   notes?: string;
+  /** FRACTION (0.10 = 10 %) — voir percentToApiRate(). */
   commissionRate?: number;
   commissionAmount?: number;
+  /** Voir ContractSubscriptionRequest.commercialCommissionAmount. */
+  commercialCommissionAmount?: number;
   modePaiement?: ModePaiement;
   nombreEcheances?: number;
   periodiciteEcheances?: PeriodiciteEcheance;
