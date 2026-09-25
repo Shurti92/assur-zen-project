@@ -6,7 +6,7 @@ import { ButtonDirective, ColComponent, FormSelectDirective, RowComponent, Spinn
 
 import { ContractService } from '../../core/contracts/contract.service';
 import { ContractPage, ContractResponse, ContractStatus, ModePaiement } from '../../core/contracts/models/contract.model';
-import { apiRateToPercent } from '../../core/contracts/commission-rate.util';
+import { apiRateToPercent, percentToApiRate } from '../../core/contracts/commission-rate.util';
 import { InsuredService } from '../../core/insured/insured.service';
 import { InsuredResponse } from '../../core/insured/models/insured.model';
 import { ModalComponent } from '../../shared/modal/modal.component';
@@ -512,7 +512,8 @@ export class ContratsComponent {
       motif: f.motif.trim(),
       description: f.description.trim() || undefined,
       premium: f.premium !== '' ? Number(f.premium) : undefined,
-      commissionRate: f.commissionRate !== '' ? Number(f.commissionRate) : undefined,
+      // Saisi en %, envoyé en fraction (0.10 = 10 %) — confirmé par le backend le 2026-09-25.
+      commissionRate: f.commissionRate !== '' ? percentToApiRate(Number(f.commissionRate)) : undefined,
       commissionAmount: f.commissionAmount !== '' ? Number(f.commissionAmount) : undefined,
       partenaireId: f.partenaireId !== '' ? Number(f.partenaireId) : undefined,
       compagnieId: f.compagnieId !== '' ? Number(f.compagnieId) : undefined,

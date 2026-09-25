@@ -465,7 +465,7 @@
             <div>
               {{ formatAmount(contract.commercialCommissionAmount) }}
               @if (contract.commercialCommissionRate !== null) {
-                ({{ contract.commercialCommissionRate }} %)
+                ({{ ratePercent(contract.commercialCommissionRate) }} %)
               }
             </div>
           </div>
