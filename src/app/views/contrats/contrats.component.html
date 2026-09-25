@@ -362,12 +362,125 @@
         <div class="ct-detail-header-prime-value">{{ formatAmount(contract.premium) }}</div>
         <div class="ct-detail-header-prime-label">Prime</div>
       </div>
+      <button (click)="toggleEditForm()" cButton class="dl-btn" size="sm" type="button">
+        @if (editFormOpen()) { Annuler } @else { <svg cIcon name="cilPencil" size="sm"></svg>Modifier }
+      </button>
       @if (contract.status === 'signed' && !contract.contratRenouvellementId && !contract.vehiculeId) {
         <button (click)="renewContract(contract)" cButton class="dl-btn dl-btn-primary" size="sm" type="button">
           <svg cIcon name="refresh" size="sm"></svg>Renouveler
         </button>
       }
     </div>
+
+    @if (editSuccess()) {
+      <span class="dl-chip dl-chip--success mb-3 d-inline-flex"><span class="dl-chip-dot"></span>{{ editSuccess() }}</span>
+    }
+
+    @if (editFormOpen()) {
+      <div class="ct-detail-section">
+        <div class="ct-detail-section-title"><svg cIcon name="cilPencil" size="sm"></svg>Modifier le contrat</div>
+        @if (editError()) {
+          <p class="dl-empty">{{ editError() }}</p>
+        }
+        @if (contract.status === 'signed') {
+          <p class="dl-cell-detail mb-2">
+            Contrat signé : la prime, les commissions, le partenaire et la compagnie ne se modifient que par un avenant.
+          </p>
+        }
+        <div class="dl-filters dl-filters--modal">
+          <div class="dl-filter-field">
+            <label for="ed-policy">N° de police</label>
+            <input (input)="updateEditForm('policyNumber', $any($event.target).value)" [value]="editForm().policyNumber" id="ed-policy" maxlength="50" type="text" />
+          </div>
+
+          <div class="dl-filter-field">
+            <label for="ed-status">Statut du contrat</label>
+            <select (change)="updateEditForm('status', $any($event.target).value)" [value]="editForm().status" cSelect id="ed-status">
+              <option value="draft">Brouillon</option>
+              <option value="pending">En attente</option>
+              <option value="signed">Signé</option>
+              <option value="cancelled">Annulé</option>
+            </select>
+          </div>
+
+          <div class="dl-filter-field">
+            <label for="ed-date-effet">Date d'effet</label>
+            <input (input)="updateEditForm('dateEffet', $any($event.target).value)" [value]="editForm().dateEffet" id="ed-date-effet" type="date" />
+          </div>
+
+          <div class="dl-filter-field">
+            <label for="ed-duree">Durée (mois) *</label>
+            <input (input)="updateEditForm('duree', $any($event.target).value)" [value]="editForm().duree" id="ed-duree" min="1" type="number" />
+          </div>
+
+          <div class="dl-filter-field">
+            <label for="ed-date-echeance">Date d'échéance</label>
+            <input (input)="updateEditForm('dateEcheance', $any($event.target).value)" [value]="editForm().dateEcheance" id="ed-date-echeance" type="date" />
+          </div>
+
+          <div class="dl-filter-field">
+            <label for="ed-signed-at">Date de souscription</label>
+            <input (input)="updateEditForm('signedAt', $any($event.target).value)" [value]="editForm().signedAt" id="ed-signed-at" type="date" />
+          </div>
+
+          @if (contract.status !== 'signed') {
+            <div class="dl-filter-field">
+              <label for="ed-premium">Prime (FCFA)</label>
+              <input (input)="updateEditForm('premium', $any($event.target).value)" [value]="editForm().premium" id="ed-premium" min="0" type="number" />
+            </div>
+
+            <div class="dl-filter-field">
+              <label for="ed-commission">Commission (FCFA)</label>
+              <input (input)="updateEditForm('commissionAmount', $any($event.target).value)" [value]="editForm().commissionAmount" id="ed-commission" min="0" type="number" />
+            </div>
+
+            @if (contract.partenaireId) {
+              <div class="dl-filter-field">
+                <label for="ed-partner-share">Part reversée au partenaire (FCFA)</label>
+                <input (input)="updateEditForm('partnerShare', $any($event.target).value)" [value]="editForm().partnerShare" id="ed-partner-share" min="0" type="number" />
+              </div>
+            } @else if (contract.salesRepId) {
+              <div class="dl-filter-field">
+                <label for="ed-commercial">Commission du commercial (FCFA)</label>
+                <input (input)="updateEditForm('commercialCommissionAmount', $any($event.target).value)" [value]="editForm().commercialCommissionAmount" id="ed-commercial" min="0" type="number" />
+              </div>
+            }
+          }
+
+          <div class="dl-filter-field">
+            <label for="ed-commission-status">Statut commission</label>
+            <select (change)="updateEditForm('commissionStatus', $any($event.target).value)" [value]="editForm().commissionStatus" cSelect id="ed-commission-status">
+              <option value="pending">En attente</option>
+              <option value="paid">Payée</option>
+            </select>
+          </div>
+
+          @if (hasIntermediaire(contract)) {
+            <div class="dl-filter-field">
+              <label for="ed-prime-versee">Prime versée à la compagnie ?</label>
+              <select (change)="updateEditForm('primeReversementStatus', $any($event.target).value)" [value]="editForm().primeReversementStatus" cSelect id="ed-prime-versee">
+                <option value="non_reverse">Non, pas encore versée</option>
+                <option value="reverse">Oui, déjà versée</option>
+              </select>
+            </div>
+          }
+
+          <div class="dl-filter-field">
+            <label for="ed-notes">Notes</label>
+            <input (input)="updateEditForm('notes', $any($event.target).value)" [value]="editForm().notes" id="ed-notes" type="text" />
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end mt-3">
+          <button (click)="submitEdit()" [disabled]="editSaving()" cButton class="dl-btn dl-btn-primary" type="button">
+            @if (editSaving()) {
+              <c-spinner size="sm" />
+            }
+            Enregistrer les modifications
+          </button>
+        </div>
+      </div>
+    }
 
     <div class="ct-detail-section">
       <div class="ct-detail-section-title"><svg cIcon name="cilDescription" size="sm"></svg>Contrat</div>
@@ -449,7 +562,7 @@
             </span>
           </div>
         </div>
-        @if (contract.partenaireId) {
+        @if (hasIntermediaire(contract)) {
           <div>
             <div class="dl-cell-detail">Prime reversée à la compagnie</div>
             <div>

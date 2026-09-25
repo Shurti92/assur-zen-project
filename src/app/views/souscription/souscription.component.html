@@ -405,6 +405,18 @@
                       <option value="paid">Payée</option>
                     </select>
                   </div>
+                  @if (isPrimeVerseeVisible(i)) {
+                    <div class="col-md-4">
+                      <label cLabel>Prime versée à la compagnie ?</label>
+                      <select cSelect formControlName="primeReversementStatus">
+                        <option value="non_reverse">Non, pas encore versée</option>
+                        <option value="reverse">Oui, déjà versée</option>
+                      </select>
+                      <div class="dl-cell-detail mt-1">
+                        Prime encaissée par {{ group.controls.partenaireId.value ? 'le partenaire' : 'le commercial' }}.
+                      </div>
+                    </div>
+                  }
                 </div>
               </div>
             }
@@ -596,6 +608,12 @@
                         <div class="dl-cell-detail">Part partenaire</div>
                         <div>{{ recap.partenaireName === '—' ? 'Sans objet (vente directe)' : formatAmount(recap.partnerShare) }}</div>
                       </div>
+                      @if (recap.primeVerseeLabel) {
+                        <div>
+                          <div class="dl-cell-detail">Reversement de la prime</div>
+                          <div>{{ recap.primeVerseeLabel }}</div>
+                        </div>
+                      }
                     </div>
                   </div>
                 }

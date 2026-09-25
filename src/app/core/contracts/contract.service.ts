@@ -49,6 +49,14 @@ export class ContractService {
     return this.http.post<ContractResponse>('/contracts', payload);
   }
 
+  /** Remplacement complet : tout champ omis est remis à null côté backend (dates, notes,
+   * véhicule, contrat précédent…) — partir de toContractRequest() et n'écraser que les champs
+   * modifiés. Contrat signé : prime/commissions/partenaire/compagnie inchangés, sinon 400
+   * (passer par un avenant). */
+  update(id: number, payload: ContractRequest): Observable<ContractResponse> {
+    return this.http.put<ContractResponse>(`/contracts/${id}`, payload);
+  }
+
   /** Fetches every contract (optionally filtered by status) in one request — used by
    * pages that need full client-side filtering/aggregation rather than server-side
    * pagination, since the dataset here is small. */

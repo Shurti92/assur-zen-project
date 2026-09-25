@@ -4,6 +4,7 @@ import {
   ContractStatus,
   ModePaiement,
   PeriodiciteEcheance,
+  StatutReversementPrime,
 } from '../../contracts/models/contract.model';
 import { InsuredResponse, TypeClient } from '../../insured/models/insured.model';
 
@@ -53,6 +54,10 @@ export interface ContractSubscriptionRequest {
   /** Déduit de premium avant génération de l'échéancier côté backend — absent/0 = comportement inchangé. */
   montantDejaVerse?: number;
   contratPrecedentId?: number;
+  /** Prime déjà versée à la compagnie par l'intermédiaire (partenaire ou commercial) qui l'a
+   * encaissée — voir docs/api-contracts/souscription-prime-versee.md (pas encore relayé par
+   * POST /souscriptions au moment de l'écriture ; ignoré sans erreur d'ici là). */
+  primeReversementStatus?: StatutReversementPrime;
 }
 
 export interface InsuredRegistrationRequest {

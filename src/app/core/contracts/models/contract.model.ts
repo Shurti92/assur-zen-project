@@ -37,6 +37,11 @@ export interface ContractRequest {
   nombreEcheances?: number;
   periodiciteEcheances?: PeriodiciteEcheance;
   montantDejaVerse?: number;
+  contratPrecedentId?: number;
+  exerciceComptableId?: number;
+  commissionStatus?: ContractCommissionStatus;
+  /** Absent = non_reverse à la création, valeur inchangée en modification (PUT). */
+  primeReversementStatus?: StatutReversementPrime;
 }
 
 export interface ContractResponse {
@@ -93,6 +98,42 @@ export interface ContractResponse {
   commercialCommissionRate: number | null;
   commercialCommissionAmount: number;
   commercialCommissionStatus: ContractCommissionStatus;
+}
+
+/** Requête PUT reproduisant exactement l'état actuel du contrat — base de toute modification,
+ * puisque le PUT remplace l'ensemble des champs. Les commissions sont renvoyées telles quelles
+ * pour qu'un contrat signé passe le contrôle « champs sensibles inchangés » du backend. */
+export function toContractRequest(c: ContractResponse): ContractRequest {
+  const partenaireId = c.partenaireId ?? undefined;
+  return {
+    productId: c.productId,
+    insuredId: c.insuredId,
+    compagnieId: c.compagnieId,
+    duree: c.duree,
+    premium: c.premium,
+    partenaireId,
+    partnerShare: partenaireId ? c.partnerShare : undefined,
+    vehiculeId: c.vehiculeId ?? undefined,
+    dateEffet: c.dateEffet ?? undefined,
+    dateEcheance: c.dateEcheance ?? undefined,
+    status: c.status,
+    signedAt: c.signedAt ?? undefined,
+    policyNumber: c.policyNumber,
+    salesRepId: c.salesRepId ?? undefined,
+    notes: c.notes ?? undefined,
+    commissionRate: c.commissionRate,
+    commissionAmount: c.commissionAmount,
+    // Refusée (400) si non nulle alors qu'un partenaire est lié.
+    commercialCommissionAmount: partenaireId ? undefined : c.commercialCommissionAmount,
+    commissionStatus: c.commissionStatus,
+    modePaiement: c.modePaiement,
+    nombreEcheances: c.nombreEcheances ?? undefined,
+    periodiciteEcheances: c.periodiciteEcheances ?? undefined,
+    montantDejaVerse: c.montantDejaVerse ?? undefined,
+    contratPrecedentId: c.contratPrecedentId ?? undefined,
+    exerciceComptableId: c.exerciceComptableId ?? undefined,
+    primeReversementStatus: c.primeReversementStatus ?? undefined,
+  };
 }
 
 export interface ContractPage {

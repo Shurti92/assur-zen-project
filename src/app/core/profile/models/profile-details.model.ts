@@ -35,3 +35,10 @@ export interface ProfileDetails {
   avatarUrl?: string;
   langueCode?: string;
 }
+
+/** Même règle que le backend (reversement de prime, 2026-09-25) : le rôle contient « COMMERCIAL ».
+ * salesRep est renseigné sur tous les contrats (utilisateur qui saisit, souvent un admin) — seul
+ * un commercial compte comme intermédiaire ayant encaissé la prime. */
+export function isCommercialRole(role: string | null | undefined): boolean {
+  return !!role && role.toUpperCase().includes('COMMERCIAL');
+}

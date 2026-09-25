@@ -35,6 +35,7 @@ import {
   ContractStatus,
   ModePaiement,
   PeriodiciteEcheance,
+  StatutReversementPrime,
 } from '../../core/contracts/models/contract.model';
 import { ContractService } from '../../core/contracts/contract.service';
 import { ProduitService } from '../../core/configuration/produit.service';
@@ -46,7 +47,7 @@ import { ProduitCommissionTauxResponse } from '../../core/configuration/models/p
 import { PartenaireService } from '../../core/partenaire/partenaire.service';
 import { PartenaireResponse } from '../../core/partenaire/models/partenaire.model';
 import { ProfileService } from '../../core/profile/profile.service';
-import { ProfileRecord } from '../../core/profile/models/profile-details.model';
+import { ProfileRecord, isCommercialRole } from '../../core/profile/models/profile-details.model';
 import { VillePartenaireService } from '../../core/configuration/ville-partenaire.service';
 import { VillePartenaireResponse } from '../../core/configuration/models/ville-partenaire.model';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
@@ -125,6 +126,8 @@ interface RecapContract {
   commissionRate: number;
   commissionAmount: number;
   partnerShare: number;
+  /** null quand le contrat n'a ni partenaire ni commercial (sans objet). */
+  primeVerseeLabel: string | null;
   statusLabel: string;
   policyNumber: string;
   renouvellementLabel: string | null;
@@ -252,6 +255,7 @@ export class SouscriptionComponent {
       nombreEcheances: [3],
       periodiciteEcheances: ['MENSUELLE'],
       montantDejaVerse: [0],
+      primeReversementStatus: ['non_reverse'],
       isRenouvellement: [false],
       contratPrecedentId: [''],
     });
@@ -313,6 +317,12 @@ export class SouscriptionComponent {
         commissionRate: Number(raw.commissionRate),
         commissionAmount: Number(raw.commissionAmount),
         partnerShare: Number(raw.partnerShare),
+        primeVerseeLabel:
+          this.hasIntermediaire(raw.partenaireId, raw.salesRepId)
+            ? raw.primeReversementStatus === 'reverse'
+              ? 'Versée à la compagnie'
+              : 'Non versée'
+            : null,
         statusLabel: STATUS_LABEL[raw.status] ?? raw.status,
         policyNumber: raw.policyNumber.trim() || 'Auto-généré',
         renouvellementLabel:
@@ -490,6 +500,19 @@ export class SouscriptionComponent {
     if (!config || !this.isCommercialCommissionApplicable(group)) return 0;
     if (config.kind === 'fixed') return config.amount;
     return configuredCommissionAmount(config.config, Number(group.controls.premium.value) || 0);
+  }
+
+  /** La prime n'est encaissée par un intermédiaire (qui doit ensuite la verser à la compagnie)
+   * que si le contrat passe par un partenaire ou par un vendeur ayant le rôle COMMERCIAL. */
+  isPrimeVerseeVisible(index: number): boolean {
+    const c = this.contractsArray.at(index).controls;
+    return this.hasIntermediaire(c.partenaireId.value, c.salesRepId.value);
+  }
+
+  private hasIntermediaire(partenaireId: string, salesRepId: string): boolean {
+    if (partenaireId) return true;
+    if (!salesRepId) return false;
+    return isCommercialRole(this.profiles().find((p) => p.userId === Number(salesRepId))?.role);
   }
 
   private isCommercialCommissionApplicable(group: ContractGroup): boolean {
@@ -933,6 +956,10 @@ export class SouscriptionComponent {
           contratPrecedentId:
             contract.isRenouvellement && contract.contratPrecedentId
               ? Number(contract.contratPrecedentId)
+              : undefined,
+          primeReversementStatus:
+            this.hasIntermediaire(contract.partenaireId, contract.salesRepId)
+              ? (contract.primeReversementStatus as StatutReversementPrime)
               : undefined,
         })),
       })

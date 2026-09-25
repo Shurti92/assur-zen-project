@@ -15,7 +15,7 @@
   </div>
 
   <div class="dl-cell-detail mb-1" style="padding: 0 1.3rem;">
-    Contrats signés dont la prime encaissée par le partenaire n'a pas encore été reversée à la compagnie.
+    Contrats signés dont la prime encaissée par le partenaire ou le commercial n'a pas encore été reversée à la compagnie.
   </div>
 
   @if (error()) {
@@ -31,7 +31,7 @@
           <tr>
             <th scope="col">N° police</th>
             <th scope="col">Client</th>
-            <th scope="col">Partenaire</th>
+            <th scope="col">Intermédiaire</th>
             <th scope="col">Prime</th>
             <th scope="col">Date de souscription</th>
             <th scope="col"></th>
@@ -42,7 +42,7 @@
             <tr>
               <td><span class="dl-tag">{{ item.policyNumber }}</span></td>
               <td>{{ clientLabel(item) }}</td>
-              <td>{{ item.partenaireName || '—' }}</td>
+              <td>{{ item.partenaireName || (item.salesRep ? item.salesRep + ' (commercial)' : '—') }}</td>
               <td class="dl-timestamp">{{ formatAmount(item.premium) }}</td>
               <td class="dl-timestamp">{{ formatDate(item.signedAt) }}</td>
               <td>
@@ -69,7 +69,7 @@
 <app-confirm-dialog
   [visible]="reverserTarget() !== null"
   title="Marquer la prime comme reversée ?"
-  [message]="'Confirmez-vous que le partenaire a bien reversé la prime du contrat « ' + (reverserTarget()?.policyNumber ?? '') + ' » à la compagnie ?'"
+  [message]="'Confirmez-vous que l’intermédiaire a bien reversé la prime du contrat « ' + (reverserTarget()?.policyNumber ?? '') + ' » à la compagnie ?'"
   confirmLabel="Confirmer"
   (cancelled)="cancelReverser()"
   (confirmed)="confirmReverser()"

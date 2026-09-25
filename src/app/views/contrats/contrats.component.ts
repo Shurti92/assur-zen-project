@@ -5,7 +5,16 @@ import { IconDirective } from '@coreui/icons-angular';
 import { ButtonDirective, ColComponent, FormSelectDirective, RowComponent, SpinnerComponent } from '@coreui/angular';
 
 import { ContractService } from '../../core/contracts/contract.service';
-import { ContractPage, ContractResponse, ContractStatus, ModePaiement } from '../../core/contracts/models/contract.model';
+import {
+  ContractCommissionStatus,
+  ContractPage,
+  ContractRequest,
+  ContractResponse,
+  ContractStatus,
+  ModePaiement,
+  StatutReversementPrime,
+  toContractRequest,
+} from '../../core/contracts/models/contract.model';
 import { apiRateToPercent, percentToApiRate } from '../../core/contracts/commission-rate.util';
 import { InsuredService } from '../../core/insured/insured.service';
 import { InsuredResponse } from '../../core/insured/models/insured.model';
@@ -19,6 +28,8 @@ import { PartenaireService } from '../../core/partenaire/partenaire.service';
 import { PartenaireResponse } from '../../core/partenaire/models/partenaire.model';
 import { CompagnieService } from '../../core/configuration/compagnie.service';
 import { CompagnieResponse } from '../../core/configuration/models/compagnie.model';
+import { ProfileService } from '../../core/profile/profile.service';
+import { isCommercialRole } from '../../core/profile/models/profile-details.model';
 
 type ContratsMode = 'valides' | 'echus' | 'cycle' | 'non-renouveles' | 'echeance-proche';
 type StatusFilter = 'all' | ContractStatus;
@@ -83,6 +94,31 @@ const EMPTY_AVENANT_FORM = {
   compagnieId: '',
 };
 
+/** Champs modifiables par « Modifier le contrat » — les montants ne le sont que tant que le
+ * contrat n'est pas signé (ensuite : avenant). */
+const EMPTY_EDIT_FORM = {
+  policyNumber: '',
+  status: 'pending' as ContractStatus,
+  dateEffet: '',
+  duree: '',
+  dateEcheance: '',
+  signedAt: '',
+  commissionStatus: 'pending' as ContractCommissionStatus,
+  primeReversementStatus: 'non_reverse' as StatutReversementPrime,
+  notes: '',
+  premium: '',
+  commissionAmount: '',
+  partnerShare: '',
+  commercialCommissionAmount: '',
+};
+
+function addMonths(date: string, months: number): string {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 interface AvenantChange {
   label: string;
   from: string;
@@ -113,6 +149,7 @@ export class ContratsComponent {
   private readonly avenantService = inject(AvenantService);
   private readonly partenaireService = inject(PartenaireService);
   private readonly compagnieService = inject(CompagnieService);
+  private readonly profileService = inject(ProfileService);
 
   readonly mode = (this.route.snapshot.data['mode'] as ContratsMode) ?? 'cycle';
   readonly title = TITLES[this.mode];
@@ -157,6 +194,16 @@ export class ContratsComponent {
   readonly avenantPartenaires = signal<PartenaireResponse[]>([]);
   readonly avenantCompagnies = signal<CompagnieResponse[]>([]);
   private avenantRefsLoaded = false;
+
+  /** userId des vendeurs ayant le rôle COMMERCIAL — chargé à la première ouverture d'un détail. */
+  readonly commercialUserIds = signal<Set<number>>(new Set());
+  private profilesLoaded = false;
+
+  readonly editFormOpen = signal(false);
+  readonly editForm = signal({ ...EMPTY_EDIT_FORM });
+  readonly editSaving = signal(false);
+  readonly editError = signal<string | null>(null);
+  readonly editSuccess = signal<string | null>(null);
 
   readonly avenantTypeGroups = AVENANT_TYPE_GROUPS;
   readonly avenantTypeLabel = AVENANT_TYPE_LABEL;
@@ -451,6 +498,141 @@ export class ContratsComponent {
     this.avenantForm.set({ ...EMPTY_AVENANT_FORM });
     this.avenantError.set(null);
     this.fetchAvenants(contract.id);
+
+    this.editFormOpen.set(false);
+    this.editError.set(null);
+    this.editSuccess.set(null);
+    this.loadCommercialUserIds();
+  }
+
+  private loadCommercialUserIds(): void {
+    if (this.profilesLoaded) return;
+    this.profilesLoaded = true;
+    this.profileService.list().subscribe({
+      next: (profiles) =>
+        this.commercialUserIds.set(new Set(profiles.filter((p) => isCommercialRole(p.role)).map((p) => p.userId))),
+      error: () => (this.profilesLoaded = false),
+    });
+  }
+
+  /** Le reversement de la prime ne concerne que les contrats dont la prime a été encaissée par
+   * un intermédiaire : partenaire, ou vendeur ayant le rôle COMMERCIAL (même critère que le
+   * backend — salesRep est renseigné sur tous les contrats, y compris ceux saisis par un admin). */
+  hasIntermediaire(contract: ContractResponse): boolean {
+    if (contract.partenaireId) return true;
+    return contract.salesRepId !== null && this.commercialUserIds().has(contract.salesRepId);
+  }
+
+  toggleEditForm(): void {
+    const contract = this.selectedContract();
+    if (!contract) return;
+    const next = !this.editFormOpen();
+    this.editFormOpen.set(next);
+    this.editError.set(null);
+    this.editSuccess.set(null);
+    if (!next) return;
+    this.avenantFormOpen.set(false);
+    this.editForm.set({
+      policyNumber: contract.policyNumber ?? '',
+      status: contract.status,
+      dateEffet: contract.dateEffet ?? '',
+      duree: contract.duree ?? '',
+      dateEcheance: contract.dateEcheance ?? '',
+      signedAt: contract.signedAt ?? '',
+      commissionStatus: contract.commissionStatus,
+      primeReversementStatus: contract.primeReversementStatus ?? 'non_reverse',
+      notes: contract.notes ?? '',
+      premium: String(contract.premium ?? ''),
+      commissionAmount: String(contract.commissionAmount ?? ''),
+      partnerShare: String(contract.partnerShare ?? ''),
+      commercialCommissionAmount: String(contract.commercialCommissionAmount ?? ''),
+    });
+  }
+
+  updateEditForm<K extends keyof typeof EMPTY_EDIT_FORM>(key: K, value: (typeof EMPTY_EDIT_FORM)[K]): void {
+    this.editForm.update((current) => {
+      const next = { ...current, [key]: value };
+      // Même règle qu'à la souscription : l'échéance suit la date d'effet et la durée.
+      if ((key === 'dateEffet' || key === 'duree') && next.dateEffet && Number(next.duree) > 0) {
+        next.dateEcheance = addMonths(next.dateEffet, Number(next.duree));
+      }
+      return next;
+    });
+  }
+
+  submitEdit(): void {
+    const contract = this.selectedContract();
+    if (!contract) return;
+    const f = this.editForm();
+    if (!f.duree.trim() || !(Number(f.duree) > 0)) {
+      this.editError.set('La durée (en mois) est requise.');
+      return;
+    }
+
+    const payload: ContractRequest = {
+      ...toContractRequest(contract),
+      policyNumber: f.policyNumber.trim() || undefined,
+      status: f.status,
+      dateEffet: f.dateEffet || undefined,
+      duree: f.duree.trim(),
+      dateEcheance: f.dateEcheance || undefined,
+      signedAt: f.signedAt || undefined,
+      commissionStatus: f.commissionStatus,
+      notes: f.notes.trim() || undefined,
+      primeReversementStatus: this.hasIntermediaire(contract) ? f.primeReversementStatus : undefined,
+    };
+
+    // Montants modifiables tant que le contrat n'est pas signé (sinon : avenant).
+    if (contract.status !== 'signed') {
+      const premium = Number(f.premium);
+      const commissionAmount = Number(f.commissionAmount);
+      if (!(premium > 0)) {
+        this.editError.set('La prime doit être supérieure à 0.');
+        return;
+      }
+      if (!(commissionAmount >= 0) || commissionAmount > premium) {
+        this.editError.set('Le montant de la commission doit être compris entre 0 et la prime.');
+        return;
+      }
+      if (premium !== contract.premium || commissionAmount !== contract.commissionAmount) {
+        payload.premium = premium;
+        payload.commissionAmount = commissionAmount;
+        // Taux recalculé par le backend à partir du montant et de la prime.
+        payload.commissionRate = undefined;
+      }
+      if (contract.partenaireId) {
+        const partnerShare = Number(f.partnerShare);
+        if (!(partnerShare >= 0) || partnerShare > commissionAmount) {
+          this.editError.set('La part reversée au partenaire doit être comprise entre 0 et le montant de la commission.');
+          return;
+        }
+        payload.partnerShare = partnerShare;
+      } else if (contract.salesRepId) {
+        const commercial = Number(f.commercialCommissionAmount);
+        if (!(commercial >= 0) || commercial > premium) {
+          this.editError.set('La commission du commercial doit être comprise entre 0 et la prime.');
+          return;
+        }
+        payload.commercialCommissionAmount = commercial;
+      }
+    }
+
+    this.editSaving.set(true);
+    this.editError.set(null);
+    this.contractService.update(contract.id, payload).subscribe({
+      next: (updated) => {
+        this.editSaving.set(false);
+        this.editFormOpen.set(false);
+        this.editSuccess.set('Contrat mis à jour.');
+        this.selectedContract.set(updated);
+        this.allContracts.update((list) => list.map((c) => (c.id === updated.id ? updated : c)));
+      },
+      error: (err) => {
+        this.editSaving.set(false);
+        const backendMessage = (err?.error?.message ?? err?.error?.reason) as string | undefined;
+        this.editError.set(backendMessage || 'Impossible de mettre à jour le contrat.');
+      },
+    });
   }
 
   private fetchAvenants(contractId: number): void {
