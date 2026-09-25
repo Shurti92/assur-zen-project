@@ -1,4 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
@@ -150,7 +151,16 @@ export class SycaPayComponent {
     this.fetchTransactions();
     this.sycapayService.getTransaction(id).subscribe({
       next: (transaction) => this.openDetail(transaction),
-      error: (err: unknown) => this.transactionsError.set(sycapayErrorMessage(err, 'Transaction SycaPay introuvable.')),
+      // « introuvable » seulement sur 404 : un 503/erreur réseau n'en dit rien sur la transaction.
+      error: (err: unknown) =>
+        this.transactionsError.set(
+          sycapayErrorMessage(
+            err,
+            err instanceof HttpErrorResponse && err.status === 404
+              ? 'Transaction SycaPay introuvable.'
+              : 'Impossible de charger la transaction SycaPay.',
+          ),
+        ),
     });
   }
 
