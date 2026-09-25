@@ -6,6 +6,11 @@
 > partenaire ni a un commercial ». Le frontend applique le même critère (isCommercialRole()).
 > Pas de liste « prime non reversée » par commercial (non demandée).
 >
+> **Défaut à la création (backend 4bb2d21, 2026-09-25 22:45)** : champ absent → `non_reverse` si
+> partenaire ou commercial (rôle COMMERCIAL), `reverse` sinon (vente saisie par un admin, rien à
+> reverser). Une valeur envoyée est conservée ; PUT et contrats existants inchangés. Le frontend
+> n'envoie le champ et n'affiche le statut que s'il y a un intermédiaire — aucun changement requis.
+>
 > Historique : **Frontend livré le 2026-09-25 — 2 changements backend attendus.** Le formulaire de souscription
 > et la modification de contrat (`PUT /contracts/{id}`) permettent désormais d'indiquer si la prime
 > encaissée par l'intermédiaire (partenaire **ou** commercial) a déjà été versée à la compagnie.
