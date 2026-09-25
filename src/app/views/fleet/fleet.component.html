@@ -852,10 +852,10 @@
       <select cSelect formControlName="vehiculeId" id="av-vehicule">
         <option value="">Sélectionner…</option>
         @for (v of availableVehiculesForSelectedFleet(); track v.id) {
-          <option [value]="v.id">{{ v.immatriculation || v.numeroChassis || '—' }} — {{ v.marque }} {{ v.modele }}</option>
+          <option [value]="v.id">{{ v.immatriculation || v.numeroChassis || '—' }} — {{ v.marque }} {{ v.modele }} · {{ v.proprietaireName || 'Propriétaire inconnu' }}</option>
         }
       </select>
-      <div class="dl-cell-detail mt-1">Seuls les véhicules du même client et du même type que la flotte, non déjà rattachés, sont proposés.</div>
+      <div class="dl-cell-detail mt-1">Seuls les véhicules du même type que la flotte, non déjà rattachés, sont proposés — le propriétaire peut être différent du client de la flotte.</div>
     </div>
     <div class="mb-3">
       <label cLabel for="av-motif">Motif (optionnel)</label>
@@ -1204,7 +1204,7 @@
       <select cSelect formControlName="newVehiculeId" id="rpv-vehicule">
         <option value="">Sélectionner…</option>
         @for (v of availableVehiculesForSelectedFleet(); track v.id) {
-          <option [value]="v.id">{{ v.immatriculation || v.numeroChassis || '—' }} — {{ v.marque }} {{ v.modele }}</option>
+          <option [value]="v.id">{{ v.immatriculation || v.numeroChassis || '—' }} — {{ v.marque }} {{ v.modele }} · {{ v.proprietaireName || 'Propriétaire inconnu' }}</option>
         }
       </select>
     </div>

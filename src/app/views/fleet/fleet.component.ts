@@ -794,17 +794,16 @@ export class FleetComponent {
     this.fetchFleetVehicles();
   }
 
-  /** Véhicules du même client que la flotte, pas déjà rattachés à une flotte, et d'un type
-   * compatible avec le type de la flotte — candidats à l'ajout/remplacement. Filtre proactif
-   * côté frontend depuis le 2026-09-13 (une flotte AUTO/MOTO n'accepte que son propre type,
-   * MIXED accepte les deux ; le backend renvoie 409 sinon, mais autant ne pas proposer
-   * un véhicule incompatible dans la liste). */
+  /** Véhicules pas déjà rattachés à une flotte et d'un type compatible avec celui de la flotte —
+   * candidats à l'ajout/remplacement. Filtre proactif côté frontend depuis le 2026-09-13 (une
+   * flotte AUTO/MOTO n'accepte que son propre type, MIXED accepte les deux ; le backend renvoie
+   * 409 sinon). Le propriétaire du véhicule n'a PAS à être le client de la flotte (règle métier
+   * du 2026-09-24) : le nom du propriétaire est affiché dans la liste pour les distinguer. */
   readonly availableVehiculesForSelectedFleet = computed(() => {
     const fleet = this.selectedFleet();
     if (!fleet) return [];
     return this.vehicules().filter(
       (v) =>
-        v.proprietaireId === fleet.clientId &&
         !v.currentFleetId &&
         (fleet.fleetType === 'MIXED' || v.type === fleet.fleetType),
     );
