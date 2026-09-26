@@ -874,6 +874,15 @@ export class CommercialComponent {
   /** Bandeau de synthèse du résultat : ton global + décompte par issue. */
   readonly commissionPaySummary = computed(() => {
     const results = this.commissionPayResult() ?? [];
+    // SycaPay désactivé (mode hybride, 2026-09-26) : tout le lot est enregistré hors application.
+    if (results.length > 0 && results.every((r) => r.modePaiement === 'ENREGISTREMENT_MANUEL')) {
+      const total = this.formatAmount(results.reduce((sum, r) => sum + r.amount, 0));
+      return {
+        variant: 'success',
+        title: results.length > 1 ? 'Paiements enregistrés' : 'Paiement enregistré',
+        detail: `${results.length} contrat${results.length > 1 ? 's' : ''} · ${total} · virement effectué hors application`,
+      };
+    }
     const paid = results.filter((r) => r.sycapayStatus === 'SUCCESS').length;
     const pending = results.filter((r) => r.sycapayStatus === 'PROCESSING' || r.sycapayStatus === 'UNKNOWN').length;
     const failed = results.length - paid - pending;
@@ -1032,6 +1041,20 @@ export class CommercialComponent {
           this.commissionPayError.set(sycapayErrorMessage(err, 'Impossible de payer cette commission. Réessayez.', 'pay'));
         },
       });
+  }
+
+  payResultLabel(result: CommercialCommissionPaymentResponse): string {
+    return result.modePaiement === 'ENREGISTREMENT_MANUEL' ? 'Enregistré' : this.sycapayStatusLabel(result.sycapayStatus);
+  }
+
+  payResultVariant(result: CommercialCommissionPaymentResponse): string {
+    return result.modePaiement === 'ENREGISTREMENT_MANUEL' ? 'success' : this.sycapayStatusVariant(result.sycapayStatus);
+  }
+
+  payResultMessage(result: CommercialCommissionPaymentResponse): string {
+    return result.modePaiement === 'ENREGISTREMENT_MANUEL'
+      ? 'Paiement enregistré (virement effectué hors application)'
+      : this.sycapayMessageLabel(result.sycapayMessage);
   }
 
   sycapayStatusLabel(status: SycaPayStatus | null): string {

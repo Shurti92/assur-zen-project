@@ -135,6 +135,9 @@
                   }
                 } @else {
                   {{ payment.paidByUsername || '—' }}
+                  @if (payment.modePaiement === 'VIREMENT_SYCAPAY' && payment.sycapayTransactionPk) {
+                    <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: payment.sycapayTransactionPk }" class="dl-cell-detail d-block">Voir le virement</a>
+                  }
                 }
               </td>
               <td>
@@ -205,6 +208,34 @@
     </ul>
   }
 
+  @if (payResult(); as results) {
+    <div class="mb-3">
+      <strong class="d-block mb-2">Résultat du paiement</strong>
+      <ul class="list-unstyled mb-2">
+        @for (result of results; track result.contractId) {
+          <li class="d-flex flex-wrap align-items-center gap-2 mb-1">
+            <span class="dl-tag">{{ result.policyNumber || '#' + result.contractId }}</span>
+            <span class="dl-timestamp">{{ formatAmount(result.amount) }}</span>
+            <span [class]="'dl-chip dl-chip--' + payResultVariant(result)"><span class="dl-chip-dot"></span>{{ payResultLabel(result) }}</span>
+            @if (result.modePaiement === 'ENREGISTREMENT_MANUEL') {
+              <span class="dl-cell-detail">Paiement enregistré (virement effectué hors application)</span>
+            } @else if (!isRecorded(result) && result.sycapayMessage) {
+              <span class="dl-cell-detail">{{ result.sycapayMessage }}</span>
+            }
+            @if (needsReconcile(result)) {
+              <a [routerLink]="['/sycapay']" [queryParams]="reconcileQueryParams(result)">Réconcilier</a>
+            }
+          </li>
+        }
+      </ul>
+      @if (payResultNeedsReconcile()) {
+        <p class="dl-cell-detail mb-0">
+          Virement en cours ou d'issue incertaine : <strong>ne le relancez pas</strong>, un double virement est possible. Utilisez « Réconcilier » pour vérifier son statut auprès de SycaPay.
+        </p>
+      }
+    </div>
+  }
+
   <div class="dl-pillgroup mb-3" role="tablist" aria-label="Filtrer par statut de commission">
     <button (click)="setContractsStatusFilter('all')" [attr.data-active]="contractsStatusFilter() === 'all'" class="dl-pill" type="button">Tous</button>
     <button (click)="setContractsStatusFilter('pending')" [attr.data-active]="contractsStatusFilter() === 'pending'" class="dl-pill dl-pill--warning" type="button">En attente</button>
@@ -266,6 +297,9 @@
   }
 
   @if (contractsStatusFilter() !== 'paid') {
+  <p class="dl-cell-detail mt-3 mb-0">
+    Si SycaPay est activé, un virement Wave part vers le numéro de commission du partenaire, contrat par contrat ; le contrat n'est payé qu'une fois le virement confirmé. Sinon, le paiement est seulement enregistré (virement fait hors application).
+  </p>
   <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
     <div>
       <div class="mb-2">

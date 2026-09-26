@@ -28,8 +28,13 @@ export interface CommissionPaymentRequest {
   reference?: string;
 }
 
+/** Depuis le 2026-09-26 (backend 761d872) : VIREMENT_SYCAPAY si SycaPay est activé (virement Wave
+ * réel, contrat par contrat), ENREGISTREMENT_MANUEL sinon (paiement fait hors application). */
+export type CommissionModePaiement = 'VIREMENT_SYCAPAY' | 'ENREGISTREMENT_MANUEL';
+
 export interface CommissionPaymentResponse {
-  id: number;
+  /** Null (comme paidAt, paidBy*, reference, notificationEnvoyee) si le virement n'est pas SUCCESS. */
+  id: number | null;
   contractId: number;
   /** Nullable depuis le 2026-09-14 : le backend renvoie désormais null (au lieu d'un 500)
    * quand l'entité référencée par la FK a été supprimée (hard-delete). */
@@ -41,7 +46,7 @@ export interface CommissionPaymentResponse {
   paidByUserId: number | null;
   paidByUsername: string | null;
   reference: string | null;
-  paidAt: string;
+  paidAt: string | null;
   /** Résultat réel du SMS de confirmation (backend du 2026-09-24) : true envoyé, false échec,
    * null aucune trace (paiements antérieurs). Aussi renseigné dans l'historique depuis cette date. */
   notificationEnvoyee: boolean | null;
@@ -49,11 +54,13 @@ export interface CommissionPaymentResponse {
    * partenaire passée à SUCCESS) — backend du 2026-09-23. Seuls les virements RÉUSSIS créent une
    * ligne ici ; les tentatives FAILED/UNKNOWN/PROCESSING sont dans /sycapay/transactions. */
   automatic: boolean;
-  /** Champs sycapay* renseignés uniquement si automatic=true, null pour un paiement manuel. */
+  /** Champs sycapay* renseignés dès que modePaiement = VIREMENT_SYCAPAY (automatique ou manuel
+   * depuis le 2026-09-26), null pour un enregistrement hors application. */
   sycapayStatus: SycaPayStatus | null;
   sycapayTransactionReference: string | null;
   sycapayTransactionPk: number | null;
   sycapayMessage: string | null;
+  modePaiement: CommissionModePaiement;
 }
 
 export interface CommissionPaymentPage {

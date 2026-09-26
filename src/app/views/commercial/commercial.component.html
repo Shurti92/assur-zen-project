@@ -558,8 +558,8 @@
         @for (result of payResults; track result.contractId) {
           <li class="sp-payresult-row">
             <span class="sp-payresult-policy sp-mono">{{ result.policyNumber || '—' }}</span>
-            <span [class]="'sp-chip sp-chip--' + sycapayStatusVariant(result.sycapayStatus)"><i></i>{{ sycapayStatusLabel(result.sycapayStatus) }}</span>
-            <span class="sp-payresult-message">{{ sycapayMessageLabel(result.sycapayMessage) }}</span>
+            <span [class]="'sp-chip sp-chip--' + payResultVariant(result)"><i></i>{{ payResultLabel(result) }}</span>
+            <span class="sp-payresult-message">{{ payResultMessage(result) }}</span>
             <span class="sp-payresult-amount sp-mono">{{ formatAmount(result.amount) }}</span>
             @if (needsReconcile(result)) {
               <a [routerLink]="['/sycapay']" [queryParams]="reconcileQueryParams(result)" class="sp-btn sp-btn--sm sp-btn--warning">Réconcilier</a>
@@ -645,7 +645,7 @@
 
   @if (commissionContractsStatusFilter() !== 'paid') {
   <p class="dl-cell-detail mt-3 mb-0">
-    Le virement est déclenché via SycaPay (Wave) : la confirmation peut être immédiate ou différée selon le contrat (voir le résultat détaillé après paiement). L'écriture comptable n'est créée qu'une fois le virement confirmé.
+    Si SycaPay est activé, le virement Wave est déclenché contrat par contrat : la confirmation peut être immédiate ou différée (voir le résultat détaillé après paiement), et l'écriture comptable n'est créée qu'une fois le virement confirmé. Sinon, le paiement est seulement enregistré (virement fait hors application).
   </p>
   <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mt-2 pt-3" style="border-top: 1px solid var(--cui-border-color);">
     <div>

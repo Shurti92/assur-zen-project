@@ -1,3 +1,5 @@
+import type { CommissionModePaiement } from '../../commissions/models/commission.model';
+
 export type CommercialCommissionStatus = 'paid' | 'pending';
 
 /** Statut du versement SycaPay (Wave) associé à une entrée de paiement de commission
@@ -60,6 +62,9 @@ export interface CommercialCommissionPaymentResponse {
   sycapayTransactionPk?: number | null;
   /** Message lisible à afficher à l'admin quand sycapayStatus n'est pas SUCCESS. */
   sycapayMessage: string | null;
+  /** Depuis le 2026-09-26 (backend 4264f74, mode hybride) : ENREGISTREMENT_MANUEL quand SycaPay est
+   * désactivé (paiement fait hors application, sycapayStatus null) au lieu d'un 502. */
+  modePaiement: CommissionModePaiement;
 }
 
 export interface CommercialCommissionPaymentPage {

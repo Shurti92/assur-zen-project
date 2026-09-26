@@ -105,6 +105,10 @@ export class CommissionsComponent {
   readonly payError = signal<string | null>(null);
   /** Après un 409 SYCAPAY_DUPLICATE_PAYMENT : virements encore ouverts des contrats sélectionnés. */
   readonly payBlockedTransactions = signal<BlockedTransaction[]>([]);
+  /** Résultat par contrat du dernier « Payer la sélection » (virement SycaPay ou enregistrement). */
+  readonly payResult = signal<CommissionPaymentResponse[] | null>(null);
+
+  readonly payResultNeedsReconcile = computed(() => (this.payResult() ?? []).some((r) => this.needsReconcile(r)));
 
   // Demandes de versement anticipé (partial payment requests) --------
   readonly partialPaymentStatus = signal<PartialPaymentStatusResponse | null>(null);
@@ -199,6 +203,7 @@ export class CommissionsComponent {
     this.paymentReference.set('');
     this.payError.set(null);
     this.payBlockedTransactions.set([]);
+    this.payResult.set(null);
     this.contractsStatusFilter.set('pending');
     this.contractsModalTab.set('contrats');
     this.contractsModalVisible.set(true);
@@ -299,11 +304,16 @@ export class CommissionsComponent {
     this.paying.set(true);
     this.payError.set(null);
     this.payBlockedTransactions.set([]);
+    this.payResult.set(null);
     this.commissionService.pay({ contractIds, reference: this.paymentReference().trim() || undefined }).subscribe({
-      next: () => {
+      next: (results) => {
         this.paying.set(false);
-        this.selectedContractIds.set(new Set());
-        this.paymentReference.set('');
+        this.payResult.set(results);
+        // Seuls les FAILED restent sélectionnés (relance possible). UNKNOWN/PROCESSING ne doivent
+        // PAS être relancés (issue incertaine → réconcilier), REJECTED = aucune tentative.
+        const retryable = new Set(results.filter((r) => r.sycapayStatus === 'FAILED').map((r) => r.contractId));
+        this.selectedContractIds.set(retryable);
+        if (retryable.size === 0) this.paymentReference.set('');
         this.fetchContracts();
         this.fetchPartners();
         this.fetchPayments();
@@ -318,6 +328,31 @@ export class CommissionsComponent {
         }
       },
     });
+  }
+
+  /** Paiement enregistré : virement SycaPay SUCCESS, ou enregistrement hors application (SycaPay désactivé). */
+  isRecorded(result: CommissionPaymentResponse): boolean {
+    return result.modePaiement === 'ENREGISTREMENT_MANUEL' || result.sycapayStatus === 'SUCCESS';
+  }
+
+  needsReconcile(result: CommissionPaymentResponse): boolean {
+    return result.sycapayStatus === 'PROCESSING' || result.sycapayStatus === 'UNKNOWN';
+  }
+
+  reconcileQueryParams(result: CommissionPaymentResponse): Record<string, string | number> {
+    return result.sycapayTransactionPk != null
+      ? { transaction: result.sycapayTransactionPk }
+      : { reference: result.sycapayTransactionReference ?? '' };
+  }
+
+  payResultLabel(result: CommissionPaymentResponse): string {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL') return 'Enregistré';
+    return result.sycapayStatus ? `Virement ${SYCAPAY_STATUS_LABEL[result.sycapayStatus]}` : '—';
+  }
+
+  payResultVariant(result: CommissionPaymentResponse): string {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL') return 'success';
+    return result.sycapayStatus ? SYCAPAY_STATUS_VARIANT[result.sycapayStatus] : 'neutral';
   }
 
   /** Le 409 ne dit ni quel contrat ni quel statut : on retrouve la transaction de chaque contrat
