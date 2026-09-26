@@ -22,6 +22,11 @@ export class SycaPayService {
     return this.http.get<SycaPayBalanceResponse>('/sycapay/balance', { params });
   }
 
+  /** Envoie immédiatement le solde sur le chat Telegram admin (backend du 2026-09-26). */
+  sendBalanceToTelegram(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>('/sycapay/balance/telegram', {});
+  }
+
   getDashboard(): Observable<SycaPayDashboard> {
     return this.http.get<SycaPayDashboard>('/sycapay/dashboard');
   }

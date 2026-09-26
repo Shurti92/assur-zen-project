@@ -105,6 +105,9 @@
           </span>
           @if (waveBalance() !== null) {
             <span class="sp-amount sp-amount--lg">{{ formatNumber(waveBalance()!) }} <small>FCFA</small></span>
+            @if (belowThreshold()) {
+              <span class="sp-navy-pill sp-navy-pill--alert">Sous le seuil d'alerte ({{ formatNumber(threshold()!) }} FCFA)</span>
+            }
           } @else if (balanceLoading()) {
             <span class="sp-navy-label">Lecture du solde…</span>
           } @else {
@@ -183,6 +186,63 @@
         }
       </section>
     }
+
+    <section class="sp-card sp-alerts" aria-labelledby="sp-alerts-title">
+      <div class="sp-alerts-head">
+        <div>
+          <h2 id="sp-alerts-title" class="sp-alerts-title">Alertes de solde sur Telegram</h2>
+          <p class="sp-muted mb-0">Rapport du solde du lundi au samedi à 8h, et alerte (au plus une par jour, vérifiée de 9h à 19h) si le solde Wave passe sous le seuil.</p>
+        </div>
+        <button (click)="sendBalanceToTelegram()" [disabled]="telegramSending()" class="sp-btn" type="button">
+          @if (telegramSending()) {
+            <c-spinner size="sm" />
+          }
+          Envoyer le solde maintenant
+        </button>
+      </div>
+
+      @if (telegramMessage(); as message) {
+        <p [class]="'sp-alerts-feedback sp-text--' + message.variant" role="status">{{ message.text }}</p>
+      }
+      @if (alertSettingsError(); as message) {
+        <p class="sp-alerts-feedback sp-text--danger">{{ message }} <button (click)="fetchAlertSettings()" class="sp-link" type="button">Réessayer</button></p>
+      }
+
+      @if (thresholdConfig() && reportConfig()) {
+        <div class="sp-alerts-body">
+          <div class="form-check form-switch sp-switch">
+            <input (change)="toggleReport()" [checked]="reportEnabled()" [disabled]="reportSaving()" class="form-check-input" id="sp-report" role="switch" type="checkbox" />
+            <label class="form-check-label" for="sp-report">
+              <strong>{{ reportEnabled() ? 'Rapport et alerte activés' : 'Rapport et alerte désactivés' }}</strong>
+              <span class="sp-sub d-block">Désactivé : ni rapport quotidien ni alerte de seuil.</span>
+            </label>
+          </div>
+
+          <form (submit)="$event.preventDefault(); saveThreshold()" class="sp-alerts-threshold">
+            <label class="sp-field-label" for="sp-threshold">Seuil d'alerte</label>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <span class="sp-field">
+                <input (input)="onThresholdInput($any($event.target).value)" [disabled]="!reportEnabled()" [value]="thresholdInput()" id="sp-threshold" inputmode="numeric" name="threshold" />
+                <span>FCFA</span>
+              </span>
+              <button [disabled]="!thresholdDirty() || thresholdSaving() || !reportEnabled()" class="sp-btn sp-btn--primary" type="submit">
+                @if (thresholdSaving()) {
+                  <c-spinner size="sm" />
+                }
+                Enregistrer
+              </button>
+            </div>
+            @if (thresholdMessage(); as message) {
+              <span [class]="'sp-sub sp-text--' + message.variant" role="status">{{ message.text }}</span>
+            } @else if (belowThreshold()) {
+              <span class="sp-sub sp-text--warning">Le solde Wave actuel ({{ formatNumber(waveBalance()!) }} FCFA) est sous ce seuil.</span>
+            }
+          </form>
+        </div>
+      } @else if (!alertSettingsError()) {
+        <p class="sp-muted mb-0">Chargement des réglages…</p>
+      }
+    </section>
   }
 
   <!-- ============================================================ TRANSACTIONS ============================================================ -->

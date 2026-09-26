@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs';
+import { map, switchMap } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { SpinnerComponent } from '@coreui/angular';
@@ -18,6 +18,11 @@ import {
   SycaPayTransactionStatus,
 } from '../../core/sycapay/models/sycapay.model';
 import { AuthService } from '../../core/auth/auth.service';
+import { ConfigurationService } from '../../core/configurations/configuration.service';
+import {
+  DynamicConfigurationRequest,
+  DynamicConfigurationResponse,
+} from '../../core/configurations/models/configuration.model';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 
 type View = 'solde' | 'dashboard' | 'transactions';
@@ -34,6 +39,33 @@ const EMPTY_FILTERS = {
 };
 
 const PAGE_SIZE = 20;
+
+/** Clés de configuration dynamique (module SYCAPAY) des alertes de solde — backend b8c34b4. */
+const THRESHOLD_KEY = 'SYCAPAY_BALANCE_ALERT_THRESHOLD';
+const REPORT_ENABLED_KEY = 'SYCAPAY_BALANCE_REPORT_ENABLED';
+
+/** PUT /configurations/{key} remplace TOUS les champs : on renvoie l'objet relu, seul configValue change. */
+function toConfigRequest(config: DynamicConfigurationResponse, configValue: string, motif: string): DynamicConfigurationRequest {
+  return {
+    configKey: config.configKey,
+    configValue,
+    valueType: config.valueType,
+    description: config.description ?? undefined,
+    module: config.module ?? undefined,
+    category: config.category ?? undefined,
+    environment: config.environment ?? undefined,
+    defaultValue: config.defaultValue ?? undefined,
+    validationRule: config.validationRule ?? undefined,
+    allowedValues: config.allowedValues ?? undefined,
+    active: config.active,
+    editable: config.editable,
+    sensitive: config.sensitive,
+    restartRequired: config.restartRequired,
+    cacheEnabled: config.cacheEnabled,
+    displayOrder: config.displayOrder ?? undefined,
+    motif,
+  };
+}
 
 const STATUS_LABEL: Record<SycaPayTransactionStatus, string> = {
   PENDING: 'En attente',
@@ -130,6 +162,7 @@ export class SycaPayComponent {
   constructor() {
     if (!this.isAdmin()) return;
     this.fetchDashboard();
+    this.fetchAlertSettings();
     // Carte « Solde Wave » du tableau de bord — cache serveur ~20 s, appel peu coûteux.
     this.fetchBalance();
 
@@ -265,6 +298,129 @@ export class SycaPayComponent {
   });
 
   /** Opérateur des commissions en premier, puis les autres par solde décroissant. */
+  // Alertes de solde (Telegram) ----------------------------------------------
+
+  private readonly configurationService = inject(ConfigurationService);
+  readonly thresholdConfig = signal<DynamicConfigurationResponse | null>(null);
+  readonly reportConfig = signal<DynamicConfigurationResponse | null>(null);
+  readonly alertSettingsError = signal<string | null>(null);
+  readonly thresholdInput = signal('');
+  readonly thresholdSaving = signal(false);
+  readonly thresholdMessage = signal<{ variant: 'success' | 'danger'; text: string } | null>(null);
+  readonly reportSaving = signal(false);
+  readonly telegramSending = signal(false);
+  readonly telegramMessage = signal<{ variant: 'success' | 'danger'; text: string } | null>(null);
+
+  readonly threshold = computed(() => {
+    const config = this.thresholdConfig();
+    const value = Number(config?.configValue ?? config?.defaultValue);
+    return config && Number.isFinite(value) ? value : null;
+  });
+
+  readonly reportEnabled = computed(() => {
+    const config = this.reportConfig();
+    return (config?.configValue ?? config?.defaultValue) === 'true';
+  });
+
+  /** Solde Wave (compte commissions) sous le seuil d'alerte configuré. */
+  readonly belowThreshold = computed(() => {
+    const wave = this.waveBalance();
+    const threshold = this.threshold();
+    return wave !== null && threshold !== null && wave < threshold;
+  });
+
+  readonly thresholdDirty = computed(() => {
+    const input = this.thresholdInput().trim();
+    return input !== '' && Number(input) !== this.threshold();
+  });
+
+  fetchAlertSettings(): void {
+    this.alertSettingsError.set(null);
+    const onError = () => this.alertSettingsError.set("Impossible de charger les réglages d'alerte du solde.");
+    this.configurationService.getByKey(THRESHOLD_KEY).subscribe({
+      next: (config) => {
+        this.thresholdConfig.set(config);
+        this.thresholdInput.set(String(this.threshold() ?? ''));
+      },
+      error: onError,
+    });
+    this.configurationService.getByKey(REPORT_ENABLED_KEY).subscribe({
+      next: (config) => this.reportConfig.set(config),
+      error: onError,
+    });
+  }
+
+  onThresholdInput(value: string): void {
+    this.thresholdInput.set(value.replace(/\D/g, ''));
+    this.thresholdMessage.set(null);
+  }
+
+  saveThreshold(): void {
+    const value = this.thresholdInput().trim();
+    if (!this.thresholdDirty()) return;
+    this.thresholdSaving.set(true);
+    this.thresholdMessage.set(null);
+    // Relecture juste avant l'écriture : PUT remplace l'objet entier, ne pas écraser une
+    // modification faite entre-temps depuis « Configuration dynamique ».
+    this.writeConfig(THRESHOLD_KEY, value, "Seuil d'alerte modifié depuis l'écran SycaPay").subscribe({
+      next: (updated) => {
+        this.thresholdConfig.set(updated);
+        this.thresholdInput.set(String(this.threshold() ?? value));
+        this.thresholdSaving.set(false);
+        this.thresholdMessage.set({ variant: 'success', text: 'Seuil enregistré, appliqué immédiatement.' });
+      },
+      error: (err: unknown) => {
+        this.thresholdSaving.set(false);
+        this.thresholdMessage.set({
+          variant: 'danger',
+          text:
+            err instanceof HttpErrorResponse && err.status === 400
+              ? 'Seuil refusé : il doit être compris entre 0 et 100 000 000 FCFA.'
+              : "Impossible d'enregistrer le seuil. Réessayez.",
+        });
+      },
+    });
+  }
+
+  toggleReport(): void {
+    const next = !this.reportEnabled();
+    this.reportSaving.set(true);
+    this.alertSettingsError.set(null);
+    this.writeConfig(REPORT_ENABLED_KEY, String(next), `Rapport de solde Telegram ${next ? 'activé' : 'désactivé'} depuis l'écran SycaPay`).subscribe({
+      next: (updated) => {
+        this.reportConfig.set(updated);
+        this.reportSaving.set(false);
+      },
+      error: () => {
+        this.reportSaving.set(false);
+        this.alertSettingsError.set("Impossible de modifier l'envoi du rapport. Réessayez.");
+      },
+    });
+  }
+
+  private writeConfig(key: string, value: string, motif: string) {
+    return this.configurationService
+      .getByKey(key)
+      .pipe(switchMap((config) => this.configurationService.update(key, toConfigRequest(config, value, motif))));
+  }
+
+  sendBalanceToTelegram(): void {
+    this.telegramSending.set(true);
+    this.telegramMessage.set(null);
+    this.sycapayService.sendBalanceToTelegram().subscribe({
+      next: (response) => {
+        this.telegramSending.set(false);
+        // Le backend renvoie le texte Telegram tel quel (balises HTML <b>…</b>) : on les retire.
+        const text = (response.message ?? '').replace(/<[^>]+>/g, '').trim();
+        this.telegramMessage.set({ variant: 'success', text: text || 'Solde envoyé sur Telegram.' });
+      },
+      error: (err: unknown) => {
+        this.telegramSending.set(false);
+        this.telegramMessage.set({ variant: 'danger', text: sycapayErrorMessage(err, "Impossible d'envoyer le solde sur Telegram.") });
+      },
+    });
+  }
+
   readonly sortedBalances = computed(() =>
     [...this.balanceResults()].sort((a, b) => {
       if (this.isCommissionAccount(a) !== this.isCommissionAccount(b)) return this.isCommissionAccount(a) ? -1 : 1;
