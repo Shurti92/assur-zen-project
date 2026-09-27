@@ -1,3 +1,107 @@
+<section class="dl-panel mb-4" aria-labelledby="validation-title">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2 id="validation-title">Demandes à valider</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer les demandes">
+      <button (click)="setValidationFilter('todo')" [attr.data-active]="validationFilter() === 'todo'" class="dl-pill dl-pill--warning" type="button">
+        À traiter ({{ validationTodoCount() }})
+      </button>
+      <button (click)="setValidationFilter('paid')" [attr.data-active]="validationFilter() === 'paid'" class="dl-pill dl-pill--success" type="button">Payées</button>
+      <button (click)="setValidationFilter('all')" [attr.data-active]="validationFilter() === 'all'" class="dl-pill" type="button">Toutes</button>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetchValidationRequests()" [disabled]="validationLoading()" cButton class="dl-btn" type="button">
+        @if (validationLoading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (validationError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  @if (validationResult(); as validation) {
+    @let resultMessage = partialPaymentResultMessage(validation.result);
+    <p [class]="'dl-chip dl-chip--' + resultMessage.variant + ' d-inline-flex mb-3'" role="status">
+      <span class="dl-chip-dot"></span>{{ validation.nom }} — {{ resultMessage.text }}
+    </p>
+  }
+
+  @if (validationLoading() && validationRequests().length === 0) {
+    <p class="dl-empty">Chargement des demandes…</p>
+  } @else if (filteredValidationRequests().length === 0) {
+    <p class="dl-empty">{{ validationFilter() === 'todo' ? 'Aucune demande à traiter.' : 'Aucune demande pour ce filtre.' }}</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Bénéficiaire</th>
+            <th scope="col">Numéro de versement</th>
+            <th scope="col">Montant</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredValidationRequests(); track item.id) {
+            <tr>
+              <td class="dl-timestamp">{{ formatDateTime(item.requestedAt) }}</td>
+              <td>
+                {{ item.beneficiaireNom || '—' }}
+                <span class="dl-cell-detail d-block">{{ beneficiaryTypeLabel(item) }}</span>
+              </td>
+              <td class="dl-timestamp">{{ item.telephoneVersement || '—' }}</td>
+              <td class="dl-timestamp">{{ formatAmount(item.requestedAmount) }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + partialStatusVariant(item.status)" [title]="item.sycapayMessage || ''">
+                  <span class="dl-chip-dot"></span>{{ partialStatusLabel(item.status) }}
+                </span>
+                @if (item.status === 'paid' && item.validatedAt) {
+                  <span class="dl-cell-detail d-block">
+                    le {{ formatDateTime(item.validatedAt) }}{{ item.modePaiement === 'ENREGISTREMENT_MANUEL' ? ' · virement hors application' : '' }}
+                  </span>
+                } @else if (item.status === 'failed' && item.sycapayMessage) {
+                  <span class="dl-cell-detail d-block">{{ item.sycapayMessage }}</span>
+                }
+              </td>
+              <td>
+                @if (item.status === 'processing') {
+                  @if (item.sycapayTransactionPk) {
+                    <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: item.sycapayTransactionPk }">Réconcilier</a>
+                  } @else {
+                    <a [routerLink]="['/sycapay']" class="dl-cell-detail">Réconcilier depuis Paiements SycaPay</a>
+                  }
+                } @else if (item.status !== 'paid') {
+                  <button
+                    (click)="validateListRequest(item)"
+                    [disabled]="validatingListRequestId() !== null"
+                    cButton
+                    class="dl-btn"
+                    size="sm"
+                    type="button"
+                  >
+                    @if (validatingListRequestId() === item.id) {
+                      <c-spinner size="sm" />
+                    }
+                    {{ item.status === 'failed' ? 'Relancer le virement' : 'Valider' }}
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
 <section class="dl-panel">
   <div class="dl-toolbar">
     <div class="dl-toolbar-title">
@@ -122,7 +226,12 @@
               <td class="dl-timestamp">{{ formatDateTime(payment.paidAt) }}</td>
               <td>{{ payment.partenaireNom }}</td>
               <td><span class="dl-tag">{{ payment.policyNumber }}</span></td>
-              <td class="dl-timestamp">{{ formatAmount(payment.amount) }}</td>
+              <td class="dl-timestamp">
+                {{ formatAmount(payment.montantVerse ?? payment.amount) }}
+                @if (advanceBreakdown(payment); as breakdown) {
+                  <span class="dl-cell-detail d-block">{{ breakdown }}</span>
+                }
+              </td>
               <td>{{ payment.reference || '—' }}</td>
               <td>
                 @if (payment.automatic) {
@@ -215,9 +324,11 @@
         @for (result of results; track result.contractId) {
           <li class="d-flex flex-wrap align-items-center gap-2 mb-1">
             <span class="dl-tag">{{ result.policyNumber || '#' + result.contractId }}</span>
-            <span class="dl-timestamp">{{ formatAmount(result.amount) }}</span>
+            <span class="dl-timestamp">{{ advanceBreakdown(result) ?? formatAmount(result.amount) }}</span>
             <span [class]="'dl-chip dl-chip--' + payResultVariant(result)"><span class="dl-chip-dot"></span>{{ payResultLabel(result) }}</span>
-            @if (result.modePaiement === 'ENREGISTREMENT_MANUEL') {
+            @if (result.modePaiement === 'AVANCE_IMPUTEE') {
+              <span class="dl-cell-detail">{{ result.sycapayMessage || 'Commission couverte par les avances déjà versées' }}</span>
+            } @else if (result.modePaiement === 'ENREGISTREMENT_MANUEL') {
               <span class="dl-cell-detail">Paiement enregistré (virement effectué hors application)</span>
             } @else if (!isRecorded(result) && result.sycapayMessage) {
               <span class="dl-cell-detail">{{ result.sycapayMessage }}</span>
@@ -331,6 +442,12 @@
     @if (partialPaymentError(); as message) {
       <app-alert-message class="d-block mb-3" [message]="message" />
     }
+    @if (partialPaymentResult(); as result) {
+      @let resultMessage = partialPaymentResultMessage(result);
+      <p [class]="'dl-chip dl-chip--' + resultMessage.variant + ' d-inline-flex mb-3'" role="status">
+        <span class="dl-chip-dot"></span>{{ resultMessage.text }}
+      </p>
+    }
 
     @if (partialPaymentLoading()) {
       <p class="dl-empty">Chargement…</p>
@@ -366,15 +483,28 @@
                   <td class="dl-timestamp">{{ formatAmount(request.pendingBalanceBefore) }} → {{ formatAmount(request.pendingBalanceAfter) }}</td>
                   <td>{{ request.numeroWaveCommission || '—' }}</td>
                   <td>
-                    <span [class]="'dl-chip dl-chip--' + (request.status === 'paid' ? 'success' : 'warning')">
-                      <span class="dl-chip-dot"></span>{{ request.status === 'paid' ? 'Payée' : 'En attente' }}
+                    <span [class]="'dl-chip dl-chip--' + partialStatusVariant(request.status)" [title]="request.sycapayMessage || ''">
+                      <span class="dl-chip-dot"></span>{{ partialStatusLabel(request.status) }}
                     </span>
+                    @if (request.status === 'paid' && request.modePaiement === 'ENREGISTREMENT_MANUEL') {
+                      <span class="dl-cell-detail d-block">Virement hors application</span>
+                    } @else if (request.status === 'failed' && request.sycapayMessage) {
+                      <span class="dl-cell-detail d-block">{{ request.sycapayMessage }}</span>
+                    }
                   </td>
                   <td>
-                    @if (request.status === 'pending') {
+                    @if (request.status === 'processing') {
+                      @if (request.sycapayTransactionPk) {
+                        <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: request.sycapayTransactionPk }">Réconcilier</a>
+                      }
+                    } @else if (request.status === 'paid') {
+                      @if (request.sycapayTransactionPk) {
+                        <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: request.sycapayTransactionPk }" class="dl-cell-detail">Voir le virement</a>
+                      }
+                    } @else {
                       <button
                         (click)="validatePartialPayment(request.id)"
-                        [disabled]="validatingRequestId() === request.id"
+                        [disabled]="validatingRequestId() !== null"
                         cButton
                         class="dl-btn"
                         size="sm"
@@ -383,7 +513,7 @@
                         @if (validatingRequestId() === request.id) {
                           <c-spinner size="sm" />
                         }
-                        Valider
+                        {{ request.status === 'failed' ? 'Relancer le virement' : 'Valider' }}
                       </button>
                     }
                   </td>

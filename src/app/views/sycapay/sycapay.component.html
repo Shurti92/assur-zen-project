@@ -314,7 +314,7 @@
                 <tr [class.sp-row--alert]="transaction.status === 'UNKNOWN'">
                   <td>
                     <div class="sp-mono sp-strong">{{ transaction.transactionReference }}@if (transaction.testMode) { <span class="sp-test-badge">Test</span> }</div>
-                    <div class="sp-sub">Contrat #{{ transaction.contractId }} · {{ beneficiaryLabel(transaction) }}</div>
+                    <div class="sp-sub">{{ transactionSubject(transaction) }} · {{ beneficiaryLabel(transaction) }}</div>
                   </td>
                   <td>
                     {{ transaction.beneficiaryName || '—' }}
@@ -381,7 +381,7 @@
         </div>
         <h2 id="sp-drawer-title" class="sp-mono sp-drawer-ref">{{ t.transactionReference }}</h2>
         <span class="sp-amount sp-amount--lg">{{ formatNumber(t.amount) }} <small>{{ t.currency === 'XOF' ? 'FCFA' : t.currency }}</small></span>
-        <span class="sp-muted">Commission du contrat <strong>#{{ t.contractId }}</strong> · <strong>{{ beneficiaryLabel(t) }}</strong></span>
+        <span class="sp-muted"><strong>{{ transactionSubject(t) }}</strong> · <strong>{{ beneficiaryLabel(t) }}</strong></span>
       </div>
 
       <div class="sp-drawer-body">

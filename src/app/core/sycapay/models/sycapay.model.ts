@@ -44,7 +44,10 @@ export type SycaPayBeneficiaryType = 'COMMERCIAL' | 'PARTENAIRE';
 export interface SycaPayTransaction {
   id: number;
   transactionReference: string;
-  contractId: number;
+  /** Null pour le virement d'une demande de paiement anticipé (voir partialPaymentRequestId). */
+  contractId: number | null;
+  /** Renseigné (et contractId null) pour le virement d'une demande de paiement anticipé (2026-09-26). */
+  partialPaymentRequestId?: number | null;
   beneficiaryType: SycaPayBeneficiaryType;
   partenaireId: number | null;
   /** Nullable depuis le paiement des partenaires (2026-09-23). */

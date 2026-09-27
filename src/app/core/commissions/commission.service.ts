@@ -8,8 +8,10 @@ import {
   CommissionPaymentResponse,
   ContractCommission,
   PartialPaymentRequestResponse,
+  PartialPaymentRequestStatus,
   PartialPaymentStatusResponse,
   PartnerCommissionSummary,
+  PaymentRequestValidationItem,
 } from './models/commission.model';
 
 @Injectable({ providedIn: 'root' })
@@ -40,6 +42,13 @@ export class CommissionService {
    * anticipé d'un partenaire (2026-08-22). */
   getPartialPaymentStatus(partenaireId: number): Observable<PartialPaymentStatusResponse> {
     return this.http.get<PartialPaymentStatusResponse>(`/partenaires/${partenaireId}/commissions/partial-payment-requests`);
+  }
+
+  /** Demandes de paiement de TOUS les bénéficiaires (partenaires et commerciaux), plus récentes
+   * d'abord — status absent = toutes. */
+  getPaymentRequestsForValidation(status?: PartialPaymentRequestStatus): Observable<PaymentRequestValidationItem[]> {
+    const params = status ? new HttpParams().set('status', status) : undefined;
+    return this.http.get<PaymentRequestValidationItem[]>('/commissions/partial-payment-requests', { params });
   }
 
   /** Valide (admin/finance) une demande de versement anticipé en attente — déclenche le

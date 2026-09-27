@@ -15,6 +15,9 @@ import { CommissionService } from '../../core/commissions/commission.service';
 import {
   CommissionPaymentResponse,
   ContractCommission,
+  PartialPaymentRequestResponse,
+  PartialPaymentRequestStatus,
+  PaymentRequestValidationItem,
   PartialPaymentStatusResponse,
   PartnerCommissionSummary,
   TypePartenaire,
@@ -53,6 +56,22 @@ const SYCAPAY_STATUS_VARIANT: Record<SycaPayStatus, string> = {
   REJECTED: 'danger',
 };
 
+const PARTIAL_STATUS_LABEL: Record<PartialPaymentRequestStatus, string> = {
+  pending: 'En attente',
+  processing: 'Virement en cours',
+  failed: 'Virement échoué',
+  paid: 'Payée',
+};
+
+const PARTIAL_STATUS_VARIANT: Record<PartialPaymentRequestStatus, string> = {
+  pending: 'warning',
+  processing: 'info',
+  failed: 'danger',
+  paid: 'success',
+};
+
+type ValidationFilter = 'todo' | 'paid' | 'all';
+
 type ContractStatusFilter = 'all' | 'pending' | 'paid';
 type ContractsModalTab = 'contrats' | 'demandes';
 
@@ -76,6 +95,25 @@ export class CommissionsComponent {
   private readonly sycapayService = inject(SycaPayService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  // Demandes à valider (partenaires + commerciaux) ---------------------
+  readonly validationRequests = signal<PaymentRequestValidationItem[]>([]);
+  readonly validationLoading = signal(true);
+  readonly validationError = signal<string | null>(null);
+  readonly validationFilter = signal<ValidationFilter>('todo');
+  readonly validatingListRequestId = signal<number | null>(null);
+  /** Résultat de la dernière validation depuis la liste commune. */
+  readonly validationResult = signal<{ nom: string; result: PartialPaymentRequestResponse } | null>(null);
+
+  /** « À traiter » = tout ce qui n'est pas payé : en attente, virement en cours ou échoué. */
+  readonly validationTodoCount = computed(() => this.validationRequests().filter((r) => r.status !== 'paid').length);
+
+  readonly filteredValidationRequests = computed(() => {
+    const filter = this.validationFilter();
+    return this.validationRequests().filter((r) =>
+      filter === 'all' ? true : filter === 'paid' ? r.status === 'paid' : r.status !== 'paid'
+    );
+  });
 
   // Partners summary --------------------------------------------------
   readonly partners = signal<PartnerCommissionSummary[]>([]);
@@ -115,6 +153,8 @@ export class CommissionsComponent {
   readonly partialPaymentLoading = signal(false);
   readonly partialPaymentError = signal<string | null>(null);
   readonly validatingRequestId = signal<number | null>(null);
+  /** Résultat de la dernière validation (virement SycaPay ou enregistrement hors application). */
+  readonly partialPaymentResult = signal<PartialPaymentRequestResponse | null>(null);
 
   readonly filteredContracts = computed(() => {
     const filter = this.contractsStatusFilter();
@@ -129,7 +169,7 @@ export class CommissionsComponent {
   });
 
   readonly pendingPartialPaymentCount = computed(
-    () => this.partialPaymentStatus()?.history.filter((r) => r.status === 'pending').length ?? 0
+    () => this.partialPaymentStatus()?.history.filter((r) => r.status !== 'paid').length ?? 0
   );
 
   /** Scopé à ce qui est actuellement affiché (filteredContracts), pas à tous les contrats du
@@ -156,6 +196,7 @@ export class CommissionsComponent {
   readonly paymentsPageSize = 15;
 
   constructor() {
+    this.fetchValidationRequests();
     this.fetchPartners();
     this.fetchPayments();
   }
@@ -195,6 +236,53 @@ export class CommissionsComponent {
     this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
   }
 
+  // Demandes à valider ---------------------------------------------------
+
+  fetchValidationRequests(): void {
+    this.validationLoading.set(true);
+    this.validationError.set(null);
+    this.commissionService.getPaymentRequestsForValidation().subscribe({
+      next: (requests) => {
+        this.validationRequests.set(requests);
+        this.validationLoading.set(false);
+      },
+      error: () => {
+        this.validationError.set('Impossible de charger les demandes de paiement.');
+        this.validationLoading.set(false);
+      },
+    });
+  }
+
+  setValidationFilter(filter: ValidationFilter): void {
+    this.validationFilter.set(filter);
+  }
+
+  validateListRequest(item: PaymentRequestValidationItem): void {
+    this.validatingListRequestId.set(item.id);
+    this.validationError.set(null);
+    this.validationResult.set(null);
+    this.commissionService.validatePartialPaymentRequest(item.id).subscribe({
+      next: (result) => {
+        this.validatingListRequestId.set(null);
+        this.validationResult.set({ nom: item.beneficiaireNom ?? `Demande n° ${item.id}`, result });
+        this.fetchValidationRequests();
+        this.fetchPartners();
+        this.fetchPayments();
+      },
+      // 409 : demande déjà payée, ou SYCAPAY_DUPLICATE_PAYMENT (virement encore en cours → réconcilier).
+      error: (err: unknown) => {
+        this.validatingListRequestId.set(null);
+        this.validationError.set(sycapayErrorMessage(err, 'Impossible de valider cette demande.', 'pay'));
+        this.fetchValidationRequests();
+      },
+    });
+  }
+
+  beneficiaryTypeLabel(item: PaymentRequestValidationItem): string {
+    if (item.beneficiaryType === 'PARTENAIRE') return 'Partenaire';
+    return item.type === 'TOTAL' ? 'Commercial · solde total' : item.type === 'PARTIAL' ? 'Commercial · partiel' : 'Commercial';
+  }
+
   // Contracts modal ----------------------------------------------------
 
   openContracts(partner: PartnerCommissionSummary): void {
@@ -204,6 +292,7 @@ export class CommissionsComponent {
     this.payError.set(null);
     this.payBlockedTransactions.set([]);
     this.payResult.set(null);
+    this.partialPaymentResult.set(null);
     this.contractsStatusFilter.set('pending');
     this.contractsModalTab.set('contrats');
     this.contractsModalVisible.set(true);
@@ -234,16 +323,21 @@ export class CommissionsComponent {
 
   validatePartialPayment(id: number): void {
     this.validatingRequestId.set(id);
+    this.partialPaymentError.set(null);
+    this.partialPaymentResult.set(null);
     this.commissionService.validatePartialPaymentRequest(id).subscribe({
-      next: () => {
+      next: (result) => {
         this.validatingRequestId.set(null);
+        this.partialPaymentResult.set(result);
         this.fetchPartialPaymentStatus();
         this.fetchPartners();
         this.fetchPayments();
       },
-      error: () => {
+      // 409 : demande déjà payée, ou SYCAPAY_DUPLICATE_PAYMENT (virement encore en cours → réconcilier).
+      error: (err: unknown) => {
         this.validatingRequestId.set(null);
-        this.partialPaymentError.set('Impossible de valider cette demande.');
+        this.partialPaymentError.set(sycapayErrorMessage(err, 'Impossible de valider cette demande.', 'pay'));
+        this.fetchPartialPaymentStatus();
       },
     });
   }
@@ -332,7 +426,7 @@ export class CommissionsComponent {
 
   /** Paiement enregistré : virement SycaPay SUCCESS, ou enregistrement hors application (SycaPay désactivé). */
   isRecorded(result: CommissionPaymentResponse): boolean {
-    return result.modePaiement === 'ENREGISTREMENT_MANUEL' || result.sycapayStatus === 'SUCCESS';
+    return result.modePaiement !== 'VIREMENT_SYCAPAY' || result.sycapayStatus === 'SUCCESS';
   }
 
   needsReconcile(result: CommissionPaymentResponse): boolean {
@@ -347,12 +441,48 @@ export class CommissionsComponent {
 
   payResultLabel(result: CommissionPaymentResponse): string {
     if (result.modePaiement === 'ENREGISTREMENT_MANUEL') return 'Enregistré';
+    if (result.modePaiement === 'AVANCE_IMPUTEE') return 'Couvert par avance';
     return result.sycapayStatus ? `Virement ${SYCAPAY_STATUS_LABEL[result.sycapayStatus]}` : '—';
   }
 
   payResultVariant(result: CommissionPaymentResponse): string {
-    if (result.modePaiement === 'ENREGISTREMENT_MANUEL') return 'success';
+    if (result.modePaiement !== 'VIREMENT_SYCAPAY') return 'success';
     return result.sycapayStatus ? SYCAPAY_STATUS_VARIANT[result.sycapayStatus] : 'neutral';
+  }
+
+  partialStatusLabel(status: PartialPaymentRequestStatus): string {
+    return PARTIAL_STATUS_LABEL[status];
+  }
+
+  partialStatusVariant(status: PartialPaymentRequestStatus): string {
+    return PARTIAL_STATUS_VARIANT[status];
+  }
+
+  /** Message du résultat de validation : tout statut SycaPay possible, y compris REJECTED (aucune tentative). */
+  partialPaymentResultMessage(result: PartialPaymentRequestResponse): { variant: string; text: string } {
+    const amount = this.formatAmount(result.requestedAmount);
+    if (result.status === 'paid') {
+      return {
+        variant: 'success',
+        text: result.modePaiement === 'VIREMENT_SYCAPAY'
+          ? `Virement Wave de ${amount} effectué.`
+          : `Demande de ${amount} marquée payée (virement effectué hors application).`,
+      };
+    }
+    if (result.sycapayStatus === 'REJECTED') {
+      return { variant: 'danger', text: `Aucun virement n'est parti. ${result.sycapayMessage ?? ''}`.trim() };
+    }
+    if (result.status === 'processing') {
+      return { variant: 'warning', text: `Virement de ${amount} en cours ou d'issue incertaine : ne le relancez pas, utilisez « Réconcilier ».` };
+    }
+    return { variant: 'danger', text: `Virement de ${amount} échoué${result.sycapayMessage ? ' : ' + result.sycapayMessage : ''}. Vous pouvez le relancer.` };
+  }
+
+  /** « Part : X – déjà avancé : Y = versé : Z » quand une avance a été imputée, sinon null. */
+  advanceBreakdown(payment: CommissionPaymentResponse): string | null {
+    if (!payment.avanceImputee) return null;
+    const verse = payment.montantVerse ?? payment.amount - payment.avanceImputee;
+    return `Part : ${this.formatAmount(payment.amount)} – déjà avancé : ${this.formatAmount(payment.avanceImputee)} = versé : ${this.formatAmount(verse)}`;
   }
 
   /** Le 409 ne dit ni quel contrat ni quel statut : on retrouve la transaction de chaque contrat
@@ -367,7 +497,7 @@ export class CommissionsComponent {
           .filter((t): t is SycaPayTransaction => !!t && OPEN_TRANSACTION_STATUSES.has(t.status))
           .map((t) => ({
             transactionId: t.id,
-            policyNumber: policyById.get(t.contractId) ?? `#${t.contractId}`,
+            policyNumber: (t.contractId !== null && policyById.get(t.contractId)) || `#${t.contractId}`,
             status: t.status,
             reconcilable: t.status === 'PROCESSING' || t.status === 'UNKNOWN',
           })),

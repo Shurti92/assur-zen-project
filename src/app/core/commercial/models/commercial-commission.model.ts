@@ -64,7 +64,7 @@ export interface CommercialCommissionPaymentResponse {
   sycapayMessage: string | null;
   /** Depuis le 2026-09-26 (backend 4264f74, mode hybride) : ENREGISTREMENT_MANUEL quand SycaPay est
    * désactivé (paiement fait hors application, sycapayStatus null) au lieu d'un 502. */
-  modePaiement: CommissionModePaiement;
+  modePaiement: Exclude<CommissionModePaiement, 'AVANCE_IMPUTEE'>;
 }
 
 export interface CommercialCommissionPaymentPage {
