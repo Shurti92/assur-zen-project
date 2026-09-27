@@ -16,13 +16,16 @@
       <app-alert-message class="d-block mb-3" [message]="message" />
     }
     @if (commissionWarning(); as message) {
-      <app-alert-message class="d-block mb-3" [message]="message" />
+      <!-- À l'étape Paiement, l'information est portée par chaque carte produit. -->
+      @if (currentStep() !== 3) {
+        <app-alert-message class="d-block mb-3" [message]="message" />
+      }
     }
 
     @if (referenceLoading()) {
       <p class="dl-empty">Chargement des données de référence…</p>
     } @else {
-      <nav class="wz-stepper" aria-label="Étapes de la souscription">
+      <nav class="wz-stepper pz-stepper" aria-label="Étapes de la souscription">
         @for (label of steps; track label; let i = $index; let last = $last) {
           <button
             (click)="goToStep(i)"
@@ -45,7 +48,7 @@
         }
       </nav>
 
-      @if (currentStep() < steps.length - 1) {
+      @if (currentStep() < steps.length - 1 && currentStep() !== 3) {
         <p class="dl-cell-detail mb-2"><span class="wz-required">*</span> Champ obligatoire</p>
       }
 
@@ -293,133 +296,238 @@
           </div>
         }
 
-        <!-- Étape 4 : Paiement -->
+        <!-- Étape 4 : Paiement (maquette validée le 2026-09-25) -->
         @if (currentStep() === 3) {
-          <h6 class="fw-semibold mb-2">Paiement</h6>
-
-          <div formArrayName="contracts">
-            @for (group of contractsArray.controls; track group; let i = $index) {
-              <div [formGroupName]="i" class="souscription-row mb-3">
-                <div class="mb-2">
-                  <strong>Produit {{ i + 1 }}{{ productNameAt(i) ? ' — ' + productNameAt(i) : '' }}</strong>
-                  @if (isDirectAt(i)) {
-                    <span class="dl-cell-detail ms-2">(Vente directe — sans partenaire, commission obligatoire)</span>
-                  }
-                </div>
-                <div class="row g-3">
-                  <div class="col-md-4">
-                    <label cLabel>Mode de paiement</label>
-                    <select cSelect formControlName="modePaiement">
-                      <option value="COMPTANT">Comptant</option>
-                      <option value="FRACTIONNE">Fractionné</option>
-                    </select>
-                  </div>
-                  @if (group.controls.modePaiement.value === 'FRACTIONNE') {
-                    <div class="col-md-4">
-                      <label cLabel>Nombre d'échéances<span class="wz-required">*</span></label>
-                      <input cFormControl formControlName="nombreEcheances" min="2" type="number" />
-                    </div>
-                    <div class="col-md-4">
-                      <label cLabel>Périodicité</label>
-                      <select cSelect formControlName="periodiciteEcheances">
-                        <option value="MENSUELLE">Mensuelle</option>
-                        <option value="TRIMESTRIELLE">Trimestrielle</option>
-                        <option value="SEMESTRIELLE">Semestrielle</option>
-                        <option value="ANNUELLE">Annuelle</option>
-                      </select>
-                    </div>
-                    <div class="col-md-4">
-                      <label cLabel>Montant déjà versé (FCFA)</label>
-                      <input cFormControl formControlName="montantDejaVerse" inputmode="numeric" type="text" wzThousandSeparator />
-                      <div class="dl-cell-detail mt-1">Laissez à 0 si rien n'a encore été versé.</div>
-                    </div>
-                    <div class="col-12">
-                      <div class="dl-cell-detail mb-1">
-                        Aperçu de l'échéancier — reste à financer {{ formatAmount(montantRestantAFinancer(i)) }}
-                      </div>
-                      <div class="d-flex flex-wrap gap-2">
-                        @for (echeance of echeancesPreview(i); track echeance.numero) {
-                          <span class="dl-tag">
-                            Échéance {{ echeance.numero }} — {{ formatAmount(echeance.montant) }} — {{ formatDate(echeance.date) }}
-                          </span>
+          @let summary = paiementSummary();
+          <div class="pz">
+            <div class="pz-layout">
+              <div>
+                <div formArrayName="contracts" class="pz-products">
+                  @for (group of contractsArray.controls; track group; let i = $index) {
+                    @let v = paiementView(i);
+                    <div [formGroupName]="i" class="pz-card pz-product">
+                      <div class="pz-product-head">
+                        <div class="pz-product-title">
+                          <div class="pz-product-icon">{{ v.productInitial }}</div>
+                          <div><b>Produit {{ i + 1 }} · {{ v.productName }}</b><small>{{ v.subtitle }}</small></div>
+                        </div>
+                        @if (v.complete) {
+                          <span class="pz-badge pz-badge--ok">✓ Complet</span>
+                        } @else {
+                          <span class="pz-badge pz-badge--warn">● À compléter</span>
                         }
                       </div>
-                    </div>
-                  }
-                  <div class="col-md-4">
-                    <label cLabel>Prime (FCFA)<span class="wz-required">*</span></label>
-                    <input cFormControl formControlName="premium" inputmode="numeric" type="text" wzThousandSeparator />
-                  </div>
-                  <div class="col-md-4">
-                    <label cLabel>Taux de commission (%)<span class="wz-required">*</span></label>
-                    <input cFormControl formControlName="commissionRate" min="0" step="0.01" type="number" />
-                  </div>
-                  <div class="col-md-4 d-flex align-items-end">
-                    <button (click)="recomputeCommission(i, true)" cButton class="dl-btn w-100" title="Rétablit les valeurs calculées, y compris celles saisies à la main" type="button">Recalculer la commission</button>
-                  </div>
-                  <div class="col-md-4">
-                    <label cLabel>Montant de la commission (FCFA)<span class="wz-required">*</span></label>
-                    <input cFormControl formControlName="commissionAmount" inputmode="numeric" type="text" wzThousandSeparator />
-                    @if (commissionHint(i); as hint) {
-                      <div class="dl-cell-detail mt-1">
-                        Configurée : {{ formatAmount(hint.amount) }}@if (hint.amountModified) { · <strong>modifiée à la main</strong> }
+
+                      <!-- ① PRIME -->
+                      <div class="pz-section pz-section--first">
+                        <div class="pz-section-title"><span class="pz-num">1</span>Prime</div>
+                        <div class="pz-row">
+                          <div>
+                            <label class="pz-lbl" for="pz-prime-{{ i }}">Montant de la prime</label>
+                            <div class="pz-money pz-money--hero">
+                              <input formControlName="premium" id="pz-prime-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                              <span class="pz-unit">FCFA</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span class="pz-lbl">Règlement</span>
+                            <div class="pz-seg">
+                              <button (click)="setModePaiement(i, 'COMPTANT')" [class.on]="group.controls.modePaiement.value === 'COMPTANT'" type="button">Comptant</button>
+                              <button (click)="setModePaiement(i, 'FRACTIONNE')" [class.on]="group.controls.modePaiement.value === 'FRACTIONNE'" type="button">Fractionné</button>
+                            </div>
+                          </div>
+                        </div>
+                        @if (group.controls.modePaiement.value === 'FRACTIONNE') {
+                          <div class="pz-fract">
+                            <div class="pz-fract-controls">
+                              <div>
+                                <label class="pz-lbl" for="pz-nb-{{ i }}">Échéances</label>
+                                <select formControlName="nombreEcheances" id="pz-nb-{{ i }}">
+                                  @for (n of nombreEcheancesOptions; track n) {
+                                    <option [ngValue]="n">{{ n }}</option>
+                                  }
+                                </select>
+                              </div>
+                              <div>
+                                <label class="pz-lbl" for="pz-perio-{{ i }}">Périodicité</label>
+                                <select formControlName="periodiciteEcheances" id="pz-perio-{{ i }}">
+                                  <option value="MENSUELLE">Mensuelle</option>
+                                  <option value="TRIMESTRIELLE">Trimestrielle</option>
+                                  <option value="SEMESTRIELLE">Semestrielle</option>
+                                  <option value="ANNUELLE">Annuelle</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label class="pz-lbl" for="pz-deja-{{ i }}">Déjà versé</label>
+                                <div class="pz-money">
+                                  <input formControlName="montantDejaVerse" id="pz-deja-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                                  <span class="pz-unit">FCFA</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="pz-timeline">
+                              @if (+group.controls.montantDejaVerse.value > 0) {
+                                <div class="pz-tl-item pz-tl-item--paid"><small>Déjà versé</small><b>{{ formatNumber(+group.controls.montantDejaVerse.value) }}</b></div>
+                              }
+                              @for (echeance of echeancesPreview(i); track echeance.numero) {
+                                <div class="pz-tl-item">
+                                  <small>Échéance {{ echeance.numero }} · {{ formatShortDate(echeance.date) }}</small>
+                                  <b>{{ formatNumber(echeance.montant) }}</b>
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
                       </div>
-                    }
-                  </div>
-                  @if (!isDirectAt(i)) {
-                    <div class="col-md-4">
-                      <label cLabel>Part reversée au partenaire (FCFA)<span class="wz-required">*</span></label>
-                      <input cFormControl formControlName="partnerShare" inputmode="numeric" type="text" wzThousandSeparator />
-                      @if (commissionHint(i); as hint) {
-                        <div class="dl-cell-detail mt-1">
-                          @if (hint.shareLoading) {
-                            Recherche de la commission configurée…
-                          } @else if (hint.share === null) {
-                            <span class="text-danger">Aucune commission configurée pour ce produit et ce partenaire — saisie obligatoire.</span>
-                          } @else {
-                            Configurée : {{ formatAmount(hint.share) }}@if (hint.shareModified) { · <strong>modifiée à la main</strong> }
+
+                      <!-- ② RÉPARTITION -->
+                      <div class="pz-section">
+                        <div class="pz-section-title"><span class="pz-num">2</span>Répartition de la prime</div>
+
+                        <div [class.pz-split--bad]="v.shareBad" class="pz-split">
+                          <div [style.width.%]="v.widthCompagnie" class="pz-s-cie"></div>
+                          <div [style.width.%]="v.widthShare" class="pz-s-partner"></div>
+                          <div [style.width.%]="v.widthCabinet" class="pz-s-cabinet"></div>
+                        </div>
+                        <div class="pz-legend">
+                          <span><i class="pz-dot-cie"></i>Compagnie <b>{{ formatNumber(v.compagnieNet) }}</b></span>
+                          <span><i class="pz-dot-partner"></i>{{ v.legendLabel }} <b>{{ formatNumber(v.share) }}</b></span>
+                          <span><i class="pz-dot-cabinet"></i>Cabinet <b>{{ formatNumber(v.cabinet) }}</b></span>
+                        </div>
+
+                        @if (v.noConfig) {
+                          <div class="pz-info">
+                            <span>ⓘ</span>
+                            <div>
+                              Aucune commission configurée pour <b>{{ v.productName }}</b> × <b>{{ v.noConfigType }}</b>. Saisissez-la ci-dessous, ou
+                              <a routerLink="/configuration/taux-de-commission" target="_blank">configurez-la</a> pour les prochaines souscriptions.
+                            </div>
+                          </div>
+                        }
+
+                        <div class="pz-field-grid">
+                          <div>
+                            <label class="pz-lbl" for="pz-comm-{{ i }}">Commission</label>
+                            <div class="pz-with-toggle">
+                              @if (commissionUnitAt(i) === 'fcfa') {
+                                <div [class.pz-money--invalid]="v.commissionBad" class="pz-money">
+                                  <input formControlName="commissionAmount" id="pz-comm-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                                  <span class="pz-unit">FCFA</span>
+                                </div>
+                              } @else {
+                                <div [class.pz-money--invalid]="v.commissionBad" class="pz-money">
+                                  <input (input)="onCommissionPercentInput(i, $any($event.target).value)" [value]="commissionPercentInputValue(i)" id="pz-comm-{{ i }}" inputmode="decimal" type="text" />
+                                  <span class="pz-unit">%</span>
+                                </div>
+                              }
+                              <div class="pz-seg pz-seg--small">
+                                <button (click)="setCommissionUnit(i, 'fcfa')" [class.on]="commissionUnitAt(i) === 'fcfa'" type="button">FCFA</button>
+                                <button (click)="setCommissionUnit(i, 'pct')" [class.on]="commissionUnitAt(i) === 'pct'" type="button">%</button>
+                              </div>
+                            </div>
+                            @if (v.commissionBad) {
+                              <div class="pz-hint pz-hint--err">La commission dépasse la prime.</div>
+                            } @else {
+                              <div class="pz-hint">
+                                @if (commissionUnitAt(i) === 'fcfa') {
+                                  = <b>{{ formatPercent(v.commissionPercent) }}</b> de la prime
+                                } @else {
+                                  = <b>{{ formatAmount(v.commission) }}</b>
+                                }
+                                <span class="pz-pill">Configurée : {{ formatAmount(v.configuredCommission) }}</span>
+                                @if (v.commissionModified) {
+                                  <span class="pz-manual">modifiée à la main</span>
+                                  <button (click)="recomputeCommission(i, true)" class="pz-link" type="button">↺ Réappliquer</button>
+                                }
+                              </div>
+                            }
+                          </div>
+                          @if (v.shareKind) {
+                            <div>
+                              <label class="pz-lbl" for="pz-share-{{ i }}">{{ v.shareLabel }}</label>
+                              <div [class.pz-money--invalid]="v.shareBad || v.shareMissing" class="pz-money">
+                                @if (v.shareKind === 'partner') {
+                                  <input formControlName="partnerShare" id="pz-share-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                                } @else {
+                                  <input formControlName="commercialCommissionAmount" id="pz-share-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                                }
+                                <span class="pz-unit">FCFA</span>
+                              </div>
+                              @if (v.shareMissing) {
+                                <div class="pz-hint pz-hint--err">Aucune commission partenaire configurée — saisie obligatoire</div>
+                              } @else if (v.shareBad) {
+                                <div class="pz-hint pz-hint--err">
+                                  @if (v.shareKind === 'partner') {
+                                    Dépasse la commission de {{ formatAmount(v.share - v.commission) }}
+                                  } @else {
+                                    Dépasse la prime de {{ formatAmount(v.share - v.premium) }}
+                                  }
+                                </div>
+                              } @else if (v.shareOverCommission) {
+                                <div class="pz-hint">Au-delà de la commission de {{ formatAmount(v.share - v.commission) }}</div>
+                              } @else {
+                                <div class="pz-hint pz-hint--ok">✓ Dans la commission (reste {{ formatAmount(v.cabinet) }} au cabinet)</div>
+                              }
+                            </div>
                           }
                         </div>
-                      }
-                    </div>
-                  }
-                  @if (isCommercialCommissionVisible(i)) {
-                    <div class="col-md-4">
-                      <label cLabel>Commission du commercial (FCFA)</label>
-                      <input cFormControl formControlName="commercialCommissionAmount" inputmode="numeric" type="text" wzThousandSeparator />
-                      @if (commissionHint(i); as hint) {
-                        <div class="dl-cell-detail mt-1">
-                          @if (hint.commercialLoading) {
-                            Recherche de la commission configurée…
-                          } @else {
-                            Configurée : {{ formatAmount(hint.commercial) }}@if (hint.commercialModified) { · <strong>modifiée à la main</strong> }
+                      </div>
+
+                      <!-- ③ SUIVI -->
+                      <div class="pz-section">
+                        <div class="pz-section-title"><span class="pz-num">3</span>Suivi des paiements</div>
+                        <div class="pz-status-grid">
+                          <div class="pz-status-card">
+                            <div class="pz-status-top">
+                              <b>Commission</b>
+                              <div class="pz-seg pz-seg--small pz-seg--status">
+                                <button (click)="setCommissionStatus(i, 'pending')" [class.on]="group.controls.commissionStatus.value === 'pending'" class="pz-warn" type="button">En attente</button>
+                                <button (click)="setCommissionStatus(i, 'paid')" [class.on]="group.controls.commissionStatus.value === 'paid'" class="pz-ok" type="button">Payée</button>
+                              </div>
+                            </div>
+                            <div class="pz-who">Versée par la compagnie au cabinet</div>
+                          </div>
+                          @if (v.primeVerseeVisible) {
+                            <div class="pz-status-card">
+                              <div class="pz-status-top">
+                                <b>Prime versée à la compagnie ?</b>
+                                <div class="pz-seg pz-seg--small pz-seg--status">
+                                  <button (click)="setPrimeReversementStatus(i, 'non_reverse')" [class.on]="group.controls.primeReversementStatus.value === 'non_reverse'" class="pz-warn" type="button">Pas encore</button>
+                                  <button (click)="setPrimeReversementStatus(i, 'reverse')" [class.on]="group.controls.primeReversementStatus.value === 'reverse'" class="pz-ok" type="button">Déjà versée</button>
+                                </div>
+                              </div>
+                              <div class="pz-who">
+                                <span class="pz-avatar">{{ v.initials }}</span>
+                                <span>Encaissée par <b>{{ v.intermediaireName }}</b> ({{ v.intermediaireKind }})</span>
+                              </div>
+                            </div>
                           }
                         </div>
-                      }
-                    </div>
-                  }
-                  <div class="col-md-4">
-                    <label cLabel>Statut commission</label>
-                    <select cSelect formControlName="commissionStatus">
-                      <option value="pending">En attente</option>
-                      <option value="paid">Payée</option>
-                    </select>
-                  </div>
-                  @if (isPrimeVerseeVisible(i)) {
-                    <div class="col-md-4">
-                      <label cLabel>Prime versée à la compagnie ?</label>
-                      <select cSelect formControlName="primeReversementStatus">
-                        <option value="non_reverse">Non, pas encore versée</option>
-                        <option value="reverse">Oui, déjà versée</option>
-                      </select>
-                      <div class="dl-cell-detail mt-1">
-                        Prime encaissée par {{ group.controls.partenaireId.value ? 'le partenaire' : 'le commercial' }}.
                       </div>
                     </div>
                   }
                 </div>
+
+                <div class="pz-actions">
+                  <button (click)="prevStep()" class="pz-btn" type="button">← Précédent</button>
+                  <button (click)="nextStep()" [disabled]="!summary.complete" class="pz-btn pz-btn--primary" type="button">Suivant →</button>
+                </div>
               </div>
-            }
+
+              <aside class="pz-card pz-summary">
+                <h3>Total de la souscription</h3>
+                <div class="pz-sum-line"><span>Prime</span><b>{{ formatAmount(summary.premium) }}</b></div>
+                <div class="pz-sum-line"><span>Commission</span><b>{{ formatAmount(summary.commission) }}</b></div>
+                <div class="pz-sum-line"><span>{{ summary.shareLabel }}</span><b>{{ summary.share === null ? '—' : formatAmount(summary.share) }}</b></div>
+                <div class="pz-sum-line"><span>Règlement</span><b>{{ summary.mode }}</b></div>
+                <div class="pz-sum-total"><small>Net compagnie</small><b>{{ formatAmount(summary.net) }}</b></div>
+                <div class="pz-checklist">
+                  @for (check of summary.checks; track check.label) {
+                    <div [class.pz-c-ok]="check.ok" [class.pz-c-ko]="!check.ok">{{ check.ok ? '✓' : '✕' }} {{ check.label }}</div>
+                  }
+                </div>
+              </aside>
+            </div>
           </div>
         }
 
@@ -622,7 +730,8 @@
           </c-accordion>
         }
 
-        <div class="d-flex align-items-center justify-content-between mt-4">
+        <!-- L'étape Paiement porte ses propres boutons, sous la colonne des produits. -->
+        <div [class.d-none]="currentStep() === 3" class="d-flex align-items-center justify-content-between mt-4">
           <button
             (click)="prevStep()"
             [disabled]="currentStep() === 0"

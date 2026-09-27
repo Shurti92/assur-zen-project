@@ -1,6 +1,6 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconDirective } from '@coreui/icons-angular';
 import {
   AccordionComponent,
@@ -153,6 +153,7 @@ interface RecapContract {
     AccordionItemComponent,
     TemplateIdDirective,
     ThousandSeparatorDirective,
+    RouterLink,
   ],
 })
 export class SouscriptionComponent {
@@ -191,7 +192,7 @@ export class SouscriptionComponent {
   readonly success = signal<InsuredRegistrationResponse | null>(null);
   readonly commissionWarning = signal<string | null>(null);
 
-  readonly steps = ['ASSURÉ', 'PRODUIT', 'COUVERTURE', 'PAIEMENT', 'RÉCAPITULATIF'] as const;
+  readonly steps = ['Assuré', 'Produit', 'Couverture', 'Paiement', 'Récapitulatif'] as const;
   readonly currentStep = signal(0);
   /** The furthest step reached so far in this pass — governs which step headers are clickable. */
   readonly furthestStep = signal(0);
@@ -201,6 +202,11 @@ export class SouscriptionComponent {
    * jour programmatiques passent par emitEvent: false, donc seuls les changements faits par
    * l'utilisateur déclenchent les abonnements ci-dessous. */
   private readonly commissionState = new WeakMap<object, CommissionRowState>();
+  /** Étape Paiement : unité de saisie de la commission (FCFA ou %) et texte brut du champ %
+   * pendant la frappe (« 10, » ne doit pas être réécrit en « 10 »). */
+  private readonly commissionUnit = new WeakMap<object, 'fcfa' | 'pct'>();
+  private readonly commissionPercentText = new WeakMap<object, string>();
+  readonly nombreEcheancesOptions = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   private createContractGroup() {
     const group = this.buildContractGroup();
@@ -612,6 +618,181 @@ export class SouscriptionComponent {
     };
   }
 
+  // Étape Paiement (maquette validée le 2026-09-25) -------------------------
+
+  setModePaiement(index: number, mode: ModePaiement): void {
+    this.contractsArray.at(index).controls.modePaiement.setValue(mode);
+  }
+
+  setCommissionStatus(index: number, status: ContractCommissionStatus): void {
+    this.contractsArray.at(index).controls.commissionStatus.setValue(status);
+  }
+
+  setPrimeReversementStatus(index: number, status: StatutReversementPrime): void {
+    this.contractsArray.at(index).controls.primeReversementStatus.setValue(status);
+  }
+
+  commissionUnitAt(index: number): 'fcfa' | 'pct' {
+    return this.commissionUnit.get(this.contractsArray.at(index)) ?? 'fcfa';
+  }
+
+  setCommissionUnit(index: number, unit: 'fcfa' | 'pct'): void {
+    const group = this.contractsArray.at(index);
+    this.commissionUnit.set(group, unit);
+    if (unit === 'pct') {
+      const pct = this.commissionPercentOf(group);
+      this.commissionPercentText.set(group, String(Math.round(pct * 100) / 100).replace('.', ','));
+    }
+  }
+
+  commissionPercentInputValue(index: number): string {
+    return this.commissionPercentText.get(this.contractsArray.at(index)) ?? '0';
+  }
+
+  /** Saisie en % : le montant (seule valeur envoyée, le taux en est dérivé) suit le taux. */
+  onCommissionPercentInput(index: number, value: string): void {
+    const group = this.contractsArray.at(index);
+    const state = this.commissionState.get(group)!;
+    this.commissionPercentText.set(group, value);
+    const pct = Number(value.replace(/\s/g, '').replace(',', '.')) || 0;
+    const premium = Number(group.controls.premium.value) || 0;
+    state.rateManual = true;
+    state.amountManual = true;
+    group.controls.commissionRate.setValue(pct, { emitEvent: false });
+    group.controls.commissionAmount.setValue(Math.round((premium * pct) / 100), { emitEvent: false });
+  }
+
+  private commissionPercentOf(group: ContractGroup): number {
+    const premium = Number(group.controls.premium.value) || 0;
+    const amount = Number(group.controls.commissionAmount.value) || 0;
+    return premium > 0 ? (amount / premium) * 100 : 0;
+  }
+
+  formatPercent(value: number): string {
+    return `${value.toFixed(1).replace('.', ',')} %`;
+  }
+
+  formatShortDate(value: string): string {
+    return new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  }
+
+  /** Tout ce qu'affiche une carte produit de l'étape Paiement : répartition de la prime,
+   * intermédiaire, contrôles. Les règles restent celles de validatePaiementStep(). */
+  paiementView(index: number): PaiementView {
+    const group = this.contractsArray.at(index);
+    const state = this.commissionState.get(group)!;
+    const c = group.controls;
+    const produit = this.produits().find((p) => p.id === Number(c.productId.value));
+    const compagnie = this.compagnies().find((co) => co.id === Number(c.compagnieId.value));
+    const partner = c.partenaireId.value ? this.partenaires().find((p) => p.id === Number(c.partenaireId.value)) : null;
+    const commercial = this.isCommercialCommissionApplicable(group)
+      ? this.profiles().find((p) => p.userId === Number(c.salesRepId.value))
+      : null;
+
+    const premium = Number(c.premium.value) || 0;
+    const commission = Number(c.commissionAmount.value) || 0;
+    const shareKind: PaiementView['shareKind'] = c.partenaireId.value ? 'partner' : commercial ? 'commercial' : null;
+    const shareRaw: number | null =
+      shareKind === 'partner' ? c.partnerShare.value : shareKind === 'commercial' ? c.commercialCommissionAmount.value : 0;
+    const shareMissing = shareKind === 'partner' && (shareRaw === null || shareRaw === undefined);
+    const share = Number(shareRaw) || 0;
+    const compagnieNet = Math.max(premium - commission, 0);
+    const cabinet = Math.max(commission - share, 0);
+    const commissionBad = commission > premium;
+    // Part partenaire : prélevée sur la commission (règle du 2026-09-25). Commission du
+    // commercial : bornée par la prime (règle backend).
+    const shareBad = shareKind === 'partner' ? share > commission : shareKind === 'commercial' ? share > premium : false;
+
+    const intermediaireName = partner
+      ? `${partner.nom} ${partner.prenoms}`.trim()
+      : commercial
+        ? `${commercial.firstname} ${commercial.lastname}`.trim()
+        : '';
+    const initials = intermediaireName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase();
+    const compagnieName = compagnie?.nom ?? '—';
+    const subtitle = partner
+      ? `${compagnieName} · via ${intermediaireName}`
+      : commercial
+        ? `${compagnieName} · vendu par ${intermediaireName}`
+        : `${compagnieName} · vente directe`;
+
+    const checks: PaiementCheck[] = [
+      { ok: premium > 0, label: 'Prime renseignée' },
+      { ok: commission > 0 && !commissionBad, label: 'Commission valide' },
+    ];
+    if (shareKind) checks.push({ ok: !shareMissing && !shareBad, label: 'Part dans la commission' });
+
+    const configured = state.tauxConfig ? configuredCommissionAmount(state.tauxConfig, premium) : 0;
+    const width = (x: number) => (premium > 0 ? Math.min((x / premium) * 100, 100) : 0);
+    const productName = produit?.nomProduit ?? '—';
+
+    return {
+      productName,
+      productInitial: (productName.replace(/^Assurance\s+/i, '')[0] ?? '?').toUpperCase(),
+      subtitle,
+      premium,
+      commission,
+      commissionPercent: premium > 0 ? (commission / premium) * 100 : 0,
+      commissionBad,
+      configuredCommission: configured,
+      commissionModified: state.amountManual && commission !== configured,
+      noConfig: !!produit && !state.tauxConfig,
+      noConfigType: partner ? this.typePartenaireLabel(partner.type) : 'Vente directe',
+      shareKind,
+      shareLabel: shareKind === 'partner' ? 'Part reversée au partenaire' : 'Commission du commercial',
+      legendLabel: shareKind === 'partner' ? 'Partenaire' : shareKind === 'commercial' ? 'Commercial' : 'Intermédiaire',
+      share,
+      shareMissing,
+      shareBad,
+      shareOverCommission: shareKind === 'commercial' && !shareBad && share > commission,
+      compagnieNet,
+      cabinet,
+      widthCompagnie: width(compagnieNet),
+      widthShare: width(share),
+      widthCabinet: shareBad ? 0 : width(cabinet),
+      primeVerseeVisible: this.isPrimeVerseeVisible(index),
+      intermediaireName,
+      intermediaireKind: partner ? 'partenaire' : 'commercial',
+      initials,
+      checks,
+      complete: checks.every((ch) => ch.ok),
+    };
+  }
+
+  /** Panneau « Total de la souscription » de l'étape Paiement, tous produits confondus. */
+  paiementSummary(): PaiementSummary {
+    const views = this.contractsArray.controls.map((_, i) => this.paiementView(i));
+    const raws = this.contractsArray.controls.map((g) => g.getRawValue());
+    const single = views.length === 1;
+    const kinds = new Set(views.map((v) => v.shareKind).filter((k) => k !== null));
+    const fractionnes = raws.filter((r) => r.modePaiement === 'FRACTIONNE');
+    return {
+      premium: views.reduce((s, v) => s + v.premium, 0),
+      commission: views.reduce((s, v) => s + v.commission, 0),
+      share: kinds.size ? views.reduce((s, v) => s + v.share, 0) : null,
+      shareLabel:
+        kinds.size === 1 ? (kinds.has('partner') ? 'Part partenaire' : 'Part commercial') : single ? 'Part intermédiaire' : 'Part intermédiaires',
+      mode: single
+        ? raws[0].modePaiement === 'FRACTIONNE'
+          ? `${raws[0].nombreEcheances} échéances`
+          : 'Comptant'
+        : fractionnes.length
+          ? `${fractionnes.length} fractionné${fractionnes.length > 1 ? 's' : ''}`
+          : 'Comptant',
+      net: views.reduce((s, v) => s + v.compagnieNet, 0),
+      checks: views.flatMap((v, i) =>
+        v.checks.map((ch) => ({ ok: ch.ok, label: single ? ch.label : `Produit ${i + 1} · ${ch.label}` })),
+      ),
+      complete: views.every((v) => v.complete),
+    };
+  }
+
   /** Vrai quand aucun partenaire n'est sélectionné sur la ligne — vente directe. */
   isDirectAt(index: number): boolean {
     return !this.contractsArray.at(index).controls.partenaireId.value;
@@ -929,10 +1110,8 @@ export class SouscriptionComponent {
           partenaireId: contract.partenaireId ? Number(contract.partenaireId) : undefined,
           compagnieId: Number(contract.compagnieId),
           premium: Number(contract.premium),
-          commissionRate: percentToApiRate(
-            Number(contract.commissionRate) ||
-              (Number(contract.commissionAmount) / Number(contract.premium)) * 100,
-          ),
+          // Dérivé du montant : seule valeur saisie à l'étape Paiement (en FCFA ou en %).
+          commissionRate: percentToApiRate((Number(contract.commissionAmount) / Number(contract.premium)) * 100),
           commissionAmount: Number(contract.commissionAmount),
           partnerShare: contract.partenaireId ? Number(contract.partnerShare) : 0,
           commercialCommissionAmount:
@@ -1051,6 +1230,10 @@ export class SouscriptionComponent {
     return `${contract.policyNumber} — ${contract.insuredName} — ${contract.productName}`;
   }
 
+  formatNumber(value: number): string {
+    return new Intl.NumberFormat('fr-FR').format(Math.round(value));
+  }
+
   formatAmount(value: number): string {
     return `${new Intl.NumberFormat('fr-FR').format(value)} FCFA`;
   }
@@ -1107,3 +1290,51 @@ interface CommissionHint {
 }
 
 type ContractGroup = ReturnType<SouscriptionComponent['buildContractGroup']>;
+
+interface PaiementCheck {
+  ok: boolean;
+  label: string;
+}
+
+interface PaiementView {
+  productName: string;
+  productInitial: string;
+  subtitle: string;
+  premium: number;
+  commission: number;
+  commissionPercent: number;
+  commissionBad: boolean;
+  configuredCommission: number;
+  commissionModified: boolean;
+  noConfig: boolean;
+  noConfigType: string;
+  shareKind: 'partner' | 'commercial' | null;
+  shareLabel: string;
+  legendLabel: string;
+  share: number;
+  shareMissing: boolean;
+  shareBad: boolean;
+  shareOverCommission: boolean;
+  compagnieNet: number;
+  cabinet: number;
+  widthCompagnie: number;
+  widthShare: number;
+  widthCabinet: number;
+  primeVerseeVisible: boolean;
+  intermediaireName: string;
+  intermediaireKind: 'partenaire' | 'commercial';
+  initials: string;
+  checks: PaiementCheck[];
+  complete: boolean;
+}
+
+interface PaiementSummary {
+  premium: number;
+  commission: number;
+  share: number | null;
+  shareLabel: string;
+  mode: string;
+  net: number;
+  checks: PaiementCheck[];
+  complete: boolean;
+}
