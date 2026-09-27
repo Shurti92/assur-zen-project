@@ -214,6 +214,10 @@ export class UtilisateursComponent {
     this.editingId.set(null);
     this.formError.set(null);
     this.form.reset({ username: '', firstname: '', lastname: '', phone: '', email: '', roles: '', typeProfileId: '' });
+    // Le SMS de bienvenue (identifiant + mot de passe) part vers ce numéro, pas vers l'identifiant :
+    // sans téléphone, le backend n'envoie rien (cause du « SMS non reçu » signalé le 2026-09-27).
+    this.form.controls.phone.setValidators(Validators.required);
+    this.form.controls.phone.updateValueAndValidity();
     this.formVisible.set(true);
   }
 
@@ -231,12 +235,19 @@ export class UtilisateursComponent {
       // (voir docs/api-contracts/user-type-profile-id.md) — impossible de le pré-remplir ici.
       typeProfileId: '',
     });
+    this.form.controls.phone.clearValidators();
+    this.form.controls.phone.updateValueAndValidity();
     this.formVisible.set(true);
   }
 
   save(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.formError.set(
+        Object.values(this.form.controls).filter((c) => c.invalid).length === 1 && this.form.controls.phone.invalid
+          ? 'Renseignez le téléphone : il reçoit le SMS avec les accès de connexion.'
+          : 'Renseignez les champs obligatoires.'
+      );
       return;
     }
     const raw = this.form.getRawValue();

@@ -173,8 +173,11 @@
         }
       </div>
       <div class="col-sm-6">
-        <label cLabel for="user-phone">Téléphone (optionnel)</label>
-        <input cFormControl formControlName="phone" id="user-phone" type="text" />
+        <label cLabel for="user-phone">Téléphone{{ editingId() ? ' (optionnel)' : '' }}</label>
+        <input cFormControl formControlName="phone" id="user-phone" inputmode="tel" type="text" />
+        @if (!editingId()) {
+          <div class="dl-cell-detail mt-1">Reçoit le SMS de bienvenue avec l'identifiant et le mot de passe.</div>
+        }
       </div>
       <div class="col-sm-6">
         <label cLabel for="user-email">Email (optionnel)</label>
@@ -205,8 +208,10 @@
     <p>Le compte <strong>{{ account.firstname }} {{ account.lastname }}</strong> (<code>{{ account.username }}</code>) a été créé.</p>
     @if (account.notificationEnvoyee) {
       <app-alert-message class="d-block mb-3" variant="success" message="SMS de bienvenue envoyé avec les accès de connexion." />
+    } @else if (!account.phone) {
+      <app-alert-message class="d-block mb-3" variant="warning" message="Aucun téléphone renseigné : le SMS de bienvenue n'a pas été envoyé — communiquez les accès manuellement ci-dessous." />
     } @else {
-      <app-alert-message class="d-block mb-3" variant="warning" message="Le SMS n'a pas pu être confirmé comme envoyé — communiquez les accès manuellement ci-dessous." />
+      <app-alert-message class="d-block mb-3" variant="warning" [message]="'Le SMS vers ' + account.phone + ' n\'a pas pu être envoyé — communiquez les accès manuellement ci-dessous.'" />
     }
     @if (account.temporaryPassword) {
       <div class="dl-cell-detail mb-1">Mot de passe initial (visible une seule fois)</div>
