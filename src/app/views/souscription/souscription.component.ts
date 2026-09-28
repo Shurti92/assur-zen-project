@@ -842,10 +842,10 @@ export class SouscriptionComponent {
 
   /** Résultat surligné dans la liste de recherche (↑ ↓ puis Entrée). */
   readonly insuredActiveIndex = signal(0);
-  /** « + Ajouter un 2e numéro de téléphone » : champ déplié à la demande. */
-  readonly secondPhoneOpen = signal(false);
-  /** Le téléphone n'est signalé invalide qu'une fois le champ quitté (ou à « Suivant »). */
+  /** Un téléphone n'est signalé invalide qu'une fois le champ quitté (ou à « Suivant »). */
   readonly phoneTouched = signal(false);
+  /** 2e téléphone (optionnel) : reçoit aussi les SMS et le cycle de vie du contrat. */
+  readonly phone2Touched = signal(false);
 
   onInsuredSearchKeydown(event: KeyboardEvent): void {
     const results = this.insuredSearchResults();
@@ -906,6 +906,7 @@ export class SouscriptionComponent {
     const nom = ins.nom.trim();
     const prenoms = ins.prenoms.trim();
     const phone = ins.clientPhone.trim();
+    const phone2 = ins.clientPhone2.trim();
     const email = ins.clientEmail.trim();
     const city = ins.clientCity.trim();
     const emailValid = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -914,6 +915,7 @@ export class SouscriptionComponent {
       { ok: this.isPhoneValid(phone), label: 'Téléphone valide' },
       { ok: !!city, label: 'Ville' },
     ];
+    if (phone2) checks.push({ ok: this.isPhoneValid(phone2), label: '2e téléphone valide' });
     if (email) checks.push({ ok: emailValid, label: 'Email valide' });
     return {
       initials: `${nom[0] ?? ''}${prenoms[0] ?? ''}`.toUpperCase() || '?',
@@ -924,6 +926,8 @@ export class SouscriptionComponent {
       email,
       city,
       phoneError: !!phone && this.phoneTouched() && !this.isPhoneValid(phone),
+      phone2,
+      phone2Error: !!phone2 && this.phone2Touched() && !this.isPhoneValid(phone2),
       checks,
       complete: checks.every((c) => c.ok),
     };
@@ -1311,7 +1315,6 @@ export class SouscriptionComponent {
     this.selectedExistingInsured.set(insured);
     this.insuredSearchOpen.set(false);
     this.insuredSearchResults.set([]);
-    this.secondPhoneOpen.set(!!insured.clientPhone2);
   }
 
   /** Pré-remplit assuré + première ligne produit à partir du contrat passé par le bouton
@@ -1459,6 +1462,11 @@ export class SouscriptionComponent {
     if (!this.isPhoneValid(raw.insured.clientPhone)) {
       this.phoneTouched.set(true);
       this.error.set('Le numéro de téléphone doit comporter 10 chiffres.');
+      return false;
+    }
+    if (raw.insured.clientPhone2.trim() && !this.isPhoneValid(raw.insured.clientPhone2)) {
+      this.phone2Touched.set(true);
+      this.error.set('Le 2e numéro de téléphone doit comporter 10 chiffres, ou laissez-le vide.');
       return false;
     }
     if (raw.insured.clientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw.insured.clientEmail.trim())) {
@@ -1652,8 +1660,8 @@ export class SouscriptionComponent {
     this.insuredSearchResults.set([]);
     this.insuredSearchOpen.set(false);
     this.insuredSearchError.set(null);
-    this.secondPhoneOpen.set(false);
     this.phoneTouched.set(false);
+    this.phone2Touched.set(false);
     while (this.contractsArray.length > 0) {
       this.contractsArray.removeAt(0);
     }
@@ -1840,6 +1848,8 @@ interface AssureView {
   email: string;
   city: string;
   phoneError: boolean;
+  phone2: string;
+  phone2Error: boolean;
   checks: StepCheck[];
   complete: boolean;
 }

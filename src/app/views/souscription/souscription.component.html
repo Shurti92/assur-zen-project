@@ -196,6 +196,23 @@
                         }
                       </div>
                       <div>
+                        <label class="pz-lbl" for="ins-phone2">2e téléphone</label>
+                        <div [class.pz-field--err]="a.phone2Error" class="pz-field">
+                          <span class="pz-prefix">+225</span>
+                          <input (blur)="phone2Touched.set(true)" formControlName="clientPhone2" id="ins-phone2" inputmode="tel" placeholder="07 00 00 00 00" type="text" />
+                          @if (a.phone2 && !a.phone2Error && isPhoneValid(a.phone2)) {
+                            <span class="pz-ok-ico">✓</span>
+                          }
+                        </div>
+                        @if (a.phone2Error) {
+                          <div class="pz-hint pz-hint--err">Numéro incomplet : 10 chiffres attendus</div>
+                        } @else {
+                          <div class="pz-hint">Optionnel · reçoit aussi les SMS et le cycle de vie du contrat</div>
+                        }
+                      </div>
+                    </div>
+                    <div class="pz-grid2 pz-mt">
+                      <div>
                         <label class="pz-lbl" for="ins-email">Email</label>
                         <div class="pz-field">
                           <span class="pz-ico">✉</span>
@@ -203,36 +220,22 @@
                         </div>
                         <div class="pz-hint">Optionnel</div>
                       </div>
-                    </div>
-                    @if (secondPhoneOpen() || form.controls.insured.controls.clientPhone2.value) {
-                      <div class="pz-grid2 pz-mt">
-                        <div>
-                          <label class="pz-lbl" for="ins-phone2">2e téléphone</label>
-                          <div class="pz-field">
-                            <span class="pz-prefix">+225</span>
-                            <input formControlName="clientPhone2" id="ins-phone2" inputmode="tel" type="text" />
-                          </div>
-                          <div class="pz-hint">Optionnel</div>
+                      <div>
+                        <label class="pz-lbl" for="ins-city">Ville <em>*</em></label>
+                        <div class="pz-field">
+                          <span class="pz-ico">📍</span>
+                          <input autocomplete="off" formControlName="clientCity" id="ins-city" list="ville-suggestions" placeholder="Rechercher une ville…" type="text" />
                         </div>
-                      </div>
-                    } @else {
-                      <button (click)="secondPhoneOpen.set(true)" class="pz-addlink" type="button">＋ Ajouter un 2e numéro de téléphone</button>
-                    }
-                    <div class="pz-mt">
-                      <label class="pz-lbl" for="ins-city">Ville <em>*</em></label>
-                      <div class="pz-field">
-                        <span class="pz-ico">📍</span>
-                        <input autocomplete="off" formControlName="clientCity" id="ins-city" list="ville-suggestions" placeholder="Rechercher une ville…" type="text" />
-                      </div>
-                      <datalist id="ville-suggestions">
-                        @for (ville of villes(); track ville.id) {
-                          <option [value]="ville.nomVille"></option>
-                        }
-                      </datalist>
-                      <div class="pz-chips">
-                        @for (city of topCities(); track city) {
-                          <button (click)="setCity(city)" [class.on]="a.city.toLowerCase() === city.toLowerCase()" class="pz-chip" type="button">{{ city }}</button>
-                        }
+                        <datalist id="ville-suggestions">
+                          @for (ville of villes(); track ville.id) {
+                            <option [value]="ville.nomVille"></option>
+                          }
+                        </datalist>
+                        <div class="pz-chips">
+                          @for (city of topCities(); track city) {
+                            <button (click)="setCity(city)" [class.on]="a.city.toLowerCase() === city.toLowerCase()" class="pz-chip" type="button">{{ city }}</button>
+                          }
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -252,6 +255,9 @@
                   <small>{{ a.typeLabel }} · {{ a.existing ? 'Client existant' : 'Nouveau client' }}</small>
                   <div class="pz-pcard-rows">
                     <span [class.pz-empty]="!a.phone">📞 {{ a.phone || 'Téléphone à renseigner' }}</span>
+                    @if (a.phone2) {
+                      <span>📞 {{ a.phone2 }} <small>(2e numéro)</small></span>
+                    }
                     <span [class.pz-empty]="!a.email">✉ {{ a.email || "Pas d'email" }}</span>
                     <span [class.pz-empty]="!a.city">📍 {{ a.city || 'Ville à renseigner' }}</span>
                   </div>
