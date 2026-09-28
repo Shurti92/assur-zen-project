@@ -1,19 +1,9 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconDirective } from '@coreui/icons-angular';
-import {
-  AccordionComponent,
-  AccordionItemComponent,
-  ButtonDirective,
-  FormCheckInputDirective,
-  FormControlDirective,
-  FormDirective,
-  FormLabelDirective,
-  FormSelectDirective,
-  SpinnerComponent,
-  TemplateIdDirective,
-} from '@coreui/angular';
+import { FormDirective, SpinnerComponent } from '@coreui/angular';
 import { Subscription, forkJoin, map, of, switchMap } from 'rxjs';
 
 import { SouscriptionService } from '../../core/souscription/souscription.service';
@@ -71,6 +61,45 @@ function dayAfter(dateStr: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+function addDays(dateStr: string, days: number): string {
+  const date = new Date(dateStr);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** 1er jour du mois suivant (raccourci « 1er octobre » de l'étape Couverture). */
+function firstOfNextMonth(): string {
+  const now = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1)).toISOString().slice(0, 10);
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000);
+}
+
+/** Pastille d'un produit : 1re lettre du nom sans le préfixe « Assurance » (Moto → M). */
+function productInitial(name: string): string {
+  return (name.replace(/^Assurance\s+/i, '')[0] ?? '?').toUpperCase();
+}
+
+function initialsOf(fullName: string): string {
+  return fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
+}
+
+/** Chiffres d'un numéro ivoirien sans l'indicatif (+225 / 00225). */
+function phoneDigits(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 13 && digits.startsWith('225')) return digits.slice(3);
+  if (digits.length === 15 && digits.startsWith('00225')) return digits.slice(5);
+  return digits;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   signed: 'Signé',
   pending: 'En attente',
@@ -114,8 +143,18 @@ const TYPE_CLIENT_LABEL: Record<string, string> = {
 interface RecapContract {
   index: number;
   productName: string;
+  productInitial: string;
   compagnieName: string;
   partenaireName: string;
+  /** Partenaire, sinon « Vente directe ». */
+  canalLabel: string;
+  commercialName: string;
+  status: string;
+  commissionPercent: number;
+  commissionStatusLabel: string;
+  commissionPaid: boolean;
+  /** Part de la prime qui revient à la compagnie, en % (barre du récapitulatif). */
+  compagnieNetPercent: number;
   duree: string;
   dateEffet: string;
   dateEcheance: string;
@@ -139,21 +178,14 @@ interface RecapContract {
   templateUrl: './souscription.component.html',
   styleUrl: './souscription.component.scss',
   imports: [
-    ButtonDirective,
     SpinnerComponent,
     IconDirective,
     ReactiveFormsModule,
     FormDirective,
-    FormLabelDirective,
-    FormControlDirective,
-    FormSelectDirective,
-    FormCheckInputDirective,
     AlertMessageComponent,
-    AccordionComponent,
-    AccordionItemComponent,
-    TemplateIdDirective,
     ThousandSeparatorDirective,
     RouterLink,
+    NgTemplateOutlet,
   ],
 })
 export class SouscriptionComponent {
@@ -184,6 +216,9 @@ export class SouscriptionComponent {
   readonly villes = signal<VillePartenaireResponse[]>([]);
   /** Candidate contracts a new subscription can renew — used to populate contratPrecedentId. */
   readonly renewableContracts = signal<ContractResponse[]>([]);
+  /** Tous les contrats (flotte comprise) : nombre de contrats par assuré, produits les plus
+   * souscrits, compagnie habituelle d'un produit, villes les plus fréquentes. */
+  readonly allContracts = signal<ContractResponse[]>([]);
   readonly referenceLoading = signal(true);
   readonly referenceError = signal<string | null>(null);
 
@@ -305,11 +340,23 @@ export class SouscriptionComponent {
       const precedent = raw.contratPrecedentId
         ? this.renewableContracts().find((c) => c.id === Number(raw.contratPrecedentId))
         : null;
+      const commercial = raw.salesRepId ? this.profiles().find((p) => p.userId === Number(raw.salesRepId)) : null;
+      const premium = Number(raw.premium) || 0;
+      const commissionAmount = Number(raw.commissionAmount) || 0;
+      const productName = produit?.nomProduit ?? '—';
       return {
         index,
-        productName: produit?.nomProduit ?? '—',
+        productName,
+        productInitial: productInitial(productName),
         compagnieName: compagnie?.nom ?? '—',
         partenaireName: partenaire ? `${partenaire.nom} ${partenaire.prenoms}` : '—',
+        canalLabel: partenaire ? `${partenaire.nom} ${partenaire.prenoms}`.trim() : 'Vente directe',
+        commercialName: commercial ? `${commercial.firstname} ${commercial.lastname}`.trim() : '—',
+        status: raw.status,
+        commissionPercent: premium > 0 ? (commissionAmount / premium) * 100 : 0,
+        commissionStatusLabel: raw.commissionStatus === 'paid' ? 'Payée' : 'En attente',
+        commissionPaid: raw.commissionStatus === 'paid',
+        compagnieNetPercent: premium > 0 ? Math.max(0, Math.min(100, ((premium - commissionAmount) / premium) * 100)) : 100,
         duree: `${raw.duree} mois`,
         dateEffet: raw.dateEffet,
         dateEcheance: raw.dateEcheance,
@@ -344,10 +391,13 @@ export class SouscriptionComponent {
 
   readonly recapTotals = computed(() => {
     const contracts = this.recapContracts();
+    const premium = contracts.reduce((sum, c) => sum + c.premium, 0);
+    const commission = contracts.reduce((sum, c) => sum + c.commissionAmount, 0);
     return {
       count: contracts.length,
-      premium: contracts.reduce((sum, c) => sum + c.premium, 0),
-      commission: contracts.reduce((sum, c) => sum + c.commissionAmount, 0),
+      premium,
+      commission,
+      net: Math.max(premium - commission, 0),
     };
   });
 
@@ -382,6 +432,7 @@ export class SouscriptionComponent {
         // "Créer un contrat" de Gestion de flotte) suit son propre cycle de vie côté flotte —
         // on ne le propose pas comme "contrat précédent" à renouveler ici (2026-09-13).
         this.renewableContracts.set(contracts.content.filter((c) => c.vehiculeId == null));
+        this.allContracts.set(contracts.content);
         this.referenceLoading.set(false);
 
         if (this.renewContractId) {
@@ -708,13 +759,7 @@ export class SouscriptionComponent {
       : commercial
         ? `${commercial.firstname} ${commercial.lastname}`.trim()
         : '';
-    const initials = intermediaireName
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0])
-      .join('')
-      .toUpperCase();
+    const initials = initialsOf(intermediaireName);
     const compagnieName = compagnie?.nom ?? '—';
     const subtitle = partner
       ? `${compagnieName} · via ${intermediaireName}`
@@ -734,7 +779,7 @@ export class SouscriptionComponent {
 
     return {
       productName,
-      productInitial: (productName.replace(/^Assurance\s+/i, '')[0] ?? '?').toUpperCase(),
+      productInitial: productInitial(productName),
       subtitle,
       premium,
       commission,
@@ -793,6 +838,421 @@ export class SouscriptionComponent {
     };
   }
 
+  // Étape Assuré (maquette validée le 2026-09-27) ----------------------------
+
+  /** Résultat surligné dans la liste de recherche (↑ ↓ puis Entrée). */
+  readonly insuredActiveIndex = signal(0);
+  /** « + Ajouter un 2e numéro de téléphone » : champ déplié à la demande. */
+  readonly secondPhoneOpen = signal(false);
+  /** Le téléphone n'est signalé invalide qu'une fois le champ quitté (ou à « Suivant »). */
+  readonly phoneTouched = signal(false);
+
+  onInsuredSearchKeydown(event: KeyboardEvent): void {
+    const results = this.insuredSearchResults();
+    if (event.key === 'Escape') {
+      this.insuredSearchOpen.set(false);
+      return;
+    }
+    if (!this.insuredSearchOpen() || results.length === 0) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      this.insuredActiveIndex.set((this.insuredActiveIndex() + step + results.length) % results.length);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      this.selectExistingInsured(results[this.insuredActiveIndex()] ?? results[0]);
+    }
+  }
+
+  /** « Aucun ne correspond » : ferme la recherche et place le curseur sur le nom. */
+  startNewInsured(): void {
+    this.insuredSearchOpen.set(false);
+    setTimeout(() => document.getElementById('ins-nom')?.focus());
+  }
+
+  insuredContractCount(insuredId: number): number {
+    return this.allContracts().filter((c) => c.insuredId === insuredId).length;
+  }
+
+  setTypeClient(type: TypeClient): void {
+    this.form.controls.insured.controls.typeClient.setValue(type);
+  }
+
+  setCity(name: string): void {
+    this.form.controls.insured.controls.clientCity.setValue(name);
+  }
+
+  /** Raccourcis de ville : les 5 villes les plus fréquentes parmi les contrats existants,
+   * complétées par les villes configurées. */
+  readonly topCities = computed(() => {
+    const counts = new Map<string, number>();
+    for (const c of this.allContracts()) {
+      const city = c.clientCity?.trim();
+      if (city) counts.set(city, (counts.get(city) ?? 0) + 1);
+    }
+    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([city]) => city);
+    for (const v of this.villes()) {
+      if (!ranked.some((c) => c.toLowerCase() === v.nomVille.toLowerCase())) ranked.push(v.nomVille);
+    }
+    return ranked.slice(0, 5);
+  });
+
+  isPhoneValid(value: string): boolean {
+    return phoneDigits(value).length === 10;
+  }
+
+  assureView(): AssureView {
+    const ins = this.form.controls.insured.getRawValue();
+    const nom = ins.nom.trim();
+    const prenoms = ins.prenoms.trim();
+    const phone = ins.clientPhone.trim();
+    const email = ins.clientEmail.trim();
+    const city = ins.clientCity.trim();
+    const emailValid = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const checks: StepCheck[] = [
+      { ok: !!nom && !!prenoms, label: 'Nom et prénoms' },
+      { ok: this.isPhoneValid(phone), label: 'Téléphone valide' },
+      { ok: !!city, label: 'Ville' },
+    ];
+    if (email) checks.push({ ok: emailValid, label: 'Email valide' });
+    return {
+      initials: `${nom[0] ?? ''}${prenoms[0] ?? ''}`.toUpperCase() || '?',
+      fullName: `${nom} ${prenoms}`.trim(),
+      typeLabel: this.typeClientLabel(ins.typeClient),
+      existing: !!this.selectedExistingInsured(),
+      phone,
+      email,
+      city,
+      phoneError: !!phone && this.phoneTouched() && !this.isPhoneValid(phone),
+      checks,
+      complete: checks.every((c) => c.ok),
+    };
+  }
+
+  // Étape Produit (maquette validée le 2026-09-27) ---------------------------
+
+  /** Liste complète des produits dépliée (« + N autres produits »), par ligne. */
+  private readonly allProductsOpen = signal<ReadonlySet<object>>(new Set());
+  /** Notes dépliées (« + Ajouter une note interne »), par ligne. */
+  private readonly notesOpen = signal<ReadonlySet<object>>(new Set());
+  /** Sélecteur de personne ouvert (partenaire ou commercial) et sa recherche. */
+  readonly personPicker = signal<{ group: object; kind: 'partner' | 'commercial' } | null>(null);
+  readonly personQuery = signal('');
+
+  /** Produits classés du plus souscrit au moins souscrit. */
+  private readonly rankedProducts = computed(() => {
+    const counts = new Map<number, number>();
+    for (const c of this.allContracts()) counts.set(c.productId, (counts.get(c.productId) ?? 0) + 1);
+    return [...this.produits()].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0));
+  });
+
+  /** Les 3 tuiles de la ligne : les produits les plus souscrits, le produit choisi toujours visible. */
+  productTiles(index: number): ProduitResponse[] {
+    const ranked = this.rankedProducts();
+    const tiles = ranked.slice(0, 3);
+    const selected = ranked.find((p) => p.id === Number(this.contractsArray.at(index).controls.productId.value));
+    if (selected && !tiles.includes(selected)) tiles[tiles.length - 1] = selected;
+    return tiles;
+  }
+
+  otherProducts(index: number): ProduitResponse[] {
+    const tiles = this.productTiles(index);
+    return this.rankedProducts().filter((p) => !tiles.includes(p));
+  }
+
+  isAllProductsOpen(index: number): boolean {
+    return this.allProductsOpen().has(this.contractsArray.at(index));
+  }
+
+  toggleAllProducts(index: number): void {
+    this.allProductsOpen.set(this.toggled(this.allProductsOpen(), this.contractsArray.at(index)));
+  }
+
+  productInitialOf(name: string): string {
+    return productInitial(name);
+  }
+
+  selectProduct(index: number, productId: number): void {
+    const group = this.contractsArray.at(index);
+    group.controls.productId.setValue(productId);
+    // Compagnie vide : on propose la compagnie habituelle du produit.
+    if (!Number(group.controls.compagnieId.value)) {
+      const habituelle = this.compagnies().find((c) => c.id === this.habitualCompagnieId(productId));
+      if (habituelle) group.patchValue({ compagnieId: habituelle.id, compagnieQuery: habituelle.nom });
+    }
+    const open = new Set(this.allProductsOpen());
+    open.delete(group);
+    this.allProductsOpen.set(open);
+    this.recomputeCommission(index);
+  }
+
+  /** Compagnie la plus souvent associée au produit dans les contrats existants. */
+  private habitualCompagnieId(productId: number): number | null {
+    const counts = new Map<number, number>();
+    for (const c of this.allContracts()) {
+      if (c.productId === productId) counts.set(c.compagnieId, (counts.get(c.compagnieId) ?? 0) + 1);
+    }
+    let best: number | null = null;
+    let bestCount = 0;
+    counts.forEach((count, id) => {
+      if (count > bestCount) {
+        best = id;
+        bestCount = count;
+      }
+    });
+    return best;
+  }
+
+  isNotesOpen(index: number): boolean {
+    const group = this.contractsArray.at(index);
+    return this.notesOpen().has(group) || !!group.controls.notes.value.trim();
+  }
+
+  openNotes(index: number): void {
+    this.notesOpen.set(new Set([...this.notesOpen(), this.contractsArray.at(index)]));
+  }
+
+  setStatus(index: number, status: ContractStatus): void {
+    this.contractsArray.at(index).controls.status.setValue(status);
+  }
+
+  setSignedAt(index: number, preset: 'today' | 'yesterday'): void {
+    this.contractsArray.at(index).controls.signedAt.setValue(preset === 'today' ? today() : addDays(today(), -1));
+  }
+
+  isSignedAtPreset(index: number, preset: 'today' | 'yesterday'): boolean {
+    const value = this.contractsArray.at(index).controls.signedAt.value;
+    return value === (preset === 'today' ? today() : addDays(today(), -1));
+  }
+
+  toggleRenouvellement(index: number): void {
+    const control = this.contractsArray.at(index).controls.isRenouvellement;
+    control.setValue(!control.value);
+  }
+
+  openPersonPicker(index: number, kind: 'partner' | 'commercial'): void {
+    const group = this.contractsArray.at(index);
+    const current = this.personPicker();
+    this.personQuery.set('');
+    this.personPicker.set(current?.group === group && current.kind === kind ? null : { group, kind });
+  }
+
+  isPersonPickerOpen(index: number, kind: 'partner' | 'commercial'): boolean {
+    const current = this.personPicker();
+    return current?.group === this.contractsArray.at(index) && current.kind === kind;
+  }
+
+  personOptions(kind: 'partner' | 'commercial'): PersonOption[] {
+    const query = this.personQuery().trim().toLowerCase();
+    const options: PersonOption[] =
+      kind === 'partner'
+        ? this.partenaires().map((p) => ({
+            id: String(p.id),
+            name: `${p.nom} ${p.prenoms}`.trim(),
+            detail: [this.typePartenaireLabel(p.type), p.villePartenaireNom].filter(Boolean).join(' · '),
+          }))
+        : this.profiles().map((p) => ({
+            id: String(p.userId),
+            name: `${p.firstname} ${p.lastname}`.trim(),
+            detail: this.profileDetail(p),
+          }));
+    return options
+      .filter((o) => !query || o.name.toLowerCase().includes(query) || o.detail.toLowerCase().includes(query))
+      .map((o) => ({ ...o, initials: initialsOf(o.name) }));
+  }
+
+  selectPerson(index: number, kind: 'partner' | 'commercial', id: string): void {
+    const group = this.contractsArray.at(index);
+    if (kind === 'partner') {
+      group.controls.partenaireId.setValue(id);
+      this.recomputeCommission(index);
+    } else {
+      group.controls.salesRepId.setValue(id);
+      this.onCommercialChange(index);
+    }
+    this.personPicker.set(null);
+  }
+
+  private profileDetail(profile: ProfileRecord): string {
+    const role = isCommercialRole(profile.role) ? 'Commercial' : this.roleLabel(profile.role);
+    const ville = this.villes().find((v) => v.id === profile.villePartenaireId)?.nomVille;
+    return [role, ville].filter(Boolean).join(' · ');
+  }
+
+  private roleLabel(role: string | null | undefined): string {
+    if (!role) return '';
+    const clean = role.replace(/^ROLE_/, '').replace(/_/g, ' ').toLowerCase();
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+
+  produitView(index: number): ProduitView {
+    const group = this.contractsArray.at(index);
+    const c = group.controls;
+    const produit = this.produits().find((p) => p.id === Number(c.productId.value));
+    const compagnie = this.compagnies().find((co) => co.id === Number(c.compagnieId.value));
+    const partner = c.partenaireId.value ? this.partenaires().find((p) => p.id === Number(c.partenaireId.value)) : null;
+    const commercial = c.salesRepId.value ? this.profiles().find((p) => p.userId === Number(c.salesRepId.value)) : null;
+    const partnerName = partner ? `${partner.nom} ${partner.prenoms}`.trim() : '';
+    const commercialName = commercial ? `${commercial.firstname} ${commercial.lastname}`.trim() : '';
+    const productName = produit?.nomProduit ?? '';
+    return {
+      productName,
+      productInitial: productName ? productInitial(productName) : String(index + 1),
+      compagnieName: compagnie?.nom ?? '',
+      compagnieHabituelle: !!produit && !!compagnie && this.habitualCompagnieId(produit.id) === compagnie.id,
+      partnerName,
+      partnerDetail: partner ? [this.typePartenaireLabel(partner.type), partner.villePartenaireNom].filter(Boolean).join(' · ') : '',
+      partnerInitials: initialsOf(partnerName),
+      commercialName,
+      commercialDetail: commercial ? this.profileDetail(commercial) : '',
+      commercialInitials: initialsOf(commercialName),
+      complete: !!produit && !!compagnie && (!c.isRenouvellement.value || !!c.contratPrecedentId.value),
+    };
+  }
+
+  // Étape Couverture (maquette validée le 2026-09-27) ------------------------
+
+  readonly dureeOptions = [1, 3, 6, 12];
+  /** « Même période pour tous les produits » (plusieurs produits uniquement). */
+  readonly samePeriod = signal(true);
+
+  /** Période commune active : seule la 1re carte est affichée et recopiée sur les autres. */
+  isSharedPeriod(): boolean {
+    return this.samePeriod() && this.contractsArray.length > 1;
+  }
+
+  toggleSamePeriod(): void {
+    this.samePeriod.set(!this.samePeriod());
+    this.syncPeriod(0);
+  }
+
+  setDuree(index: number, months: number): void {
+    this.contractsArray.at(index).controls.duree.setValue(String(months));
+    this.recomputeEcheance(index);
+    this.syncPeriod(index);
+  }
+
+  setDateEffet(index: number, preset: 'today' | 'tomorrow' | 'nextMonth'): void {
+    const value = preset === 'today' ? today() : preset === 'tomorrow' ? addDays(today(), 1) : firstOfNextMonth();
+    this.contractsArray.at(index).controls.dateEffet.setValue(value);
+    this.recomputeEcheance(index);
+    this.syncPeriod(index);
+  }
+
+  onDateEffetChange(index: number): void {
+    this.recomputeEcheance(index);
+    this.syncPeriod(index);
+  }
+
+  /** Recopie durée et dates de la ligne sur les autres quand la période est commune. */
+  syncPeriod(index: number): void {
+    if (!this.isSharedPeriod()) return;
+    const { duree, dateEffet, dateEcheance } = this.contractsArray.at(index).getRawValue();
+    this.contractsArray.controls.forEach((group, i) => {
+      if (i !== index) group.patchValue({ duree, dateEffet, dateEcheance });
+    });
+  }
+
+  /** Sous-titre de la carte « Tous les produits » : les noms des produits concernés. */
+  sharedProductNames(): string {
+    return this.contractsArray.controls.map((_, i) => this.productNameAt(i) || `Produit ${i + 1}`).join(' · ');
+  }
+
+  dateEffetPresets(): { key: 'today' | 'tomorrow' | 'nextMonth'; label: string; value: string }[] {
+    const nextMonth = firstOfNextMonth();
+    return [
+      { key: 'today', label: "Aujourd'hui", value: today() },
+      { key: 'tomorrow', label: 'Demain', value: addDays(today(), 1) },
+      {
+        key: 'nextMonth',
+        label: `1er ${new Date(nextMonth).toLocaleDateString('fr-FR', { month: 'long', timeZone: 'UTC' })}`,
+        value: nextMonth,
+      },
+    ];
+  }
+
+  couvertureView(index: number): CouvertureView {
+    const raw = this.contractsArray.at(index).getRawValue();
+    const months = Number(raw.duree) || 0;
+    const valid = !!raw.dateEffet && !!raw.dateEcheance;
+    const days = valid ? daysBetween(raw.dateEffet, raw.dateEcheance) + 1 : 0;
+    const fromToday = valid ? daysBetween(raw.dateEffet, today()) : 0;
+    const produit = this.produits().find((p) => p.id === Number(raw.productId));
+    const compagnie = this.compagnies().find((c) => c.id === Number(raw.compagnieId));
+    const productName = produit?.nomProduit ?? '—';
+    return {
+      productName,
+      productInitial: productInitial(productName),
+      compagnieName: compagnie?.nom ?? '—',
+      startLabel: valid ? this.formatLongDate(raw.dateEffet) : '—',
+      endLabel: valid ? this.formatLongDate(raw.dateEcheance) : '—',
+      days,
+      ticks: Array.from({ length: Math.min(Math.max(months, 1), 24) + 1 }, (_, i) => i),
+      todayPercent: valid && days > 0 ? Math.max(0, Math.min(100, (fromToday / days) * 100)) : 0,
+      effetState: !valid ? 'none' : fromToday === 0 ? 'today' : fromToday < 0 ? 'future' : 'past',
+      daysUntilStart: -fromToday,
+      echeanceComputed: !!raw.dateEffet && months > 0 && raw.dateEcheance === computeEcheance(raw.dateEffet, months),
+      complete: valid && daysBetween(raw.dateEffet, raw.dateEcheance) >= 0,
+    };
+  }
+
+  isDateEffetPreset(index: number, value: string): boolean {
+    return this.contractsArray.at(index).controls.dateEffet.value === value;
+  }
+
+  /** « Dim. 27 sept. 2026 ». */
+  formatLongDate(value: string): string {
+    const label = new Date(value).toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  // Colonne de droite « Votre souscription » (étapes Produit et Couverture) ---
+
+  stepChecks(): StepCheckState[] {
+    const produitsOk = this.contractsArray.controls.every((_, i) => this.produitView(i).complete);
+    const couvertureOk = this.contractsArray.controls.every((_, i) => this.couvertureView(i).complete);
+    const step = this.currentStep();
+    const state = (ok: boolean, stepIndex: number): 'ok' | 'ko' | 'todo' =>
+      ok && step >= stepIndex ? 'ok' : step >= stepIndex ? 'ko' : 'todo';
+    return [
+      { state: this.assureView().complete ? 'ok' : 'ko', label: 'Assuré renseigné' },
+      { state: state(produitsOk, 1), label: state(produitsOk, 1) === 'todo' ? 'Produit à choisir' : 'Produit et compagnie choisis' },
+      { state: state(couvertureOk, 2), label: step >= 2 ? 'Couverture définie' : 'Couverture à définir' },
+      { state: 'todo', label: 'Paiement à définir' },
+    ];
+  }
+
+  /** Canal de la souscription : vente directe, ou le(s) partenaire(s). */
+  canalLabel(): string {
+    const partners = new Set(this.contractsArray.controls.map((g) => g.controls.partenaireId.value).filter(Boolean));
+    if (partners.size === 0) return 'Vente directe';
+    if (partners.size > 1 || partners.size < this.contractsArray.length) return 'Mixte';
+    const partner = this.partenaires().find((p) => p.id === Number([...partners][0]));
+    return partner ? `${partner.nom} ${partner.prenoms}`.trim() : 'Partenaire';
+  }
+
+  // Récapitulatif (maquette validée le 2026-09-27) ---------------------------
+
+  recapStatusClass(status: string): string {
+    return status === 'signed' ? 'ok' : status === 'cancelled' ? 'ko' : status === 'pending' ? 'warn' : 'muted';
+  }
+
+  statusLabel(status: string): string {
+    return STATUS_LABEL[status] ?? status;
+  }
+
+  private toggled(set: ReadonlySet<object>, item: object): ReadonlySet<object> {
+    const next = new Set(set);
+    if (next.has(item)) next.delete(item);
+    else next.add(item);
+    return next;
+  }
+
   /** Vrai quand aucun partenaire n'est sélectionné sur la ligne — vente directe. */
   isDirectAt(index: number): boolean {
     return !this.contractsArray.at(index).controls.partenaireId.value;
@@ -817,6 +1277,7 @@ export class SouscriptionComponent {
     }
 
     this.insuredSearchOpen.set(true);
+    this.insuredActiveIndex.set(0);
     this.insuredSearchDebounce = setTimeout(() => this.searchInsureds(query), 400);
   }
 
@@ -850,6 +1311,7 @@ export class SouscriptionComponent {
     this.selectedExistingInsured.set(insured);
     this.insuredSearchOpen.set(false);
     this.insuredSearchResults.set([]);
+    this.secondPhoneOpen.set(!!insured.clientPhone2);
   }
 
   /** Pré-remplit assuré + première ligne produit à partir du contrat passé par le bouton
@@ -961,17 +1423,26 @@ export class SouscriptionComponent {
     const next = Math.min(this.currentStep() + 1, this.steps.length - 1);
     this.currentStep.set(next);
     this.furthestStep.set(Math.max(this.furthestStep(), next));
+    this.scrollToTop();
   }
 
   prevStep(): void {
     this.error.set(null);
     this.currentStep.set(Math.max(this.currentStep() - 1, 0));
+    this.scrollToTop();
   }
 
   goToStep(index: number): void {
     if (index > this.furthestStep()) return;
     this.error.set(null);
     this.currentStep.set(index);
+    this.scrollToTop();
+  }
+
+  /** Chaque étape s'ouvre en haut de page (sinon on arrive au milieu de la nouvelle étape). */
+  private scrollToTop(): void {
+    this.personPicker.set(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   private validateInsured(): boolean {
@@ -983,6 +1454,11 @@ export class SouscriptionComponent {
       !raw.insured.clientCity.trim()
     ) {
       this.error.set('Tous les champs de l’assuré (nom, prénoms, téléphone, ville) sont obligatoires.');
+      return false;
+    }
+    if (!this.isPhoneValid(raw.insured.clientPhone)) {
+      this.phoneTouched.set(true);
+      this.error.set('Le numéro de téléphone doit comporter 10 chiffres.');
       return false;
     }
     if (raw.insured.clientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw.insured.clientEmail.trim())) {
@@ -1016,6 +1492,10 @@ export class SouscriptionComponent {
     for (const contract of raw.contracts) {
       if (!contract.dateEffet || !contract.dateEcheance) {
         this.error.set("La date d'effet et la date d'échéance sont obligatoires pour chaque produit.");
+        return false;
+      }
+      if (contract.dateEcheance < contract.dateEffet) {
+        this.error.set("La date d'échéance doit être postérieure à la date d'effet.");
         return false;
       }
     }
@@ -1172,6 +1652,8 @@ export class SouscriptionComponent {
     this.insuredSearchResults.set([]);
     this.insuredSearchOpen.set(false);
     this.insuredSearchError.set(null);
+    this.secondPhoneOpen.set(false);
+    this.phoneTouched.set(false);
     while (this.contractsArray.length > 0) {
       this.contractsArray.removeAt(0);
     }
@@ -1336,5 +1818,64 @@ interface PaiementSummary {
   mode: string;
   net: number;
   checks: PaiementCheck[];
+  complete: boolean;
+}
+
+interface StepCheck {
+  ok: boolean;
+  label: string;
+}
+
+interface StepCheckState {
+  state: 'ok' | 'ko' | 'todo';
+  label: string;
+}
+
+interface AssureView {
+  initials: string;
+  fullName: string;
+  typeLabel: string;
+  existing: boolean;
+  phone: string;
+  email: string;
+  city: string;
+  phoneError: boolean;
+  checks: StepCheck[];
+  complete: boolean;
+}
+
+interface PersonOption {
+  id: string;
+  name: string;
+  detail: string;
+  initials?: string;
+}
+
+interface ProduitView {
+  productName: string;
+  productInitial: string;
+  compagnieName: string;
+  compagnieHabituelle: boolean;
+  partnerName: string;
+  partnerDetail: string;
+  partnerInitials: string;
+  commercialName: string;
+  commercialDetail: string;
+  commercialInitials: string;
+  complete: boolean;
+}
+
+interface CouvertureView {
+  productName: string;
+  productInitial: string;
+  compagnieName: string;
+  startLabel: string;
+  endLabel: string;
+  days: number;
+  ticks: number[];
+  todayPercent: number;
+  effetState: 'none' | 'today' | 'future' | 'past';
+  daysUntilStart: number;
+  echeanceComputed: boolean;
   complete: boolean;
 }
