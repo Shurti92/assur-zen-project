@@ -72,6 +72,9 @@
 // Multi-step form wizard: stepper header + récapitulatif cards (Souscription…)
 @use "wizard";
 
+// Assistant de souscription (préfixe pz-), après "wizard" dont il surcharge le stepper.
+@use "souscription-wizard";
+
 // Sectioned single-page forms: icon+title headers, sticky récapitulatif card,
 // textarea character counter (Déclarer un sinistre, suivi de sinistre…)
 @use "form-sections";
