@@ -1,9 +1,11 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { getStyle } from '@coreui/utils';
 import { ChartjsComponent } from '@coreui/angular-chartjs';
-import { IconDirective } from '@coreui/icons-angular';
-import { ButtonDirective, ColComponent, FormControlDirective, FormDirective, RowComponent } from '@coreui/angular';
+
+import { ButtonDirective } from '@coreui/angular';
 
 import { DashboardService } from '../../core/dashboard/dashboard.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -97,6 +99,38 @@ const SORTIE_FONDS_STATUT_LABEL: Record<string, string> = {
   CLOSED: 'Clôturée',
 };
 
+type PeriodPreset = 'today' | '7d' | 'month' | 'lastMonth' | 'year' | 'custom';
+
+interface HBar {
+  label: string;
+  value: string;
+  /** Largeur de la barre en % de la plus grande valeur affichée. */
+  pct: number;
+}
+
+function isoLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Bornes (dates locales) des raccourcis de période du tableau de bord. */
+function presetRange(preset: Exclude<PeriodPreset, 'custom'>): { debut: string; fin: string } {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  switch (preset) {
+    case 'today':
+      return { debut: isoLocal(now), fin: isoLocal(now) };
+    case '7d':
+      return { debut: isoLocal(new Date(y, m, now.getDate() - 6)), fin: isoLocal(now) };
+    case 'lastMonth':
+      return { debut: isoLocal(new Date(y, m - 1, 1)), fin: isoLocal(new Date(y, m, 0)) };
+    case 'year':
+      return { debut: isoLocal(new Date(y, 0, 1)), fin: isoLocal(now) };
+    default:
+      return { debut: isoLocal(new Date(y, m, 1)), fin: isoLocal(now) };
+  }
+}
+
 function firstDayOfMonth(): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
@@ -116,15 +150,14 @@ function today(): string {
 @Component({
   selector: 'app-kpi-dashboard',
   templateUrl: './kpi-dashboard.component.html',
+  styleUrl: './kpi-dashboard.component.scss',
   imports: [
     ButtonDirective,
-    IconDirective,
-    RowComponent,
-    ColComponent,
     ChartjsComponent,
     ReactiveFormsModule,
-    FormDirective,
-    FormControlDirective,
+    NgTemplateOutlet,
+
+    RouterLink,
   ],
 })
 export class KpiDashboardComponent {
@@ -138,6 +171,8 @@ export class KpiDashboardComponent {
    * fonds/Assurés vivent tous dans le même bandeau d'onglets sur /dashboard) — ce composant
    * n'a plus son propre sélecteur d'onglet. */
   readonly activeView = input<View>('global');
+  /** Liens « Détail → » de la vue Global : le parent (DashboardComponent) change d'onglet. */
+  readonly navigate = output<View>();
 
   readonly rangeForm = this.fb.nonNullable.group({
     dateDebut: [firstDayOfMonth()],
@@ -145,6 +180,8 @@ export class KpiDashboardComponent {
   });
 
   applyRange(): void {
+    const raw = this.rangeForm.getRawValue();
+    this.appliedRange.set({ debut: raw.dateDebut, fin: raw.dateFin });
     this.globalData.set(null);
     this.vignetteData.set(null);
     this.sortieFondsData.set(null);
@@ -193,6 +230,11 @@ export class KpiDashboardComponent {
       next: (data) => {
         this.globalData.set(data);
         this.globalLoading.set(false);
+        // Petites courbes de tendance de la vue Global : l'API globale ne renvoie pas d'évolution,
+        // on précharge donc les 3 domaines (qui servent aussi, en cache, à leurs onglets).
+        if (!this.vignetteData() && !this.vignetteLoading()) this.fetchVignettes();
+        if (!this.sortieFondsData() && !this.sortieFondsLoading()) this.fetchSortiesFonds();
+        if (!this.assureData() && !this.assureLoading()) this.fetchAssures();
       },
       error: () => {
         this.globalError.set('Impossible de charger le tableau de bord global.');
@@ -435,6 +477,323 @@ export class KpiDashboardComponent {
 
   /** Villes : liste ouverte, pas un donut — classement en tableau. */
   readonly assureParVilleRanked = computed(() => [...(this.assureData()?.repartitions.parVille ?? [])].sort((a, b) => b.nombre - a.nombre));
+
+  // ================================================================ REFONTE (maquette validée le 2026-10-02) ================================================================
+
+  // ---- Période ----
+
+  readonly preset = signal<PeriodPreset>('month');
+  readonly appliedRange = signal<{ debut: string; fin: string }>({ debut: firstDayOfMonth(), fin: today() });
+  readonly presets: { key: PeriodPreset; label: string }[] = [
+    { key: 'today', label: "Aujourd'hui" },
+    { key: '7d', label: '7 derniers jours' },
+    { key: 'month', label: 'Ce mois-ci' },
+    { key: 'lastMonth', label: 'Mois dernier' },
+    { key: 'year', label: 'Cette année' },
+    { key: 'custom', label: 'Personnalisée…' },
+  ];
+
+  setPreset(preset: PeriodPreset): void {
+    this.preset.set(preset);
+    if (preset === 'custom') return; // l'utilisateur saisit ses dates puis « Appliquer »
+    const range = presetRange(preset);
+    this.rangeForm.patchValue({ dateDebut: range.debut, dateFin: range.fin });
+    this.applyRange();
+  }
+
+  readonly compareLabel = computed(() => {
+    switch (this.preset()) {
+      case 'today':
+        return 'comparé à la veille';
+      case 'month':
+      case 'lastMonth':
+        return 'comparé au mois précédent';
+      case 'year':
+        return "comparé à l'année précédente";
+      default:
+        return 'comparé à la période précédente';
+    }
+  });
+
+  formatDateFr(iso: string): string {
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  // ---- Variations (pastilles ↑ ↓ =) ----
+
+  /** inverse = une hausse est une mauvaise nouvelle (en attente, sorties, rejets…). */
+  delta(kpi: KpiValue<number> | null | undefined, inverse = false): { label: string; cls: string } {
+    if (!kpi) return { label: '—', cls: 'flat' };
+    const pctNul = kpi.variationPourcentage === null ? kpi.variation === 0 : kpi.variationPourcentage === 0;
+    if (kpi.tendance === 'STABLE' || pctNul) return { label: '= 0 %', cls: 'flat' };
+    const up = kpi.tendance === 'HAUSSE';
+    const good = inverse ? !up : up;
+    // variationPourcentage null = période précédente à 0 : on affiche l'écart absolu (« ↑ 17 »).
+    const amount =
+      kpi.variationPourcentage === null
+        ? this.formatCompact(Math.abs(kpi.variation))
+        : `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(Math.abs(kpi.variationPourcentage))} %`;
+    return { label: `${up ? '↑' : '↓'} ${amount}`, cls: good ? 'up' : 'down' };
+  }
+
+  val(kpi: KpiValue<number> | null | undefined): number | null {
+    return kpi ? kpi.valeur : null;
+  }
+
+  fmtInt(kpi: KpiValue<number> | null | undefined): string {
+    return kpi ? this.formatInt(kpi.valeur) : '—';
+  }
+
+  fmtAmount(kpi: KpiValue<number> | null | undefined): string {
+    return kpi ? this.formatAmount(kpi.valeur) : '—';
+  }
+
+  fmtPercent(kpi: KpiValue<number> | null | undefined): string {
+    return kpi ? this.formatPercentFr(kpi.valeur) : '—';
+  }
+
+  formatDecimalFr(value: number): string {
+    return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+  }
+
+  formatPercentFr(value: number): string {
+    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(value)} %`;
+  }
+
+  /** 2 108 000 → « 2,1 M », 640 000 → « 640 k » (barres et sous-indicateurs compacts). */
+  formatCompact(value: number): string {
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000) return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(value / 1_000_000)} M`;
+    if (abs >= 10_000) return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value / 1000)} k`;
+    return this.formatInt(value);
+  }
+
+  share(part: number | null, total: number | null): string {
+    if (!part || !total) return '0 %';
+    return `${Math.round((part / total) * 100)} %`;
+  }
+
+  // ---- Global : petites courbes de tendance (évolution des 3 domaines) ----
+
+  /** Chemin SVG (viewBox 200×44) d'une série : ligne + aire. null si moins de 2 points. */
+  sparkline(values: number[]): { line: string; area: string } | null {
+    if (values.length < 2) return null;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const span = max - min || 1;
+    const points = values.map((v, i) => {
+      const x = (i / (values.length - 1)) * 200;
+      const y = 40 - ((v - min) / span) * 32;
+      return `${x.toFixed(1)} ${y.toFixed(1)}`;
+    });
+    const line = `M${points.join(' L')}`;
+    return { line, area: `${line} V44 H0Z` };
+  }
+
+  readonly assureSpark = computed(() => this.sparkline((this.assureData()?.evolution ?? []).map((i) => i.totalAssures)));
+  readonly vignetteSpark = computed(() => this.sparkline((this.vignetteData()?.evolution ?? []).map((i) => i.montant)));
+  readonly sortieFondsSpark = computed(() => this.sparkline((this.sortieFondsData()?.evolution ?? []).map((i) => i.montant)));
+
+  // ---- Barres horizontales génériques ----
+
+  private bars(items: { label: string; value: number }[], formatter: (n: number) => string, limit?: number): HBar[] {
+    const sorted = [...items].filter((i) => i.value > 0).sort((a, b) => b.value - a.value);
+    const shown = limit ? sorted.slice(0, limit) : sorted;
+    const max = Math.max(1, ...shown.map((i) => i.value));
+    return shown.map((i) => ({ label: i.label, value: formatter(i.value), pct: Math.max(3, (i.value / max) * 100) }));
+  }
+
+  // ---- Vignettes ----
+
+  readonly vignetteFunnel = computed(() => {
+    const k = this.vignetteData()?.kpis;
+    if (!k) return [];
+    const total = k.nombreDemandes?.valeur ?? 0;
+    const rate = (n: number) => (total ? Math.round((n / total) * 100) : 0);
+    const editees = k.vignettesEditees?.valeur ?? 0;
+    const livrees = k.vignettesLivrees?.valeur ?? 0;
+    return [
+      { label: 'Demandes', value: total, pct: total ? 100 : 0, rate: total ? 100 : 0, color: '#1b3a8f' },
+      { label: 'Éditées', value: editees, pct: rate(editees), rate: rate(editees), color: '#3d5bb3' },
+      { label: 'Livrées', value: livrees, pct: rate(livrees), rate: rate(livrees), color: '#1f9d6b' },
+    ];
+  });
+
+  readonly vignetteComposition = computed(() => {
+    const k = this.vignetteData()?.kpis;
+    if (!k) return [];
+    const rows = [
+      { label: 'Montant vignettes', value: k.montantVignettes?.valeur ?? 0, color: '#7357d6' },
+      { label: "Frais d'opération", value: k.totalFraisOperation?.valeur ?? 0, color: '#2f6fd6' },
+      { label: 'Frais de livraison', value: k.totalFraisLivraison?.valeur ?? 0, color: '#e8792b' },
+      { label: 'Frais accessoires', value: k.totalFraisAccessoires?.valeur ?? 0, color: '#b7791f' },
+    ];
+    const total = rows.reduce((s, r) => s + r.value, 0);
+    return rows.map((r) => ({ ...r, pct: total ? (r.value / total) * 100 : 0, display: this.formatInt(r.value) }));
+  });
+
+  /** 10 statuts techniques regroupés en 4 familles lisibles pour l'anneau. */
+  readonly vignetteStatutGroups = computed(() => {
+    const items = this.vignetteData()?.repartitions.parStatut ?? [];
+    const sum = (codes: VignetteMotoStatutCode[]) => items.filter((i) => codes.includes(i.statut)).reduce((s, i) => s + i.nombre, 0);
+    const groups = [
+      { label: 'Livrées', value: sum(['LIVREE']), color: '#1f9d6b' },
+      { label: 'Éditées / en livraison', value: sum(['EDITEE', 'EN_LIVRAISON']), color: '#2f6fd6' },
+      { label: 'En cours', value: sum(['BROUILLON', 'EN_ATTENTE_PAIEMENT', 'PAYEE', 'EN_TRAITEMENT', 'EN_EDITION']), color: '#b7791f' },
+      { label: 'Rejetées / annulées', value: sum(['REJETEE', 'ANNULEE']), color: '#d64545' },
+    ];
+    return groups;
+  });
+
+  readonly vignetteStatutTotal = computed(() => this.vignetteStatutGroups().reduce((s, g) => s + g.value, 0));
+
+  readonly vignetteStatutDonut = computed(() => {
+    const groups = this.vignetteStatutGroups().filter((g) => g.value > 0);
+    if (groups.length === 0) return null;
+    return {
+      data: { labels: groups.map((g) => g.label), datasets: [{ data: groups.map((g) => g.value), backgroundColor: groups.map((g) => g.color), borderWidth: 0 }] },
+      options: { maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false } } },
+    };
+  });
+
+  readonly vignetteCylindreeBars = computed(() =>
+    this.bars((this.vignetteData()?.repartitions.parCylindree ?? []).map((i) => ({ label: CATEGORIE_CYLINDREE_LABEL[i.categorie], value: i.nombre })), this.formatInt),
+  );
+  readonly vignetteAgeBars = computed(() =>
+    this.bars((this.vignetteData()?.repartitions.parAgeMoto ?? []).map((i) => ({ label: CATEGORIE_AGE_LABEL[i.categorie], value: i.nombre })), this.formatInt),
+  );
+  readonly vignetteZoneBars = computed(() =>
+    this.bars((this.vignetteData()?.repartitions.parZoneLivraison ?? []).map((i) => ({ label: i.zoneCode, value: i.nombre })), this.formatInt, 5),
+  );
+
+  readonly vignetteTypeSplit = computed(() => {
+    const items = this.vignetteData()?.repartitions.parTypeDemande ?? [];
+    const colors: Record<string, string> = { NOUVELLE_DEMANDE: '#7357d6', RENOUVELLEMENT: '#e8792b' };
+    const total = items.reduce((s, i) => s + i.nombre, 0);
+    return items.map((i) => ({ label: i.type === 'NOUVELLE_DEMANDE' ? 'Nouvelles' : 'Renouvellements', value: this.formatInt(i.nombre), pct: total ? (i.nombre / total) * 100 : 0, color: colors[i.type] ?? '#8fa3d9' }));
+  });
+
+  readonly vignetteComboChart = computed(() => {
+    const items = this.vignetteData()?.evolution ?? [];
+    return this.buildComboChart(items.map((i) => i.periode), { label: 'Demandes', data: items.map((i) => i.nombreDemandes), color: 'rgba(115, 87, 214, 0.28)' }, { label: "Chiffre d'affaires (FCFA)", data: items.map((i) => i.montant), color: '#7357d6' });
+  });
+
+  // ---- Sorties de fonds ----
+
+  readonly sortieFondsTreasury = computed(() => {
+    const k = this.sortieFondsData()?.kpis;
+    const enc = k?.totalEncaissements?.valeur ?? 0;
+    const sorties = k?.montantExecute?.valeur ?? 0;
+    const total = enc + sorties;
+    return { encPct: total ? (enc / total) * 100 : 50, sortiesPct: total ? (sorties / total) * 100 : 50, ratio: k?.ratioSortiesEncaissements?.valeur ?? null };
+  });
+
+  /** Arc SVG de la jauge (viewBox 100×56) pour un taux 0-100. */
+  gaugeArc(rate: number | null): string {
+    const r = Math.max(0, Math.min(100, rate ?? 0)) / 100;
+    const angle = Math.PI * (1 - r);
+    const x = 50 + 42 * Math.cos(angle);
+    const y = 52 - 42 * Math.sin(angle);
+    return `M8 52 A42 42 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }
+
+  readonly sortieFondsPipeline = computed(() => {
+    const k = this.sortieFondsData()?.kpis;
+    if (!k) return [];
+    return [
+      { label: 'En attente', cls: 'warn', count: this.fmtInt(k.enAttente), amount: this.fmtAmount(k.montantEnAttente) },
+      { label: 'Validées', cls: 'info', count: this.fmtInt(k.validees), amount: this.fmtAmount(k.montantValide) },
+      { label: 'Exécutées', cls: 'up', count: this.fmtInt(k.executees), amount: this.fmtAmount(k.montantExecute) },
+      { label: 'Rejetées', cls: 'down', count: this.fmtInt(k.rejetees), amount: this.fmtAmount(k.montantRejete) },
+      { label: 'Annulées', cls: 'flat', count: this.fmtInt(k.annulees), amount: this.fmtAmount(k.montantAnnule) },
+    ];
+  });
+
+  readonly sortieFondsTypeBars = computed(() =>
+    this.bars((this.sortieFondsData()?.repartitions.parType ?? []).map((i) => ({ label: i.typeCode, value: i.montant })), (n) => this.formatCompact(n)),
+  );
+  readonly sortieFondsBeneficiaireBars = computed(() =>
+    this.bars((this.sortieFondsData()?.repartitions.parBeneficiaire ?? []).map((i) => ({ label: i.beneficiaire, value: i.montant })), (n) => this.formatCompact(n), 5),
+  );
+
+  readonly sortieFondsAreaChart = computed(() => {
+    const items = this.sortieFondsData()?.evolution ?? [];
+    return this.buildComboChart(items.map((i) => i.periode), null, { label: 'Montant (FCFA)', data: items.map((i) => i.montant), color: '#e8792b', fill: true });
+  });
+
+  // ---- Assurés ----
+
+  readonly assureActifsPct = computed(() => {
+    const k = this.assureData()?.kpis;
+    const actifs = k?.assuresActifs?.valeur ?? 0;
+    const total = actifs + (k?.assuresInactifs?.valeur ?? 0);
+    return total ? (actifs / total) * 100 : 0;
+  });
+
+  readonly assureTypeSplit = computed(() => {
+    const items = this.assureData()?.repartitions.parTypeClient ?? [];
+    const total = items.reduce((s, i) => s + i.nombre, 0);
+    const colors: Record<string, string> = { PARTICULIER: '#1b3a8f', ENTREPRISE: '#e8792b' };
+    return items.map((i) => ({
+      label: i.typeClient === 'PARTICULIER' ? 'Particuliers' : 'Entreprises',
+      value: `${this.formatInt(i.nombre)} · ${this.share(i.nombre, total)}`,
+      pct: total ? (i.nombre / total) * 100 : 0,
+      color: colors[i.typeClient] ?? '#8fa3d9',
+    }));
+  });
+
+  readonly assureVilleBars = computed(() =>
+    this.bars((this.assureData()?.repartitions.parVille ?? []).map((i) => ({ label: i.ville, value: i.nombre })), this.formatInt, 5),
+  );
+
+  readonly assureComboChart = computed(() => {
+    const items = this.assureData()?.evolution ?? [];
+    return this.buildComboChart(items.map((i) => i.periode), { label: 'Nouveaux assurés', data: items.map((i) => i.nouveauxAssures), color: 'rgba(47, 111, 214, 0.32)' }, { label: 'Total cumulé', data: items.map((i) => i.totalAssures), color: '#1b3a8f' });
+  });
+
+  /** Barres (axe gauche) + courbe (axe droit), style de la maquette : sans quadrillage vertical,
+   * légende en bas, infobulles chart.js conservées. */
+  private buildComboChart(
+    labels: string[],
+    bars: { label: string; data: number[]; color: string } | null,
+    line: { label: string; data: number[]; color: string; fill?: boolean },
+  ): { data: any; options: any } | null {
+    if (labels.length === 0) return null;
+    const grid = '#e4e7ef';
+    const tick = '#6b7489';
+    const datasets: any[] = [];
+    if (bars) {
+      datasets.push({ type: 'bar', label: bars.label, data: bars.data, backgroundColor: bars.color, borderRadius: 4, maxBarThickness: 26, yAxisID: 'y', order: 2 });
+    }
+    datasets.push({
+      type: 'line',
+      label: line.label,
+      data: line.data,
+      borderColor: line.color,
+      backgroundColor: line.fill ? `${line.color}22` : 'transparent',
+      fill: !!line.fill,
+      tension: 0.35,
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      yAxisID: bars ? 'y1' : 'y',
+      order: 1,
+    });
+    return {
+      data: { labels, datasets },
+      options: {
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: true, position: 'bottom', labels: { color: tick, boxWidth: 10, usePointStyle: true } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: tick, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+          y: { position: 'left', border: { display: false }, grid: { color: grid }, beginAtZero: true, ticks: { color: tick } },
+          ...(bars ? { y1: { position: 'right', border: { display: false }, grid: { drawOnChartArea: false }, beginAtZero: true, ticks: { color: tick } } } : {}),
+        },
+      },
+    };
+  }
 
   // ================================================================ HELPERS PARTAGÉS ================================================================
 

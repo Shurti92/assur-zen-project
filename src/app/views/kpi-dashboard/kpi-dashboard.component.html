@@ -1,461 +1,406 @@
 @if (!isAdmin()) {
   <p class="dl-empty">Ce tableau de bord est réservé aux administrateurs.</p>
 } @else {
-  <form [formGroup]="rangeForm" (ngSubmit)="applyRange()" cForm class="dl-filters">
-    <div class="dl-filter-field">
-      <label for="kpi-date-debut">Du</label>
-      <input cFormControl formControlName="dateDebut" id="kpi-date-debut" type="date" />
-    </div>
-    <div class="dl-filter-field">
-      <label for="kpi-date-fin">Au</label>
-      <input cFormControl formControlName="dateFin" id="kpi-date-fin" type="date" />
-    </div>
-    <div class="dl-filter-field justify-content-end">
-      <button cButton class="dl-btn dl-btn-primary" type="submit">Appliquer</button>
-    </div>
-  </form>
+  <div class="pz-scope tb">
+    <!-- Période (refonte validée le 2026-10-02) -->
+    <form [formGroup]="rangeForm" (ngSubmit)="applyRange()" class="tb-filters">
+      @for (p of presets; track p.key) {
+        <button (click)="setPreset(p.key)" [class.active]="preset() === p.key" class="tb-chip" type="button">{{ p.label }}</button>
+      }
+      @if (preset() === 'custom') {
+        <span class="tb-custom">
+          <input formControlName="dateDebut" aria-label="Du" type="date" />
+          <span class="tb-muted">→</span>
+          <input formControlName="dateFin" aria-label="Au" type="date" />
+          <button class="tb-btn tb-btn-primary" type="submit">Appliquer</button>
+        </span>
+      }
+      <span class="tb-range">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4m8-4v4" /></svg>
+        <b class="tb-num">{{ formatDateFr(appliedRange().debut) }}</b> → <b class="tb-num">{{ formatDateFr(appliedRange().fin) }}</b>
+      </span>
+      <span class="tb-compare">{{ compareLabel() }}</span>
+    </form>
 
-    <!-- ===== Global ===== -->
+    <!-- ================= GLOBAL ================= -->
     @if (activeView() === 'global') {
       @if (globalLoading()) {
         <p class="dl-empty">Chargement du tableau de bord global…</p>
       } @else if (globalError(); as message) {
         <p class="dl-empty">{{ message }} <button (click)="applyRange()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
-      } @else if (globalData()) {
-        <div class="mc-body">
-          <div>
-            <div class="mc-section-head"><h3>Assurés</h3></div>
-            <c-row class="g-3">
-              @for (kpi of globalAssureCards(); track kpi.key) {
-                <c-col sm="6" xl="3">
-                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
-                    <div class="ldb-kpi-head">
-                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
-                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
-                    </div>
-                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
-                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
-                  </div>
-                </c-col>
-              }
-            </c-row>
+      } @else if (globalData(); as g) {
+        <div class="tb-grid tb-g3">
+          <!-- Assurés -->
+          <div class="tb-card tb-domain">
+            <div class="tb-domain-head">
+              <span class="tb-ico tb-i-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /></svg></span>
+              <span class="tb-domain-title">Assurés</span>
+              <button (click)="navigate.emit('assures')" class="tb-link" type="button">Détail →</button>
+            </div>
+            <div>
+              <div class="tb-sub">Assurés totaux</div>
+              <div class="tb-big-row"><span class="tb-big tb-num">{{ fmtInt(g.assures.totalAssures) }}</span>@let d1 = delta(g.assures.totalAssures);<span [class]="'tb-delta tb-d-' + d1.cls">{{ d1.label }}</span></div>
+            </div>
+            @if (assureSpark(); as s) {
+              <svg class="tb-spark" viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="s.area" fill="#1b3a8f" opacity=".08" /><path [attr.d]="s.line" fill="none" stroke="#1b3a8f" stroke-width="2.2" vector-effect="non-scaling-stroke" /></svg>
+            } @else {
+              <div class="tb-spark tb-spark--empty"></div>
+            }
+            <div class="tb-mini">
+              <div><span class="tb-sub">Nouveaux</span><b class="tb-num">{{ fmtInt(g.assures.nouveauxAssures) }}</b></div>
+              <div><span class="tb-sub">Actifs</span><b class="tb-num">{{ fmtInt(g.assures.assuresActifs) }} <span class="tb-sub">· {{ share(val(g.assures.assuresActifs), val(g.assures.totalAssures)) }}</span></b></div>
+              <div><span class="tb-sub">Multi-équipement</span><b class="tb-num">{{ fmtPercent(g.assures.tauxMultiEquipement) }}</b></div>
+            </div>
           </div>
-          <div>
-            <div class="mc-section-head"><h3>Vignettes moto</h3></div>
-            <c-row class="g-3">
-              @for (kpi of globalVignetteCards(); track kpi.key) {
-                <c-col sm="6" xl="3">
-                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
-                    <div class="ldb-kpi-head">
-                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
-                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
-                    </div>
-                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
-                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
-                  </div>
-                </c-col>
-              }
-            </c-row>
+
+          <!-- Vignettes -->
+          <div class="tb-card tb-domain">
+            <div class="tb-domain-head">
+              <span class="tb-ico tb-i-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="17" r="3" /><circle cx="18" cy="17" r="3" /><path d="M9 17h6l-2-6h-3l-2-3H5" /></svg></span>
+              <span class="tb-domain-title">Vignettes moto</span>
+              <button (click)="navigate.emit('vignettes')" class="tb-link" type="button">Détail →</button>
+            </div>
+            <div>
+              <div class="tb-sub">Chiffre d'affaires</div>
+              <div class="tb-big-row"><span class="tb-big tb-num">{{ fmtAmount(g.vignettes.chiffreAffaires) }}</span>@let d2 = delta(g.vignettes.chiffreAffaires);<span [class]="'tb-delta tb-d-' + d2.cls">{{ d2.label }}</span></div>
+            </div>
+            @if (vignetteSpark(); as s) {
+              <svg class="tb-spark" viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="s.area" fill="#7357d6" opacity=".08" /><path [attr.d]="s.line" fill="none" stroke="#7357d6" stroke-width="2.2" vector-effect="non-scaling-stroke" /></svg>
+            } @else {
+              <div class="tb-spark tb-spark--empty"></div>
+            }
+            <div class="tb-mini">
+              <div><span class="tb-sub">Demandes</span><b class="tb-num">{{ fmtInt(g.vignettes.nombreDemandes) }}</b></div>
+              <div><span class="tb-sub">Livrées</span><b class="tb-num">{{ fmtInt(g.vignettes.vignettesLivrees) }} <span class="tb-sub">· {{ share(val(g.vignettes.vignettesLivrees), val(g.vignettes.nombreDemandes)) }}</span></b></div>
+              <div><span class="tb-sub">Panier moyen</span><b class="tb-num">{{ g.vignettes.panierMoyen ? formatCompact(g.vignettes.panierMoyen.valeur) : '—' }}</b></div>
+            </div>
           </div>
-          <div>
-            <div class="mc-section-head"><h3>Sorties de fonds</h3></div>
-            <c-row class="g-3">
-              @for (kpi of globalSortieFondsCards(); track kpi.key) {
-                <c-col sm="6" xl="3">
-                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
-                    <div class="ldb-kpi-head">
-                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
-                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
-                    </div>
-                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
-                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
-                  </div>
-                </c-col>
-              }
-            </c-row>
+
+          <!-- Sorties de fonds -->
+          <div class="tb-card tb-domain">
+            <div class="tb-domain-head">
+              <span class="tb-ico tb-i-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M12 9v6m-3-3 3 3 3-3" /></svg></span>
+              <span class="tb-domain-title">Sorties de fonds</span>
+              <button (click)="navigate.emit('sortiesFonds')" class="tb-link" type="button">Détail →</button>
+            </div>
+            <div>
+              <div class="tb-sub">Solde de trésorerie</div>
+              <div class="tb-big-row"><span class="tb-big tb-num">{{ fmtAmount(g.sortiesFonds.solde) }}</span>@let d3 = delta(g.sortiesFonds.solde);<span [class]="'tb-delta tb-d-' + d3.cls">{{ d3.label }}</span></div>
+            </div>
+            @if (sortieFondsSpark(); as s) {
+              <svg class="tb-spark" viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="s.area" fill="#e8792b" opacity=".08" /><path [attr.d]="s.line" fill="none" stroke="#e8792b" stroke-width="2.2" vector-effect="non-scaling-stroke" /></svg>
+            } @else {
+              <div class="tb-spark tb-spark--empty"></div>
+            }
+            <div class="tb-mini">
+              <div><span class="tb-sub">Sorties</span><b class="tb-num">{{ fmtInt(g.sortiesFonds.totalSorties) }}</b></div>
+              <div><span class="tb-sub">Exécuté</span><b class="tb-num">{{ g.sortiesFonds.montantExecute ? formatCompact(g.sortiesFonds.montantExecute.valeur) : '—' }}</b></div>
+              <div><span class="tb-sub">Ratio sorties/enc.</span><b class="tb-num">{{ fmtPercent(g.sortiesFonds.ratioSortiesEncaissements) }}</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tb-section-head"><h3>À traiter</h3><span class="tb-sub">Éléments en attente d'une action</span></div>
+        <div class="tb-todo">
+          <div class="tb-todo-item">
+            <span class="tb-ico tb-i-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="17" r="3" /><circle cx="18" cy="17" r="3" /><path d="M9 17h6l-2-6h-3l-2-3H5" /></svg></span>
+            <div><b class="tb-num">{{ fmtInt(g.vignettes.demandesEnAttente) }}</b><div class="tb-sub">demandes de vignettes en attente</div></div>
+            <a routerLink="/vignettes-moto" class="tb-go">Traiter →</a>
+          </div>
+          <div class="tb-todo-item">
+            <span class="tb-ico tb-i-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M12 9v6" /></svg></span>
+            <div><b class="tb-num">{{ fmtInt(g.sortiesFonds.enAttente) }}</b><div class="tb-sub">sorties de fonds à valider · {{ fmtAmount(g.sortiesFonds.montantEnAttente) }}</div></div>
+            <a routerLink="/sorties-de-fonds" class="tb-go">Valider →</a>
+          </div>
+          <div class="tb-todo-item">
+            <span class="tb-ico tb-i-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /></svg></span>
+            <div><b class="tb-num">{{ fmtInt(g.assures.assuresInactifs) }}</b><div class="tb-sub">assurés inactifs à relancer</div></div>
+            <a routerLink="/assures" class="tb-go">Voir →</a>
           </div>
         </div>
       }
     }
 
-    <!-- ===== Vignettes ===== -->
+    <!-- ================= VIGNETTES ================= -->
     @if (activeView() === 'vignettes') {
-      @if (vignetteLoading()) {
+      @if (vignetteLoading() && !vignetteData()) {
         <p class="dl-empty">Chargement du tableau de bord vignettes…</p>
       } @else if (vignetteError(); as message) {
         <p class="dl-empty">{{ message }} <button (click)="applyRange()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
-      } @else if (vignetteData()) {
-        <div class="mc-body">
-          <div>
-            <div class="mc-section-head"><h3>Indicateurs clés</h3></div>
-            @if (vignetteDelaiMoyen() === null) {
-              <p class="dl-cell-detail mb-2">Délai moyen de traitement : non disponible pour l'instant (workflow paiement/édition/livraison pas encore en place).</p>
-            }
-            <c-row class="g-3">
-              @for (kpi of vignetteCards(); track kpi.key) {
-                <c-col sm="6" xl="3">
-                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
-                    <div class="ldb-kpi-head">
-                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
-                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
-                    </div>
-                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
-                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
-                  </div>
-                </c-col>
-              }
-            </c-row>
+      } @else if (vignetteData(); as v) {
+        <div class="tb-grid tb-g4">
+          <div class="tb-card tb-kpi">
+            @let a = delta(v.kpis.chiffreAffaires);
+            <div class="tb-kpi-k">Chiffre d'affaires <span [class]="'tb-delta tb-d-' + a.cls">{{ a.label }}</span></div>
+            <div class="tb-kpi-v tb-num">{{ fmtAmount(v.kpis.chiffreAffaires) }}</div>
+            <div class="tb-sub">Panier moyen {{ fmtAmount(v.kpis.panierMoyen) }}</div>
           </div>
-
-          <div>
-            <div class="mc-section-head"><h3>Analyses</h3></div>
-            <c-row class="g-3">
-              <c-col xs="12">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Évolution</h3><span class="ldb-panel-sub">Demandes et montant sur la période</span></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box ldb-chart-box--tall">
-                      @if (vignetteEvolutionChart(); as chart) {
-                        <c-chart type="line" [data]="chart.data" [options]="chart.options" />
-                      } @else {
-                        <p class="dl-empty p-0">Aucune donnée sur la période.</p>
-                      }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col lg="6">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par statut</h3></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box">
-                      @if (vignetteParStatutChart(); as chart) {
-                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
-                      }
-                    </div>
-                    <div class="ldb-legend">
-                      @for (row of vignetteParStatutLegend(); track row.label) {
-                        <div class="ldb-legend-row">
-                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
-                          <span class="ldb-legend-label">{{ row.label }}</span>
-                          <span class="ldb-legend-value">{{ row.value }}</span>
-                        </div>
-                      }
-                      @if (vignetteParStatutLegend().length === 0) { <p class="dl-empty p-0">Aucune demande.</p> }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col lg="6">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par type de demande</h3></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box">
-                      @if (vignetteParTypeDemandeChart(); as chart) {
-                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
-                      }
-                    </div>
-                    <div class="ldb-legend">
-                      @for (row of vignetteParTypeDemandeLegend(); track row.label) {
-                        <div class="ldb-legend-row">
-                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
-                          <span class="ldb-legend-label">{{ row.label }}</span>
-                          <span class="ldb-legend-value">{{ row.value }}</span>
-                        </div>
-                      }
-                      @if (vignetteParTypeDemandeLegend().length === 0) { <p class="dl-empty p-0">Aucune demande.</p> }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col lg="6">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par cylindrée</h3></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box">
-                      @if (vignetteParCylindreeChart(); as chart) {
-                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
-                      }
-                    </div>
-                    <div class="ldb-legend">
-                      @for (row of vignetteParCylindreeLegend(); track row.label) {
-                        <div class="ldb-legend-row">
-                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
-                          <span class="ldb-legend-label">{{ row.label }}</span>
-                          <span class="ldb-legend-value">{{ row.value }}</span>
-                        </div>
-                      }
-                      @if (vignetteParCylindreeLegend().length === 0) { <p class="dl-empty p-0">Aucune demande.</p> }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col lg="6">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par âge de la moto</h3></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box">
-                      @if (vignetteParAgeMotoChart(); as chart) {
-                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
-                      }
-                    </div>
-                    <div class="ldb-legend">
-                      @for (row of vignetteParAgeMotoLegend(); track row.label) {
-                        <div class="ldb-legend-row">
-                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
-                          <span class="ldb-legend-label">{{ row.label }}</span>
-                          <span class="ldb-legend-value">{{ row.value }}</span>
-                        </div>
-                      }
-                      @if (vignetteParAgeMotoLegend().length === 0) { <p class="dl-empty p-0">Aucune demande.</p> }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col xs="12">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par zone de livraison</h3></div>
-                  <div class="ldb-panel-body">
-                    @if (vignetteParZoneLivraisonRanked().length === 0) {
-                      <p class="dl-empty p-0">Aucune demande.</p>
-                    } @else {
-                      <div class="dl-table-scroll">
-                        <table class="dl-table dl-table--modal">
-                          <thead><tr><th scope="col">Zone</th><th scope="col">Demandes</th></tr></thead>
-                          <tbody>
-                            @for (zone of vignetteParZoneLivraisonRanked(); track zone.zoneCode) {
-                              <tr><td>{{ zone.zoneCode }}</td><td class="dl-timestamp">{{ formatInt(zone.nombre) }}</td></tr>
-                            }
-                          </tbody>
-                        </table>
-                      </div>
-                    }
-                  </div>
-                </div>
-              </c-col>
-            </c-row>
+          <div class="tb-card tb-kpi">
+            @let b = delta(v.kpis.nombreDemandes);
+            <div class="tb-kpi-k">Demandes <span [class]="'tb-delta tb-d-' + b.cls">{{ b.label }}</span></div>
+            <div class="tb-kpi-v tb-num">{{ fmtInt(v.kpis.nombreDemandes) }}</div>
+            <div class="tb-sub">{{ fmtInt(v.kpis.nouvellesDemandes) }} nouvelles · {{ fmtInt(v.kpis.renouvellements) }} renouvellements</div>
+          </div>
+          <div class="tb-card tb-kpi">
+            @let c = delta(v.kpis.tauxTransformation);
+            <div class="tb-kpi-k">Taux de transformation <span [class]="'tb-delta tb-d-' + c.cls">{{ c.label }}</span></div>
+            <div class="tb-kpi-v tb-num">{{ fmtPercent(v.kpis.tauxTransformation) }}</div>
+            <div class="tb-sub">demandes → vignettes livrées</div>
+          </div>
+          <div class="tb-card tb-kpi">
+            @let e = delta(v.kpis.demandesEnAttente, true);
+            <div class="tb-kpi-k">En attente <span [class]="'tb-delta tb-d-' + e.cls">{{ e.label }}</span></div>
+            <div class="tb-kpi-v tb-num tb-warn">{{ fmtInt(v.kpis.demandesEnAttente) }}</div>
+            <div class="tb-sub">Rejet {{ fmtPercent(v.kpis.tauxRejet) }} · Annulation {{ fmtPercent(v.kpis.tauxAnnulation) }}</div>
           </div>
         </div>
+
+        <div class="tb-grid tb-g21 tb-mt">
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Évolution</h3><span class="tb-sub">Demandes et chiffre d'affaires</span></div>
+            <div class="tb-chart">
+              @if (vignetteComboChart(); as chart) {
+                <c-chart type="bar" [data]="chart.data" [options]="chart.options" />
+              } @else {
+                <p class="dl-empty p-0">Aucune donnée sur la période.</p>
+              }
+            </div>
+          </div>
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Parcours des demandes</h3><span class="tb-sub">Entonnoir</span></div>
+            <div class="tb-funnel">
+              @for (row of vignetteFunnel(); track row.label) {
+                <div class="tb-f-row">
+                  <span>{{ row.label }}</span>
+                  <div class="tb-f-bar"><span [style.width.%]="row.pct" [style.background]="row.color">{{ formatInt(row.value) }}</span></div>
+                  <span class="tb-f-rate tb-num">{{ row.rate }} %</span>
+                </div>
+              }
+            </div>
+            <div class="tb-panel-head tb-mt"><h3>Composition du chiffre d'affaires</h3></div>
+            <div class="tb-stack">
+              @for (row of vignetteComposition(); track row.label) {
+                <span [style.width.%]="row.pct" [style.background]="row.color"></span>
+              }
+            </div>
+            <div class="tb-legend">
+              @for (row of vignetteComposition(); track row.label) {
+                <div class="tb-lg"><i [style.background]="row.color"></i>{{ row.label }}<b class="tb-num">{{ row.display }}</b></div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="tb-grid tb-g3 tb-mt">
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Par statut</h3></div>
+            <div class="tb-donut-wrap">
+              <div class="tb-donut">
+                @if (vignetteStatutDonut(); as chart) {
+                  <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
+                }
+                <div class="tb-donut-center"><b class="tb-num">{{ formatInt(vignetteStatutTotal()) }}</b><span>demandes</span></div>
+              </div>
+              <div class="tb-legend tb-flex1">
+                @for (row of vignetteStatutGroups(); track row.label) {
+                  <div class="tb-lg"><i [style.background]="row.color"></i>{{ row.label }}<b class="tb-num">{{ formatInt(row.value) }}</b></div>
+                }
+              </div>
+            </div>
+          </div>
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Par cylindrée</h3></div>
+            <ng-container *ngTemplateOutlet="hbars; context: { $implicit: vignetteCylindreeBars(), color: '#7357d6' }" />
+            <div class="tb-panel-head tb-mt"><h3>Par âge de la moto</h3></div>
+            <ng-container *ngTemplateOutlet="hbars; context: { $implicit: vignetteAgeBars(), color: '#2f6fd6' }" />
+          </div>
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Zones de livraison</h3><span class="tb-sub">Top 5</span></div>
+            <ng-container *ngTemplateOutlet="hbars; context: { $implicit: vignetteZoneBars(), color: '#1b3a8f' }" />
+            <div class="tb-panel-head tb-mt"><h3>Type de demande</h3></div>
+            <div class="tb-stack">
+              @for (row of vignetteTypeSplit(); track row.label) {
+                <span [style.width.%]="row.pct" [style.background]="row.color"></span>
+              }
+            </div>
+            <div class="tb-legend">
+              @for (row of vignetteTypeSplit(); track row.label) {
+                <div class="tb-lg"><i [style.background]="row.color"></i>{{ row.label }}<b class="tb-num">{{ row.value }}</b></div>
+              }
+            </div>
+          </div>
+        </div>
+        @if (vignetteDelaiMoyen() === null) {
+          <p class="tb-sub tb-mt mb-0">Délai moyen de traitement : non disponible pour l'instant (workflow paiement/édition/livraison pas encore en place).</p>
+        }
       }
     }
 
-    <!-- ===== Sorties de fonds ===== -->
+    <!-- ================= SORTIES DE FONDS ================= -->
     @if (activeView() === 'sortiesFonds') {
-      @if (sortieFondsLoading()) {
+      @if (sortieFondsLoading() && !sortieFondsData()) {
         <p class="dl-empty">Chargement du tableau de bord sorties de fonds…</p>
       } @else if (sortieFondsError(); as message) {
         <p class="dl-empty">{{ message }} <button (click)="applyRange()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
-      } @else if (sortieFondsData()) {
-        <div class="mc-body">
-          <div>
-            <div class="mc-section-head"><h3>Indicateurs clés</h3></div>
-            @if (sortieFondsMaxMontant(); as max) {
-              <p class="dl-cell-detail mb-2">Plus grosse sortie sur la période : <strong>{{ formatAmount(max) }}</strong> (valeur brute, sans comparaison à la période précédente).</p>
-            }
-            <c-row class="g-3">
-              @for (kpi of sortieFondsCards(); track kpi.key) {
-                <c-col sm="6" xl="3">
-                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
-                    <div class="ldb-kpi-head">
-                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
-                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
-                    </div>
-                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
-                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
-                  </div>
-                </c-col>
-              }
-            </c-row>
+      } @else if (sortieFondsData(); as s) {
+        @let t = sortieFondsTreasury();
+        <div class="tb-grid tb-g21">
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Trésorerie de la période</h3><span class="tb-sub">Encaissements, sorties exécutées et solde</span></div>
+            <div class="tb-grid tb-g3">
+              <div>
+                @let x1 = delta(s.kpis.totalEncaissements);
+                <div class="tb-sub">Encaissements</div><div class="tb-kpi-v tb-num tb-ok">+ {{ s.kpis.totalEncaissements ? formatInt(s.kpis.totalEncaissements.valeur) : '—' }}</div><span [class]="'tb-delta tb-d-' + x1.cls">{{ x1.label }}</span>
+              </div>
+              <div>
+                @let x2 = delta(s.kpis.montantExecute, true);
+                <div class="tb-sub">Sorties exécutées</div><div class="tb-kpi-v tb-num tb-danger">− {{ s.kpis.montantExecute ? formatInt(s.kpis.montantExecute.valeur) : '—' }}</div><span [class]="'tb-delta tb-d-' + x2.cls">{{ x2.label }}</span>
+              </div>
+              <div>
+                @let x3 = delta(s.kpis.solde);
+                <div class="tb-sub">Solde</div><div class="tb-kpi-v tb-num">{{ fmtAmount(s.kpis.solde) }}</div><span [class]="'tb-delta tb-d-' + x3.cls">{{ x3.label }}</span>
+              </div>
+            </div>
+            <div class="tb-stack tb-stack--md"><span [style.width.%]="t.encPct" style="background:#1f9d6b"></span><span [style.width.%]="t.sortiesPct" style="background:#e8792b"></span></div>
+            <div class="tb-sub">{{ t.ratio === null ? '—' : formatPercentFr(t.ratio) }} des encaissements sont ressortis sur la période.</div>
           </div>
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Efficacité</h3></div>
+            <div class="tb-gauge-row">
+              <svg class="tb-gauge" viewBox="0 0 100 56" aria-hidden="true">
+                <path d="M8 52 A42 42 0 0 1 92 52" fill="none" stroke="var(--pz-soft)" stroke-width="10" stroke-linecap="round" />
+                @if (val(s.kpis.tauxExecution)) {
+                  <path [attr.d]="gaugeArc(val(s.kpis.tauxExecution))" fill="none" stroke="#1f9d6b" stroke-width="10" stroke-linecap="round" />
+                }
+                <text x="50" y="48" text-anchor="middle" font-size="15" font-weight="700" fill="currentColor">{{ s.kpis.tauxExecution ? formatInt(s.kpis.tauxExecution.valeur) + ' %' : '—' }}</text>
+              </svg>
+              <div class="tb-legend tb-flex1">
+                <div class="tb-lg">Taux d'exécution<b class="tb-num">{{ fmtPercent(s.kpis.tauxExecution) }}</b></div>
+                <div class="tb-lg">Taux de rejet<b class="tb-num tb-danger">{{ fmtPercent(s.kpis.tauxRejet) }}</b></div>
+                <div class="tb-lg">Délai moyen<b class="tb-num">{{ formatDays(val(s.kpis.delaiMoyenTraitementJours)) }}</b></div>
+                <div class="tb-lg">Montant moyen<b class="tb-num">{{ s.kpis.montantMoyenParSortie ? formatCompact(s.kpis.montantMoyenParSortie.valeur) : '—' }}</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <div>
-            <div class="mc-section-head"><h3>Analyses</h3></div>
-            <c-row class="g-3">
-              <c-col xs="12">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Évolution</h3><span class="ldb-panel-sub">Sorties et montant sur la période</span></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box ldb-chart-box--tall">
-                      @if (sortieFondsEvolutionChart(); as chart) {
-                        <c-chart type="line" [data]="chart.data" [options]="chart.options" />
-                      } @else {
-                        <p class="dl-empty p-0">Aucune donnée sur la période.</p>
-                      }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
+        <div class="tb-card tb-panel tb-mt">
+          <div class="tb-panel-head"><h3>Où en sont les sorties ?</h3><span class="tb-sub">{{ fmtInt(s.kpis.totalSorties) }} sorties · {{ fmtAmount(s.kpis.montantTotal) }}</span></div>
+          <div class="tb-pipeline">
+            @for (step of sortieFondsPipeline(); track step.label) {
+              <div class="tb-pipe-item">
+                <span [class]="'tb-delta tb-d-' + step.cls">{{ step.label }}</span>
+                <b class="tb-num">{{ step.count }}</b>
+                <span class="tb-sub tb-num">{{ step.amount }}</span>
+              </div>
+            }
+          </div>
+          @if (sortieFondsMaxMontant() !== null) {
+            <p class="tb-sub mb-0 mt-3">Plus grosse sortie de la période : <b class="tb-num">{{ formatAmount(sortieFondsMaxMontant()!) }}</b></p>
+          }
+        </div>
 
-              <c-col lg="6">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par statut</h3></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box">
-                      @if (sortieFondsParStatutChart(); as chart) {
-                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
-                      }
-                    </div>
-                    <div class="ldb-legend">
-                      @for (row of sortieFondsParStatutLegend(); track row.label) {
-                        <div class="ldb-legend-row">
-                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
-                          <span class="ldb-legend-label">{{ row.label }}</span>
-                          <span class="ldb-legend-value">{{ row.value }}</span>
-                        </div>
-                      }
-                      @if (sortieFondsParStatutLegend().length === 0) { <p class="dl-empty p-0">Aucune sortie.</p> }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col lg="6">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par type</h3><span class="ldb-panel-sub">Montant</span></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box">
-                      @if (sortieFondsParTypeChart(); as chart) {
-                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
-                      }
-                    </div>
-                    <div class="ldb-legend">
-                      @for (row of sortieFondsParTypeLegend(); track row.label) {
-                        <div class="ldb-legend-row">
-                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
-                          <span class="ldb-legend-label">{{ row.label }}</span>
-                          <span class="ldb-legend-value">{{ row.value }}</span>
-                        </div>
-                      }
-                      @if (sortieFondsParTypeLegend().length === 0) { <p class="dl-empty p-0">Aucune sortie.</p> }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col xs="12">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par bénéficiaire</h3><span class="ldb-panel-sub">Classement par montant</span></div>
-                  <div class="ldb-panel-body">
-                    @if (sortieFondsParBeneficiaireRanked().length === 0) {
-                      <p class="dl-empty p-0">Aucune sortie.</p>
-                    } @else {
-                      <div class="dl-table-scroll">
-                        <table class="dl-table dl-table--modal">
-                          <thead><tr><th scope="col">Bénéficiaire</th><th scope="col">Sorties</th><th scope="col">Montant</th></tr></thead>
-                          <tbody>
-                            @for (row of sortieFondsParBeneficiaireRanked(); track row.beneficiaire) {
-                              <tr><td>{{ row.beneficiaire }}</td><td class="dl-timestamp">{{ formatInt(row.nombre) }}</td><td class="dl-timestamp">{{ formatAmount(row.montant) }}</td></tr>
-                            }
-                          </tbody>
-                        </table>
-                      </div>
-                    }
-                  </div>
-                </div>
-              </c-col>
-            </c-row>
+        <div class="tb-grid tb-g21 tb-mt">
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Évolution</h3><span class="tb-sub">Montant des sorties</span></div>
+            <div class="tb-chart tb-chart--sm">
+              @if (sortieFondsAreaChart(); as chart) {
+                <c-chart type="line" [data]="chart.data" [options]="chart.options" />
+              } @else {
+                <p class="dl-empty p-0">Aucune donnée sur la période.</p>
+              }
+            </div>
+          </div>
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Par type</h3><span class="tb-sub">Montant</span></div>
+            <ng-container *ngTemplateOutlet="hbars; context: { $implicit: sortieFondsTypeBars(), color: '#e8792b' }" />
+            <div class="tb-panel-head tb-mt"><h3>Principaux bénéficiaires</h3></div>
+            <ng-container *ngTemplateOutlet="hbars; context: { $implicit: sortieFondsBeneficiaireBars(), color: '#1b3a8f' }" />
           </div>
         </div>
       }
     }
 
-    <!-- ===== Assurés ===== -->
+    <!-- ================= ASSURÉS ================= -->
     @if (activeView() === 'assures') {
-      @if (assureLoading()) {
-        <p class="dl-empty">Chargement du tableau de bord assurés…</p>
+      @if (assureLoading() && !assureData()) {
+        <p class="dl-empty">Chargement du tableau de bord des assurés…</p>
       } @else if (assureError(); as message) {
         <p class="dl-empty">{{ message }} <button (click)="applyRange()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
-      } @else if (assureData()) {
-        <div class="mc-body">
-          <div>
-            <div class="mc-section-head"><h3>Indicateurs clés</h3></div>
-            <p class="dl-cell-detail mb-2">Répartitions par ville et par type de client non filtrées par période — portrait structurel de la base assurés.</p>
-            <c-row class="g-3">
-              @for (kpi of assureCards(); track kpi.key) {
-                <c-col sm="6" xl="3">
-                  <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
-                    <div class="ldb-kpi-head">
-                      <span class="ldb-kpi-label">{{ kpi.label }}</span>
-                      <span class="ldb-kpi-icon"><svg cIcon [name]="kpi.icon" size="lg"></svg></span>
-                    </div>
-                    <div class="ldb-kpi-value">{{ kpi.value }}</div>
-                    <div class="ldb-kpi-sub"><svg cIcon [name]="kpi.tendanceIcon" size="sm"></svg>{{ kpi.variation }}</div>
-                  </div>
-                </c-col>
-              }
-            </c-row>
+      } @else if (assureData(); as a) {
+        <div class="tb-grid tb-g4">
+          <div class="tb-card tb-kpi">
+            @let y1 = delta(a.kpis.totalAssures);
+            <div class="tb-kpi-k">Assurés totaux <span [class]="'tb-delta tb-d-' + y1.cls">{{ y1.label }}</span></div>
+            <div class="tb-kpi-v tb-num">{{ fmtInt(a.kpis.totalAssures) }}</div>
+            <div class="tb-sub">Croissance {{ fmtPercent(a.kpis.tauxCroissance) }} sur la période</div>
           </div>
+          <div class="tb-card tb-kpi">
+            @let y2 = delta(a.kpis.nouveauxAssures);
+            <div class="tb-kpi-k">Nouveaux assurés <span [class]="'tb-delta tb-d-' + y2.cls">{{ y2.label }}</span></div>
+            <div class="tb-kpi-v tb-num">{{ fmtInt(a.kpis.nouveauxAssures) }}</div>
+            <div class="tb-sub">vs {{ a.kpis.nouveauxAssures ? formatInt(a.kpis.nouveauxAssures.valeurPrecedente) : '—' }} sur la période précédente</div>
+          </div>
+          <div class="tb-card tb-kpi">
+            @let y3 = delta(a.kpis.assuresActifs);
+            <div class="tb-kpi-k">Assurés actifs <span [class]="'tb-delta tb-d-' + y3.cls">{{ y3.label }}</span></div>
+            <div class="tb-kpi-v tb-num">{{ fmtInt(a.kpis.assuresActifs) }}</div>
+            <div class="tb-stack tb-stack--sm"><span [style.width.%]="assureActifsPct()" style="background:#1f9d6b"></span><span [style.width.%]="100 - assureActifsPct()" style="background:#b7791f"></span></div>
+            <div class="tb-sub">{{ formatInt(assureActifsPct()) }} % actifs · {{ fmtInt(a.kpis.assuresInactifs) }} inactifs</div>
+          </div>
+          <div class="tb-card tb-kpi">
+            @let y4 = delta(a.kpis.nombreMoyenContratsParAssure);
+            <div class="tb-kpi-k">Contrats moyens / assuré <span [class]="'tb-delta tb-d-' + y4.cls">{{ y4.label }}</span></div>
+            <div class="tb-kpi-v tb-num">{{ a.kpis.nombreMoyenContratsParAssure ? formatDecimalFr(a.kpis.nombreMoyenContratsParAssure.valeur) : '—' }}</div>
+            <div class="tb-sub">{{ fmtInt(a.kpis.assuresPlusieursContrats) }} multi-contrats · {{ fmtInt(a.kpis.assuresMultiEquipes) }} multi-équipés ({{ fmtPercent(a.kpis.tauxMultiEquipement) }})</div>
+          </div>
+        </div>
 
-          <div>
-            <div class="mc-section-head"><h3>Analyses</h3></div>
-            <c-row class="g-3">
-              <c-col xs="12">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Évolution cumulative</h3><span class="ldb-panel-sub">Nouveaux assurés et total cumulé</span></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box ldb-chart-box--tall">
-                      @if (assureEvolutionChart(); as chart) {
-                        <c-chart type="line" [data]="chart.data" [options]="chart.options" />
-                      } @else {
-                        <p class="dl-empty p-0">Aucune donnée sur la période.</p>
-                      }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col lg="6">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par type de client</h3></div>
-                  <div class="ldb-panel-body">
-                    <div class="ldb-chart-box">
-                      @if (assureParTypeClientChart(); as chart) {
-                        <c-chart type="doughnut" [data]="chart.data" [options]="chart.options" />
-                      }
-                    </div>
-                    <div class="ldb-legend">
-                      @for (row of assureParTypeClientLegend(); track row.label) {
-                        <div class="ldb-legend-row">
-                          <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
-                          <span class="ldb-legend-label">{{ row.label }}</span>
-                          <span class="ldb-legend-value">{{ row.value }}</span>
-                        </div>
-                      }
-                      @if (assureParTypeClientLegend().length === 0) { <p class="dl-empty p-0">Aucun assuré.</p> }
-                    </div>
-                  </div>
-                </div>
-              </c-col>
-
-              <c-col lg="6">
-                <div class="ldb-panel">
-                  <div class="ldb-panel-head"><h3>Répartition par ville</h3><span class="ldb-panel-sub">Classement par nombre</span></div>
-                  <div class="ldb-panel-body">
-                    @if (assureParVilleRanked().length === 0) {
-                      <p class="dl-empty p-0">Aucun assuré.</p>
-                    } @else {
-                      <div class="dl-table-scroll">
-                        <table class="dl-table dl-table--modal">
-                          <thead><tr><th scope="col">Ville</th><th scope="col">Assurés</th></tr></thead>
-                          <tbody>
-                            @for (row of assureParVilleRanked(); track row.ville) {
-                              <tr><td>{{ row.ville }}</td><td class="dl-timestamp">{{ formatInt(row.nombre) }}</td></tr>
-                            }
-                          </tbody>
-                        </table>
-                      </div>
-                    }
-                  </div>
-                </div>
-              </c-col>
-            </c-row>
+        <div class="tb-grid tb-g21 tb-mt">
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Évolution du portefeuille</h3><span class="tb-sub">Nouveaux assurés et total cumulé</span></div>
+            <div class="tb-chart">
+              @if (assureComboChart(); as chart) {
+                <c-chart type="bar" [data]="chart.data" [options]="chart.options" />
+              } @else {
+                <p class="dl-empty p-0">Aucune donnée sur la période.</p>
+              }
+            </div>
+          </div>
+          <div class="tb-card tb-panel">
+            <div class="tb-panel-head"><h3>Type de client</h3></div>
+            <div class="tb-stack">
+              @for (row of assureTypeSplit(); track row.label) {
+                <span [style.width.%]="row.pct" [style.background]="row.color"></span>
+              }
+            </div>
+            <div class="tb-legend">
+              @for (row of assureTypeSplit(); track row.label) {
+                <div class="tb-lg"><i [style.background]="row.color"></i>{{ row.label }}<b class="tb-num">{{ row.value }}</b></div>
+              } @empty {
+                <p class="dl-empty p-0">Aucun assuré.</p>
+              }
+            </div>
+            <div class="tb-panel-head tb-mt"><h3>Principales villes</h3></div>
+            <ng-container *ngTemplateOutlet="hbars; context: { $implicit: assureVilleBars(), color: '#1b3a8f' }" />
           </div>
         </div>
       }
     }
+  </div>
 }
+
+<!-- Barres horizontales (répartitions et classements) -->
+<ng-template #hbars let-rows let-color="color">
+  <div class="tb-hbars">
+    @for (row of rows; track row.label) {
+      <div class="tb-hb">
+        <span class="tb-hb-label" [title]="row.label">{{ row.label }}</span>
+        <div class="tb-hb-track"><span [style.width.%]="row.pct" [style.background]="color"></span></div>
+        <span class="tb-hb-v tb-num">{{ row.value }}</span>
+      </div>
+    } @empty {
+      <p class="dl-empty p-0">Aucune donnée.</p>
+    }
+  </div>
+</ng-template>

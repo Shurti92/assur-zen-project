@@ -25,6 +25,16 @@ export class DashboardComponent {
    * alors pas affiché, la valeur exacte n'a aucune importance. */
   readonly kpiActiveView = computed(() => (this.view() === 'contrats' ? 'global' : this.view()) as 'global' | 'vignettes' | 'sortiesFonds' | 'assures');
 
+  private static readonly TITLES: Record<View, string> = {
+    contrats: 'Contrats',
+    global: "Vue d'ensemble",
+    vignettes: 'Vignettes moto',
+    sortiesFonds: 'Sorties de fonds',
+    assures: 'Assurés',
+  };
+
+  readonly title = computed(() => DashboardComponent.TITLES[this.view()]);
+
   setView(view: View): void {
     this.view.set(view);
   }

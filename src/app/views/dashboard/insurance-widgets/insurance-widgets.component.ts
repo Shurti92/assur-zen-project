@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { IconDirective } from '@coreui/icons-angular';
-import { ButtonDirective, ColComponent, ProgressComponent, RowComponent, SpinnerComponent } from '@coreui/angular';
+import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
 import { DashboardService } from '../../../core/dashboard/dashboard.service';
 import { DashboardBackOfficeKpis, DashboardPeriod, PartenaireObjectif } from '../../../core/dashboard/models/dashboard-kpis.model';
@@ -32,7 +32,8 @@ const TYPE_PARTENAIRE_VARIANT: Record<TypePartenaire, string> = {
 @Component({
   selector: 'app-insurance-widgets',
   templateUrl: './insurance-widgets.component.html',
-  imports: [ButtonDirective, SpinnerComponent, IconDirective, RowComponent, ColComponent, ProgressComponent, RouterLink],
+  styleUrl: './insurance-widgets.component.scss',
+  imports: [ButtonDirective, SpinnerComponent, RouterLink, DecimalPipe],
 })
 export class InsuranceWidgetsComponent {
   private readonly dashboardService = inject(DashboardService);
@@ -150,6 +151,114 @@ export class InsuranceWidgetsComponent {
   readonly totalRealiseApporteurs = computed(() => this.kpis()?.objectifParApporteur.totalRealise ?? 0);
   readonly tauxGlobalApporteurs = computed<number | null>(() => this.kpis()?.objectifParApporteur.tauxGlobal ?? null);
 
+  // ================= Refonte de l'onglet Contrats (maquette validée le 2026-10-02) =================
+
+  readonly lastUpdated = signal<Date | null>(null);
+
+  /** Objectif de production de l'année + repère de rythme (part de l'année écoulée). */
+  readonly goal = computed(() => {
+    const o = this.kpis()?.objectifGlobal;
+    if (!o) return null;
+    const now = new Date();
+    const debut = new Date(now.getFullYear(), 0, 1).getTime();
+    const fin = new Date(now.getFullYear() + 1, 0, 1).getTime();
+    const rythme = ((now.getTime() - debut) / (fin - debut)) * 100;
+    const pct = Math.round(o.progression * 1000) / 10;
+    const realise = Math.round(o.montant * o.progression);
+    return {
+      annee: now.getFullYear(),
+      montant: o.montant,
+      realise,
+      reste: Math.max(0, o.montant - realise),
+      pct,
+      rythme: Math.round(rythme),
+      enAvance: pct >= rythme,
+      atteint: pct >= 100,
+      ringDash: `${Math.min(100, pct) * 1.005} 100.5`,
+    };
+  });
+
+  /** Indicateurs dérivés réutilisés par les cartes (mêmes formules que performanceKpis). */
+  readonly derived = computed(() => {
+    const k = this.kpis();
+    if (!k) return null;
+    const { finance, volumes, cycleDeVie } = k;
+    const renouvelables = cycleDeVie.realises + cycleDeVie.nonRenouveles;
+    const commission = finance.totalCommission;
+    return {
+      primeMoyenne: volumes.signedContracts > 0 ? Math.round(finance.production / volumes.signedContracts) : 0,
+      tauxCommission: finance.production > 0 ? (finance.totalCommission / finance.production) * 100 : 0,
+      margeNette: finance.totalCommission - finance.partnerShare,
+      tauxRenouvellement: renouvelables > 0 ? (cycleDeVie.realises / renouvelables) * 100 : null,
+      conversionPct: Math.round(volumes.conversionRate * 100),
+      payeesPct: commission > 0 ? (finance.paidCommission / commission) * 100 : 0,
+      attentePct: commission > 0 ? (finance.pendingCommission / commission) * 100 : 0,
+      reverses: Math.max(0, volumes.signedContracts - finance.primeNonReverseeCount),
+      reversesPct: volumes.signedContracts > 0 ? (Math.max(0, volumes.signedContracts - finance.primeNonReverseeCount) / volumes.signedContracts) * 100 : 0,
+      signesPct: volumes.totalContracts > 0 ? (volumes.signedContracts / volumes.totalContracts) * 100 : 0,
+      attenteContratsPct: volumes.totalContracts > 0 ? (volumes.pendingContracts / volumes.totalContracts) * 100 : 0,
+    };
+  });
+
+  /** Arc SVG de la jauge (viewBox 100×56) pour un taux 0-100. */
+  gaugeArc(rate: number | null): string {
+    const r = Math.max(0, Math.min(100, rate ?? 0)) / 100;
+    const angle = Math.PI * (1 - r);
+    return `M8 52 A42 42 0 0 1 ${(50 + 42 * Math.cos(angle)).toFixed(2)} ${(52 - 42 * Math.sin(angle)).toFixed(2)}`;
+  }
+
+  /** Répartition par produit : 4 premiers + « Autres (n produits) ». */
+  readonly produitBars = computed(() => {
+    const items = [...this.produitBreakdown()].sort((a, b) => b.count - a.count);
+    const total = items.reduce((s, i) => s + i.count, 0);
+    const top = items.slice(0, 4).map((i) => ({ label: i.productName, count: i.count, autres: false }));
+    const rest = items.slice(4);
+    if (rest.length) {
+      top.push({ label: `Autres (${rest.length} produit${rest.length > 1 ? 's' : ''})`, count: rest.reduce((s, i) => s + i.count, 0), autres: true });
+    }
+    const max = Math.max(1, ...top.map((t) => t.count));
+    return {
+      total,
+      rows: top.map((t) => ({ ...t, pct: Math.max(2, (t.count / max) * 100), part: total ? Math.round((t.count / total) * 100) : 0 })),
+    };
+  });
+
+  /** Apporteurs triés par taux d'atteinte (5 affichés, « Voir les N » déplie la liste). */
+  readonly showAllApporteurs = signal(false);
+  readonly apporteursSorted = computed(() => [...this.objectifApporteurRows()].sort((a, b) => b.taux - a.taux));
+  readonly apporteursShown = computed(() => (this.showAllApporteurs() ? this.apporteursSorted() : this.apporteursSorted().slice(0, 5)));
+
+  initials(nom: string): string {
+    return nom
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? '')
+      .join('');
+  }
+
+  tauxColor(taux: number): string {
+    if (taux >= 100) return '#1f9d6b';
+    if (taux >= 50) return '#b7791f';
+    return '#d64545';
+  }
+
+  formatPercentFr(value: number, digits = 1): string {
+    return `${new Intl.NumberFormat('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)} %`;
+  }
+
+  /** 369 000 → « 369 k », 2 100 000 → « 2,1 M ». */
+  formatCompact(value: number): string {
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000) return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(value / 1_000_000)} M`;
+    if (abs >= 10_000) return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value / 1000)} k`;
+    return this.formatInt(value);
+  }
+
+  formatTime(date: Date | null): string {
+    return date ? date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+  }
+
   constructor() {
     this.fetch();
   }
@@ -160,6 +269,7 @@ export class InsuranceWidgetsComponent {
     this.dashboardService.getKpis(this.period()).subscribe({
       next: (kpis) => {
         this.kpis.set(kpis);
+        this.lastUpdated.set(new Date());
         this.loading.set(false);
       },
       error: () => {

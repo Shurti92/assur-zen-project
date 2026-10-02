@@ -199,12 +199,24 @@ describe('KpiDashboardComponent — utilisateur ADMIN', () => {
     fixture.detectChanges();
   };
 
+  /** La vue Global précharge les 3 domaines (petites courbes de tendance, refonte du 2026-10-02) :
+   * on répond à l'appel global puis aux 3 préchargements (réponses par défaut, surchargeables). */
+  const flushGlobal = (overrides: { vignettes?: DashboardVignetteResponse; sorties?: DashboardSortieFondsResponse; assures?: DashboardAssureResponse } = {}) => {
+    httpMock.expectOne((r) => r.url === '/dashboard/global').flush(globalResponse());
+    httpMock.expectOne((r) => r.url === '/dashboard/vignettes').flush(overrides.vignettes ?? vignetteResponse());
+    httpMock.expectOne((r) => r.url === '/dashboard/sorties-fonds').flush(overrides.sorties ?? sortieFondsResponse());
+    httpMock.expectOne((r) => r.url === '/dashboard/assures').flush(overrides.assures ?? assureResponse());
+  };
+
   it('charge le tableau de bord global au démarrage avec la plage de dates par défaut', () => {
     const raw = component.rangeForm.getRawValue();
     const req = httpMock.expectOne(
       (r) => r.url === '/dashboard/global' && r.params.get('dateDebut') === raw.dateDebut && r.params.get('dateFin') === raw.dateFin,
     );
     req.flush(globalResponse());
+    httpMock.expectOne((r) => r.url === '/dashboard/vignettes').flush(vignetteResponse());
+    httpMock.expectOne((r) => r.url === '/dashboard/sorties-fonds').flush(sortieFondsResponse());
+    httpMock.expectOne((r) => r.url === '/dashboard/assures').flush(assureResponse());
 
     expect(component.globalData()).toEqual(globalResponse());
     expect(component.globalAssureCards().length).toBe(4);
@@ -212,8 +224,20 @@ describe('KpiDashboardComponent — utilisateur ADMIN', () => {
     expect(component.globalSortieFondsCards().length).toBe(4);
   });
 
+  it('la vue Global précharge les 3 domaines une seule fois : changer d’onglet ne refait aucun appel', () => {
+    flushGlobal();
+    expect(component.vignetteData()).toEqual(vignetteResponse());
+    expect(component.vignetteCards().length).toBe(19);
+    expect(component.vignetteDelaiMoyen()).toBeNull();
+
+    setView('vignettes');
+    setView('assures');
+    setView('sortiesFonds');
+    httpMock.expectNone((r) => r.url.startsWith('/dashboard/'));
+  });
+
   it('formate une carte KPI avec variation, et "—" quand variationPourcentage est null', () => {
-    httpMock.expectOne((r) => r.url === '/dashboard/global').flush(globalResponse());
+    flushGlobal();
     const vignettesCard = component.globalVignetteCards().find((c) => c.key === 'nombreDemandes');
     expect(vignettesCard?.value).toBe('120');
     expect(vignettesCard?.variation).toContain('%');
@@ -222,58 +246,74 @@ describe('KpiDashboardComponent — utilisateur ADMIN', () => {
     expect(noVariationCard?.variation).toBe('—');
   });
 
-  it("setView('vignettes') déclenche un seul appel /dashboard/vignettes (mise en cache tant que la plage ne change pas)", () => {
-    httpMock.expectOne((r) => r.url === '/dashboard/global').flush(globalResponse());
-
-    setView('vignettes');
-    const raw = component.rangeForm.getRawValue();
-    const req = httpMock.expectOne((r) => r.url === '/dashboard/vignettes' && r.params.get('dateDebut') === raw.dateDebut);
-    req.flush(vignetteResponse());
-    expect(component.vignetteData()).toEqual(vignetteResponse());
-    expect(component.vignetteCards().length).toBe(19);
-    expect(component.vignetteDelaiMoyen()).toBeNull();
-
-    // Un second passage sur le même onglet ne refait pas d'appel — données déjà en cache.
-    setView('assures');
-    httpMock.expectOne((r) => r.url === '/dashboard/assures').flush(assureResponse());
-    setView('vignettes');
-    httpMock.expectNone((r) => r.url === '/dashboard/vignettes');
+  it('delta() : pastille ↑ verte, ↓ rouge, inversée pour les indicateurs « mauvais » quand ils montent', () => {
+    flushGlobal();
+    expect(component.delta(kpi(100, 4.2))).toEqual({ label: '↑ 4,2 %', cls: 'up' });
+    expect(component.delta(kpi(100, 4.2), true)).toEqual({ label: '↑ 4,2 %', cls: 'down' });
+    expect(component.delta({ ...kpi(90, -6), tendance: 'BAISSE' })).toEqual({ label: '↓ 6 %', cls: 'down' });
+    expect(component.delta({ ...kpi(5, 0), variation: 0, tendance: 'STABLE' }).cls).toBe('flat');
+    // Période précédente à 0 : écart absolu à la place du pourcentage.
+    expect(component.delta({ ...kpi(17, null), variation: 17 }).label).toBe('↑ 17');
+    expect(component.delta(null).label).toBe('—');
   });
 
   it('applyRange() vide le cache des 4 vues et recharge la vue active avec la nouvelle plage', () => {
-    httpMock.expectOne((r) => r.url === '/dashboard/global').flush(globalResponse());
+    flushGlobal();
 
     component.rangeForm.patchValue({ dateDebut: '2026-08-01', dateFin: '2026-08-31' });
     component.applyRange();
     const req = httpMock.expectOne((r) => r.url === '/dashboard/global' && r.params.get('dateDebut') === '2026-08-01');
     req.flush(globalResponse());
+    httpMock.match((r) => r.url !== '/dashboard/global').forEach((r) => expect(r.request.params.get('dateDebut')).toBe('2026-08-01'));
     expect(component.globalData()).toEqual(globalResponse());
+    expect(component.appliedRange()).toEqual({ debut: '2026-08-01', fin: '2026-08-31' });
+  });
+
+  it("setPreset('lastMonth') applique le mois précédent complet ; 'custom' n'émet rien avant « Appliquer »", () => {
+    flushGlobal();
+
+    component.setPreset('custom');
+    httpMock.expectNone((r) => r.url.startsWith('/dashboard/'));
+
+    component.setPreset('lastMonth');
+    const now = new Date();
+    const debut = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const expected = `${debut.getFullYear()}-${String(debut.getMonth() + 1).padStart(2, '0')}-01`;
+    httpMock.expectOne((r) => r.url === '/dashboard/global' && r.params.get('dateDebut') === expected).flush(globalResponse());
+    httpMock.match(() => true);
+    expect(component.compareLabel()).toBe('comparé au mois précédent');
   });
 
   it('construit un donut de répartition uniquement si des éléments existent (null sinon)', () => {
-    httpMock.expectOne((r) => r.url === '/dashboard/global').flush(globalResponse());
+    flushGlobal({ sorties: sortieFondsResponse({ repartitions: { parType: [], parBeneficiaire: [], parStatut: [] } }) });
     setView('sortiesFonds');
-    httpMock.expectOne((r) => r.url === '/dashboard/sorties-fonds').flush(sortieFondsResponse({ repartitions: { parType: [], parBeneficiaire: [], parStatut: [] } }));
 
     expect(component.sortieFondsParStatutChart()).toBeNull();
     expect(component.sortieFondsParStatutLegend()).toEqual([]);
+    expect(component.sortieFondsTypeBars()).toEqual([]);
   });
 
   it('affiche le montant brut de la plus grosse sortie sans le traiter comme un KpiValue', () => {
-    httpMock.expectOne((r) => r.url === '/dashboard/global').flush(globalResponse());
+    flushGlobal({ sorties: sortieFondsResponse({ kpis: { ...sortieFondsResponse().kpis, montantPlusGrosseSortie: 1234567 } }) });
     setView('sortiesFonds');
-    httpMock.expectOne((r) => r.url === '/dashboard/sorties-fonds').flush(sortieFondsResponse({ kpis: { ...sortieFondsResponse().kpis, montantPlusGrosseSortie: 1234567 } }));
 
     expect(component.sortieFondsMaxMontant()).toBe(1234567);
   });
 
   it('classe les répartitions à liste ouverte (zones/bénéficiaires/villes) par volume décroissant', () => {
-    httpMock.expectOne((r) => r.url === '/dashboard/global').flush(globalResponse());
+    flushGlobal({ assures: assureResponse({ repartitions: { parVille: [{ ville: 'Bouaké', nombre: 10 }, { ville: 'Abidjan', nombre: 300 }], parTypeClient: [] } }) });
     setView('assures');
-    httpMock.expectOne((r) => r.url === '/dashboard/assures').flush(
-      assureResponse({ repartitions: { parVille: [{ ville: 'Bouaké', nombre: 10 }, { ville: 'Abidjan', nombre: 300 }], parTypeClient: [] } }),
-    );
 
     expect(component.assureParVilleRanked().map((v) => v.ville)).toEqual(['Abidjan', 'Bouaké']);
+    // Barres horizontales : même tri, la plus grande valeur à 100 %.
+    expect(component.assureVilleBars().map((b) => b.label)).toEqual(['Abidjan', 'Bouaké']);
+    expect(component.assureVilleBars()[0].pct).toBe(100);
+  });
+
+  it("entonnoir des vignettes : demandes → éditées → livrées, en % des demandes", () => {
+    flushGlobal();
+    const funnel = component.vignetteFunnel();
+    expect(funnel.map((r) => r.value)).toEqual([120, 70, 60]);
+    expect(funnel.map((r) => r.rate)).toEqual([100, 58, 50]);
   });
 });

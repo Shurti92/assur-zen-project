@@ -1,15 +1,32 @@
-<div class="dl-pillgroup mb-3" role="tablist" aria-label="Section du tableau de bord">
-  <button (click)="setView('contrats')" [attr.data-active]="view() === 'contrats'" class="dl-pill" type="button">Contrats</button>
-  @if (isAdmin()) {
-    <button (click)="setView('global')" [attr.data-active]="view() === 'global'" class="dl-pill" type="button">Global</button>
-    <button (click)="setView('vignettes')" [attr.data-active]="view() === 'vignettes'" class="dl-pill" type="button">Vignettes</button>
-    <button (click)="setView('sortiesFonds')" [attr.data-active]="view() === 'sortiesFonds'" class="dl-pill" type="button">Sorties de fonds</button>
-    <button (click)="setView('assures')" [attr.data-active]="view() === 'assures'" class="dl-pill" type="button">Assurés</button>
-  }
+<!-- En-tête du tableau de bord (refonte validée le 2026-10-02) -->
+<div class="pz-scope db-top">
+  <div>
+    <div class="db-kicker">Tableau de bord</div>
+    <h1 class="db-title">{{ title() }}</h1>
+  </div>
+  <div class="db-tabs" role="tablist" aria-label="Section du tableau de bord">
+    <button (click)="setView('contrats')" [class.active]="view() === 'contrats'" class="db-tab" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /></svg>Contrats
+    </button>
+    @if (isAdmin()) {
+      <button (click)="setView('global')" [class.active]="view() === 'global'" class="db-tab" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>Global
+      </button>
+      <button (click)="setView('vignettes')" [class.active]="view() === 'vignettes'" class="db-tab" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="17" r="3" /><circle cx="18" cy="17" r="3" /><path d="M9 17h6l-2-6h-3l-2-3H5" /></svg>Vignettes
+      </button>
+      <button (click)="setView('sortiesFonds')" [class.active]="view() === 'sortiesFonds'" class="db-tab" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M12 9v6m-3-3 3 3 3-3" /></svg>Sorties de fonds
+      </button>
+      <button (click)="setView('assures')" [class.active]="view() === 'assures'" class="db-tab" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6" /></svg>Assurés
+      </button>
+    }
+  </div>
 </div>
 
 @if (view() === 'contrats') {
   <app-insurance-widgets />
 } @else {
-  <app-kpi-dashboard [activeView]="kpiActiveView()" />
+  <app-kpi-dashboard [activeView]="kpiActiveView()" (navigate)="setView($event)" />
 }

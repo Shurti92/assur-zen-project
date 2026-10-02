@@ -1,246 +1,224 @@
-<section class="dl-panel">
-  <div class="dl-toolbar">
-    <div class="dl-toolbar-title">
-      <h2>Indicateurs clés</h2>
-    </div>
-
-    <div class="dl-pillgroup" role="tablist" aria-label="Période">
-      <button (click)="setPeriod('month')" [attr.data-active]="period() === 'month'" class="dl-pill" type="button">Ce mois</button>
-      <button (click)="setPeriod('all')" [attr.data-active]="period() === 'all'" class="dl-pill" type="button">Tout</button>
-    </div>
-
-    <div class="dl-actions">
-      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+<!-- Onglet Contrats du tableau de bord (refonte validée le 2026-10-02) -->
+<div class="pz-scope ct">
+  <!-- Période -->
+  <div class="ct-filters" role="tablist" aria-label="Période">
+    <button (click)="setPeriod('month')" [class.active]="period() === 'month'" class="ct-chip" type="button">Ce mois-ci</button>
+    <button (click)="setPeriod('all')" [class.active]="period() === 'all'" class="ct-chip" type="button">Depuis le début</button>
+    <span class="ct-updated">
+      @if (lastUpdated()) {
+        Mis à jour à {{ formatTime(lastUpdated()) }}
+      }
+      <button (click)="fetch()" [disabled]="loading()" class="ct-icon-btn" title="Actualiser" aria-label="Actualiser" type="button">
         @if (loading()) {
           <c-spinner size="sm" />
+        } @else {
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
         }
-        Actualiser
       </button>
-    </div>
+    </span>
   </div>
 
   @if (error()) {
     <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
-  } @else if (loading()) {
+  } @else if (loading() && !kpis()) {
     <p class="dl-empty">Chargement des indicateurs…</p>
-  } @else {
-    <div class="mc-body">
-      <div>
-        <div class="mc-section-head">
-          <h3>Objectif global de l'année</h3>
-        </div>
+  } @else if (kpis(); as k) {
+    @let d = derived()!;
+
+    <!-- Objectif de l'année -->
+    @if (goal(); as g) {
+      <div class="ct-card ct-goal">
         @if (hasObjective()) {
-          <div [class]="'mc-kpi-card mc-kpi-card--' + objectiveColor()">
-            <div class="mc-kpi-body" style="flex: 1;">
-              <div class="d-flex justify-content-between align-items-baseline mb-1">
-                <span class="mc-kpi-label">Progression vers l'objectif</span>
-                <span class="mc-kpi-value" style="font-size: 1.05rem;">{{ objectivePercent() }} %</span>
-              </div>
-              <c-progress [value]="objectivePercent()" [color]="objectiveColor()" thin />
-              <div class="mc-kpi-label mt-2">Objectif : {{ formatAmount(kpis()?.objectifGlobal?.montant ?? 0) }}</div>
+          <svg class="ct-ring" viewBox="0 0 42 42" aria-hidden="true">
+            <circle cx="21" cy="21" r="16" fill="none" stroke="var(--pz-soft)" stroke-width="5" />
+            <circle [style.display]="g.pct > 0 ? null : 'none'" cx="21" cy="21" r="16" fill="none" [attr.stroke]="g.atteint ? '#1f9d6b' : '#1b3a8f'" stroke-width="5" stroke-linecap="round" [attr.stroke-dasharray]="g.ringDash" transform="rotate(-90 21 21)" />
+            <text x="21" y="23" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor">{{ g.pct | number: '1.0-0' }} %</text>
+          </svg>
+          <div class="ct-goal-main">
+            <div class="ct-goal-title">Objectif de production de l'année {{ g.annee }}</div>
+            <div class="ct-goal-amount ct-num">{{ formatAmount(g.realise) }} <small>/ {{ formatAmount(g.montant) }}</small></div>
+            <div class="ct-goal-bar"><span [style.width.%]="g.pct > 100 ? 100 : g.pct"></span><em [style.left.%]="g.rythme"></em></div>
+            <div class="ct-goal-legend"><span>Production réalisée</span><span>Repère : {{ g.rythme }} % de l'année écoulée</span></div>
+          </div>
+          <div class="ct-goal-side">
+            <span class="ct-sub">Reste à produire</span>
+            <b class="ct-num">{{ formatAmount(g.reste) }}</b>
+            @if (g.atteint) {
+              <span class="ct-pill ct-p-ok"><i></i>Objectif atteint</span>
+            } @else if (g.enAvance) {
+              <span class="ct-pill ct-p-ok"><i></i>En avance sur le rythme</span>
+            } @else {
+              <span class="ct-pill ct-p-warn"><i></i>En retard sur le rythme</span>
+            }
+          </div>
+        } @else {
+          <div class="ct-goal-main">
+            <div class="ct-goal-title">Objectif de production de l'année {{ g.annee }}</div>
+            <p class="ct-sub mb-0">Aucun objectif annuel n'est défini pour l'instant.</p>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Indicateurs principaux -->
+    <div class="ct-grid ct-g4 ct-mt">
+      <div class="ct-card ct-kpi">
+        <div class="ct-kpi-k"><span class="ct-ico ct-i-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18" /><path d="m7 15 4-4 3 3 5-6" /></svg></span>Production</div>
+        <div class="ct-kpi-v ct-num">{{ formatAmount(k.finance.production) }}</div>
+        <div class="ct-sub">Prime moyenne {{ formatAmount(d.primeMoyenne) }} / contrat signé</div>
+      </div>
+      <a class="ct-card ct-kpi ct-kpi--link" routerLink="/contrats/liste-des-contrats">
+        <div class="ct-kpi-k"><span class="ct-ico ct-i-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg></span>Contrats signés</div>
+        <div class="ct-kpi-v ct-num">{{ formatInt(k.volumes.signedContracts) }} <span class="ct-sub ct-of">/ {{ formatInt(k.volumes.totalContracts) }}</span></div>
+        <div class="ct-stack"><span [style.width.%]="d.signesPct" style="background:#1f9d6b"></span></div>
+        <div class="ct-sub">Taux de conversion {{ d.conversionPct }} %</div>
+      </a>
+      <a class="ct-card ct-kpi ct-kpi--link" routerLink="/commissions">
+        <div class="ct-kpi-k"><span class="ct-ico ct-i-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M15 9.5a3 3 0 0 0-3-1.5c-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2a3.2 3.2 0 0 1-3-1.6M12 6v2m0 8v2" /></svg></span>Commissions</div>
+        <div class="ct-kpi-v ct-num">{{ formatAmount(k.finance.totalCommission) }}</div>
+        <div class="ct-stack"><span [style.width.%]="d.payeesPct" style="background:#1f9d6b"></span><span [style.width.%]="d.attentePct" style="background:#b7791f"></span></div>
+        <div class="ct-sub">{{ formatInt(k.finance.paidCommission) }} payées · {{ formatInt(k.finance.pendingCommission) }} en attente</div>
+      </a>
+      <div class="ct-card ct-kpi">
+        <div class="ct-kpi-k"><span class="ct-ico ct-i-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 15h2m4 0h4M7 11h10" /></svg></span>Marge nette</div>
+        <div class="ct-kpi-v ct-num">{{ formatAmount(d.margeNette) }}</div>
+        <div class="ct-sub">après {{ formatAmount(k.finance.partnerShare) }} de part partenaire</div>
+      </div>
+    </div>
+
+    <!-- À traiter -->
+    <div class="ct-section-head"><h3>À traiter</h3><span class="ct-sub">Cliquez pour ouvrir la liste correspondante</span></div>
+    <div class="ct-todo">
+      <a class="ct-todo-item" routerLink="/contrats/prime-non-reversee">
+        <span class="ct-ico ct-i-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M12 9v6" /></svg></span>
+        <div><b class="ct-num">{{ formatInt(k.finance.primeNonReverseeCount) }}</b><span class="ct-sub">primes non reversées · {{ formatAmount(k.finance.primeNonReverseeMontant) }}</span></div>
+        <span class="ct-go">→</span>
+      </a>
+      <a class="ct-todo-item" routerLink="/contrats/a-echeance-proche">
+        <span class="ct-ico ct-i-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span>
+        <div><b class="ct-num">{{ formatInt(k.cycleDeVie.echeanceProche) }}</b><span class="ct-sub">contrats arrivent à échéance sous 30 j</span></div>
+        <span class="ct-go">→</span>
+      </a>
+      <a class="ct-todo-item" routerLink="/contrats/non-renouveles">
+        <span class="ct-ico ct-i-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></span>
+        <div><b class="ct-num">{{ formatInt(k.cycleDeVie.nonRenouveles) }}</b><span class="ct-sub">contrats non renouvelés</span></div>
+        <span class="ct-go">→</span>
+      </a>
+      <a class="ct-todo-item" routerLink="/commissions">
+        <span class="ct-ico ct-i-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4m0 4h.01" /></svg></span>
+        <div><b class="ct-num">{{ formatAmount(k.finance.pendingCommission) }}</b><span class="ct-sub">de commissions en attente</span></div>
+        <span class="ct-go">→</span>
+      </a>
+    </div>
+
+    <!-- Parcours, renouvellement, commissions -->
+    <div class="ct-grid ct-g3 ct-mt">
+      <div class="ct-card ct-panel">
+        <div class="ct-panel-head"><h3>Parcours des contrats</h3><span class="ct-sub">sur la période</span></div>
+        <div class="ct-funnel">
+          <a class="ct-f-row" routerLink="/contrats/liste-des-contrats"><span>Créés</span><div class="ct-f-bar"><span [style.width.%]="k.volumes.totalContracts ? 100 : 0" style="background:#1b3a8f">{{ formatInt(k.volumes.totalContracts) }}</span></div><span class="ct-f-rate ct-num">{{ k.volumes.totalContracts ? 100 : 0 }} %</span></a>
+          <a class="ct-f-row" routerLink="/contrats/liste-des-contrats"><span>Signés</span><div class="ct-f-bar"><span [style.width.%]="d.signesPct" style="background:#1f9d6b">{{ formatInt(k.volumes.signedContracts) }}</span></div><span class="ct-f-rate ct-num">{{ d.signesPct | number: '1.0-0' }} %</span></a>
+          <a class="ct-f-row" routerLink="/contrats/cycle-de-vie-contrat" [queryParams]="{ status: 'pending' }"><span>En attente</span><div class="ct-f-bar"><span [style.width.%]="d.attenteContratsPct" style="background:#b7791f">{{ formatInt(k.volumes.pendingContracts) }}</span></div><span class="ct-f-rate ct-num">{{ d.attenteContratsPct | number: '1.0-0' }} %</span></a>
+        </div>
+        <div class="ct-panel-head ct-mt"><h3>Cycle de vie</h3></div>
+        <div class="ct-legend">
+          <a class="ct-lg" routerLink="/contrats/cycle-de-vie-contrat"><i style="background:#1f9d6b"></i>Contrats réalisés<b class="ct-num">{{ formatInt(k.cycleDeVie.realises) }}</b></a>
+          <a class="ct-lg" routerLink="/contrats/a-echeance-proche"><i style="background:#b7791f"></i>Échéance dans 30 jours<b class="ct-num">{{ formatInt(k.cycleDeVie.echeanceProche) }}</b></a>
+          <a class="ct-lg" routerLink="/contrats/non-renouveles"><i style="background:#d64545"></i>Non renouvelés<b class="ct-num">{{ formatInt(k.cycleDeVie.nonRenouveles) }}</b></a>
+        </div>
+      </div>
+
+      <div class="ct-card ct-panel">
+        <div class="ct-panel-head"><h3>Renouvellement</h3></div>
+        <div class="ct-gauge-row">
+          <svg class="ct-gauge" viewBox="0 0 100 56" aria-hidden="true">
+            <path d="M8 52 A42 42 0 0 1 92 52" fill="none" stroke="var(--pz-soft)" stroke-width="10" stroke-linecap="round" />
+            @if (d.tauxRenouvellement) {
+              <path [attr.d]="gaugeArc(d.tauxRenouvellement)" fill="none" [attr.stroke]="d.tauxRenouvellement >= 50 ? '#1f9d6b' : '#b7791f'" stroke-width="10" stroke-linecap="round" />
+            }
+            <text x="50" y="48" text-anchor="middle" font-size="15" font-weight="700" fill="currentColor">{{ d.tauxRenouvellement === null ? '—' : (d.tauxRenouvellement | number: '1.0-0') + ' %' }}</text>
+          </svg>
+          <div>
+            <b>{{ d.tauxRenouvellement === null ? '—' : formatPercentFr(d.tauxRenouvellement) }}</b>
+            <div class="ct-sub">des contrats arrivés à terme ont été renouvelés</div>
+          </div>
+        </div>
+        <div class="ct-minis ct-mt">
+          <div class="ct-mini"><span class="ct-sub">Taux de commission moyen</span><b class="ct-num">{{ formatPercentFr(d.tauxCommission) }}</b></div>
+          <div class="ct-mini"><span class="ct-sub">Avenants</span><b class="ct-num">{{ formatInt(k.finance.avenantsCount) }}</b></div>
+          <div class="ct-mini"><span class="ct-sub">Prime moyenne</span><b class="ct-num">{{ formatInt(d.primeMoyenne) }}</b></div>
+          <div class="ct-mini"><span class="ct-sub">Part partenaire</span><b class="ct-num">{{ formatCompact(k.finance.partnerShare) }}</b></div>
+        </div>
+      </div>
+
+      <div class="ct-card ct-panel">
+        <div class="ct-panel-head"><h3>Commissions</h3><span class="ct-sub">{{ formatAmount(k.finance.totalCommission) }}</span></div>
+        <div class="ct-stack ct-stack--lg"><span [style.width.%]="d.payeesPct" style="background:#1f9d6b"></span><span [style.width.%]="d.attentePct" style="background:#b7791f"></span></div>
+        <div class="ct-legend">
+          <div class="ct-lg"><i style="background:#1f9d6b"></i>Payées<b class="ct-num">{{ formatInt(k.finance.paidCommission) }}</b></div>
+          <div class="ct-lg"><i style="background:#b7791f"></i>En attente<b class="ct-num">{{ formatInt(k.finance.pendingCommission) }}</b></div>
+        </div>
+        <div class="ct-panel-head ct-mt"><h3>Primes reversées</h3></div>
+        <div class="ct-stack ct-stack--lg"><span [style.width.%]="d.reversesPct" style="background:#1b3a8f"></span><span [style.width.%]="k.volumes.signedContracts ? 100 - d.reversesPct : 0" style="background:#d64545"></span></div>
+        <div class="ct-legend">
+          <div class="ct-lg"><i style="background:#1b3a8f"></i>Contrats reversés<b class="ct-num">{{ formatInt(d.reverses) }}</b></div>
+          <a class="ct-lg" routerLink="/contrats/prime-non-reversee"><i style="background:#d64545"></i>Non reversés<b class="ct-num">{{ formatInt(k.finance.primeNonReverseeCount) }} · {{ formatInt(k.finance.primeNonReverseeMontant) }}</b></a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Produits + apporteurs -->
+    <div class="ct-grid ct-g12 ct-mt">
+      <div class="ct-card ct-panel">
+        @let pb = produitBars();
+        <div class="ct-panel-head"><h3>Répartition par produit</h3><span class="ct-sub">{{ formatInt(pb.total) }} contrats</span></div>
+        <div class="ct-hbars">
+          @for (row of pb.rows; track row.label) {
+            <div class="ct-hb">
+              <span class="ct-hb-label" [title]="row.label">{{ row.label }}</span>
+              <div class="ct-hb-track"><span [style.width.%]="row.pct" [style.background]="row.autres ? '#8fa3d9' : '#1b3a8f'"></span></div>
+              <span class="ct-hb-v ct-num">{{ formatInt(row.count) }} <small>· {{ row.part }} %</small></span>
             </div>
-          </div>
+          } @empty {
+            <p class="dl-empty p-0">Aucun contrat sur la période.</p>
+          }
+        </div>
+      </div>
+
+      <div class="ct-card ct-panel">
+        <div class="ct-panel-head"><h3>Objectif par apporteur</h3><span class="ct-sub">Classement par taux d'atteinte</span></div>
+        @if (apporteursSorted().length === 0) {
+          <p class="dl-empty p-0">Aucun objectif d'apporteur défini.</p>
         } @else {
-          <p class="dl-empty">Aucun objectif défini pour cette période.</p>
-        }
-      </div>
-
-      <div>
-        <div class="mc-section-head">
-          <h3>Volumes</h3>
-        </div>
-        <c-row class="g-3">
-          @for (kpi of volumeKpis(); track kpi.key) {
-            <c-col sm="6" xl="3">
-              @if (kpi.link) {
-                <a [class]="'mc-kpi-card mc-kpi-card--clickable mc-kpi-card--' + kpi.color" [routerLink]="kpi.link" [queryParams]="kpi.queryParams">
-                  <span class="mc-kpi-icon">
-                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
-                  </span>
-                  <div class="mc-kpi-body">
-                    <div class="mc-kpi-value">{{ kpi.value }}</div>
-                    <div class="mc-kpi-label">{{ kpi.label }}</div>
-                  </div>
-                </a>
-              } @else {
-                <div [class]="'mc-kpi-card mc-kpi-card--' + kpi.color">
-                  <span class="mc-kpi-icon">
-                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
-                  </span>
-                  <div class="mc-kpi-body">
-                    <div class="mc-kpi-value">{{ kpi.value }}</div>
-                    <div class="mc-kpi-label">{{ kpi.label }}</div>
-                  </div>
+          <div class="ct-app-head">
+            <span>Objectif cumulé <b class="ct-num">{{ formatAmount(totalObjectifApporteurs()) }}</b></span>
+            <span>Réalisé <b class="ct-num">{{ formatAmount(totalRealiseApporteurs()) }}</b></span>
+            @if (tauxGlobalApporteurs() !== null) {
+              <span [class]="'ct-pill ct-p-' + (tauxGlobalApporteurs()! >= 100 ? 'ok' : tauxGlobalApporteurs()! >= 50 ? 'warn' : 'danger')"><i></i>{{ tauxGlobalApporteurs()! | number: '1.0-0' }} % atteint</span>
+            }
+            <span class="ct-sub ct-ml-auto">{{ apporteursSorted().length }} apporteur{{ apporteursSorted().length > 1 ? 's' : '' }}</span>
+          </div>
+          <div class="ct-app-list">
+            @for (row of apporteursShown(); track row.partenaireId) {
+              <div class="ct-app">
+                <span class="ct-av">{{ initials(row.nom) }}</span>
+                <div class="ct-minw0"><div class="ct-app-name" [title]="row.nom">{{ row.nom }}</div><div class="ct-sub">{{ typeLabel(row.type) }}</div></div>
+                <span [class]="'ct-pill ct-hide-sm ct-p-' + (row.type === 'DIRECT' ? 'info' : row.type === 'APPORTEUR' ? 'accent' : 'flat')"><i></i>{{ typeLabel(row.type) }}</span>
+                <div class="ct-hide-sm">
+                  <div class="ct-app-amounts ct-num"><span>{{ formatInt(row.realise) }}</span><span>/ {{ formatInt(row.objectif) }}</span></div>
+                  <div class="ct-app-bar"><span [style.width.%]="row.taux > 100 ? 100 : row.taux" [style.background]="tauxColor(row.taux)"></span></div>
                 </div>
-              }
-            </c-col>
-          }
-        </c-row>
-      </div>
-
-      <div>
-        <div class="mc-section-head">
-          <h3>Finance</h3>
-        </div>
-        <c-row class="g-3">
-          @for (kpi of financeKpis(); track kpi.key) {
-            <c-col sm="6" xl="3">
-              @if (kpi.link) {
-                <a [class]="'mc-kpi-card mc-kpi-card--clickable mc-kpi-card--' + kpi.color" [routerLink]="kpi.link">
-                  <span class="mc-kpi-icon">
-                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
-                  </span>
-                  <div class="mc-kpi-body">
-                    <div class="mc-kpi-value">{{ kpi.value }}</div>
-                    <div class="mc-kpi-label">{{ kpi.label }}</div>
-                  </div>
-                </a>
-              } @else {
-                <div [class]="'mc-kpi-card mc-kpi-card--' + kpi.color">
-                  <span class="mc-kpi-icon">
-                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
-                  </span>
-                  <div class="mc-kpi-body">
-                    <div class="mc-kpi-value">{{ kpi.value }}</div>
-                    <div class="mc-kpi-label">{{ kpi.label }}</div>
-                  </div>
-                </div>
-              }
-            </c-col>
-          }
-        </c-row>
-      </div>
-
-      <div>
-        <div class="mc-section-head">
-          <h3>Performance</h3>
-        </div>
-        <c-row class="g-3">
-          @for (kpi of performanceKpis(); track kpi.key) {
-            <c-col sm="6" xl="3">
-              <div [class]="'mc-kpi-card mc-kpi-card--' + kpi.color">
-                <span class="mc-kpi-icon">
-                  <svg cIcon [name]="kpi.icon" size="lg"></svg>
-                </span>
-                <div class="mc-kpi-body">
-                  <div class="mc-kpi-value">{{ kpi.value }}</div>
-                  <div class="mc-kpi-label">{{ kpi.label }}</div>
-                </div>
+                <span class="ct-app-rate ct-num" [style.color]="row.taux > 0 ? tauxColor(row.taux) : null" [class.ct-muted]="row.taux === 0">{{ row.taux | number: '1.0-0' }} %</span>
               </div>
-            </c-col>
+            }
+          </div>
+          @if (apporteursSorted().length > 5) {
+            <button (click)="showAllApporteurs.set(!showAllApporteurs())" class="ct-more" type="button">
+              {{ showAllApporteurs() ? 'Réduire la liste' : 'Voir les ' + apporteursSorted().length + ' apporteurs →' }}
+            </button>
           }
-        </c-row>
-      </div>
-
-      <div>
-        <div class="mc-section-head">
-          <h3>Cycle de vie des contrats</h3>
-        </div>
-        <c-row class="g-3">
-          @for (kpi of lifecycleKpis(); track kpi.key) {
-            <c-col sm="6" xl="4">
-              <a
-                [class]="'mc-kpi-card mc-kpi-card--clickable mc-kpi-card--' + kpi.color"
-                [routerLink]="kpi.link"
-              >
-                <span class="mc-kpi-icon">
-                  <svg cIcon [name]="kpi.icon" size="lg"></svg>
-                </span>
-                <div class="mc-kpi-body">
-                  <div class="mc-kpi-value">{{ kpi.value }}</div>
-                  <div class="mc-kpi-label">{{ kpi.label }}</div>
-                </div>
-              </a>
-            </c-col>
-          }
-        </c-row>
-      </div>
-
-      <div>
-        <div class="mc-section-head">
-          <h3>Répartition par produit</h3>
-        </div>
-        @if (produitBreakdown().length === 0) {
-          <p class="dl-empty">Aucun contrat pour le moment.</p>
-        } @else {
-          <div class="dl-table-scroll">
-            <table class="dl-table">
-              <thead>
-                <tr>
-                  <th scope="col">Produit</th>
-                  <th scope="col">Contrats</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (row of produitBreakdown(); track row.productId) {
-                  <tr>
-                    <td>{{ row.productName }}</td>
-                    <td class="dl-timestamp">{{ row.count }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-      </div>
-
-      <div>
-        <div class="mc-section-head">
-          <h3>Objectif par apporteur</h3>
-        </div>
-        @if (objectifApporteurRows().length === 0) {
-          <p class="dl-empty">Aucun partenaire n'a d'objectif de production défini.</p>
-        } @else {
-          <div class="dl-table-scroll">
-            <table class="dl-table">
-              <thead>
-                <tr>
-                  <th scope="col">Partenaire</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Objectif</th>
-                  <th scope="col">Réalisé</th>
-                  <th scope="col">Taux</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (row of objectifApporteurRows(); track row.partenaireId) {
-                  <tr>
-                    <td>{{ row.nom }}</td>
-                    <td>
-                      <span [class]="'dl-chip dl-chip--' + typeVariant(row.type)">
-                        <span class="dl-chip-dot"></span>{{ typeLabel(row.type) }}
-                      </span>
-                    </td>
-                    <td class="dl-timestamp">{{ formatAmount(row.objectif) }}</td>
-                    <td class="dl-timestamp">{{ formatAmount(row.realise) }}</td>
-                    <td>
-                      <span [class]="'dl-chip dl-chip--' + tauxVariant(row.taux)">
-                        <span class="dl-chip-dot"></span>{{ row.taux.toFixed(1) }} %
-                      </span>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-          <div class="dl-summary">
-            <dl>
-              <dt>Total objectif</dt>
-              <dd>{{ formatAmount(totalObjectifApporteurs()) }}</dd>
-            </dl>
-            <dl>
-              <dt>Total réalisé</dt>
-              <dd>{{ formatAmount(totalRealiseApporteurs()) }}</dd>
-            </dl>
-            <dl>
-              <dt>Taux global</dt>
-              <dd [class]="'dl-stat--' + tauxVariant(tauxGlobalApporteurs())">
-                {{ tauxGlobalApporteurs() === null ? '—' : tauxGlobalApporteurs()!.toFixed(1) + ' %' }}
-              </dd>
-            </dl>
-          </div>
         }
       </div>
     </div>
   }
-</section>
+</div>
