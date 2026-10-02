@@ -35,6 +35,13 @@
           </div>
           <ng-content select="[modalHeaderExtra]" />
         </div>
+      } @else if (variant() === 'custom') {
+        <div class="modal-card-header modal-card-header--custom" [attr.aria-label]="title()">
+          <div class="modal-card-header-content"><ng-content select="[modalHeader]" /></div>
+          <button (click)="closed.emit()" aria-label="Fermer" class="modal-custom-close" type="button">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+        </div>
       } @else {
         <div class="modal-card-header">
           <h5>{{ title() }}</h5>

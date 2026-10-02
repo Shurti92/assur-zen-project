@@ -74,6 +74,7 @@
 
 // Assistant de souscription (préfixe pz-), après "wizard" dont il surcharge le stepper.
 @use "souscription-wizard";
+@use "commercial-paie";
 
 // Sectioned single-page forms: icon+title headers, sticky récapitulatif card,
 // textarea character counter (Déclarer un sinistre, suivi de sinistre…)

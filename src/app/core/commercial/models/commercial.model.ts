@@ -267,4 +267,14 @@ export interface CommercialPayrollEntry {
   eligible: boolean;
   bonusPayable: boolean;
   sycapayStatus: SycaPayTransactionStatus | null;
+  /** Taux du bonus (% de l'objectif) et seuil d'éligibilité (% d'atteinte) — détail du calcul. */
+  bonusRate: number | null;
+  seuilEligibilite: number | null;
+  villeNom: string | null;
+  /** Numéro Wave masqué par le backend (ex. « 07 •• •• 12 »). */
+  telephoneMasque: string | null;
+  paidAt: string | null;
+  modePaiement: CommercialBonusModePaiement | null;
+  sycapayTransactionId: number | null;
+  sycapayTransactionReference: string | null;
 }

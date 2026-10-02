@@ -61,6 +61,8 @@ interface BonusPayTarget {
   moisComptableId: number;
   moisLibelle: string;
   bonusAmount: number | null;
+  /** Numéro Wave masqué (onglet Paie uniquement). */
+  telephoneMasque?: string | null;
   /** Objectif atteint mais performance pas encore validée : validée (montant figé) au paiement. */
   aValider: boolean;
   /** Un virement précédent a échoué : la relance crée une nouvelle tentative. */
@@ -761,6 +763,7 @@ export class CommercialComponent {
       moisComptableId: item.moisComptableId,
       moisLibelle: item.moisLibelle,
       bonusAmount: item.bonusAmount,
+      telephoneMasque: item.telephoneMasque,
       aValider: item.statut !== 'VALIDATED',
       relance: item.sycapayStatus === 'FAILED',
     });
@@ -1040,6 +1043,345 @@ export class CommercialComponent {
         this.payrollLoading.set(false);
       },
     });
+  }
+
+  // ---- Refonte de l'onglet Paie (maquette validée le 2026-10-02) ----
+
+  /** Tous les mois de tous les exercices, du plus ancien au plus récent — navigation ‹ ›. */
+  readonly payrollAllMois = computed(() =>
+    this.exercices()
+      .flatMap((e) => e.mois.map((m) => ({ ...m, exerciceId: e.id, exerciceLibelle: e.libelle })))
+      .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut)),
+  );
+
+  readonly payrollMois = computed(() => this.payrollAllMois().find((m) => String(m.id) === this.payrollMoisId()) ?? null);
+
+  private readonly payrollMoisIndex = computed(() => this.payrollAllMois().findIndex((m) => String(m.id) === this.payrollMoisId()));
+  readonly payrollHasPrev = computed(() => this.payrollMoisIndex() > 0);
+  readonly payrollHasNext = computed(() => {
+    const i = this.payrollMoisIndex();
+    return i >= 0 && i < this.payrollAllMois().length - 1;
+  });
+
+  shiftPayrollMois(delta: number): void {
+    const target = this.payrollAllMois()[this.payrollMoisIndex() + delta];
+    if (!target) return;
+    this.payrollExerciceId.set(String(target.exerciceId));
+    this.setPayrollMois(String(target.id));
+  }
+
+  /** Exercice choisi dans la liste : on se place sur son premier mois. */
+  setPayrollExerciceAndMois(exerciceId: string): void {
+    this.payrollExerciceId.set(exerciceId);
+    const premier = this.moisOptions(exerciceId)[0];
+    if (premier) this.setPayrollMois(String(premier.id));
+  }
+
+  /** « Du 1er au 31 octobre » */
+  payrollMoisPeriode(mois: { dateDebut: string; dateFin: string }): string {
+    const debut = new Date(mois.dateDebut + 'T00:00:00');
+    const fin = new Date(mois.dateFin + 'T00:00:00');
+    const jour = (d: Date) => (d.getDate() === 1 ? '1er' : String(d.getDate()));
+    const moisFin = fin.toLocaleDateString('fr-FR', { month: 'long' });
+    const moisDebut = debut.toLocaleDateString('fr-FR', { month: 'long' });
+    return moisDebut === moisFin
+      ? `Du ${jour(debut)} au ${jour(fin)} ${moisFin}`
+      : `Du ${jour(debut)} ${moisDebut} au ${jour(fin)} ${moisFin}`;
+  }
+
+  readonly payrollMoisEnCours = computed(() => {
+    const mois = this.payrollMois();
+    if (!mois) return false;
+    const today = new Date().toISOString().slice(0, 10);
+    return mois.dateDebut <= today && today <= mois.dateFin;
+  });
+
+  readonly payrollPeriodBadge = computed<{ label: string; variant: string }>(() => {
+    const items = this.payrollItems();
+    const estime = items.some((i) => i.estime);
+    if (this.payrollMoisEnCours()) return { label: 'Mois en cours · montants estimés', variant: 'info' };
+    if (estime) return { label: 'Mois non validé · montants estimés', variant: 'warn' };
+    if (items.length > 0) return { label: 'Montants définitifs', variant: 'ok' };
+    return { label: 'Aucune donnée', variant: 'neutral' };
+  });
+
+  // Indicateurs ------------------------------------------------------------
+
+  fixeOf(item: CommercialPayrollEntry): number {
+    return (item.baseSalary ?? 0) + (item.transportBenefitAmount ?? 0) + (item.phoneAllowanceAmount ?? 0);
+  }
+
+  isBonusPaid(item: CommercialPayrollEntry): boolean {
+    return !!item.paidAt;
+  }
+
+  isBonusInProgress(item: CommercialPayrollEntry): boolean {
+    return !item.paidAt && this.bonusNeedsReconcile(item.sycapayStatus);
+  }
+
+  readonly payrollKpis = computed(() => {
+    const items = this.payrollItems();
+    const aPayer = items.filter((i) => i.bonusPayable);
+    const payes = items.filter((i) => this.isBonusPaid(i));
+    return {
+      fixe: items.reduce((s, i) => s + this.fixeOf(i), 0),
+      count: items.length,
+      atteints: items.filter((i) => i.eligible).length,
+      seuil: items.find((i) => i.seuilEligibilite != null)?.seuilEligibilite ?? 100,
+      taux: items.find((i) => i.bonusRate != null)?.bonusRate ?? null,
+      aPayer: aPayer.reduce((s, i) => s + (i.bonusAmount ?? 0), 0),
+      aPayerCount: aPayer.length,
+      payes: payes.reduce((s, i) => s + (i.bonusAmount ?? 0), 0),
+      payesCount: payes.length,
+    };
+  });
+
+  // Filtres ----------------------------------------------------------------
+
+  readonly payrollFilter = signal<'all' | 'aPayer' | 'enCours' | 'payes' | 'nonAtteint'>('all');
+
+  private matchesPayrollFilter(item: CommercialPayrollEntry, filter: string): boolean {
+    switch (filter) {
+      case 'aPayer':
+        return item.bonusPayable;
+      case 'enCours':
+        return this.isBonusInProgress(item);
+      case 'payes':
+        return this.isBonusPaid(item);
+      case 'nonAtteint':
+        return !item.eligible;
+      default:
+        return true;
+    }
+  }
+
+  readonly payrollFilterCounts = computed(() => {
+    const items = this.payrollItems();
+    const count = (f: string) => items.filter((i) => this.matchesPayrollFilter(i, f)).length;
+    return { all: items.length, aPayer: count('aPayer'), enCours: count('enCours'), payes: count('payes'), nonAtteint: count('nonAtteint') };
+  });
+
+  readonly filteredPayrollItems = computed(() =>
+    this.payrollItems().filter((i) => this.matchesPayrollFilter(i, this.payrollFilter())),
+  );
+
+  // Lignes -----------------------------------------------------------------
+
+  readonly expandedPayrollIds = signal<ReadonlySet<number>>(new Set());
+
+  togglePayrollRow(commercialId: number): void {
+    const set = new Set(this.expandedPayrollIds());
+    if (set.has(commercialId)) set.delete(commercialId);
+    else set.add(commercialId);
+    this.expandedPayrollIds.set(set);
+  }
+
+  /** Barre de progression : remplissage plafonné à 100 %, repère placé sur l'objectif. */
+  progressFill(item: { achievementRate: number }): number {
+    return Math.max(0, Math.min(100, item.achievementRate));
+  }
+
+  progressGoal(item: { achievementRate: number }): number {
+    return item.achievementRate > 100 ? (100 / item.achievementRate) * 100 : 100;
+  }
+
+  progressClass(item: CommercialPayrollEntry): string {
+    return this.rateClass(item.achievementRate, item.seuilEligibilite);
+  }
+
+  rateClass(rate: number, seuil: number | null): 'ok' | 'mid' | 'low' {
+    if (rate >= (seuil ?? 100)) return 'ok';
+    if (rate >= 50) return 'mid';
+    return 'low';
+  }
+
+  // ---- Fiche commercial › Performance (refonte validée le 2026-10-02) ----
+
+  statutBadgeVariant(statut: CommercialStatut): string {
+    switch (statut) {
+      case 'ACTIVE':
+        return 'ok';
+      case 'SUSPENDED':
+        return 'warn';
+      case 'TERMINATED':
+        return 'danger';
+      default:
+        return 'neutral';
+    }
+  }
+
+  /** Mois comptable contenant la date du jour. */
+  isMoisCourant(moisComptableId: number): boolean {
+    const today = new Date().toISOString().slice(0, 10);
+    const mois = this.payrollAllMois().find((m) => m.id === moisComptableId);
+    return !!mois && mois.dateDebut <= today && today <= mois.dateFin;
+  }
+
+  /** « Septembre 2026 » → « sept. » */
+  moisCourt(libelle: string): string {
+    const nom = libelle.split(' ')[0]?.toLowerCase() ?? '';
+    const courts: Record<string, string> = {
+      janvier: 'janv.', février: 'févr.', mars: 'mars', avril: 'avr.', mai: 'mai', juin: 'juin',
+      juillet: 'juil.', août: 'août', septembre: 'sept.', octobre: 'oct.', novembre: 'nov.', décembre: 'déc.',
+    };
+    return courts[nom] ?? nom.slice(0, 4);
+  }
+
+  /** Échelle du mini-graphique : 0 → 140 % d'atteinte ; la ligne des 100 % est donc à 71,4 %. */
+  private static readonly PERF_CHART_MAX = 140;
+  /** Position (px depuis le haut) de la ligne des 100 % dans la zone des barres (56 px). */
+  readonly perfChartGoalTop = 56 * (1 - 100 / CommercialComponent.PERF_CHART_MAX);
+
+  perfChartHeight(rate: number): number {
+    return Math.max(4, Math.min(100, (rate / CommercialComponent.PERF_CHART_MAX) * 100));
+  }
+
+  readonly perfSummary = computed(() => {
+    const items = this.detailPerformance(); // du plus récent au plus ancien
+    const derniers = items.slice(0, 6);
+    const avecObjectif = derniers.filter((i) => i.objectiveAmount > 0);
+    const payes = derniers.filter((i) => !!i.paidAt);
+    const aPayer = items.filter((i) => i.payable);
+    const chart = [...derniers].reverse();
+    return {
+      nbMois: derniers.length,
+      moyenne: avecObjectif.length ? avecObjectif.reduce((s, i) => s + i.achievementRate, 0) / avecObjectif.length : null,
+      payes: payes.reduce((s, i) => s + (i.bonusAmount ?? 0), 0),
+      payesCount: payes.length,
+      aPayer: aPayer.reduce((s, i) => s + (i.bonusAmount ?? 0), 0),
+      aPayerMois: aPayer.map((i) => i.moisLibelle).join(', '),
+      chart,
+      periode: chart.length > 1 ? `${this.moisCourt(chart[0].moisLibelle)} → ${this.moisCourt(chart[chart.length - 1].moisLibelle)}` : '',
+      taux: items.find((i) => i.bonusRateSnapshot != null)?.bonusRateSnapshot ?? null,
+      seuil: items.find((i) => i.seuilEligibilite != null)?.seuilEligibilite ?? 100,
+    };
+  });
+
+  perfMonthBadge(item: CommercialPerformanceResponse): { label: string; variant: string } {
+    if (item.paidAt) {
+      return {
+        label: `Payé le ${this.formatShortDate(item.paidAt)} · ${item.modePaiement === 'ENREGISTREMENT_MANUEL' ? 'hors application' : 'Wave'}`,
+        variant: 'ok',
+      };
+    }
+    if (item.sycapayStatus === 'UNKNOWN') return { label: 'À réconcilier', variant: 'warn' };
+    if (item.sycapayStatus === 'PROCESSING' || item.sycapayStatus === 'PENDING') return { label: 'Virement en cours', variant: 'info' };
+    if (item.sycapayStatus === 'FAILED') return { label: 'Virement échoué', variant: 'danger' };
+    if (!item.objectiveAmount) return { label: 'Aucun objectif', variant: 'neutral' };
+    if (item.eligible) return { label: 'Objectif atteint', variant: 'ok' };
+    return { label: 'Objectif non atteint', variant: 'neutral' };
+  }
+
+  /** Suivi du bonus en 3 étapes : Calculé → Validé → Payé. */
+  perfSteps(item: CommercialPerformanceResponse): { label: string; state: 'done' | 'now' | 'todo' | 'fail' }[] {
+    const valide = item.statut === 'VALIDATED' || item.statut === 'PAID' || item.statut === 'CLOSED';
+    let paye: { label: string; state: 'done' | 'now' | 'todo' | 'fail' };
+    if (item.paidAt) paye = { label: 'Payé', state: 'done' };
+    else if (item.sycapayStatus === 'FAILED') paye = { label: this.sycapayMessageLabel(item.sycapayMessage) || 'Virement échoué', state: 'fail' };
+    else if (this.bonusNeedsReconcile(item.sycapayStatus)) paye = { label: 'Virement en cours', state: 'now' };
+    else paye = { label: valide ? 'À payer' : 'Payé', state: valide ? 'now' : 'todo' };
+    return [
+      { label: 'Calculé', state: 'done' },
+      valide ? { label: 'Validé', state: 'done' } : { label: 'À valider', state: 'now' },
+      paye,
+    ];
+  }
+
+  /** Mois non atteint : ce qui manquait (ou manque encore) pour déclencher le bonus. */
+  perfMissingHint(item: CommercialPerformanceResponse, courant: boolean): string {
+    if (!item.objectiveAmount) return 'Aucun objectif mensuel défini ce mois-ci : pas de bonus possible.';
+    const seuil = item.seuilEligibilite ?? 100;
+    const reste = Math.max(0, Math.ceil((item.objectiveAmount * seuil) / 100 - item.realizedAmount));
+    const bonus = item.bonusRateSnapshot != null ? Math.round((item.objectiveAmount * item.bonusRateSnapshot) / 100) : null;
+    const suffixe = bonus != null ? ` pour un bonus de ${this.formatAmount(bonus)}` : '';
+    return courant
+      ? `Encore ${this.formatAmount(reste)} de production${suffixe}.`
+      : `Il manquait ${this.formatAmount(reste)} de production${suffixe}.`;
+  }
+
+  /** « Encore 25 000 FCFA pour 3 500 FCFA de bonus » (objectif non atteint). */
+  remainingHint(item: CommercialPayrollEntry): string | null {
+    if (!item.objectiveAmount || item.eligible) return null;
+    const seuil = item.seuilEligibilite ?? 100;
+    const reste = Math.max(0, Math.ceil((item.objectiveAmount * seuil) / 100 - item.realizedAmount));
+    if (item.bonusRate == null) return `Encore ${this.formatAmount(reste)} pour atteindre l'objectif`;
+    const bonus = Math.round((item.objectiveAmount * item.bonusRate) / 100);
+    return `Encore ${this.formatAmount(reste)} pour ${this.formatAmount(bonus)} de bonus`;
+  }
+
+  payrollBonusBadge(item: CommercialPayrollEntry): { label: string; variant: string } | null {
+    if (item.paidAt) return { label: `Payé le ${this.formatShortDate(item.paidAt)}`, variant: 'ok' };
+    if (this.isBonusInProgress(item)) return { label: item.sycapayStatus === 'UNKNOWN' ? 'À réconcilier' : 'Virement en cours', variant: 'info' };
+    if (item.sycapayStatus === 'FAILED') return { label: 'Virement échoué', variant: 'danger' };
+    if (item.eligible) return { label: 'Objectif atteint', variant: 'ok' };
+    return null;
+  }
+
+  formatShortDate(value: string | null): string {
+    return value ? new Date(value).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—';
+  }
+
+  /** « 2 oct. 2026 · 18:34 » */
+  formatHistoryDate(value: string | null): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    return `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })} · ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  /** Montant sans devise, pour les détails « 40 000 + 10 000 + 5 000 ». */
+  formatNumber(value: number | null): string {
+    return value === null ? '—' : new Intl.NumberFormat('fr-FR').format(value);
+  }
+
+  /** « Octobre 2026 » → « d'octobre 2026 », « Septembre 2026 » → « de septembre 2026 ». */
+  moisDe(libelle: string): string {
+    const lower = libelle.charAt(0).toLowerCase() + libelle.slice(1);
+    return /^[aeiouyàâéèêh]/i.test(lower) ? `d'${lower}` : `de ${lower}`;
+  }
+
+  readonly payrollExporting = signal(false);
+
+  exportPayroll(): void {
+    const moisComptableId = this.payrollMoisId() ? Number(this.payrollMoisId()) : undefined;
+    this.payrollExporting.set(true);
+    this.commercialService.exportPerformance({ moisComptableId }).subscribe({
+      next: (blob) => {
+        this.downloadBlob(blob, `assurzen-paie-commerciaux-${this.exportTimestamp()}.csv`);
+        this.payrollExporting.set(false);
+      },
+      error: () => {
+        this.payrollError.set("Impossible d'exporter les éléments de paie.");
+        this.payrollExporting.set(false);
+      },
+    });
+  }
+
+  // Historique (liste chronologique) ---------------------------------------
+
+  historyState(item: CommercialPerformanceResponse): 'ok' | 'info' | 'danger' {
+    if (item.paidAt) return 'ok';
+    if (item.sycapayStatus === 'FAILED') return 'danger';
+    return 'info';
+  }
+
+  historyLabel(item: CommercialPerformanceResponse): string {
+    if (item.paidAt) return 'Payé';
+    if (item.sycapayStatus === 'FAILED') return 'Échoué';
+    if (item.sycapayStatus === 'UNKNOWN') return 'À réconcilier';
+    return 'En cours';
+  }
+
+  historyDetail(item: CommercialPerformanceResponse): string {
+    if (item.paidAt) {
+      if (item.modePaiement === 'ENREGISTREMENT_MANUEL') {
+        return `Paiement hors application${item.paymentReference ? ' · réf. ' + item.paymentReference : ''}`;
+      }
+      return `Virement Wave${item.sycapayTransactionReference ? ' · réf. ' + item.sycapayTransactionReference : ''}`;
+    }
+    if (item.sycapayStatus === 'FAILED') {
+      return `${this.sycapayMessageLabel(item.sycapayMessage) || 'Virement échoué'} · aucun montant débité`;
+    }
+    return 'Virement Wave · en attente de confirmation SycaPay';
   }
 
   // ================= Commissions (paiement, séparé du cycle bonus mensuel) =================

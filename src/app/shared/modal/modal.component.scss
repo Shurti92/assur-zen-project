@@ -182,3 +182,32 @@
   padding: 0;
   overflow: hidden;
 }
+
+// Variante 'custom' : en-tête fourni par la page ([modalHeader]), bouton Fermer conservé.
+.modal-card-header--custom {
+  align-items: flex-start;
+  gap: 16px;
+  padding: 22px 24px 18px;
+}
+
+.modal-card-header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-custom-close {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 10px;
+  background: var(--cui-body-bg);
+  color: var(--cui-body-color);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--cui-tertiary-bg);
+  }
+}

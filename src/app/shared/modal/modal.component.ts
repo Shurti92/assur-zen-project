@@ -14,7 +14,9 @@ export class ModalComponent {
   readonly size = input<'md' | 'lg' | 'xl' | 'xxl' | 'full'>('md');
   /** 'brand' : en-tête bleu dégradé avec pastille d'icône et sous-titre (parcours guidés, voir la
    * maquette Vignettes moto). Le corps n'a alors plus de marge — c'est au contenu de gérer la sienne. */
-  readonly variant = input<'default' | 'brand'>('default');
+  readonly variant = input<'default' | 'brand' | 'custom'>('default');
+  // 'custom' : l'en-tête est fourni par la page via [modalHeader] (bouton Fermer conservé), ex. la
+  // fiche commercial (avatar, badge de statut, informations clés). `title` sert alors d'aria-label.
   readonly subtitle = input('');
   /** Nom d'icône CoreUI (ex. `cilUser`), affiché dans la pastille de l'en-tête 'brand'. */
   readonly icon = input('');
