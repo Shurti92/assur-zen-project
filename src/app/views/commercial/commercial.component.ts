@@ -19,6 +19,7 @@ import {
 
 import { CommercialService } from '../../core/commercial/commercial.service';
 import {
+  CommercialBonusPaymentResponse,
   CommercialManagementDashboardResponse,
   CommercialMonthlyObjectiveResponse,
   CommercialObjectiveResponse,
@@ -52,6 +53,19 @@ type DetailView = 'objectifsAnnuels' | 'objectifsMensuels' | 'performance';
 type CommissionContractStatusFilter = 'all' | 'pending' | 'paid';
 
 const PAGE_SIZE = 20;
+
+/** Bonus à payer, ouvert depuis l'historique de performance d'un commercial ou depuis l'onglet Paie. */
+interface BonusPayTarget {
+  commercialId: number;
+  commercialNom: string;
+  moisComptableId: number;
+  moisLibelle: string;
+  bonusAmount: number | null;
+  /** Objectif atteint mais performance pas encore validée : validée (montant figé) au paiement. */
+  aValider: boolean;
+  /** Un virement précédent a échoué : la relance crée une nouvelle tentative. */
+  relance: boolean;
+}
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof HttpErrorResponse) {
@@ -109,6 +123,9 @@ export class CommercialComponent {
     if (tab === 'paie' && !this.payrollMoisId() && this.exercices().length > 0) {
       this.autoSelectCurrentMonth('paie');
     }
+    if (tab === 'paie' && !this.bonusHistoryLoaded() && !this.bonusHistoryLoading()) {
+      this.fetchBonusHistory();
+    }
     if (tab === 'commissions' && this.commissionSummaries().length === 0 && !this.commissionsLoading()) {
       this.fetchCommissionSummaries();
       this.fetchCommissionPayments();
@@ -135,7 +152,12 @@ export class CommercialComponent {
 
   private fetchExercices(): void {
     this.exerciceService.listAvailable().subscribe({
-      next: (exercices) => this.exercices.set(exercices),
+      next: (exercices) => {
+        this.exercices.set(exercices);
+        // Onglet ouvert avant l'arrivée des exercices : présélection du mois courant à retardement.
+        if (this.activeTab() === 'paie' && !this.payrollMoisId()) this.autoSelectCurrentMonth('paie');
+        if (this.activeTab() === 'dashboard' && !this.dashboardMoisId()) this.autoSelectCurrentMonth('dashboard');
+      },
       error: () => {
         // Silencieux : les listes déroulantes exercice/mois restent vides si ça échoue.
       },
@@ -151,9 +173,16 @@ export class CommercialComponent {
   /** Présélectionne l'exercice actif et son mois courant (non clôturé) sur les onglets
    * transversaux Tableau de bord / Paie, pour éviter un écran vide au premier affichage. */
   private autoSelectCurrentMonth(target: 'dashboard' | 'paie'): void {
-    const exercice = this.exercices().find((e) => !e.cloture) ?? this.exercices()[0];
+    // Priorité au mois qui contient la date du jour (le « premier mois non clôturé » peut être un
+    // mois passé dont la clôture comptable n'a pas encore été faite), sinon l'ancienne règle.
+    const today = new Date().toISOString().slice(0, 10);
+    const exerciceDuJour = this.exercices().find((e) => e.mois.some((m) => m.dateDebut <= today && today <= m.dateFin));
+    const exercice = exerciceDuJour ?? this.exercices().find((e) => !e.cloture) ?? this.exercices()[0];
     if (!exercice) return;
-    const mois = exercice.mois.find((m) => !m.cloture) ?? exercice.mois[exercice.mois.length - 1];
+    const mois =
+      exercice.mois.find((m) => m.dateDebut <= today && today <= m.dateFin) ??
+      exercice.mois.find((m) => !m.cloture) ??
+      exercice.mois[exercice.mois.length - 1];
     if (!mois) return;
     if (target === 'dashboard') {
       this.dashboardExerciceId.set(String(exercice.id));
@@ -650,17 +679,28 @@ export class CommercialComponent {
   }
 
   readonly statutTarget = signal<CommercialPerformanceResponse | null>(null);
-  readonly statutAction = signal<'VALIDATED' | 'PAID' | null>(null);
+  readonly statutAction = signal<'VALIDATED' | 'CLOSED' | null>(null);
   readonly statutPending = signal(false);
 
+  /** Valider fige le montant du bonus (préalable obligatoire au paiement) — aussi pour un mois
+   * non éligible, qui peut ensuite être clôturé sans paiement. */
   confirmValider(item: CommercialPerformanceResponse): void {
     this.statutTarget.set(item);
     this.statutAction.set('VALIDATED');
   }
 
-  confirmPayer(item: CommercialPerformanceResponse): void {
+  confirmCloturer(item: CommercialPerformanceResponse): void {
     this.statutTarget.set(item);
-    this.statutAction.set('PAID');
+    this.statutAction.set('CLOSED');
+  }
+
+  canValidate(item: CommercialPerformanceResponse): boolean {
+    return item.statut === 'ELIGIBLE' || item.statut === 'NOT_ELIGIBLE' || item.statut === 'CALCULATED';
+  }
+
+  /** VALIDATED non éligible (rien à payer) ou PAID → clôture de la période. */
+  canClose(item: CommercialPerformanceResponse): boolean {
+    return (item.statut === 'VALIDATED' && !item.eligible) || item.statut === 'PAID';
   }
 
   cancelStatutAction(): void {
@@ -688,6 +728,192 @@ export class CommercialComponent {
         );
         this.statutTarget.set(null);
         this.statutAction.set(null);
+      },
+    });
+  }
+
+  // ================= Paiement du bonus mensuel (virement SycaPay réel) =================
+
+  readonly bonusPayTarget = signal<BonusPayTarget | null>(null);
+  readonly bonusPayReference = signal('');
+  readonly bonusPaying = signal(false);
+  readonly bonusPayError = signal<string | null>(null);
+  readonly bonusPayResult = signal<CommercialBonusPaymentResponse | null>(null);
+
+  openBonusPayFromPerformance(item: CommercialPerformanceResponse): void {
+    const commercial = this.selectedCommercial();
+    if (!commercial) return;
+    this.openBonusPay({
+      commercialId: commercial.id,
+      commercialNom: `${commercial.firstname} ${commercial.lastname}`,
+      moisComptableId: item.moisComptableId,
+      moisLibelle: item.moisLibelle,
+      bonusAmount: item.bonusAmount,
+      aValider: item.statut !== 'VALIDATED',
+      relance: item.sycapayStatus === 'FAILED',
+    });
+  }
+
+  openBonusPayFromPayroll(item: CommercialPayrollEntry): void {
+    this.openBonusPay({
+      commercialId: item.commercialId,
+      commercialNom: item.commercialNom,
+      moisComptableId: item.moisComptableId,
+      moisLibelle: item.moisLibelle,
+      bonusAmount: item.bonusAmount,
+      aValider: item.statut !== 'VALIDATED',
+      relance: item.sycapayStatus === 'FAILED',
+    });
+  }
+
+  private openBonusPay(target: BonusPayTarget): void {
+    this.bonusPayTarget.set(target);
+    this.bonusPayReference.set('');
+    this.bonusPayError.set(null);
+    this.bonusPayResult.set(null);
+  }
+
+  closeBonusPay(): void {
+    if (this.bonusPaying()) return;
+    this.bonusPayTarget.set(null);
+    this.bonusPayResult.set(null);
+    this.bonusPayError.set(null);
+  }
+
+  payBonus(): void {
+    const target = this.bonusPayTarget();
+    if (!target || this.bonusPaying()) return;
+    this.bonusPaying.set(true);
+    this.bonusPayError.set(null);
+    this.commercialService
+      .payBonus(target.commercialId, target.moisComptableId, { reference: this.bonusPayReference().trim() || undefined })
+      .subscribe({
+        next: (result) => {
+          this.bonusPaying.set(false);
+          this.bonusPayResult.set(result);
+          this.refreshAfterBonusPayment();
+        },
+        error: (err: unknown) => {
+          this.bonusPaying.set(false);
+          this.bonusPayError.set(sycapayErrorMessage(err, extractErrorMessage(err, 'Impossible de payer ce bonus. Réessayez.'), 'pay'));
+          this.refreshAfterBonusPayment();
+        },
+      });
+  }
+
+  private refreshAfterBonusPayment(): void {
+    if (this.detailVisible() && this.detailView() === 'performance') this.fetchDetailPerformance();
+    if (this.payrollMoisId()) this.fetchPayroll();
+    this.fetchBonusHistory();
+  }
+
+  bonusPayResultVariant(result: CommercialBonusPaymentResponse): 'success' | 'warning' | 'danger' | 'info' {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL' || result.sycapayStatus === 'SUCCESS') return 'success';
+    if (result.sycapayStatus === 'PROCESSING') return 'info';
+    if (result.sycapayStatus === 'UNKNOWN' || result.sycapayStatus === 'PENDING') return 'warning';
+    return 'danger';
+  }
+
+  bonusPayResultTitle(result: CommercialBonusPaymentResponse): string {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL') return 'Paiement enregistré';
+    switch (result.sycapayStatus) {
+      case 'SUCCESS':
+        return 'Bonus payé';
+      case 'PROCESSING':
+      case 'PENDING':
+        return 'Virement en cours';
+      case 'UNKNOWN':
+        return 'Issue du virement incertaine';
+      case 'FAILED':
+        return 'Virement échoué';
+      default:
+        return 'Paiement non effectué';
+    }
+  }
+
+  bonusPayResultDetail(result: CommercialBonusPaymentResponse): string {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL') {
+      return `SycaPay est désactivé : le paiement a été enregistré (virement effectué hors application). ${this.bonusSmsLabel(result)}`;
+    }
+    switch (result.sycapayStatus) {
+      case 'SUCCESS':
+        return `Virement Wave confirmé${result.sycapayTransactionReference ? ' (réf. ' + result.sycapayTransactionReference + ')' : ''}. Le bonus est payé et l'écriture comptable est créée. ${this.bonusSmsLabel(result)}`;
+      case 'PROCESSING':
+      case 'PENDING':
+      case 'UNKNOWN':
+        return 'Ne relancez pas le paiement : un double virement est possible. Utilisez « Réconcilier » pour vérifier son statut auprès de SycaPay — le bonus passera automatiquement à « Payé » dès la confirmation.';
+      case 'FAILED':
+        return `${this.sycapayMessageLabel(result.sycapayMessage) || 'Le virement a échoué'}. Aucun montant n'est parti : le bonus reste validé et peut être relancé.`;
+      default:
+        return `${this.sycapayMessageLabel(result.sycapayMessage) || 'Aucun virement n\'a été tenté'}.`;
+    }
+  }
+
+  private bonusSmsLabel(result: CommercialBonusPaymentResponse): string {
+    return result.performance?.notificationEnvoyee
+      ? 'Le commercial a été notifié par SMS.'
+      : "Le SMS de confirmation n'a pas pu être envoyé au commercial.";
+  }
+
+  /** PROCESSING/UNKNOWN : issue incertaine, ne jamais relancer — réconcilier sur l'écran SycaPay. */
+  bonusNeedsReconcile(status: string | null | undefined): boolean {
+    return status === 'PROCESSING' || status === 'UNKNOWN' || status === 'PENDING';
+  }
+
+  bonusReconcileQueryParams(transactionId: number | null, reference: string | null): Record<string, string | number> {
+    return transactionId != null ? { transaction: transactionId } : { reference: reference ?? '' };
+  }
+
+  /** Statut de paiement du bonus, pour les colonnes « Paiement » (historique, paie). */
+  bonusPaymentLabel(item: Pick<CommercialPerformanceResponse, 'statut' | 'eligible' | 'payable' | 'sycapayStatus' | 'modePaiement' | 'paidAt'>): string {
+    if (item.paidAt) return item.modePaiement === 'ENREGISTREMENT_MANUEL' ? 'Payé (hors application)' : 'Payé (Wave)';
+    if (item.sycapayStatus === 'PROCESSING' || item.sycapayStatus === 'PENDING') return 'Virement en cours';
+    if (item.sycapayStatus === 'UNKNOWN') return 'À réconcilier';
+    if (item.sycapayStatus === 'FAILED') return 'Échec — à relancer';
+    if (item.payable) return 'À payer';
+    if (!item.eligible) return 'Aucun bonus';
+    return 'À valider';
+  }
+
+  bonusPaymentVariant(item: Pick<CommercialPerformanceResponse, 'statut' | 'eligible' | 'payable' | 'sycapayStatus' | 'modePaiement' | 'paidAt'>): string {
+    if (item.paidAt) return 'success';
+    if (item.sycapayStatus === 'PROCESSING' || item.sycapayStatus === 'PENDING') return 'info';
+    if (item.sycapayStatus === 'UNKNOWN') return 'warning';
+    if (item.sycapayStatus === 'FAILED') return 'danger';
+    if (item.payable) return 'info';
+    return 'neutral';
+  }
+
+  /** Détail du calcul : bonus = objectif × taux si taux d'atteinte ≥ seuil (toujours sur l'objectif). */
+  bonusCalculDetail(item: CommercialPerformanceResponse): string {
+    const taux = item.bonusRateSnapshot ?? 0;
+    const seuil = item.seuilEligibilite ?? 100;
+    const base = `${taux} % de l'objectif si atteinte ≥ ${seuil} %`;
+    if (!item.objectiveAmount) return 'Aucun objectif mensuel défini ce mois-ci';
+    return item.eligible
+      ? `${base} : ${this.formatAmount(item.objectiveAmount)} × ${taux} %`
+      : `${base} (atteint : ${item.achievementRate.toFixed(1)} %)`;
+  }
+
+  // ================= Historique des paiements de bonus =================
+
+  readonly bonusHistory = signal<CommercialPerformanceResponse[]>([]);
+  readonly bonusHistoryLoading = signal(false);
+  readonly bonusHistoryLoaded = signal(false);
+  readonly bonusHistoryError = signal<string | null>(null);
+
+  fetchBonusHistory(): void {
+    this.bonusHistoryLoading.set(true);
+    this.bonusHistoryError.set(null);
+    this.commercialService.bonusPayments().subscribe({
+      next: (items) => {
+        this.bonusHistory.set(items);
+        this.bonusHistoryLoading.set(false);
+        this.bonusHistoryLoaded.set(true);
+      },
+      error: () => {
+        this.bonusHistoryError.set("Impossible de charger l'historique des paiements de bonus.");
+        this.bonusHistoryLoading.set(false);
       },
     });
   }

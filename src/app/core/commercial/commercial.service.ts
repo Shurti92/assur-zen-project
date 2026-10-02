@@ -3,6 +3,8 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  CommercialBonusPaymentRequest,
+  CommercialBonusPaymentResponse,
   CommercialFilter,
   CommercialManagementDashboardResponse,
   CommercialMonthlyObjectiveRequest,
@@ -118,6 +120,26 @@ export class CommercialService {
       `/commercials/${commercialId}/performance/${moisComptableId}/statut`,
       payload,
     );
+  }
+
+  /** Paiement réel du bonus validé (virement SycaPay, ou enregistrement hors application si SycaPay
+   * est désactivé) — toujours lire `sycapayStatus` de la réponse. */
+  payBonus(
+    commercialId: number,
+    moisComptableId: number,
+    payload: CommercialBonusPaymentRequest,
+  ): Observable<CommercialBonusPaymentResponse> {
+    return this.http.post<CommercialBonusPaymentResponse>(
+      `/commercials/${commercialId}/performance/${moisComptableId}/bonus/pay`,
+      payload,
+    );
+  }
+
+  /** Historique des paiements de bonus (payés, en cours, échoués), tous commerciaux ou un seul. */
+  bonusPayments(commercialId?: number): Observable<CommercialPerformanceResponse[]> {
+    let params = new HttpParams();
+    if (commercialId) params = params.set('commercialId', commercialId);
+    return this.http.get<CommercialPerformanceResponse[]>('/commercial-performance/bonus-payments', { params });
   }
 
   managementDashboard(moisComptableId?: number): Observable<CommercialManagementDashboardResponse> {

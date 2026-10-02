@@ -48,6 +48,8 @@ export interface SycaPayTransaction {
   contractId: number | null;
   /** Renseigné (et contractId null) pour le virement d'une demande de paiement anticipé (2026-09-26). */
   partialPaymentRequestId?: number | null;
+  /** Renseigné (et contractId null) pour le virement du bonus mensuel d'un commercial (2026-10-02). */
+  commercialPerformanceId?: number | null;
   beneficiaryType: SycaPayBeneficiaryType;
   partenaireId: number | null;
   /** Nullable depuis le paiement des partenaires (2026-09-23). */

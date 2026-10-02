@@ -497,9 +497,10 @@ export class SycaPayComponent {
   });
 
   /** « Commercial #12 » / « Partenaire #34 » — un seul des deux ids est renseigné. */
-  /** Objet du virement : commission d'un contrat, ou demande de paiement anticipé (contractId null). */
+  /** Objet du virement : commission d'un contrat, bonus mensuel, ou demande de paiement anticipé (contractId null). */
   transactionSubject(t: SycaPayTransaction): string {
     if (t.contractId !== null) return `Contrat #${t.contractId}`;
+    if (t.commercialPerformanceId) return 'Bonus mensuel commercial';
     return t.partialPaymentRequestId ? `Paiement anticipé, demande n° ${t.partialPaymentRequestId}` : 'Paiement anticipé';
   }
 

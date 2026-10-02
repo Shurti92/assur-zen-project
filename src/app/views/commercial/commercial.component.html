@@ -323,8 +323,11 @@
     } @else if (payrollLoading()) {
       <p class="dl-empty">Chargement…</p>
     } @else if (payrollItems().length === 0) {
-      <p class="dl-empty">Aucun élément de paie pour ce mois.</p>
+      <p class="dl-empty">Aucun commercial actif pour ce mois.</p>
     } @else {
+      <p class="dl-cell-detail mb-2">
+        Les montants « Estimé » sont recalculés en direct tant que la performance du mois n'est pas validée — seules les lignes validées sont définitives et transmissibles à la paie.
+      </p>
       <div class="dl-table-scroll">
         <table class="dl-table">
           <thead>
@@ -333,9 +336,11 @@
               <th scope="col">Salaire de base</th>
               <th scope="col">Transport</th>
               <th scope="col">Téléphone</th>
+              <th scope="col">Atteinte</th>
               <th scope="col">Bonus</th>
-              <th scope="col">Total variable</th>
+              <th scope="col">Total</th>
               <th scope="col">Statut</th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>
@@ -349,9 +354,18 @@
                 <td class="dl-timestamp">{{ formatAmount(item.transportBenefitAmount) }}</td>
                 <td class="dl-timestamp">{{ formatAmount(item.phoneAllowanceAmount) }}</td>
                 <td class="dl-timestamp">
+                  <span [class]="'dl-chip dl-chip--' + tauxVariant(item.achievementRate)">{{ item.achievementRate.toFixed(1) }} %</span>
+                  <div class="dl-cell-detail">{{ formatAmount(item.realizedAmount) }} / {{ formatAmount(item.objectiveAmount) }}</div>
+                </td>
+                <td class="dl-timestamp">
                   {{ formatAmount(item.bonusAmount) }}
-                  @if (isBonusEstime(item.statut)) {
+                  @if (item.estime) {
                     <div class="dl-cell-detail">Estimé</div>
+                  }
+                  @if (item.sycapayStatus === 'PROCESSING' || item.sycapayStatus === 'UNKNOWN') {
+                    <div class="dl-cell-detail">Virement en cours</div>
+                  } @else if (item.sycapayStatus === 'FAILED' && item.statut === 'VALIDATED') {
+                    <div class="dl-cell-detail">Virement échoué</div>
                   }
                 </td>
                 <td class="dl-timestamp"><strong>{{ formatAmount(item.totalVariable) }}</strong></td>
@@ -359,6 +373,73 @@
                   <span [class]="'dl-chip dl-chip--' + statutVariant(item.statut)">
                     <span class="dl-chip-dot"></span>{{ statutLabel(item.statut) }}
                   </span>
+                </td>
+                <td>
+                  @if (item.bonusPayable) {
+                    <button (click)="openBonusPayFromPayroll(item)" cButton color="primary" size="sm" type="button">
+                      {{ item.sycapayStatus === 'FAILED' ? 'Relancer' : 'Payer le bonus' }}
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Historique des paiements de bonus -->
+    <div class="d-flex align-items-center justify-content-between mt-4 mb-2">
+      <h2 class="h6 mb-0">Historique des paiements de bonus</h2>
+      <button (click)="fetchBonusHistory()" [disabled]="bonusHistoryLoading()" cButton color="link" class="p-0" type="button">Actualiser</button>
+    </div>
+    @if (bonusHistoryError()) {
+      <p class="dl-empty">{{ bonusHistoryError() }} <button (click)="fetchBonusHistory()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (bonusHistoryLoading() && bonusHistory().length === 0) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (bonusHistory().length === 0) {
+      <p class="dl-empty">Aucun paiement de bonus pour le moment.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Commercial</th>
+              <th scope="col">Mois</th>
+              <th scope="col">Atteinte</th>
+              <th scope="col">Bonus</th>
+              <th scope="col">Paiement</th>
+              <th scope="col">Date</th>
+              <th scope="col">Référence</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of bonusHistory(); track item.id) {
+              <tr>
+                <td>
+                  {{ item.commercialNom || '—' }}
+                  <div class="dl-cell-detail">{{ item.employeeCode }}</div>
+                </td>
+                <td>{{ item.moisLibelle }}</td>
+                <td class="dl-timestamp">{{ item.achievementRate.toFixed(1) }} %</td>
+                <td class="dl-timestamp"><strong>{{ formatAmount(item.bonusAmount) }}</strong></td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + bonusPaymentVariant(item)">
+                    <span class="dl-chip-dot"></span>{{ bonusPaymentLabel(item) }}
+                  </span>
+                  @if (bonusNeedsReconcile(item.sycapayStatus) && !item.paidAt) {
+                    <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(item.sycapayTransactionId, item.sycapayTransactionReference)" class="dl-cell-detail d-block">Réconcilier</a>
+                  } @else if (item.sycapayStatus === 'FAILED' && !item.paidAt && item.sycapayMessage) {
+                    <div class="dl-cell-detail" [title]="item.sycapayMessage">{{ sycapayMessageLabel(item.sycapayMessage) }}</div>
+                  }
+                </td>
+                <td class="dl-timestamp">{{ formatDateTime(item.paidAt ?? item.sycapayRequestDate) }}</td>
+                <td class="dl-timestamp">
+                  @if (item.sycapayTransactionId) {
+                    <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: item.sycapayTransactionId }">{{ item.sycapayTransactionReference || 'Voir le virement' }}</a>
+                  } @else {
+                    {{ item.paymentReference || '—' }}
+                  }
                 </td>
               </tr>
             }
@@ -855,8 +936,11 @@
     @if (detailPerformanceLoading()) {
       <p class="dl-empty">Chargement…</p>
     } @else if (detailPerformance().length === 0) {
-      <p class="dl-empty">Aucun historique de performance pour ce commercial.</p>
+      <p class="dl-empty">Aucun historique de performance : définissez un objectif mensuel pour ce commercial (onglet « Objectifs mensuels »).</p>
     } @else {
+      <p class="dl-cell-detail mb-2">
+        Workflow du bonus : calcul en direct (estimé) → <strong>Valider</strong> (montant figé) → <strong>Payer</strong> (virement Wave SycaPay) → Payé. Le bonus est toujours calculé sur l'objectif, jamais sur le réalisé.
+      </p>
       <div class="dl-table-scroll">
         <table class="dl-table dl-table--modal">
           <thead>
@@ -868,21 +952,25 @@
               <th scope="col">Bonus</th>
               <th scope="col">Rémunération totale</th>
               <th scope="col">Statut</th>
+              <th scope="col">Paiement du bonus</th>
               <th scope="col"></th>
             </tr>
           </thead>
           <tbody>
-            @for (item of detailPerformance(); track item.id) {
+            @for (item of detailPerformance(); track item.moisComptableId) {
               <tr>
                 <td>{{ item.moisLibelle }}</td>
                 <td class="dl-timestamp">{{ formatAmount(item.objectiveAmount) }}</td>
                 <td class="dl-timestamp">{{ formatAmount(item.realizedAmount) }}</td>
-                <td class="dl-timestamp">{{ item.achievementRate.toFixed(1) }} %</td>
+                <td class="dl-timestamp">
+                  <span [class]="'dl-chip dl-chip--' + tauxVariant(item.achievementRate)">{{ item.achievementRate.toFixed(1) }} %</span>
+                </td>
                 <td class="dl-timestamp">
                   {{ formatAmount(item.bonusAmount) }}
-                  @if (isBonusEstime(item.statut)) {
+                  @if (item.estime) {
                     <div class="dl-cell-detail">Estimé</div>
                   }
+                  <div class="dl-cell-detail" [title]="bonusCalculDetail(item)">{{ bonusCalculDetail(item) }}</div>
                 </td>
                 <td class="dl-timestamp">{{ formatAmount(item.totalRemuneration) }}</td>
                 <td>
@@ -891,15 +979,33 @@
                   </span>
                 </td>
                 <td>
+                  <span [class]="'dl-chip dl-chip--' + bonusPaymentVariant(item)">
+                    <span class="dl-chip-dot"></span>{{ bonusPaymentLabel(item) }}
+                  </span>
+                  @if (item.paidAt) {
+                    <div class="dl-cell-detail">le {{ formatDate(item.paidAt) }}{{ item.paymentReference ? ' · ' + item.paymentReference : '' }}</div>
+                  } @else if (item.sycapayStatus === 'FAILED' && item.sycapayMessage) {
+                    <div class="dl-cell-detail" [title]="item.sycapayMessage">{{ sycapayMessageLabel(item.sycapayMessage) }}</div>
+                  }
+                  @if (bonusNeedsReconcile(item.sycapayStatus)) {
+                    <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(item.sycapayTransactionId, item.sycapayTransactionReference)" class="dl-cell-detail">Réconcilier</a>
+                  }
+                </td>
+                <td>
                   <div class="dl-row-actions">
-                    @if (item.statut === 'ELIGIBLE') {
-                      <button (click)="confirmValider(item)" class="dl-icon-btn" title="Valider" type="button">
+                    @if (canValidate(item)) {
+                      <button (click)="confirmValider(item)" class="dl-icon-btn" title="Valider (fige le montant)" type="button">
                         <svg cIcon name="cilCheckCircle" size="sm"></svg>
                       </button>
                     }
-                    @if (item.statut === 'VALIDATED') {
-                      <button (click)="confirmPayer(item)" class="dl-icon-btn" title="Marquer payé" type="button">
+                    @if (item.payable) {
+                      <button (click)="openBonusPayFromPerformance(item)" class="dl-icon-btn" [title]="item.sycapayStatus === 'FAILED' ? 'Relancer le paiement du bonus' : 'Payer le bonus'" type="button">
                         <svg cIcon name="cilDollar" size="sm"></svg>
+                      </button>
+                    }
+                    @if (canClose(item)) {
+                      <button (click)="confirmCloturer(item)" class="dl-icon-btn" title="Clôturer la période" type="button">
+                        <svg cIcon name="cilLockLocked" size="sm"></svg>
                       </button>
                     }
                     @if (canRecalculate(item.statut)) {
@@ -1098,6 +1204,72 @@
   }
 </app-modal>
 
+<!-- ================= Modale paiement du bonus mensuel ================= -->
+<app-modal
+  [visible]="!!bonusPayTarget()"
+  title="{{ 'Paiement du bonus — ' + (bonusPayTarget()?.commercialNom ?? '') }}"
+  (closed)="closeBonusPay()"
+>
+  @if (bonusPayTarget(); as target) {
+    @if (bonusPayError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    @if (bonusPayResult(); as result) {
+      <section [class]="'sp-payresult sp-payresult--' + bonusPayResultVariant(result)" aria-labelledby="cm-bonus-payresult-title">
+        <header class="sp-payresult-head">
+          <span [class]="'sp-payresult-icon sp-soft--' + bonusPayResultVariant(result)">
+            @if (bonusPayResultVariant(result) === 'success') {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+            }
+          </span>
+          <div class="sp-payresult-title">
+            <h3 id="cm-bonus-payresult-title">{{ bonusPayResultTitle(result) }}</h3>
+            <p>{{ bonusPayResultDetail(result) }}</p>
+          </div>
+        </header>
+        @if (bonusNeedsReconcile(result.sycapayStatus)) {
+          <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(result.performance.sycapayTransactionId, result.sycapayTransactionReference)" class="sp-btn sp-btn--sm sp-btn--warning">Réconcilier</a>
+        }
+      </section>
+      <div class="d-flex justify-content-end mt-3">
+        <button (click)="closeBonusPay()" cButton color="secondary" type="button" variant="outline">Fermer</button>
+      </div>
+    } @else {
+      <div class="cm-identity-strip mb-3">
+        <div class="cm-identity-item"><span class="cm-identity-k">Mois</span><span class="cm-identity-v">{{ target.moisLibelle }}</span></div>
+        <div class="cm-identity-item"><span class="cm-identity-k">Montant du bonus</span><span class="cm-identity-v">{{ formatAmount(target.bonusAmount) }}</span></div>
+      </div>
+      @if (target.aValider) {
+        <p class="dl-cell-detail">
+          <strong>Objectif atteint.</strong> La performance du mois va d'abord être recalculée avec les chiffres du jour puis validée (montant du bonus figé définitivement), avant le paiement. Si l'objectif n'est plus atteint au recalcul, rien n'est validé ni payé.
+        </p>
+      }
+      @if (target.relance) {
+        <p class="dl-cell-detail sp-text--warning">Le virement précédent a échoué sans qu'aucun montant ne parte : une nouvelle tentative va être lancée.</p>
+      }
+      <p class="dl-cell-detail">
+        Si SycaPay est activé, un virement Wave est envoyé au numéro du commercial après vérification du solde : le bonus ne passe à « Payé », l'écriture comptable n'est créée et le SMS n'est envoyé qu'une fois le virement confirmé. Sinon, le paiement est seulement enregistré (virement fait hors application).
+      </p>
+      <div class="mb-3">
+        <label cLabel for="bonus-payment-reference">Référence du paiement (optionnel)</label>
+        <input [ngModel]="bonusPayReference()" (ngModelChange)="bonusPayReference.set($event)" cFormControl id="bonus-payment-reference" maxlength="100" placeholder="Ex. paie de septembre" type="text" />
+      </div>
+      <div class="d-flex align-items-center justify-content-end gap-2">
+        <button (click)="closeBonusPay()" [disabled]="bonusPaying()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+        <button (click)="payBonus()" [disabled]="bonusPaying()" cButton color="primary" type="button">
+          @if (bonusPaying()) {
+            <c-spinner size="sm" />
+          }
+          Payer {{ formatAmount(target.bonusAmount) }}
+        </button>
+      </div>
+    }
+  }
+</app-modal>
+
 <!-- ================= Modale changement de statut ================= -->
 <app-modal
   [visible]="!!statusChangeTarget()"
@@ -1133,13 +1305,13 @@
 
 <app-confirm-dialog
   [visible]="!!statutTarget()"
-  [title]="statutAction() === 'PAID' ? 'Marquer ce bonus comme payé ?' : 'Valider cette performance ?'"
+  [title]="statutAction() === 'CLOSED' ? 'Clôturer cette période ?' : 'Valider cette performance ?'"
   [message]="
-    statutAction() === 'PAID'
-      ? 'Le bonus du mois ' + (statutTarget()?.moisLibelle ?? '') + ' sera marqué comme payé — le SMS de paiement sera envoyé au commercial.'
-      : 'Le montant du bonus du mois ' + (statutTarget()?.moisLibelle ?? '') + ' sera figé définitivement.'
+    statutAction() === 'CLOSED'
+      ? 'La période ' + (statutTarget()?.moisLibelle ?? '') + ' sera clôturée définitivement — plus aucune action possible sur ce bonus.'
+      : 'Le montant du bonus du mois ' + (statutTarget()?.moisLibelle ?? '') + ' (' + formatAmount(statutTarget()?.bonusAmount ?? 0) + ') sera figé définitivement. Il pourra ensuite être payé.'
   "
-  [confirmLabel]="statutAction() === 'PAID' ? 'Marquer payé' : 'Valider'"
+  [confirmLabel]="statutAction() === 'CLOSED' ? 'Clôturer' : 'Valider'"
   icon="cilCheckCircle"
   (cancelled)="cancelStatutAction()"
   (confirmed)="performStatutAction()"

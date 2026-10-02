@@ -175,11 +175,49 @@ export interface CommercialPerformanceResponse {
   paidAt: string | null;
   paidById: number | null;
   notificationEnvoyee?: boolean;
+  /** true tant que la performance n'est pas VALIDATED/PAID/CLOSED (valeurs recalculées en direct). */
+  estime: boolean;
+  /** Seuil d'éligibilité appliqué (en %) — détail du calcul du bonus. */
+  seuilEligibilite: number | null;
+  /** Bonus réellement payable maintenant (validé, éligible, montant > 0, aucun virement en cours). */
+  payable: boolean;
+  modePaiement: CommercialBonusModePaiement | null;
+  paymentReference: string | null;
+  /** Dernier virement SycaPay tenté pour ce bonus (null si aucun). */
+  sycapayTransactionId: number | null;
+  sycapayStatus: SycaPayTransactionStatus | null;
+  sycapayTransactionReference: string | null;
+  sycapayMessage: string | null;
+  sycapayRequestDate: string | null;
+  commercialNom: string | null;
+  employeeCode: string | null;
 }
 
+export type SycaPayTransactionStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'UNKNOWN';
+
+export type CommercialBonusModePaiement = 'VIREMENT_SYCAPAY' | 'ENREGISTREMENT_MANUEL';
+
+/** PATCH …/statut — le passage à PAID passe exclusivement par POST …/bonus/pay (virement réel). */
 export interface CommercialPerformanceStatusRequest {
-  statut: Extract<CommercialPerformanceStatut, 'VALIDATED' | 'PAID'>;
+  statut: Extract<CommercialPerformanceStatut, 'VALIDATED' | 'CLOSED'>;
   motif?: string;
+}
+
+/** POST /commercials/{id}/performance/{moisId}/bonus/pay */
+export interface CommercialBonusPaymentRequest {
+  reference?: string;
+  motif?: string;
+}
+
+/** Issue du paiement : lire sycapayStatus — SUCCESS (payé), PROCESSING/UNKNOWN (en cours, ne pas
+ * relancer), FAILED (aucun montant parti, relançable), REJECTED (aucune tentative). null en mode
+ * ENREGISTREMENT_MANUEL (SycaPay désactivé, paiement fait hors application). */
+export interface CommercialBonusPaymentResponse {
+  performance: CommercialPerformanceResponse;
+  modePaiement: CommercialBonusModePaiement;
+  sycapayStatus: SycaPayTransactionStatus | 'REJECTED' | null;
+  sycapayTransactionReference: string | null;
+  sycapayMessage: string | null;
 }
 
 /** GET /commercial-performance/dashboard — vue globale équipe (distincte du dashboard
@@ -221,4 +259,12 @@ export interface CommercialPayrollEntry {
   bonusAmount: number | null;
   totalVariable: number;
   statut: CommercialPerformanceStatut;
+  /** Mois en cours / non validé : bonus estimé (non transmissible à la paie). */
+  estime: boolean;
+  objectiveAmount: number;
+  realizedAmount: number;
+  achievementRate: number;
+  eligible: boolean;
+  bonusPayable: boolean;
+  sycapayStatus: SycaPayTransactionStatus | null;
 }
