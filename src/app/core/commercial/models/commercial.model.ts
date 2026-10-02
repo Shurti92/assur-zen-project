@@ -278,3 +278,15 @@ export interface CommercialPayrollEntry {
   sycapayTransactionId: number | null;
   sycapayTransactionReference: string | null;
 }
+
+/** GET /commercials/options — force de vente interne proposée dans la liste « Commercial » de la
+ * souscription : commerciaux actifs avec compte, sans aucune donnée de rémunération. `userId` est la
+ * valeur attendue par `salesRepId` du contrat. Trié par nom puis prénoms côté backend. */
+export interface CommercialOptionResponse {
+  commercialId: number;
+  userId: number;
+  nom: string;
+  prenoms: string;
+  employeeCode: string | null;
+  villeNom: string | null;
+}

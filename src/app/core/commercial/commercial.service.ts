@@ -7,6 +7,7 @@ import {
   CommercialBonusPaymentResponse,
   CommercialFilter,
   CommercialManagementDashboardResponse,
+  CommercialOptionResponse,
   CommercialMonthlyObjectiveRequest,
   CommercialMonthlyObjectiveResponse,
   CommercialMonthlyObjectiveRevisionRequest,
@@ -26,6 +27,12 @@ import {
 @Injectable({ providedIn: 'root' })
 export class CommercialService {
   constructor(private readonly http: HttpClient) {}
+
+  /** Force de vente interne (commerciaux actifs) pour la liste « Commercial » de la souscription —
+   * accessible à tout utilisateur authentifié, sans données de rémunération. */
+  options(): Observable<CommercialOptionResponse[]> {
+    return this.http.get<CommercialOptionResponse[]>('/commercials/options');
+  }
 
   list(page: number, size: number, filters?: CommercialFilter): Observable<CommercialPage> {
     let params = new HttpParams().set('page', page).set('size', size);

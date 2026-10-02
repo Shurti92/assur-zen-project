@@ -4,7 +4,7 @@ import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IconDirective } from '@coreui/icons-angular';
 import { FormDirective, SpinnerComponent } from '@coreui/angular';
-import { Subscription, forkJoin, map, of, switchMap } from 'rxjs';
+import { Subscription, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 
 import { SouscriptionService } from '../../core/souscription/souscription.service';
 import { PartnerCommissionService } from '../../core/partner-commission/partner-commission.service';
@@ -38,6 +38,8 @@ import { PartenaireService } from '../../core/partenaire/partenaire.service';
 import { PartenaireResponse } from '../../core/partenaire/models/partenaire.model';
 import { ProfileService } from '../../core/profile/profile.service';
 import { ProfileRecord, isCommercialRole } from '../../core/profile/models/profile-details.model';
+import { CommercialService } from '../../core/commercial/commercial.service';
+import { CommercialOptionResponse } from '../../core/commercial/models/commercial.model';
 import { VillePartenaireService } from '../../core/configuration/ville-partenaire.service';
 import { VillePartenaireResponse } from '../../core/configuration/models/ville-partenaire.model';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
@@ -198,6 +200,7 @@ export class SouscriptionComponent {
   private readonly commissionCommercialService = inject(ProduitCommissionCommercialService);
   private readonly partenaireService = inject(PartenaireService);
   private readonly profileService = inject(ProfileService);
+  private readonly commercialService = inject(CommercialService);
   private readonly villePartenaireService = inject(VillePartenaireService);
   private readonly contractService = inject(ContractService);
   private readonly fb = inject(FormBuilder);
@@ -212,7 +215,11 @@ export class SouscriptionComponent {
   readonly compagnies = signal<CompagnieResponse[]>([]);
   readonly commissionTaux = signal<ProduitCommissionTauxResponse[]>([]);
   readonly partenaires = signal<PartenaireResponse[]>([]);
+  /** Tous les profils : uniquement pour afficher le vendeur d'un contrat existant qui ne fait pas
+   * partie de la force de vente (contrats antérieurs au 2026-10-02). */
   readonly profiles = signal<ProfileRecord[]>([]);
+  /** Force de vente interne : seule liste proposée au choix du commercial (2026-10-02). */
+  readonly commerciaux = signal<CommercialOptionResponse[]>([]);
   readonly villes = signal<VillePartenaireResponse[]>([]);
   /** Candidate contracts a new subscription can renew — used to populate contratPrecedentId. */
   readonly renewableContracts = signal<ContractResponse[]>([]);
@@ -340,7 +347,6 @@ export class SouscriptionComponent {
       const precedent = raw.contratPrecedentId
         ? this.renewableContracts().find((c) => c.id === Number(raw.contratPrecedentId))
         : null;
-      const commercial = raw.salesRepId ? this.profiles().find((p) => p.userId === Number(raw.salesRepId)) : null;
       const premium = Number(raw.premium) || 0;
       const commissionAmount = Number(raw.commissionAmount) || 0;
       const productName = produit?.nomProduit ?? '—';
@@ -351,7 +357,7 @@ export class SouscriptionComponent {
         compagnieName: compagnie?.nom ?? '—',
         partenaireName: partenaire ? `${partenaire.nom} ${partenaire.prenoms}` : '—',
         canalLabel: partenaire ? `${partenaire.nom} ${partenaire.prenoms}`.trim() : 'Vente directe',
-        commercialName: commercial ? `${commercial.firstname} ${commercial.lastname}`.trim() : '—',
+        commercialName: this.salesRepName(raw.salesRepId) || '—',
         status: raw.status,
         commissionPercent: premium > 0 ? (commissionAmount / premium) * 100 : 0,
         commissionStatusLabel: raw.commissionStatus === 'paid' ? 'Payée' : 'En attente',
@@ -417,10 +423,13 @@ export class SouscriptionComponent {
       taux: this.tauxService.list(),
       partenaires: this.partenaireService.list(0, 200),
       profiles: this.profileService.list(),
+      // Tolérant : sans cet endpoint (backend pas encore à jour), la page reste utilisable, liste vide.
+      commerciaux: this.commercialService.options().pipe(catchError(() => of([] as CommercialOptionResponse[]))),
       villes: this.villePartenaireService.list(),
       contracts: this.contractService.listAll(),
     }).subscribe({
-      next: ({ produits, compagnies, taux, partenaires, profiles, villes, contracts }) => {
+      next: ({ produits, compagnies, taux, partenaires, profiles, commerciaux, villes, contracts }) => {
+        this.commerciaux.set(commerciaux);
         // Les produits de type Flotte se souscrivent depuis le module Gestion de flotte, pas ici.
         this.produits.set(produits.content.filter((p) => p.productTypeCode !== 'FLOTTE'));
         this.compagnies.set(compagnies.content);
@@ -569,7 +578,29 @@ export class SouscriptionComponent {
   private hasIntermediaire(partenaireId: string, salesRepId: string): boolean {
     if (partenaireId) return true;
     if (!salesRepId) return false;
+    if (this.commercialOption(salesRepId)) return true;
     return isCommercialRole(this.profiles().find((p) => p.userId === Number(salesRepId))?.role);
+  }
+
+  /** Commercial de la force de vente correspondant au vendeur (salesRepId = userId). */
+  private commercialOption(salesRepId: string | number | null | undefined): CommercialOptionResponse | undefined {
+    return salesRepId ? this.commerciaux().find((c) => c.userId === Number(salesRepId)) : undefined;
+  }
+
+  /** « Nom Prénoms » du vendeur : force de vente d'abord, profil en repli (contrats antérieurs). */
+  private salesRepName(salesRepId: string | number | null | undefined): string {
+    if (!salesRepId) return '';
+    const option = this.commercialOption(salesRepId);
+    if (option) return `${option.nom} ${option.prenoms}`.trim();
+    const profile = this.profiles().find((p) => p.userId === Number(salesRepId));
+    return profile ? `${profile.lastname} ${profile.firstname}`.trim() : '';
+  }
+
+  private salesRepDetail(salesRepId: string | number | null | undefined): string {
+    const option = this.commercialOption(salesRepId);
+    if (option) return [option.employeeCode, option.villeNom].filter(Boolean).join(' · ');
+    const profile = salesRepId ? this.profiles().find((p) => p.userId === Number(salesRepId)) : undefined;
+    return profile ? this.profileDetail(profile) : '';
   }
 
   private isCommercialCommissionApplicable(group: ContractGroup): boolean {
@@ -736,9 +767,7 @@ export class SouscriptionComponent {
     const produit = this.produits().find((p) => p.id === Number(c.productId.value));
     const compagnie = this.compagnies().find((co) => co.id === Number(c.compagnieId.value));
     const partner = c.partenaireId.value ? this.partenaires().find((p) => p.id === Number(c.partenaireId.value)) : null;
-    const commercial = this.isCommercialCommissionApplicable(group)
-      ? this.profiles().find((p) => p.userId === Number(c.salesRepId.value))
-      : null;
+    const commercial = this.isCommercialCommissionApplicable(group) && !!this.salesRepName(c.salesRepId.value);
 
     const premium = Number(c.premium.value) || 0;
     const commission = Number(c.commissionAmount.value) || 0;
@@ -757,7 +786,7 @@ export class SouscriptionComponent {
     const intermediaireName = partner
       ? `${partner.nom} ${partner.prenoms}`.trim()
       : commercial
-        ? `${commercial.firstname} ${commercial.lastname}`.trim()
+        ? this.salesRepName(c.salesRepId.value)
         : '';
     const initials = initialsOf(intermediaireName);
     const compagnieName = compagnie?.nom ?? '—';
@@ -1055,10 +1084,11 @@ export class SouscriptionComponent {
             name: `${p.nom} ${p.prenoms}`.trim(),
             detail: [this.typePartenaireLabel(p.type), p.villePartenaireNom].filter(Boolean).join(' · '),
           }))
-        : this.profiles().map((p) => ({
-            id: String(p.userId),
-            name: `${p.firstname} ${p.lastname}`.trim(),
-            detail: this.profileDetail(p),
+        : // Force de vente interne uniquement (2026-10-02), affichée « Nom Prénoms ».
+          this.commerciaux().map((c) => ({
+            id: String(c.userId),
+            name: `${c.nom} ${c.prenoms}`.trim(),
+            detail: [c.employeeCode, c.villeNom].filter(Boolean).join(' · '),
           }));
     return options
       .filter((o) => !query || o.name.toLowerCase().includes(query) || o.detail.toLowerCase().includes(query))
@@ -1095,9 +1125,8 @@ export class SouscriptionComponent {
     const produit = this.produits().find((p) => p.id === Number(c.productId.value));
     const compagnie = this.compagnies().find((co) => co.id === Number(c.compagnieId.value));
     const partner = c.partenaireId.value ? this.partenaires().find((p) => p.id === Number(c.partenaireId.value)) : null;
-    const commercial = c.salesRepId.value ? this.profiles().find((p) => p.userId === Number(c.salesRepId.value)) : null;
     const partnerName = partner ? `${partner.nom} ${partner.prenoms}`.trim() : '';
-    const commercialName = commercial ? `${commercial.firstname} ${commercial.lastname}`.trim() : '';
+    const commercialName = this.salesRepName(c.salesRepId.value);
     const productName = produit?.nomProduit ?? '';
     return {
       productName,
@@ -1108,7 +1137,7 @@ export class SouscriptionComponent {
       partnerDetail: partner ? [this.typePartenaireLabel(partner.type), partner.villePartenaireNom].filter(Boolean).join(' · ') : '',
       partnerInitials: initialsOf(partnerName),
       commercialName,
-      commercialDetail: commercial ? this.profileDetail(commercial) : '',
+      commercialDetail: this.salesRepDetail(c.salesRepId.value),
       commercialInitials: initialsOf(commercialName),
       complete: !!produit && !!compagnie && (!c.isRenouvellement.value || !!c.contratPrecedentId.value),
     };
