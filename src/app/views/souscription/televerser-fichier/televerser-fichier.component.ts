@@ -1,6 +1,5 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { IconDirective } from '@coreui/icons-angular';
-import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 import { forkJoin, from, of } from 'rxjs';
 import { catchError, concatMap, map } from 'rxjs/operators';
 
@@ -227,6 +226,86 @@ interface ParsedRow {
   errors: string[];
 }
 
+interface GuideColumn {
+  name: string;
+  required: boolean;
+  description: string;
+  defaultValue?: string;
+}
+
+interface GuideGroup {
+  title: string;
+  columns: GuideColumn[];
+}
+
+const col = (name: string, required: boolean, description: string, defaultValue?: string): GuideColumn => ({
+  name,
+  required,
+  description,
+  defaultValue,
+});
+
+/** Guide des colonnes affiché à l'étape Fichier, rangé par famille. */
+const COLUMN_GUIDE: GuideGroup[] = [
+  {
+    title: 'Assuré',
+    columns: [
+      col('nom', true, "Nom de l'assuré"),
+      col('prenoms', true, "Prénoms de l'assuré"),
+      col('telephone', true, "Sert aussi à regrouper les lignes d'un même client"),
+      col('ville', true, "Ville de l'assuré"),
+      col('email', false, "Adresse email de l'assuré"),
+      col('type_client', false, 'PARTICULIER ou ENTREPRISE', 'PARTICULIER'),
+    ],
+  },
+  {
+    title: 'Contrat',
+    columns: [
+      col('produit', true, 'Nom exact du produit (voir Paramétrage → Produit)'),
+      col('compagnie', true, "Nom exact de la compagnie d'assurance"),
+      col('prime', true, 'Montant de la prime (FCFA)'),
+      col('partenaire', false, 'Nom du partenaire apporteur'),
+      col('duree_mois', false, 'Durée en mois', '12'),
+      col(
+        'date_effet',
+        false,
+        "AAAA-MM-JJ ou JJ/MM/AAAA. Les dates passées sont autorisées (contrats rétroactifs, reprise d'historique)",
+        "aujourd'hui",
+      ),
+      col('numero_police', false, 'Auto-généré si vide'),
+      col('statut_contrat', false, 'signed / pending / draft / cancelled', 'signed'),
+      col('notes', false, 'Notes libres'),
+    ],
+  },
+  {
+    title: 'Paiement',
+    columns: [
+      col('mode_paiement', false, 'COMPTANT ou FRACTIONNE', 'COMPTANT'),
+      col('nombre_echeances', false, 'Si FRACTIONNE', '3'),
+      col('periodicite_echeances', false, 'MENSUELLE / TRIMESTRIELLE / SEMESTRIELLE / ANNUELLE'),
+    ],
+  },
+  {
+    title: 'Commission',
+    columns: [
+      col('taux_commission', false, 'Taux (%) — calculé automatiquement si vide'),
+      col('montant_commission', false, "FCFA entiers — s'il est renseigné, il remplace le calcul prime × taux"),
+      col(
+        'part_partenaire',
+        false,
+        "FCFA entiers. Uniquement avec un partenaire, et au plus égale à la commission. La ligne est refusée si aucune commission partenaire n'est configurée",
+        'commission partenaire configurée',
+      ),
+    ],
+  },
+];
+
+const GUIDE_COLUMN_COUNT = COLUMN_GUIDE.reduce((sum, g) => sum + g.columns.length, 0);
+const GUIDE_REQUIRED_COUNT = COLUMN_GUIDE.reduce((sum, g) => sum + g.columns.filter((c) => c.required).length, 0);
+
+type GuideFilter = 'all' | 'required' | 'optional';
+type ListFilter = 'all' | 'ready' | 'error';
+
 type GroupStatus = 'en_attente' | 'en_cours' | 'succes' | 'echec';
 
 interface ClientGroup {
@@ -244,7 +323,7 @@ interface ClientGroup {
 @Component({
   selector: 'app-televerser-fichier',
   templateUrl: './televerser-fichier.component.html',
-  imports: [ButtonDirective, SpinnerComponent, IconDirective, AlertMessageComponent],
+  imports: [NgTemplateOutlet, AlertMessageComponent],
 })
 export class TeleverserFichierComponent {
   private readonly souscriptionService = inject(SouscriptionService);
@@ -260,12 +339,30 @@ export class TeleverserFichierComponent {
   readonly referenceLoading = signal(true);
   readonly referenceError = signal<string | null>(null);
 
-  readonly steps = ['FICHIER', 'APERÇU', 'RÉSULTAT'] as const;
+  readonly steps = ['Fichier', 'Aperçu', 'Résultat'] as const;
   readonly currentStep = signal(0);
 
   readonly selectedFileName = signal<string | null>(null);
   readonly fileError = signal<string | null>(null);
   readonly fileReading = signal(false);
+  readonly dragOver = signal(false);
+
+  readonly guideColumnCount = GUIDE_COLUMN_COUNT;
+  readonly guideRequiredCount = GUIDE_REQUIRED_COUNT;
+  readonly guideFilter = signal<GuideFilter>('all');
+  readonly guideQuery = signal('');
+  readonly guideGroups = computed(() => {
+    const filter = this.guideFilter();
+    const query = this.guideQuery().trim().toLowerCase();
+    return COLUMN_GUIDE.map((group) => ({
+      title: group.title,
+      columns: group.columns.filter(
+        (c) =>
+          (filter === 'all' || (filter === 'required') === c.required) &&
+          (!query || `${c.name} ${c.description}`.toLowerCase().includes(query)),
+      ),
+    })).filter((group) => group.columns.length > 0);
+  });
 
   readonly clientGroups = signal<ClientGroup[]>([]);
   readonly totalRows = computed(() => this.clientGroups().reduce((sum, g) => sum + g.rows.length, 0));
@@ -274,6 +371,25 @@ export class TeleverserFichierComponent {
   );
   readonly validGroups = computed(() => this.clientGroups().filter((g) => !g.hasErrors));
   readonly invalidGroups = computed(() => this.clientGroups().filter((g) => g.hasErrors));
+  readonly validContracts = computed(() => this.validGroups().reduce((sum, g) => sum + g.rows.length, 0));
+  readonly validPremium = computed(() => this.validGroups().reduce((sum, g) => sum + this.sumPremium(g), 0));
+
+  readonly listFilter = signal<ListFilter>('all');
+  readonly listQuery = signal('');
+  readonly shownGroups = computed(() => {
+    const filter = this.listFilter();
+    const query = this.listQuery().trim().toLowerCase();
+    const digits = query.replace(/\s/g, '');
+    return this.clientGroups().filter(
+      (g) =>
+        (filter === 'all' || (filter === 'error') === g.hasErrors) &&
+        (!query ||
+          `${g.nom} ${g.prenoms}`.toLowerCase().includes(query) ||
+          (digits.length > 0 && g.clientPhone.replace(/\s/g, '').includes(digits))),
+    );
+  });
+  /** Clients dépliés dans les listes (aperçu et résultat). */
+  readonly openKeys = signal<ReadonlySet<string>>(new Set());
 
   readonly processing = signal(false);
   readonly processedCount = signal(0);
@@ -312,13 +428,52 @@ export class TeleverserFichierComponent {
 
   downloadTemplate(): void {
     const exampleRows = TEMPLATE_EXAMPLE_ROWS.map((row) => [...row, ...Array(TEMPLATE_COLUMNS.length - row.length).fill('')]);
-    const lines = [TEMPLATE_COLUMNS, ...exampleRows].map((cols) => cols.join(';'));
-    const csv = '﻿' + lines.join('\r\n');
+    this.downloadCsv('modele_souscription_masse.csv', [TEMPLATE_COLUMNS, ...exampleRows]);
+  }
+
+  /** Lignes refusées à l'aperçu, avec leur motif, pour corriger le fichier d'origine. */
+  exportErrors(): void {
+    const rows = this.clientGroups().flatMap((g) =>
+      g.rows
+        .filter((r) => r.errors.length > 0)
+        .map((r) => [String(r.line), r.nom, r.prenoms, r.clientPhone, r.produitNom, r.compagnieNom, r.errors.join(' | ')]),
+    );
+    this.downloadCsv('lignes_en_erreur.csv', [
+      ['ligne', 'nom', 'prenoms', 'telephone', 'produit', 'compagnie', 'erreurs'],
+      ...rows,
+    ]);
+  }
+
+  /** Trace de l'import : un client par ligne, avec son statut et ses numéros de police. */
+  exportResult(): void {
+    const statusLabel: Record<GroupStatus, string> = {
+      en_attente: 'En attente',
+      en_cours: 'En cours',
+      succes: 'Réussi',
+      echec: 'Échec',
+    };
+    const rows = this.clientGroups().map((g) => [
+      g.nom,
+      g.prenoms,
+      g.clientPhone,
+      g.hasErrors ? 'Ignoré' : statusLabel[g.status],
+      g.policyNumbers.join(' | '),
+      g.hasErrors ? 'Erreurs dans le fichier' : g.status === 'echec' ? (g.resultMessage ?? '') : '',
+    ]);
+    this.downloadCsv('resultat_souscription_masse.csv', [
+      ['nom', 'prenoms', 'telephone', 'statut', 'numeros_police', 'message'],
+      ...rows,
+    ]);
+  }
+
+  private downloadCsv(filename: string, rows: string[][]): void {
+    const cell = (value: string) => (/[";\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+    const csv = '\uFEFF' + rows.map((cols) => cols.map(cell).join(';')).join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'modele_souscription_masse.csv';
+    anchor.download = filename;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -327,7 +482,27 @@ export class TeleverserFichierComponent {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
-    if (!file) return;
+    if (file) this.readFile(file);
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver.set(true);
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver.set(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file && !this.fileReading()) this.readFile(file);
+  }
+
+  private readFile(file: File): void {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      this.selectedFileName.set(file.name);
+      this.fileError.set('Seuls les fichiers .csv sont acceptés. Utilisez le modèle fourni.');
+      return;
+    }
 
     this.fileError.set(null);
     this.fileReading.set(true);
@@ -362,7 +537,11 @@ export class TeleverserFichierComponent {
         return this.resolveRow(raw, index + 2);
       });
 
-      this.clientGroups.set(this.groupRows(parsedRows));
+      const groups = this.groupRows(parsedRows);
+      this.clientGroups.set(groups);
+      this.listFilter.set('all');
+      this.listQuery.set('');
+      this.openKeys.set(new Set(groups.filter((g) => g.hasErrors).map((g) => g.key)));
       this.fileReading.set(false);
       this.currentStep.set(1);
     };
@@ -574,6 +753,36 @@ export class TeleverserFichierComponent {
     return `${new Intl.NumberFormat('fr-FR').format(value)} FCFA`;
   }
 
+  plural(count: number, word: string): string {
+    return `${count} ${word}${count > 1 ? 's' : ''}`;
+  }
+
+  initials(group: ClientGroup): string {
+    return `${group.nom.charAt(0)}${group.prenoms.charAt(0)}`.toUpperCase();
+  }
+
+  groupSubtitle(group: ClientGroup): string {
+    const first = group.rows[0];
+    return [group.clientPhone || '—', first.clientCity, first.typeClient === 'ENTREPRISE' ? 'Entreprise' : '']
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  formatEffet(row: ParsedRow): string {
+    const [y, m, d] = row.dateEffet.split('-');
+    return `${d}/${m}/${y} · ${row.duree} mois`;
+  }
+
+  isOpen(group: ClientGroup): boolean {
+    return this.openKeys().has(group.key);
+  }
+
+  toggleOpen(group: ClientGroup): void {
+    const keys = new Set(this.openKeys());
+    if (!keys.delete(group.key)) keys.add(group.key);
+    this.openKeys.set(keys);
+  }
+
   backToFile(): void {
     this.currentStep.set(0);
   }
@@ -585,6 +794,7 @@ export class TeleverserFichierComponent {
     this.processing.set(true);
     this.processedCount.set(0);
     this.currentStep.set(2);
+    this.openKeys.set(new Set());
 
     from(valid)
       .pipe(
