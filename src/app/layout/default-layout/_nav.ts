@@ -397,16 +397,16 @@ const adminNavItems: INavData[] = [
       },
       {
         name: 'nav.configuration.sansRedeploiement.title',
-        url: '/configuration/sans-redeploiement',
+        url: '/administration/configuration/sans-redeploiement',
         children: [
           {
             name: 'nav.configuration.sansRedeploiement.tableauDeBord',
-            url: '/configuration/sans-redeploiement',
+            url: '/administration/configuration/sans-redeploiement',
             icon: 'nav-icon-bullet',
           },
           {
             name: 'nav.configuration.sansRedeploiement.configurations',
-            url: '/configuration/sans-redeploiement/configurations',
+            url: '/administration/configuration/sans-redeploiement/configurations',
             icon: 'nav-icon-bullet',
           },
           {
@@ -416,12 +416,12 @@ const adminNavItems: INavData[] = [
           },
           {
             name: 'nav.configuration.sansRedeploiement.modules',
-            url: '/configuration/sans-redeploiement/modules',
+            url: '/administration/configuration/sans-redeploiement/modules',
             icon: 'nav-icon-bullet',
           },
           {
             name: 'nav.configuration.sansRedeploiement.historique',
-            url: '/configuration/sans-redeploiement/historique',
+            url: '/administration/configuration/sans-redeploiement/historique',
             icon: 'nav-icon-bullet',
           },
         ],
