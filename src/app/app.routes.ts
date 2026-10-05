@@ -185,7 +185,7 @@ export const routes: Routes = [
       },
       // Configuration sans redéploiement — API backend confirmée via Swagger (endpoints /configurations/*).
       {
-        path: 'configuration/sans-redeploiement',
+        path: 'administration/configuration/sans-redeploiement',
         loadComponent: () =>
           import('./views/configuration-dynamique/configuration-dynamique.component').then(
             (m) => m.ConfigurationDynamiqueComponent,
@@ -193,7 +193,7 @@ export const routes: Routes = [
         data: { title: 'Tableau de bord', mode: 'dashboard' },
       },
       {
-        path: 'configuration/sans-redeploiement/configurations',
+        path: 'administration/configuration/sans-redeploiement/configurations',
         loadComponent: () =>
           import('./views/configuration-dynamique/configuration-dynamique.component').then(
             (m) => m.ConfigurationDynamiqueComponent,
@@ -201,7 +201,7 @@ export const routes: Routes = [
         data: { title: 'Configurations', mode: 'configurations' },
       },
       {
-        path: 'configuration/sans-redeploiement/categories',
+        path: 'administration/configuration/sans-redeploiement/categories',
         loadComponent: () =>
           import('./views/configuration-dynamique/configuration-dynamique.component').then(
             (m) => m.ConfigurationDynamiqueComponent,
@@ -209,7 +209,7 @@ export const routes: Routes = [
         data: { title: 'Catégories', mode: 'categories' },
       },
       {
-        path: 'configuration/sans-redeploiement/modules',
+        path: 'administration/configuration/sans-redeploiement/modules',
         loadComponent: () =>
           import('./views/configuration-dynamique/configuration-dynamique.component').then(
             (m) => m.ConfigurationDynamiqueComponent,
@@ -217,7 +217,7 @@ export const routes: Routes = [
         data: { title: 'Modules', mode: 'modules' },
       },
       {
-        path: 'configuration/sans-redeploiement/historique',
+        path: 'administration/configuration/sans-redeploiement/historique',
         loadComponent: () =>
           import('./views/configuration-dynamique/configuration-dynamique.component').then(
             (m) => m.ConfigurationDynamiqueComponent,

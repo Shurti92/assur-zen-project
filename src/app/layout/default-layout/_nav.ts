@@ -411,7 +411,7 @@ const adminNavItems: INavData[] = [
           },
           {
             name: 'nav.configuration.sansRedeploiement.categories',
-            url: '/configuration/sans-redeploiement/categories',
+            url: '/administration/configuration/sans-redeploiement/categories',
             icon: 'nav-icon-bullet',
           },
           {
