@@ -50,6 +50,9 @@ export interface PartenaireResponse extends PartenaireRequest {
   villePartenaireNom: string | null;
   creation: string;
   lastUpdate: string;
+  /** Nombre de documents à vérifier (EN_ATTENTE et anciens documents sans statut) — absent tant
+   * que le backend qui le calcule n'est pas déployé. */
+  documentsEnAttente?: number;
   /** Présent uniquement sur la réponse de création/modification : indique si cette sauvegarde
    * vient de déclencher la création automatique d'un compte de connexion. */
   compteCree?: boolean;

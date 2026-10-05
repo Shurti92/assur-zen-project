@@ -19,11 +19,20 @@ import {
 export class PartenaireService {
   constructor(private readonly http: HttpClient) {}
 
-  list(page: number, size: number, q?: string, active?: boolean, type?: TypePartenaire): Observable<PartenairePage> {
+  /** `documentsEnAttente` : true = au moins un document à vérifier, false = aucun, omis = tous. */
+  list(
+    page: number,
+    size: number,
+    q?: string,
+    active?: boolean,
+    type?: TypePartenaire,
+    documentsEnAttente?: boolean,
+  ): Observable<PartenairePage> {
     let params = new HttpParams().set('page', page).set('size', size);
     if (q) params = params.set('q', q);
     if (active !== undefined) params = params.set('active', active);
     if (type) params = params.set('type', type);
+    if (documentsEnAttente !== undefined) params = params.set('documentsEnAttente', documentsEnAttente);
     return this.http.get<PartenairePage>('/partenaires', { params });
   }
 

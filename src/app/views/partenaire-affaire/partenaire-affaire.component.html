@@ -30,6 +30,15 @@
       <button (click)="setActiveFilter('inactive')" [attr.data-active]="activeFilter() === 'inactive'" class="dl-pill dl-pill--warning" type="button">Inactifs</button>
     </div>
 
+    @if (documentsEnAttenteTotal() !== null) {
+      <button (click)="toggleDocumentsEnAttenteFilter()" [attr.data-active]="documentsEnAttenteFilter()" class="dl-btn dl-btn-toggle" type="button">
+        Documents à vérifier
+        @if (documentsEnAttenteTotal(); as total) {
+          <span class="dl-pill-count">{{ total }}</span>
+        }
+      </button>
+    }
+
     <div class="dl-actions">
       <button (click)="refreshAll()" [disabled]="loading()" cButton class="dl-btn" type="button">
         @if (loading()) {
@@ -88,6 +97,11 @@
                 @if (hasAccount(item)) {
                   <span class="dl-chip ms-1" style="background: var(--brand-orange-soft); color: var(--brand-orange);">
                     <span class="dl-chip-dot"></span>Compte actif
+                  </span>
+                }
+                @if (item.documentsEnAttente; as pending) {
+                  <span class="dl-chip dl-chip--warning ms-1">
+                    <span class="dl-chip-dot"></span>{{ pending }} {{ pending > 1 ? 'documents' : 'document' }} à vérifier
                   </span>
                 }
                 @if (item.villePartenaireNom || item.exerciceComptableLibelle) {

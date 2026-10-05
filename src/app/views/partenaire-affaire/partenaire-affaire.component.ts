@@ -151,6 +151,8 @@ export class PartenaireAffaireComponent {
   readonly searchQuery = signal('');
   readonly activeFilter = signal<ActiveFilter>('all');
   readonly typeFilter = signal<TypeFilter>('all');
+  readonly documentsEnAttenteFilter = signal(false);
+  readonly documentsEnAttenteTotal = signal<number | null>(null);
 
   readonly formVisible = signal(false);
   readonly formSaving = signal(false);
@@ -292,7 +294,9 @@ export class PartenaireAffaireComponent {
     const active = this.activeFilter() === 'all' ? undefined : this.activeFilter() === 'active';
     const typeFilter = this.typeFilter();
     const type = typeFilter === 'all' ? undefined : typeFilter;
-    this.partenaireService.list(this.pageIndex(), this.pageSize, this.searchQuery() || undefined, active, type).subscribe({
+    const documentsEnAttente = this.documentsEnAttenteFilter() ? true : undefined;
+    this.fetchDocumentsEnAttenteTotal();
+    this.partenaireService.list(this.pageIndex(), this.pageSize, this.searchQuery() || undefined, active, type, documentsEnAttente).subscribe({
       next: (result) => {
         this.items.set(result.content);
         this.totalElements.set(result.totalElements);
@@ -304,6 +308,39 @@ export class PartenaireAffaireComponent {
         this.loading.set(false);
       },
     });
+  }
+
+  /** Nombre de partenaires ayant au moins un document à vérifier, tous filtres confondus — lu sur
+   * totalElements d'une page d'un seul élément. Reste à null (bouton de filtre masqué) en cas
+   * d'échec, ou tant que le backend ignore le paramètre : il renverrait alors tous les partenaires,
+   * sans le champ documentsEnAttente. */
+  private fetchDocumentsEnAttenteTotal(): void {
+    this.partenaireService.list(0, 1, undefined, undefined, undefined, true).subscribe({
+      next: (result) => {
+        const supported = result.content.length === 0 || result.content[0].documentsEnAttente !== undefined;
+        this.documentsEnAttenteTotal.set(supported ? result.totalElements : null);
+      },
+      error: () => this.documentsEnAttenteTotal.set(null),
+    });
+  }
+
+  /** Après une validation, un refus ou une suppression dans la fiche : met à jour la pastille de la
+   * ligne sans recharger la liste. */
+  private syncDocumentsEnAttente(): void {
+    const partenaire = this.selectedPartenaire();
+    if (!partenaire || partenaire.documentsEnAttente === undefined) return;
+    const pending = this.documentStatutCounts().EN_ATTENTE;
+    if (pending === partenaire.documentsEnAttente) return;
+    const updated = { ...partenaire, documentsEnAttente: pending };
+    this.selectedPartenaire.set(updated);
+    this.items.update((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+    this.fetchDocumentsEnAttenteTotal();
+  }
+
+  toggleDocumentsEnAttenteFilter(): void {
+    this.documentsEnAttenteFilter.update((v) => !v);
+    this.pageIndex.set(0);
+    this.fetch();
   }
 
   goToPage(index: number): void {
@@ -1050,6 +1087,7 @@ export class PartenaireAffaireComponent {
       next: () => {
         this.deletingDocumentId.set(null);
         this.documentsItems.set(this.documentsItems().filter((d) => d.id !== doc.id));
+        this.syncDocumentsEnAttente();
       },
       error: () => {
         this.deletingDocumentId.set(null);
@@ -1141,6 +1179,7 @@ export class PartenaireAffaireComponent {
 
   private replaceDocument(updated: PartenaireDocumentResponse): void {
     this.documentsItems.update((items) => items.map((d) => (d.id === updated.id ? updated : d)));
+    this.syncDocumentsEnAttente();
   }
 
   // -- Documents : date d'expiration --
