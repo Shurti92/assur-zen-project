@@ -8,6 +8,7 @@ import {
   HistoriqueContratPage,
   PartenaireDocumentResponse,
   PartenaireDocumentType,
+  PartenaireDocumentValidationRequest,
   PartenairePage,
   PartenaireRequest,
   PartenaireResponse,
@@ -104,11 +105,32 @@ export class PartenaireService {
     return this.http.get<PartenaireDocumentResponse[]>(`/partenaires/${id}/documents`);
   }
 
-  uploadDocument(id: number, type: PartenaireDocumentType, file: File): Observable<PartenaireDocumentResponse> {
+  uploadDocument(
+    id: number,
+    type: PartenaireDocumentType,
+    file: File,
+    dateExpiration?: string | null,
+  ): Observable<PartenaireDocumentResponse> {
     const formData = new FormData();
     formData.append('type', type);
     formData.append('file', file);
+    if (dateExpiration) formData.append('dateExpiration', dateExpiration);
     return this.http.post<PartenaireDocumentResponse>(`/partenaires/${id}/documents`, formData);
+  }
+
+  /** Fixe la date d'expiration (AAAA-MM-JJ) ou l'efface avec null. */
+  setDocumentExpiration(id: number, documentId: number, dateExpiration: string | null): Observable<PartenaireDocumentResponse> {
+    return this.http.patch<PartenaireDocumentResponse>(`/partenaires/${id}/documents/${documentId}`, { dateExpiration });
+  }
+
+  /** Réservé aux administrateurs (403 sinon). Un refus envoie au partenaire la notification
+   * DOCUMENT_REFUSE (in-app et push) avec le motif. */
+  validateDocument(
+    id: number,
+    documentId: number,
+    payload: PartenaireDocumentValidationRequest,
+  ): Observable<PartenaireDocumentResponse> {
+    return this.http.patch<PartenaireDocumentResponse>(`/partenaires/${id}/documents/${documentId}/validation`, payload);
   }
 
   downloadDocument(id: number, documentId: number): Observable<Blob> {

@@ -24,10 +24,12 @@ import {
   FrequencePaiementCommission,
   HistoriqueContratResponse,
   PartenaireDocumentResponse,
+  PartenaireDocumentStatut,
   PartenaireDocumentType,
   PartenaireResponse,
   TypePartenaire,
 } from '../../core/partenaire/models/partenaire.model';
+import { AuthService } from '../../core/auth/auth.service';
 import { ProfileService } from '../../core/profile/profile.service';
 import { ProfileRecord } from '../../core/profile/models/profile-details.model';
 import { UserService } from '../../core/user/user.service';
@@ -54,6 +56,35 @@ const DOCUMENT_TYPE_LABEL: Record<PartenaireDocumentType, string> = {
   RIB: 'RIB',
   JUSTIFICATIF_DOMICILE: 'Justificatif de domicile',
   AUTRE: 'Autre',
+};
+
+type DocumentStatutFilter = 'all' | PartenaireDocumentStatut;
+
+// Mêmes libellés que ceux affichés au partenaire dans l'Espace Partenaire.
+const DOCUMENT_STATUT_LABEL: Record<PartenaireDocumentStatut, string> = {
+  EN_ATTENTE: 'En vérification',
+  VALIDE: 'Validé',
+  REFUSE: 'Refusé',
+};
+
+const DOCUMENT_STATUT_VARIANT: Record<PartenaireDocumentStatut, string> = {
+  EN_ATTENTE: 'warning',
+  VALIDE: 'success',
+  REFUSE: 'danger',
+};
+
+const DOCUMENT_MOTIF_MAX_LENGTH = 500;
+/** Seuil du repère « Expire bientôt », en jours avant la date d'expiration. */
+const DOCUMENT_EXPIRE_BIENTOT_JOURS = 30;
+
+/** Limite globale du serveur pour tous les envois (400 FICHIER_TROP_VOLUMINEUX au-delà). */
+const DOCUMENT_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+
+// Codes métier de POST /partenaires/{id}/documents — les messages du backend sont sans accents,
+// d'où ces libellés côté front.
+const DOCUMENT_UPLOAD_ERROR_MESSAGE: Record<string, string> = {
+  DOCUMENT_TYPE_NON_AUTORISE: 'Format de fichier non autorisé : seuls les fichiers PDF, JPG et PNG sont acceptés.',
+  FICHIER_TROP_VOLUMINEUX: 'Fichier trop volumineux (5 Mo maximum).',
 };
 
 const DETAIL_PAGE_SIZE = 10;
@@ -90,6 +121,7 @@ export class PartenaireAffaireComponent {
   private readonly exerciceService = inject(ExerciceComptableService);
   private readonly villePartenaireService = inject(VillePartenaireService);
   private readonly typeProfileService = inject(TypeProfileService);
+  private readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
 
@@ -194,6 +226,32 @@ export class PartenaireAffaireComponent {
   readonly deletingDocumentId = signal<number | null>(null);
   readonly documentDeleteTarget = signal<PartenaireDocumentResponse | null>(null);
   readonly documentTypeOptions: PartenaireDocumentType[] = ['CONTRAT_APPORTEUR', 'CNI', 'RIB', 'JUSTIFICATIF_DOMICILE', 'AUTRE'];
+  readonly documentUploadExpiration = signal('');
+  readonly documentStatutFilter = signal<DocumentStatutFilter>('all');
+  readonly documentStatutCounts = computed(() => {
+    const counts: Record<PartenaireDocumentStatut, number> = { EN_ATTENTE: 0, VALIDE: 0, REFUSE: 0 };
+    for (const doc of this.documentsItems()) {
+      if (doc.statut in counts) counts[doc.statut]++;
+    }
+    return counts;
+  });
+  readonly filteredDocuments = computed(() => {
+    const filter = this.documentStatutFilter();
+    return filter === 'all' ? this.documentsItems() : this.documentsItems().filter((doc) => doc.statut === filter);
+  });
+  /** Validation réservée aux administrateurs côté backend (403 sinon) — masquage d'affichage
+   * uniquement, le vrai rempart reste ce 403. */
+  readonly isAdmin = computed(() => this.authService.currentUser()?.role === 'ADMIN');
+  readonly validatingDocumentId = signal<number | null>(null);
+  readonly documentRefuseTarget = signal<PartenaireDocumentResponse | null>(null);
+  readonly documentRefuseMotif = signal('');
+  readonly documentRefuseSaving = signal(false);
+  readonly documentRefuseError = signal<string | null>(null);
+  readonly documentMotifMaxLength = DOCUMENT_MOTIF_MAX_LENGTH;
+  readonly documentExpirationTarget = signal<PartenaireDocumentResponse | null>(null);
+  readonly documentExpirationValue = signal('');
+  readonly documentExpirationSaving = signal(false);
+  readonly documentExpirationError = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     codePartenaire: [''],
@@ -740,8 +798,14 @@ export class PartenaireAffaireComponent {
     this.documentsItems.set([]);
     this.documentsError.set(null);
     this.documentDeleteTarget.set(null);
+    this.documentStatutFilter.set('all');
+    this.documentUploadExpiration.set('');
+    this.documentRefuseTarget.set(null);
+    this.documentExpirationTarget.set(null);
 
     this.fetchDetailContracts();
+    // Chargés dès l'ouverture : la pastille de l'onglet Documents compte les pièces en vérification.
+    this.fetchDocuments();
   }
 
   setDetailView(view: DetailView): void {
@@ -925,19 +989,25 @@ export class PartenaireAffaireComponent {
     const file = input.files?.[0];
     const partenaire = this.selectedPartenaire();
     if (!file || !partenaire) return;
+    if (file.size > DOCUMENT_MAX_SIZE_BYTES) {
+      input.value = '';
+      this.documentsError.set(DOCUMENT_UPLOAD_ERROR_MESSAGE['FICHIER_TROP_VOLUMINEUX']);
+      return;
+    }
 
     this.documentUploading.set(true);
     this.documentsError.set(null);
-    this.partenaireService.uploadDocument(partenaire.id, this.documentUploadType(), file).subscribe({
+    this.partenaireService.uploadDocument(partenaire.id, this.documentUploadType(), file, this.documentUploadExpiration() || null).subscribe({
       next: () => {
         this.documentUploading.set(false);
         input.value = '';
+        this.documentUploadExpiration.set('');
         this.fetchDocuments();
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.documentUploading.set(false);
         input.value = '';
-        this.documentsError.set("Impossible de joindre ce document. Réessayez.");
+        this.documentsError.set(DOCUMENT_UPLOAD_ERROR_MESSAGE[err.error?.code] ?? 'Impossible de joindre ce document. Réessayez.');
       },
     });
   }
@@ -986,6 +1056,150 @@ export class PartenaireAffaireComponent {
         this.documentsError.set('Impossible de supprimer ce document pour le moment.');
       },
     });
+  }
+
+  // -- Documents : validation / refus --
+
+  canValidateDocument(doc: PartenaireDocumentResponse): boolean {
+    return this.isAdmin() && (doc.statut === 'EN_ATTENTE' || doc.statut === 'REFUSE');
+  }
+
+  canRefuseDocument(doc: PartenaireDocumentResponse): boolean {
+    return this.isAdmin() && (doc.statut === 'EN_ATTENTE' || doc.statut === 'VALIDE');
+  }
+
+  validateDocument(doc: PartenaireDocumentResponse): void {
+    const partenaire = this.selectedPartenaire();
+    if (!partenaire) return;
+    this.validatingDocumentId.set(doc.id);
+    this.documentsError.set(null);
+    this.partenaireService.validateDocument(partenaire.id, doc.id, { statut: 'VALIDE' }).subscribe({
+      next: (updated) => {
+        this.validatingDocumentId.set(null);
+        this.replaceDocument(updated);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.validatingDocumentId.set(null);
+        this.documentsError.set(this.documentValidationErrorMessage(err, 'Impossible de valider ce document. Réessayez.'));
+      },
+    });
+  }
+
+  askRefuseDocument(doc: PartenaireDocumentResponse): void {
+    this.documentRefuseMotif.set('');
+    this.documentRefuseError.set(null);
+    this.documentRefuseTarget.set(doc);
+  }
+
+  cancelRefuseDocument(): void {
+    if (this.documentRefuseSaving()) return;
+    this.documentRefuseTarget.set(null);
+  }
+
+  confirmRefuseDocument(): void {
+    const partenaire = this.selectedPartenaire();
+    const doc = this.documentRefuseTarget();
+    if (!partenaire || !doc) return;
+    const motif = this.documentRefuseMotif().trim();
+    if (!motif) {
+      this.documentRefuseError.set('Le motif du refus est obligatoire.');
+      return;
+    }
+    if (motif.length > DOCUMENT_MOTIF_MAX_LENGTH) {
+      this.documentRefuseError.set(`Le motif ne doit pas dépasser ${DOCUMENT_MOTIF_MAX_LENGTH} caractères.`);
+      return;
+    }
+    this.documentRefuseSaving.set(true);
+    this.documentRefuseError.set(null);
+    this.partenaireService.validateDocument(partenaire.id, doc.id, { statut: 'REFUSE', motif }).subscribe({
+      next: (updated) => {
+        this.documentRefuseSaving.set(false);
+        this.documentRefuseTarget.set(null);
+        this.replaceDocument(updated);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.documentRefuseSaving.set(false);
+        this.documentRefuseError.set(this.documentValidationErrorMessage(err, 'Impossible de refuser ce document. Réessayez.'));
+      },
+    });
+  }
+
+  private documentValidationErrorMessage(err: HttpErrorResponse, fallback: string): string {
+    if (err.status === 403) {
+      return "Vous n'avez pas les droits pour valider ou refuser un document. Cette action est réservée aux administrateurs.";
+    }
+    // Le backend renvoie ses messages sans accents (« Motif trop long (500 caracteres maximum) ») :
+    // libellés repris ici plutôt qu'affichés tels quels.
+    if (err.status === 400) {
+      return `Le motif est obligatoire et ne doit pas dépasser ${DOCUMENT_MOTIF_MAX_LENGTH} caractères.`;
+    }
+    if (err.status === 404) {
+      return "Ce document n'existe plus. Actualisez la liste.";
+    }
+    return fallback;
+  }
+
+  private replaceDocument(updated: PartenaireDocumentResponse): void {
+    this.documentsItems.update((items) => items.map((d) => (d.id === updated.id ? updated : d)));
+  }
+
+  // -- Documents : date d'expiration --
+
+  askEditDocumentExpiration(doc: PartenaireDocumentResponse): void {
+    this.documentExpirationValue.set(doc.dateExpiration ?? '');
+    this.documentExpirationError.set(null);
+    this.documentExpirationTarget.set(doc);
+  }
+
+  cancelEditDocumentExpiration(): void {
+    if (this.documentExpirationSaving()) return;
+    this.documentExpirationTarget.set(null);
+  }
+
+  saveDocumentExpiration(): void {
+    const partenaire = this.selectedPartenaire();
+    const doc = this.documentExpirationTarget();
+    if (!partenaire || !doc) return;
+    this.documentExpirationSaving.set(true);
+    this.documentExpirationError.set(null);
+    this.partenaireService.setDocumentExpiration(partenaire.id, doc.id, this.documentExpirationValue() || null).subscribe({
+      next: (updated) => {
+        this.documentExpirationSaving.set(false);
+        this.documentExpirationTarget.set(null);
+        this.replaceDocument(updated);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.documentExpirationSaving.set(false);
+        this.documentExpirationError.set(
+          err.status === 403
+            ? "Vous n'avez pas les droits pour modifier ce document."
+            : "Impossible d'enregistrer la date d'expiration. Réessayez.",
+        );
+      },
+    });
+  }
+
+  /** Date seule AAAA-MM-JJ → JJ/MM/AAAA, sans passer par Date (pas de décalage de fuseau). */
+  formatDateOnly(value: string): string {
+    const [year, month, day] = value.slice(0, 10).split('-');
+    return `${day}/${month}/${year}`;
+  }
+
+  documentExpiresSoon(doc: PartenaireDocumentResponse): boolean {
+    if (!doc.dateExpiration || doc.expire) return false;
+    const limit = new Date();
+    limit.setDate(limit.getDate() + DOCUMENT_EXPIRE_BIENTOT_JOURS);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const limitIso = `${limit.getFullYear()}-${pad(limit.getMonth() + 1)}-${pad(limit.getDate())}`;
+    return doc.dateExpiration.slice(0, 10) <= limitIso;
+  }
+
+  documentStatutLabel(statut: PartenaireDocumentStatut): string {
+    return DOCUMENT_STATUT_LABEL[statut] ?? statut;
+  }
+
+  documentStatutVariant(statut: PartenaireDocumentStatut): string {
+    return DOCUMENT_STATUT_VARIANT[statut] ?? 'neutral';
   }
 
   documentTypeLabel(type: PartenaireDocumentType): string {

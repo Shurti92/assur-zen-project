@@ -216,7 +216,12 @@
     <button (click)="setDetailView('primeNonReversee')" [attr.data-active]="detailView() === 'primeNonReversee'" class="dl-pill dl-pill--solid" type="button">Primes non reversées</button>
     <button (click)="setDetailView('historique')" [attr.data-active]="detailView() === 'historique'" class="dl-pill dl-pill--solid" type="button">Historique</button>
     <button (click)="setDetailView('avenants')" [attr.data-active]="detailView() === 'avenants'" class="dl-pill dl-pill--solid" type="button">Avenants</button>
-    <button (click)="setDetailView('documents')" [attr.data-active]="detailView() === 'documents'" class="dl-pill dl-pill--solid" type="button">Documents</button>
+    <button (click)="setDetailView('documents')" [attr.data-active]="detailView() === 'documents'" class="dl-pill dl-pill--solid" type="button">
+      Documents
+      @if (documentStatutCounts().EN_ATTENTE > 0) {
+        <span class="pa-doc-badge" title="Documents en vérification">{{ documentStatutCounts().EN_ATTENTE }}</span>
+      }
+    </button>
   </div>
 
   <!-- ================= Onglet Contrats ================= -->
@@ -451,58 +456,187 @@
     } @else if (documentsItems().length === 0) {
       <p class="dl-empty">Aucun document joint pour ce partenaire.</p>
     } @else {
-      <ul class="list-unstyled d-flex flex-column gap-2 m-0 mb-3">
-        @for (doc of documentsItems(); track doc.id) {
-          <li class="d-flex align-items-center gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
-            <svg cIcon class="flex-shrink-0" name="cilFile" size="lg"></svg>
-            <div class="flex-grow-1">
-              <div>{{ doc.fileName }}</div>
-              <div class="dl-cell-detail">
-                <span class="dl-tag">{{ documentTypeLabel(doc.type) }}</span>
-                {{ formatFileSize(doc.sizeBytes) }} — {{ doc.uploadedBy }}, {{ formatDateTime(doc.createdAt) }}
+      <div>
+        <div class="dl-pillgroup mb-3" role="tablist" aria-label="Filtrer les documents par statut">
+          <button (click)="documentStatutFilter.set('all')" [attr.data-active]="documentStatutFilter() === 'all'" class="dl-pill" type="button">
+            Tous <span class="dl-pill-count">{{ documentsItems().length }}</span>
+          </button>
+          <button (click)="documentStatutFilter.set('EN_ATTENTE')" [attr.data-active]="documentStatutFilter() === 'EN_ATTENTE'" class="dl-pill dl-pill--warning" type="button">
+            En vérification <span class="dl-pill-count">{{ documentStatutCounts().EN_ATTENTE }}</span>
+          </button>
+          <button (click)="documentStatutFilter.set('VALIDE')" [attr.data-active]="documentStatutFilter() === 'VALIDE'" class="dl-pill dl-pill--success" type="button">
+            Validés <span class="dl-pill-count">{{ documentStatutCounts().VALIDE }}</span>
+          </button>
+          <button (click)="documentStatutFilter.set('REFUSE')" [attr.data-active]="documentStatutFilter() === 'REFUSE'" class="dl-pill dl-pill--danger" type="button">
+            Refusés <span class="dl-pill-count">{{ documentStatutCounts().REFUSE }}</span>
+          </button>
+        </div>
+      </div>
+      @if (filteredDocuments().length === 0) {
+        <p class="dl-empty">Aucun document dans ce statut.</p>
+      } @else {
+        <ul class="pa-doc-list">
+          @for (doc of filteredDocuments(); track doc.id) {
+            <li class="pa-doc">
+              <svg cIcon class="flex-shrink-0" name="cilFile" size="lg"></svg>
+              <div>
+                <div class="pa-doc-name">{{ doc.fileName }}</div>
+                <div class="dl-cell-detail">
+                  <span class="dl-tag">{{ documentTypeLabel(doc.type) }}</span>
+                  {{ formatFileSize(doc.sizeBytes) }} — {{ doc.uploadedBy }}, {{ formatDateTime(doc.createdAt) }}
+                </div>
+                <div class="pa-doc-exp">
+                  @if (doc.dateExpiration) {
+                    @if (doc.expire) {
+                      Expiré le {{ formatDateOnly(doc.dateExpiration) }}
+                      <span class="dl-chip dl-chip--danger">Expiré</span>
+                    } @else {
+                      Expire le {{ formatDateOnly(doc.dateExpiration) }}
+                      @if (documentExpiresSoon(doc)) {
+                        <span class="dl-chip dl-chip--warning">Expire bientôt</span>
+                      }
+                    }
+                  } @else {
+                    Aucune date d'expiration
+                  }
+                  <button
+                    (click)="askEditDocumentExpiration(doc)"
+                    class="pa-doc-exp-edit"
+                    [title]="doc.dateExpiration ? 'Modifier la date d’expiration' : 'Ajouter une date d’expiration'"
+                    type="button"
+                  >
+                    <svg cIcon name="cilPencil" size="sm"></svg>
+                  </button>
+                </div>
               </div>
-            </div>
-            <div class="d-flex gap-2">
-              <button (click)="viewDocument(doc)" [disabled]="viewingDocumentId() === doc.id" cButton class="dl-btn" size="sm" type="button">
-                @if (viewingDocumentId() === doc.id) {
-                  <c-spinner size="sm" />
+              <div class="pa-doc-status">
+                <span [class]="'dl-chip dl-chip--' + documentStatutVariant(doc.statut)">
+                  <span class="dl-chip-dot"></span>{{ documentStatutLabel(doc.statut) }}
+                </span>
+                @if (doc.valideLe && doc.validePar) {
+                  <div class="pa-doc-status-by">par {{ doc.validePar }} le {{ formatDate(doc.valideLe) }}</div>
                 }
-                Voir
-              </button>
-              <button
-                (click)="askDeleteDocument(doc)"
-                [disabled]="deletingDocumentId() === doc.id"
-                class="dl-icon-btn dl-icon-btn--danger"
-                title="Supprimer"
-                type="button"
-              >
-                @if (deletingDocumentId() === doc.id) {
-                  <c-spinner size="sm" />
-                } @else {
-                  <svg cIcon name="cilTrash" size="sm"></svg>
+                @if (doc.statut === 'REFUSE' && doc.motifRefus) {
+                  <div class="pa-doc-motif"><strong>Motif du refus</strong>{{ doc.motifRefus }}</div>
                 }
-              </button>
-            </div>
-          </li>
-        }
-      </ul>
+              </div>
+              <div class="pa-doc-actions">
+                <button (click)="viewDocument(doc)" [disabled]="viewingDocumentId() === doc.id" cButton class="dl-btn" size="sm" type="button">
+                  @if (viewingDocumentId() === doc.id) {
+                    <c-spinner size="sm" />
+                  }
+                  Voir
+                </button>
+                @if (canValidateDocument(doc)) {
+                  <button (click)="validateDocument(doc)" [disabled]="validatingDocumentId() === doc.id" cButton class="dl-btn" color="success" size="sm" type="button" variant="outline">
+                    @if (validatingDocumentId() === doc.id) {
+                      <c-spinner size="sm" />
+                    } @else {
+                      <svg cIcon name="cilCheck" size="sm"></svg>
+                    }
+                    Valider
+                  </button>
+                }
+                @if (canRefuseDocument(doc)) {
+                  <button (click)="askRefuseDocument(doc)" [disabled]="validatingDocumentId() === doc.id" cButton class="dl-btn" color="danger" size="sm" type="button" variant="outline">
+                    <svg cIcon name="cilXCircle" size="sm"></svg>
+                    Refuser
+                  </button>
+                }
+                <button
+                  (click)="askDeleteDocument(doc)"
+                  [disabled]="deletingDocumentId() === doc.id"
+                  class="dl-icon-btn dl-icon-btn--danger"
+                  title="Supprimer"
+                  type="button"
+                >
+                  @if (deletingDocumentId() === doc.id) {
+                    <c-spinner size="sm" />
+                  } @else {
+                    <svg cIcon name="cilTrash" size="sm"></svg>
+                  }
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
     }
 
-    <div class="d-flex flex-wrap align-items-center gap-2">
-      <select (change)="documentUploadType.set($any($event.target).value)" [value]="documentUploadType()" cSelect style="max-width: 220px;">
-        @for (type of documentTypeOptions; track type) {
-          <option [value]="type">{{ documentTypeLabel(type) }}</option>
-        }
-      </select>
+    <div class="pa-doc-upload">
+      <div>
+        <label cLabel for="pa-doc-upload-type">Type de document</label>
+        <select (change)="documentUploadType.set($any($event.target).value)" [value]="documentUploadType()" cSelect id="pa-doc-upload-type">
+          @for (type of documentTypeOptions; track type) {
+            <option [value]="type">{{ documentTypeLabel(type) }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label cLabel for="pa-doc-upload-expiration">Date d'expiration (facultatif)</label>
+        <input (input)="documentUploadExpiration.set($any($event.target).value)" [value]="documentUploadExpiration()" cFormControl id="pa-doc-upload-expiration" type="date" />
+      </div>
       <label cButton class="dl-btn" [class.disabled]="documentUploading()">
         @if (documentUploading()) {
           <c-spinner size="sm" />
         }
         Joindre un document
-        <input (change)="onDocumentSelected($event)" [disabled]="documentUploading()" accept=".pdf,image/*" class="d-none" type="file" />
+        <input (change)="onDocumentSelected($event)" [disabled]="documentUploading()" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="d-none" type="file" />
       </label>
+      <small>PDF, JPEG ou PNG, 5 Mo maximum. Un document joint ici par un administrateur est validé d'office.</small>
     </div>
   }
+</app-modal>
+
+<!-- ===== Modale : refus d'un document (motif obligatoire, le partenaire est notifié) ===== -->
+<app-modal [visible]="!!documentRefuseTarget()" title="Refuser « {{ documentRefuseTarget()?.fileName }} »" (closed)="cancelRefuseDocument()">
+  @if (documentRefuseError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <div class="pa-doc-notice">Le partenaire sera notifié du refus (application et notification push) et verra ce motif tel que vous l'écrivez.</div>
+  <label cLabel for="pa-doc-refuse-motif">Motif du refus<span class="wz-required">*</span></label>
+  <textarea
+    (input)="documentRefuseMotif.set($any($event.target).value)"
+    [value]="documentRefuseMotif()"
+    [attr.maxlength]="documentMotifMaxLength"
+    cFormControl
+    id="pa-doc-refuse-motif"
+    placeholder="Ex. Photo illisible, merci d'envoyer le recto et le verso."
+    rows="4"
+  ></textarea>
+  <div class="pa-doc-counter">
+    <span>Obligatoire</span>
+    <span>{{ documentRefuseMotif().length }} / {{ documentMotifMaxLength }}</span>
+  </div>
+  <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+    <button (click)="cancelRefuseDocument()" [disabled]="documentRefuseSaving()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+    <button (click)="confirmRefuseDocument()" [disabled]="documentRefuseSaving() || !documentRefuseMotif().trim()" cButton color="danger" type="button">
+      @if (documentRefuseSaving()) {
+        <c-spinner size="sm" />
+      }
+      Confirmer le refus
+    </button>
+  </div>
+</app-modal>
+
+<!-- ===== Modale : date d'expiration d'un document ===== -->
+<app-modal [visible]="!!documentExpirationTarget()" title="Date d'expiration" (closed)="cancelEditDocumentExpiration()">
+  @if (documentExpirationError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <div class="dl-cell-detail mb-3">{{ documentExpirationTarget()?.fileName }}</div>
+  <label cLabel for="pa-doc-expiration">Expire le</label>
+  <input (input)="documentExpirationValue.set($any($event.target).value)" [value]="documentExpirationValue()" cFormControl id="pa-doc-expiration" type="date" />
+  <div class="pa-doc-counter"><span>Laisser vide pour retirer la date.</span></div>
+  <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+    <button (click)="cancelEditDocumentExpiration()" [disabled]="documentExpirationSaving()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+    <button (click)="saveDocumentExpiration()" [disabled]="documentExpirationSaving()" cButton color="primary" type="button">
+      @if (documentExpirationSaving()) {
+        <c-spinner size="sm" />
+      }
+      Enregistrer
+    </button>
+  </div>
 </app-modal>
 
 <app-modal [visible]="formVisible()" size="xl" title="{{ editingId() ? 'Modifier le partenaire' : 'Nouveau partenaire' }}" (closed)="formVisible.set(false)">

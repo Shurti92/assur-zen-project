@@ -128,4 +128,21 @@ export interface PartenaireDocumentResponse {
   sizeBytes: number;
   uploadedBy: string;
   createdAt: string;
+  /** Vérification par AssurZen (contrat espace-partenaire-ep2-2026-10-03.md §8) — un document envoyé
+   * par le partenaire arrive EN_ATTENTE, un document joint par un administrateur est VALIDE d'office. */
+  statut: PartenaireDocumentStatut;
+  motifRefus: string | null;
+  /** Date-heure de la validation ou du refus. */
+  valideLe: string | null;
+  validePar: string | null;
+  /** AAAA-MM-JJ, null tant qu'aucune date n'a été saisie (§6 du même contrat). */
+  dateExpiration: string | null;
+  /** Calculé côté backend : true si dateExpiration est strictement avant aujourd'hui. */
+  expire: boolean;
 }
+
+export type PartenaireDocumentStatut = 'EN_ATTENTE' | 'VALIDE' | 'REFUSE';
+
+/** PATCH /partenaires/{id}/documents/{documentId}/validation — `motif` obligatoire pour un refus
+ * (500 caractères maximum, sinon 400). Un refus notifie réellement le partenaire. */
+export type PartenaireDocumentValidationRequest = { statut: 'VALIDE' } | { statut: 'REFUSE'; motif: string };
