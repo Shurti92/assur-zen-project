@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -76,9 +77,13 @@ export class ChangePasswordDialogComponent {
           this.form.reset();
           this.changed.emit();
         },
-        error: () => {
+        error: (err: unknown) => {
           this.loading.set(false);
-          this.errorMessage.set('Impossible de mettre à jour le mot de passe. Réessayez.');
+          this.errorMessage.set(
+            err instanceof HttpErrorResponse && err.error?.code === 'INVALID_CURRENT_PASSWORD'
+              ? 'Mot de passe actuel incorrect.'
+              : 'Impossible de mettre à jour le mot de passe. Réessayez.'
+          );
         },
       });
   }
