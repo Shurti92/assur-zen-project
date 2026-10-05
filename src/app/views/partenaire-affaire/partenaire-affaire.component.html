@@ -535,7 +535,7 @@
                 }
               </div>
               <div class="pa-doc-actions">
-                <button (click)="viewDocument(doc)" [disabled]="viewingDocumentId() === doc.id" cButton class="dl-btn" size="sm" type="button">
+                <button (click)="viewDocument(doc)" [disabled]="viewingDocumentId() === doc.id" cButton class="dl-btn" color="secondary" size="sm" type="button" variant="outline">
                   @if (viewingDocumentId() === doc.id) {
                     <c-spinner size="sm" />
                   }
@@ -590,7 +590,7 @@
         <label cLabel for="pa-doc-upload-expiration">Date d'expiration (facultatif)</label>
         <input (input)="documentUploadExpiration.set($any($event.target).value)" [value]="documentUploadExpiration()" cFormControl id="pa-doc-upload-expiration" type="date" />
       </div>
-      <label cButton class="dl-btn" [class.disabled]="documentUploading()">
+      <label cButton class="dl-btn" color="secondary" variant="outline" [class.disabled]="documentUploading()">
         @if (documentUploading()) {
           <c-spinner size="sm" />
         }
