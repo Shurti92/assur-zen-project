@@ -6,6 +6,10 @@ import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { IconDirective } from '@coreui/icons-angular';
 import {
   ButtonDirective,
+  DropdownComponent,
+  DropdownItemDirective,
+  DropdownMenuDirective,
+  DropdownToggleDirective,
   FormCheckInputDirective,
   FormControlDirective,
   FormDirective,
@@ -18,7 +22,6 @@ import { ConfigurationService } from '../../core/configurations/configuration.se
 import {
   ConfigurationCategory,
   ConfigurationEnvironment,
-  ConfigurationFilter,
   ConfigurationValueType,
   DynamicConfigurationRequest,
   DynamicConfigurationResponse,
@@ -39,6 +42,12 @@ import {
 } from './configuration-status';
 
 type View = 'dashboard' | 'configurations' | 'categories' | 'modules' | 'historique';
+type ActiveFilter = 'all' | 'active' | 'inactive';
+type YesNoFilter = '' | 'true' | 'false';
+type DetailTab = 'informations' | 'historique';
+
+/** Libellé du groupe des configurations sans module renseigné. */
+const SANS_MODULE = 'Sans module';
 
 /** Valeur renvoyée par le backend à la place d'une valeur sensible ; renvoyée telle quelle, elle
  * conserve la valeur existante (backend du 2026-09-24). */
@@ -77,8 +86,13 @@ const EMPTY_FORM: DynamicConfigurationRequest = {
 @Component({
   selector: 'app-configuration-dynamique',
   templateUrl: './configuration-dynamique.component.html',
+  styleUrl: './configuration-dynamique.component.scss',
   imports: [
     ButtonDirective,
+    DropdownComponent,
+    DropdownItemDirective,
+    DropdownMenuDirective,
+    DropdownToggleDirective,
     SpinnerComponent,
     IconDirective,
     FormsModule,
@@ -112,12 +126,10 @@ export class ConfigurationDynamiqueComponent {
 
   setView(view: View): void {
     this.view.set(view);
-    if (view === 'dashboard' && this.allConfigs().length === 0) this.fetchAllConfigs();
-    if (view === 'configurations' && this.items().length === 0) this.fetchLogs();
-    if ((view === 'categories' || view === 'modules') && this.allConfigs().length === 0) this.fetchAllConfigs();
+    if (view !== 'historique' && this.allConfigs().length === 0) this.fetchAllConfigs();
   }
 
-  // ================= Référentiel modules/catégories + agrégat complet (tableau de bord) =================
+  // ================= Référentiel modules/catégories + agrégat complet (toutes les vues) =================
 
   readonly modules = signal<string[]>([]);
   readonly allConfigs = signal<DynamicConfigurationResponse[]>([]);
@@ -125,12 +137,16 @@ export class ConfigurationDynamiqueComponent {
 
   fetchAllConfigs(): void {
     this.allConfigsLoading.set(true);
+    this.error.set(null);
     this.configurationService.search(0, 1000).subscribe({
       next: (page) => {
         this.allConfigs.set(page.content);
         this.allConfigsLoading.set(false);
       },
-      error: () => this.allConfigsLoading.set(false),
+      error: () => {
+        this.error.set('Impossible de charger les configurations.');
+        this.allConfigsLoading.set(false);
+      },
     });
   }
 
@@ -142,13 +158,14 @@ export class ConfigurationDynamiqueComponent {
       inactives: all.filter((c) => !c.active).length,
       modifiables: all.filter((c) => c.editable).length,
       sensibles: all.filter((c) => c.sensitive).length,
+      redemarrage: all.filter((c) => c.restartRequired && c.active).length,
     };
   });
 
   readonly parModule = computed(() => {
     const counts = new Map<string, number>();
     for (const c of this.allConfigs()) {
-      const key = c.module || 'Sans module';
+      const key = c.module || SANS_MODULE;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
     return [...counts.entries()].map(([module, total]) => ({ module, total })).sort((a, b) => b.total - a.total);
@@ -177,84 +194,102 @@ export class ConfigurationDynamiqueComponent {
   );
 
   filterByModule(module: string): void {
-    this.filterForm.patchValue({ module });
+    this.resetFilters();
+    this.moduleFilter.set(module);
     this.view.set('configurations');
-    this.applyFilters();
   }
 
   filterByCategory(category: ConfigurationCategory): void {
-    this.filterForm.patchValue({ category });
+    this.resetFilters();
+    this.categoryFilter.set(category);
+    this.advancedFiltersOpen.set(true);
     this.view.set('configurations');
-    this.applyFilters();
   }
 
-  // ================= Liste / recherche =================
+  // ================= Liste : filtres côté client, regroupement par module =================
+  // Validé sur maquette (2026-10-05). Le jeu complet est petit (quelques dizaines de clés) : il est
+  // chargé une fois par fetchAllConfigs(), puis filtré et regroupé ici, sans pagination.
 
-  readonly items = signal<DynamicConfigurationResponse[]>([]);
-  readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly pageIndex = signal(0);
-  readonly totalPages = signal(1);
-  readonly totalElements = signal(0);
-  readonly pageSize = 20;
 
-  readonly filterForm = this.fb.nonNullable.group({
-    q: '',
-    module: '',
-    category: this.fb.nonNullable.control<ConfigurationCategory | ''>(''),
-    valueType: this.fb.nonNullable.control<ConfigurationValueType | ''>(''),
-    environment: this.fb.nonNullable.control<ConfigurationEnvironment | ''>(''),
-    active: this.fb.nonNullable.control<'true' | 'false' | ''>(''),
-    editable: this.fb.nonNullable.control<'true' | 'false' | ''>(''),
-    sensitive: this.fb.nonNullable.control<'true' | 'false' | ''>(''),
+  readonly searchQuery = signal('');
+  readonly activeFilter = signal<ActiveFilter>('all');
+  readonly moduleFilter = signal('');
+  readonly categoryFilter = signal<ConfigurationCategory | ''>('');
+  readonly valueTypeFilter = signal<ConfigurationValueType | ''>('');
+  readonly environmentFilter = signal<ConfigurationEnvironment | ''>('');
+  readonly editableFilter = signal<YesNoFilter>('');
+  readonly sensitiveFilter = signal<YesNoFilter>('');
+  readonly advancedFiltersOpen = signal(false);
+
+  readonly advancedFiltersCount = computed(
+    () =>
+      [this.categoryFilter(), this.valueTypeFilter(), this.environmentFilter(), this.editableFilter(), this.sensitiveFilter()].filter(
+        (value) => value !== '',
+      ).length,
+  );
+
+  readonly filteredConfigs = computed(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const active = this.activeFilter();
+    const module = this.moduleFilter();
+    const category = this.categoryFilter();
+    const valueType = this.valueTypeFilter();
+    const environment = this.environmentFilter();
+    const editable = this.editableFilter();
+    const sensitive = this.sensitiveFilter();
+    return this.allConfigs().filter((c) => {
+      if (active !== 'all' && c.active !== (active === 'active')) return false;
+      if (module && (c.module || SANS_MODULE) !== module) return false;
+      if (category && c.category !== category) return false;
+      if (valueType && c.valueType !== valueType) return false;
+      if (environment && c.environment !== environment) return false;
+      if (editable && c.editable !== (editable === 'true')) return false;
+      if (sensitive && c.sensitive !== (sensitive === 'true')) return false;
+      if (!q) return true;
+      // Une valeur sensible n'est jamais comparée : la recherche ne doit pas permettre de la deviner.
+      const haystack = [c.configKey, c.description, c.module, c.sensitive ? null : c.configValue];
+      return haystack.some((text) => text?.toLowerCase().includes(q));
+    });
   });
 
-  private buildFilters(): ConfigurationFilter {
-    const raw = this.filterForm.getRawValue();
-    return {
-      q: raw.q.trim() || undefined,
-      module: raw.module.trim() || undefined,
-      category: raw.category || undefined,
-      valueType: raw.valueType || undefined,
-      environment: raw.environment || undefined,
-      active: raw.active === '' ? undefined : raw.active === 'true',
-      editable: raw.editable === '' ? undefined : raw.editable === 'true',
-      sensitive: raw.sensitive === '' ? undefined : raw.sensitive === 'true',
-    };
-  }
+  readonly groupedConfigs = computed(() => {
+    const groups = new Map<string, DynamicConfigurationResponse[]>();
+    for (const c of this.filteredConfigs()) {
+      const key = c.module || SANS_MODULE;
+      const group = groups.get(key);
+      if (group) group.push(c);
+      else groups.set(key, [c]);
+    }
+    return [...groups.entries()]
+      .map(([module, configs]) => ({
+        module,
+        configs: configs.sort((x, y) => (x.displayOrder ?? 0) - (y.displayOrder ?? 0) || x.configKey.localeCompare(y.configKey)),
+      }))
+      .sort((x, y) => x.module.localeCompare(y.module));
+  });
 
-  fetchLogs(): void {
-    this.loading.set(true);
-    this.error.set(null);
-    this.configurationService.search(this.pageIndex(), this.pageSize, this.buildFilters()).subscribe({
-      next: (page) => {
-        this.items.set(page.content);
-        this.totalPages.set(Math.max(1, page.totalPages));
-        this.totalElements.set(page.totalElements);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set('Impossible de charger les configurations.');
-        this.loading.set(false);
-      },
+  readonly moduleOptions = computed(() => [...this.parModule()].sort((x, y) => x.module.localeCompare(y.module)));
+
+  readonly collapsedModules = signal<ReadonlySet<string>>(new Set());
+
+  toggleModuleCollapsed(module: string): void {
+    this.collapsedModules.update((current) => {
+      const next = new Set(current);
+      if (!next.delete(module)) next.add(module);
+      return next;
     });
   }
 
-  applyFilters(): void {
-    this.pageIndex.set(0);
-    this.fetchLogs();
-  }
-
   resetFilters(): void {
-    this.filterForm.reset({ q: '', module: '', category: '', valueType: '', environment: '', active: '', editable: '', sensitive: '' });
-    this.pageIndex.set(0);
-    this.fetchLogs();
-  }
-
-  goToPage(index: number): void {
-    if (index < 0 || index >= this.totalPages()) return;
-    this.pageIndex.set(index);
-    this.fetchLogs();
+    this.searchQuery.set('');
+    this.activeFilter.set('all');
+    this.moduleFilter.set('');
+    this.categoryFilter.set('');
+    this.valueTypeFilter.set('');
+    this.environmentFilter.set('');
+    this.editableFilter.set('');
+    this.sensitiveFilter.set('');
   }
 
   refreshAll(): void {
@@ -262,7 +297,7 @@ export class ConfigurationDynamiqueComponent {
     this.configurationService.refreshAll().subscribe({
       next: () => {
         this.refreshingAll.set(false);
-        this.fetchLogs();
+        this.fetchAllConfigs();
       },
       error: () => {
         this.error.set('Impossible de rafraîchir toutes les configurations.');
@@ -289,7 +324,7 @@ export class ConfigurationDynamiqueComponent {
   }
 
   private applyUpdate(updated: DynamicConfigurationResponse): void {
-    this.items.set(this.items().map((c) => (c.configKey === updated.configKey ? updated : c)));
+    this.allConfigs.update((all) => all.map((c) => (c.configKey === updated.configKey ? updated : c)));
     if (this.selectedConfig()?.configKey === updated.configKey) this.selectedConfig.set(updated);
   }
 
@@ -346,7 +381,8 @@ export class ConfigurationDynamiqueComponent {
     this.deleting.set(true);
     this.configurationService.delete(target.configKey).subscribe({
       next: () => {
-        this.items.set(this.items().filter((c) => c.configKey !== target.configKey));
+        this.allConfigs.update((all) => all.filter((c) => c.configKey !== target.configKey));
+        if (this.selectedConfig()?.configKey === target.configKey) this.detailVisible.set(false);
         this.deleting.set(false);
         this.deleteTarget.set(null);
       },
@@ -363,9 +399,21 @@ export class ConfigurationDynamiqueComponent {
   readonly detailVisible = signal(false);
   readonly selectedConfig = signal<DynamicConfigurationResponse | null>(null);
 
-  openDetail(config: DynamicConfigurationResponse): void {
+  readonly detailTab = signal<DetailTab>('informations');
+
+  /** L'historique est chargé à l'ouverture : il alimente l'onglet « Historique » de la fiche. */
+  openDetail(config: DynamicConfigurationResponse, tab: DetailTab = 'informations'): void {
     this.selectedConfig.set(config);
+    this.detailTab.set(tab);
     this.detailVisible.set(true);
+    this.historyItems.set([]);
+    this.historyKey.set(config.configKey);
+    this.fetchHistory(config.configKey);
+  }
+
+  editFromDetail(config: DynamicConfigurationResponse): void {
+    this.detailVisible.set(false);
+    this.openEdit(config);
   }
 
   maskedValue(config: DynamicConfigurationResponse): string {
@@ -525,7 +573,7 @@ export class ConfigurationDynamiqueComponent {
       next: () => {
         this.formSaving.set(false);
         this.formVisible.set(false);
-        this.fetchLogs();
+        this.fetchAllConfigs();
       },
       error: (err: unknown) => {
         this.formSaving.set(false);
@@ -537,7 +585,6 @@ export class ConfigurationDynamiqueComponent {
 
   // ================= Historique / restauration =================
 
-  readonly historyVisible = signal(false);
   readonly historyLoading = signal(false);
   readonly historyError = signal<string | null>(null);
   readonly historyItems = signal<HistoriqueModificationResponse[]>([]);
@@ -546,12 +593,6 @@ export class ConfigurationDynamiqueComponent {
   readonly restoring = signal(false);
 
   readonly historySearchKey = signal('');
-
-  openHistory(config: DynamicConfigurationResponse): void {
-    this.historyKey.set(config.configKey);
-    this.historyVisible.set(true);
-    this.fetchHistory(config.configKey);
-  }
 
   searchHistoryByKey(): void {
     const key = this.historySearchKey().trim();
@@ -607,6 +648,10 @@ export class ConfigurationDynamiqueComponent {
     return value ? new Date(value).toLocaleString('fr-FR') : '—';
   }
 
+  formatDate(value: string | null): string {
+    return value ? new Date(value).toLocaleDateString('fr-FR') : '—';
+  }
+
   formatInt(value: number): string {
     return new Intl.NumberFormat('fr-FR').format(value);
   }
@@ -627,7 +672,6 @@ export class ConfigurationDynamiqueComponent {
       }
     });
     this.configurationService.getModules().subscribe({ next: (m) => this.modules.set(m), error: () => undefined });
-    if (this.view() === 'configurations') this.fetchLogs();
-    else this.fetchAllConfigs();
+    if (this.view() !== 'historique') this.fetchAllConfigs();
   }
 }

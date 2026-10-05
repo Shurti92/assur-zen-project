@@ -14,7 +14,7 @@
 
     @if (view() === 'configurations') {
       <div class="dl-actions">
-        <button (click)="refreshAll()" [disabled]="refreshingAll()" cButton class="dl-btn" type="button">
+        <button (click)="refreshAll()" [disabled]="refreshingAll()" cButton class="dl-btn" color="secondary" type="button" variant="outline">
           @if (refreshingAll()) { <c-spinner size="sm" /> } @else { <svg cIcon name="refresh" size="sm"></svg> }
           Tout rafraîchir
         </button>
@@ -130,143 +130,214 @@
 
   <!-- ================= Configurations ================= -->
   @if (view() === 'configurations') {
-    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" cForm class="dl-filters">
-      <div class="dl-filter-field">
-        <label for="cf-q">Recherche</label>
-        <input cFormControl formControlName="q" id="cf-q" placeholder="Clé, description…" type="text" />
-      </div>
-      <div class="dl-filter-field">
-        <label for="cf-module">Module</label>
-        <input cFormControl formControlName="module" id="cf-module" type="text" />
-      </div>
-      <div class="dl-filter-field">
-        <label for="cf-category">Catégorie</label>
-        <select cSelect formControlName="category" id="cf-category">
-          <option value="">Toutes</option>
-          @for (c of categoryOrder; track c) { <option [value]="c">{{ categoryLabel[c] }}</option> }
-        </select>
-      </div>
-      <div class="dl-filter-field">
-        <label for="cf-type">Type</label>
-        <select cSelect formControlName="valueType" id="cf-type">
-          <option value="">Tous</option>
-          @for (t of valueTypeOrder; track t) { <option [value]="t">{{ valueTypeLabel[t] }}</option> }
-        </select>
-      </div>
-      <div class="dl-filter-field">
-        <label for="cf-env">Environnement</label>
-        <select cSelect formControlName="environment" id="cf-env">
-          <option value="">Tous</option>
-          @for (e of environmentOrder; track e) { <option [value]="e">{{ environmentLabel[e] }}</option> }
-        </select>
-      </div>
-      <div class="dl-filter-field">
-        <label for="cf-active">Actif</label>
-        <select cSelect formControlName="active" id="cf-active">
-          <option value="">Tous</option>
-          <option value="true">Actif</option>
-          <option value="false">Inactif</option>
-        </select>
-      </div>
-      <div class="dl-filter-field">
-        <label for="cf-editable">Modifiable</label>
-        <select cSelect formControlName="editable" id="cf-editable">
-          <option value="">Tous</option>
-          <option value="true">Modifiable</option>
-          <option value="false">Lecture seule</option>
-        </select>
-      </div>
-      <div class="dl-filter-field">
-        <label for="cf-sensitive">Sensible</label>
-        <select cSelect formControlName="sensitive" id="cf-sensitive">
-          <option value="">Toutes</option>
-          <option value="true">Sensible</option>
-          <option value="false">Non sensible</option>
-        </select>
-      </div>
-      <div class="dl-filter-field justify-content-end">
-        <div class="d-flex gap-2">
-          <button cButton class="dl-btn" type="button" (click)="resetFilters()">Réinitialiser</button>
-          <button cButton class="dl-btn dl-btn-primary" type="submit">Rechercher</button>
-        </div>
-      </div>
-    </form>
-
-    <div class="dl-cell-detail px-3 pt-3">
-      <strong>{{ formatInt(totalElements()) }}</strong> configuration(s)
+    <div class="dl-summary">
+      <dl><dt>Configurations</dt><dd>{{ formatInt(kpis().total) }}</dd></dl>
+      <dl><dt>Actives</dt><dd class="dl-stat--success">{{ formatInt(kpis().actives) }}</dd></dl>
+      <dl><dt>Inactives</dt><dd class="dl-stat--danger">{{ formatInt(kpis().inactives) }}</dd></dl>
+      <dl><dt>Sensibles</dt><dd>{{ formatInt(kpis().sensibles) }}</dd></dl>
+      <dl><dt>Redémarrage requis</dt><dd class="dl-stat--warning">{{ formatInt(kpis().redemarrage) }}</dd></dl>
     </div>
 
-    @if (loading()) {
+    <div class="cf-bar">
+      <div class="dl-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input
+          (input)="searchQuery.set($any($event.target).value)"
+          [value]="searchQuery()"
+          autocomplete="off"
+          placeholder="Rechercher une clé, une description, une valeur…"
+          type="search"
+        />
+      </div>
+      <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+        <button (click)="activeFilter.set('all')" [attr.data-active]="activeFilter() === 'all'" class="dl-pill" type="button">Toutes</button>
+        <button (click)="activeFilter.set('active')" [attr.data-active]="activeFilter() === 'active'" class="dl-pill dl-pill--success" type="button">Actives</button>
+        <button (click)="activeFilter.set('inactive')" [attr.data-active]="activeFilter() === 'inactive'" class="dl-pill dl-pill--danger" type="button">Inactives</button>
+      </div>
+      <button (click)="advancedFiltersOpen.set(!advancedFiltersOpen())" [attr.data-active]="advancedFiltersOpen()" class="dl-btn dl-btn-toggle" type="button">
+        Filtres
+        @if (advancedFiltersCount() > 0) {
+          <span class="dl-pill-count">{{ advancedFiltersCount() }}</span>
+        }
+      </button>
+    </div>
+
+    @if (advancedFiltersOpen()) {
+      <div class="dl-filters">
+        <div class="dl-filter-field">
+          <label for="cf-category">Catégorie</label>
+          <select (change)="categoryFilter.set($any($event.target).value)" [value]="categoryFilter()" cSelect id="cf-category">
+            <option value="">Toutes</option>
+            @for (c of categoryOrder; track c) { <option [value]="c">{{ categoryLabel[c] }}</option> }
+          </select>
+        </div>
+        <div class="dl-filter-field">
+          <label for="cf-type">Type</label>
+          <select (change)="valueTypeFilter.set($any($event.target).value)" [value]="valueTypeFilter()" cSelect id="cf-type">
+            <option value="">Tous</option>
+            @for (t of valueTypeOrder; track t) { <option [value]="t">{{ valueTypeLabel[t] }}</option> }
+          </select>
+        </div>
+        <div class="dl-filter-field">
+          <label for="cf-env">Environnement</label>
+          <select (change)="environmentFilter.set($any($event.target).value)" [value]="environmentFilter()" cSelect id="cf-env">
+            <option value="">Tous</option>
+            @for (e of environmentOrder; track e) { <option [value]="e">{{ environmentLabel[e] }}</option> }
+          </select>
+        </div>
+        <div class="dl-filter-field">
+          <label for="cf-editable">Modifiable</label>
+          <select (change)="editableFilter.set($any($event.target).value)" [value]="editableFilter()" cSelect id="cf-editable">
+            <option value="">Tous</option>
+            <option value="true">Modifiable</option>
+            <option value="false">Lecture seule</option>
+          </select>
+        </div>
+        <div class="dl-filter-field">
+          <label for="cf-sensitive">Sensible</label>
+          <select (change)="sensitiveFilter.set($any($event.target).value)" [value]="sensitiveFilter()" cSelect id="cf-sensitive">
+            <option value="">Toutes</option>
+            <option value="true">Sensible</option>
+            <option value="false">Non sensible</option>
+          </select>
+        </div>
+        <div class="dl-filter-field justify-content-end">
+          <div>
+            <button (click)="resetFilters()" cButton class="dl-btn" color="secondary" type="button" variant="outline">Réinitialiser</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (moduleOptions().length > 0) {
+      <div class="cf-modules" role="tablist" aria-label="Filtrer par module">
+        <button (click)="moduleFilter.set('')" [attr.data-active]="moduleFilter() === ''" class="cf-module-pill" type="button">
+          Tous les modules <small>{{ formatInt(kpis().total) }}</small>
+        </button>
+        @for (row of moduleOptions(); track row.module) {
+          <button (click)="moduleFilter.set(row.module)" [attr.data-active]="moduleFilter() === row.module" class="cf-module-pill" type="button">
+            {{ row.module }} <small>{{ formatInt(row.total) }}</small>
+          </button>
+        }
+      </div>
+    }
+
+    @if (allConfigsLoading() && allConfigs().length === 0) {
       <p class="dl-empty">Chargement des configurations…</p>
-    } @else if (items().length === 0) {
+    } @else if (filteredConfigs().length === 0) {
       <p class="dl-empty">Aucune configuration ne correspond à ces filtres.</p>
     } @else {
-      <div class="dl-table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Clé</th>
-              <th scope="col">Description</th>
-              <th scope="col">Module</th>
-              <th scope="col">Catégorie</th>
-              <th scope="col">Type</th>
-              <th scope="col">Valeur</th>
-              <th scope="col">Env.</th>
-              <th scope="col">Actif</th>
-              <th scope="col">Dernière modif.</th>
-              <th scope="col"></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (c of items(); track c.id) {
-              <tr>
-                <td class="dl-font-mono">
-                  {{ c.configKey }}
-                  @if (c.sensitive) { <svg cIcon class="ms-1" name="cilLockLocked" size="sm"></svg> }
-                  @if (!c.editable) { <svg cIcon class="ms-1" name="cilLockLocked" size="sm"></svg> }
-                </td>
-                <td>{{ c.description ?? '—' }}</td>
-                <td>{{ c.module ?? '—' }}</td>
-                <td>{{ c.category ? categoryLabel[c.category] : '—' }}</td>
-                <td>{{ valueTypeLabel[c.valueType] }}</td>
-                <td class="dl-font-mono">{{ maskedValue(c) }}</td>
-                <td>
-                  @if (c.environment) {
-                    <span [class]="'dl-chip dl-chip--' + environmentVariant[c.environment]"><span class="dl-chip-dot"></span>{{ environmentLabel[c.environment] }}</span>
-                  } @else { — }
-                </td>
-                <td>
-                  <span [class]="'dl-chip dl-chip--' + (c.active ? 'success' : 'danger')"><span class="dl-chip-dot"></span>{{ c.active ? 'Actif' : 'Inactif' }}</span>
-                </td>
-                <td class="dl-timestamp">{{ formatDateTime(c.updatedAt) }}</td>
-                <td>
-                  <div class="dl-actions">
-                    <button (click)="openDetail(c)" cButton class="dl-btn" size="sm" type="button">Voir</button>
-                    @if (c.editable) {
-                      <button (click)="openEdit(c)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+      @for (group of groupedConfigs(); track group.module) {
+        <div class="cf-group">
+          <button
+            (click)="toggleModuleCollapsed(group.module)"
+            [attr.aria-expanded]="!collapsedModules().has(group.module)"
+            class="cf-group-head"
+            type="button"
+          >
+            <h3>{{ group.module }}</h3>
+            <span class="cf-group-count">{{ formatInt(group.configs.length) }} configuration{{ group.configs.length > 1 ? 's' : '' }}</span>
+            <svg cIcon class="cf-group-caret" name="cilChevronRight" size="sm"></svg>
+          </button>
+          @if (!collapsedModules().has(group.module)) {
+            @for (c of group.configs; track c.id) {
+              <div class="cf-row" [class.cf-row--off]="!c.active" [class.cf-row--restart]="c.active && c.restartRequired">
+                <div>
+                  <div class="cf-key">{{ c.configKey }}</div>
+                  @if (c.description) {
+                    <div class="cf-desc">{{ c.description }}</div>
+                  }
+                  <div class="cf-flags">
+                    @if (c.category) {
+                      <span class="cf-flag">{{ categoryLabel[c.category] }}</span>
                     }
-                    <button (click)="askToggleActive(c)" cButton class="dl-btn" size="sm" type="button">{{ c.active ? 'Désactiver' : 'Activer' }}</button>
-                    <button (click)="refreshOne(c)" [disabled]="refreshingKey() === c.configKey" cButton class="dl-btn" size="sm" type="button">
-                      @if (refreshingKey() === c.configKey) { <c-spinner size="sm" /> } @else { Rafraîchir }
-                    </button>
-                    <button (click)="openHistory(c)" cButton class="dl-btn" size="sm" type="button">Historique</button>
-                    <button (click)="askDelete(c)" cButton class="dl-btn" color="danger" size="sm" variant="outline" type="button">
-                      <svg cIcon name="cilTrash" size="sm"></svg>
-                    </button>
+                    @if (c.sensitive) {
+                      <span class="cf-flag cf-flag--sensitive"><svg cIcon name="cilLockLocked" size="sm"></svg>Sensible</span>
+                    }
+                    @if (c.restartRequired) {
+                      <span class="cf-flag cf-flag--restart">Redémarrage requis</span>
+                    }
+                    @if (!c.editable) {
+                      <span class="cf-flag">Lecture seule</span>
+                    }
+                    @if (c.environment) {
+                      <span [class]="'cf-flag cf-flag--env-' + environmentVariant[c.environment]">{{ environmentLabel[c.environment] }}</span>
+                    }
                   </div>
-                </td>
-              </tr>
+                </div>
+                <div>
+                  <span class="cf-value" [title]="maskedValue(c)">{{ maskedValue(c) }}</span>
+                  <div class="cf-type">
+                    {{ valueTypeLabel[c.valueType] }}
+                    @if (c.sensitive) {
+                      · jamais affichée en clair
+                    } @else if (c.defaultValue) {
+                      · défaut {{ c.defaultValue }}
+                    }
+                  </div>
+                </div>
+                <div>
+                  <span [class]="'dl-chip dl-chip--' + (c.active ? 'success' : 'danger')"><span class="dl-chip-dot"></span>{{ c.active ? 'Actif' : 'Inactif' }}</span>
+                  @if (c.updatedAt) {
+                    <div class="cf-meta">
+                      {{ formatDate(c.updatedAt) }}
+                      @if (c.updatedBy) { · {{ c.updatedBy }} }
+                    </div>
+                  }
+                </div>
+                <div class="cf-actions">
+                  @if (c.editable) {
+                    <button (click)="openEdit(c)" cButton class="dl-btn" color="secondary" size="sm" type="button" variant="outline">Modifier</button>
+                  } @else {
+                    <button (click)="openDetail(c)" cButton class="dl-btn" color="secondary" size="sm" type="button" variant="outline">Voir</button>
+                  }
+                  <c-dropdown alignment="end" [popperOptions]="{ strategy: 'fixed' }">
+                    <button [caret]="false" cDropdownToggle class="dl-icon-btn" title="Autres actions" type="button">
+                      @if (refreshingKey() === c.configKey) {
+                        <c-spinner size="sm" />
+                      } @else {
+                        <svg cIcon name="cilOptions" size="sm"></svg>
+                      }
+                    </button>
+                    <div cDropdownMenu>
+                      <button (click)="openDetail(c)" cDropdownItem class="hdr-user-menu-item" type="button">
+                        <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary"><svg cIcon name="cilInfo" size="lg"></svg></span>
+                        Voir le détail
+                      </button>
+                      <button (click)="openDetail(c, 'historique')" cDropdownItem class="hdr-user-menu-item" type="button">
+                        <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary"><svg cIcon name="cilHistory" size="lg"></svg></span>
+                        Historique
+                      </button>
+                      <button (click)="refreshOne(c)" cDropdownItem class="hdr-user-menu-item" type="button">
+                        <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary"><svg cIcon name="refresh" size="lg"></svg></span>
+                        Rafraîchir le cache
+                      </button>
+                      <button (click)="askToggleActive(c)" cDropdownItem class="hdr-user-menu-item" type="button">
+                        <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--warning"><svg cIcon [name]="c.active ? 'cilXCircle' : 'cilCheckCircle'" size="lg"></svg></span>
+                        {{ c.active ? 'Désactiver' : 'Activer' }}
+                      </button>
+                      <hr class="dropdown-divider" />
+                      <button (click)="askDelete(c)" cDropdownItem class="hdr-user-menu-item hdr-user-menu-item--danger" type="button">
+                        <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--danger"><svg cIcon name="cilTrash" size="lg"></svg></span>
+                        Supprimer
+                      </button>
+                    </div>
+                  </c-dropdown>
+                </div>
+              </div>
             }
-          </tbody>
-        </table>
-      </div>
+          }
+        </div>
+      }
 
       <div class="dl-footnote">
-        <span>Page {{ pageIndex() + 1 }} sur {{ totalPages() }}</span>
-        <div class="dl-actions">
-          <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
-          <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
-        </div>
+        <span>
+          <strong>{{ formatInt(filteredConfigs().length) }}</strong> sur {{ formatInt(kpis().total) }} configurations,
+          dans {{ formatInt(groupedConfigs().length) }} module{{ groupedConfigs().length > 1 ? 's' : '' }}
+        </span>
       </div>
     }
   }
@@ -373,23 +444,86 @@
 </section>
 
 <!-- ================= Détail ================= -->
-<app-modal [visible]="detailVisible()" size="lg" title="Configuration" (closed)="detailVisible.set(false)">
+<app-modal [visible]="detailVisible()" size="lg" [title]="selectedConfig()?.configKey ?? 'Configuration'" (closed)="detailVisible.set(false)">
   @if (selectedConfig(); as c) {
-    @if (c.sensitive) {
-      <app-alert-message class="d-block mb-3" variant="warning" message="Cette configuration contient une valeur sensible — elle n'est jamais affichée en clair." />
+    <div class="dl-pillgroup mb-3" role="tablist" aria-label="Onglet de la fiche configuration">
+      <button (click)="detailTab.set('informations')" [attr.data-active]="detailTab() === 'informations'" class="dl-pill" type="button">Informations</button>
+      <button (click)="detailTab.set('historique')" [attr.data-active]="detailTab() === 'historique'" class="dl-pill" type="button">
+        Historique
+        @if (!historyLoading() && !historyError()) {
+          <span class="dl-pill-count">{{ historyItems().length }}</span>
+        }
+      </button>
+    </div>
+
+    @if (detailTab() === 'informations') {
+      @if (c.sensitive) {
+        <app-alert-message class="d-block mb-3" variant="warning" message="Cette configuration contient une valeur sensible — elle n'est jamais affichée en clair." />
+      }
+      <div class="cf-hero">
+        <div class="cf-hero-k">Valeur actuelle</div>
+        <div class="cf-hero-v">{{ maskedValue(c) }}</div>
+        @if (c.description) {
+          <div class="cf-hero-d">{{ c.description }}</div>
+        }
+      </div>
+      <div class="cf-grid">
+        <div><div class="cf-grid-k">Type</div><div class="cf-grid-v">{{ valueTypeLabel[c.valueType] }}</div></div>
+        <div><div class="cf-grid-k">Valeur par défaut</div><div class="cf-grid-v dl-font-mono">{{ c.defaultValue ?? '—' }}</div></div>
+        <div><div class="cf-grid-k">Module</div><div class="cf-grid-v">{{ c.module ?? '—' }}</div></div>
+        <div><div class="cf-grid-k">Catégorie</div><div class="cf-grid-v">{{ c.category ? categoryLabel[c.category] : '—' }}</div></div>
+        <div><div class="cf-grid-k">Environnement</div><div class="cf-grid-v">{{ c.environment ? environmentLabel[c.environment] : 'Tous' }}</div></div>
+        <div>
+          <div class="cf-grid-k">Statut</div>
+          <div class="cf-grid-v"><span [class]="'dl-chip dl-chip--' + (c.active ? 'success' : 'danger')"><span class="dl-chip-dot"></span>{{ c.active ? 'Actif' : 'Inactif' }}</span></div>
+        </div>
+        <div><div class="cf-grid-k">Prise en compte</div><div class="cf-grid-v">{{ c.restartRequired ? 'Après redémarrage' : 'Immédiate (sans redémarrage)' }}</div></div>
+        <div><div class="cf-grid-k">Modifiable</div><div class="cf-grid-v">{{ c.editable ? 'Oui' : 'Lecture seule' }}</div></div>
+        <div>
+          <div class="cf-grid-k">Dernière modification</div>
+          <div class="cf-grid-v">{{ formatDateTime(c.updatedAt) }} @if (c.updatedBy) { · {{ c.updatedBy }} }</div>
+        </div>
+      </div>
+    } @else {
+      @if (historyError()) {
+        <p class="dl-empty">{{ historyError() }}</p>
+      } @else if (historyLoading()) {
+        <p class="dl-empty">Chargement de l'historique…</p>
+      } @else if (historyItems().length === 0) {
+        <p class="dl-empty">Aucun évènement pour le moment.</p>
+      } @else {
+        <ul class="cf-hist">
+          @for (entry of historyItems(); track entry.id) {
+            <li>
+              <strong>{{ entry.action }}</strong>
+              @if (entry.description) { — {{ entry.description }} }
+              @if (entry.ancienneValeur || entry.nouvelleValeur) {
+                <div class="mt-1">
+                  <span class="dl-tag">{{ entry.ancienneValeur ?? '—' }}</span>
+                  →
+                  <span class="dl-tag">{{ entry.nouvelleValeur ?? '—' }}</span>
+                </div>
+              }
+              <div class="cf-hist-when">{{ formatDateTime(entry.createdAt) }} @if (entry.username) { · {{ entry.username }} }</div>
+              <button (click)="askRestore(entry)" cButton class="dl-btn mt-1" color="secondary" size="sm" type="button" variant="outline">Restaurer cette version</button>
+            </li>
+          }
+        </ul>
+      }
     }
-    <div class="row g-3">
-      <div class="col-sm-6"><div class="dl-cell-detail">Clé</div><div class="dl-font-mono">{{ c.configKey }}</div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Type</div><div>{{ valueTypeLabel[c.valueType] }}</div></div>
-      <div class="col-12"><div class="dl-cell-detail">Valeur actuelle</div><div class="dl-font-mono">{{ maskedValue(c) }}</div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Description</div><div>{{ c.description ?? '—' }}</div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Valeur par défaut</div><div>{{ c.defaultValue ?? '—' }}</div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Module</div><div>{{ c.module ?? '—' }}</div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Catégorie</div><div>{{ c.category ? categoryLabel[c.category] : '—' }}</div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Environnement</div><div>{{ c.environment ? environmentLabel[c.environment] : '—' }}</div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Statut</div><div><span [class]="'dl-chip dl-chip--' + (c.active ? 'success' : 'danger')"><span class="dl-chip-dot"></span>{{ c.active ? 'Actif' : 'Inactif' }}</span></div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Dernière modification</div><div>{{ formatDateTime(c.updatedAt) }}</div></div>
-      <div class="col-sm-6"><div class="dl-cell-detail">Modifié par</div><div>{{ c.updatedBy ?? '—' }}</div></div>
+
+    <div class="cf-detail-foot">
+      <button (click)="askDelete(c)" cButton class="dl-btn" color="danger" type="button" variant="outline">Supprimer</button>
+      <div class="d-flex flex-wrap gap-2">
+        <button (click)="refreshOne(c)" [disabled]="refreshingKey() === c.configKey" cButton class="dl-btn" color="secondary" type="button" variant="outline">
+          @if (refreshingKey() === c.configKey) { <c-spinner size="sm" /> }
+          Rafraîchir le cache
+        </button>
+        <button (click)="askToggleActive(c)" cButton class="dl-btn" color="secondary" type="button" variant="outline">{{ c.active ? 'Désactiver' : 'Activer' }}</button>
+        @if (c.editable) {
+          <button (click)="editFromDetail(c)" cButton class="dl-btn dl-btn-primary" type="button">Modifier</button>
+        }
+      </div>
     </div>
   }
 </app-modal>
@@ -563,34 +697,3 @@
   (cancelled)="cancelRestore()"
   (confirmed)="confirmRestore()"
 />
-
-<!-- ================= Historique (par clé) ================= -->
-<app-modal [visible]="historyVisible()" size="lg" [title]="'Historique — ' + (historyKey() ?? '')" (closed)="historyVisible.set(false)">
-  @if (historyError()) {
-    <p class="dl-empty">{{ historyError() }}</p>
-  } @else if (historyLoading()) {
-    <p class="dl-empty">Chargement…</p>
-  } @else if (historyItems().length === 0) {
-    <p class="dl-empty">Aucun évènement pour le moment.</p>
-  } @else {
-    <ul class="list-unstyled d-flex flex-column gap-2">
-      @for (entry of historyItems(); track entry.id) {
-        <li class="dl-cell-detail" style="border-bottom: 1px solid var(--cui-border-color); padding-bottom: 0.6rem;">
-          <strong class="text-body">{{ entry.action }}</strong>
-          @if (entry.description) { — {{ entry.description }} }
-          <div>{{ formatDateTime(entry.createdAt) }} @if (entry.username) { — {{ entry.username }} }</div>
-          @if (entry.ancienneValeur || entry.nouvelleValeur) {
-            <div class="mt-1">
-              <span class="dl-tag">{{ entry.ancienneValeur ?? '—' }}</span>
-              →
-              <span class="dl-tag">{{ entry.nouvelleValeur ?? '—' }}</span>
-            </div>
-          }
-          <div class="mt-1">
-            <button (click)="askRestore(entry)" cButton class="dl-btn" size="sm" type="button">Restaurer cette version</button>
-          </div>
-        </li>
-      }
-    </ul>
-  }
-</app-modal>
