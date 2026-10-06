@@ -1,7 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { IconDirective } from '@coreui/icons-angular';
 import { ButtonDirective, FormControlDirective, FormLabelDirective, SpinnerComponent } from '@coreui/angular';
 
 import { PrimeObjectifService } from '../../../core/prime-objectif/prime-objectif.service';
@@ -18,6 +17,13 @@ import { ModalComponent } from '../../../shared/modal/modal.component';
 
 type StatutFilter = 'all' | PrimeObjectifStatut;
 
+/** Étape du fil d'avancement d'une demande : franchie, en cours, rejetée ou à venir. */
+interface PrimeStep {
+  label: string;
+  date: string;
+  state: 'done' | 'cur' | 'ko' | 'todo';
+}
+
 const PAGE_SIZE = 20;
 
 function extractErrorMessage(err: unknown, fallback: string): string {
@@ -32,7 +38,6 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   selector: 'app-primes-objectif',
   templateUrl: './primes-objectif.component.html',
   imports: [
-    IconDirective,
     FormsModule,
     ButtonDirective,
     FormControlDirective,
@@ -42,6 +47,7 @@ function extractErrorMessage(err: unknown, fallback: string): string {
     ModalComponent,
     ConfirmDialogComponent,
   ],
+  host: { '(document:keydown.escape)': 'closeRequestModal()' },
 })
 export class PrimesObjectifComponent {
   private readonly primeObjectifService = inject(PrimeObjectifService);
@@ -104,6 +110,34 @@ export class PrimesObjectifComponent {
   readonly simulationError = signal<string | null>(null);
   readonly creating = signal(false);
   readonly createError = signal<string | null>(null);
+
+  /** Les quatre conditions d'éligibilité de la simulation, remplies ou non. */
+  readonly simulationChecks = computed(() => {
+    const sim = this.simulation();
+    if (!sim) return [];
+    return [
+      {
+        ok: sim.primeActivee,
+        label: sim.primeActivee
+          ? "La prime d'objectif est activée pour ce partenaire"
+          : "La prime d'objectif n'est pas activée pour ce partenaire",
+      },
+      {
+        ok: sim.exerciceCloture,
+        label: `L'exercice comptable ${sim.exerciceComptableLibelle} ${sim.exerciceCloture ? 'est clôturé' : "n'est pas encore clôturé"}`,
+      },
+      {
+        ok: sim.objectifAtteint,
+        label: sim.objectifAtteint ? "L'objectif est atteint pour cet exercice" : "L'objectif n'est pas atteint pour cet exercice",
+      },
+      {
+        ok: !sim.demandeDejaExistante,
+        label: sim.demandeDejaExistante
+          ? 'Une demande existe déjà pour ce partenaire sur cet exercice'
+          : "Aucune demande n'existe déjà sur cet exercice",
+      },
+    ];
+  });
 
   private searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
@@ -269,6 +303,45 @@ export class PrimesObjectifComponent {
   }
 
   // ================= Présentation =================
+
+  /** Demandée → Validée → Payée, avec la date de chaque étape franchie. */
+  steps(item: PrimeObjectifResponse): PrimeStep[] {
+    const demandee: PrimeStep = { label: 'Demandée', date: this.formatDate(item.dateDemande), state: 'done' };
+    if (item.statut === 'REJETEE') {
+      return [demandee, { label: 'Rejetée', date: '', state: 'ko' }, { label: 'Payée', date: '', state: 'todo' }];
+    }
+    const validee = item.statut === 'VALIDEE' || item.statut === 'PAYEE';
+    const payee = item.statut === 'PAYEE';
+    return [
+      demandee,
+      validee
+        ? { label: 'Validée', date: item.dateValidation ? this.formatDate(item.dateValidation) : '', state: 'done' }
+        : { label: 'À valider', date: '', state: 'cur' },
+      payee
+        ? { label: 'Payée', date: item.datePaiement ? this.formatDate(item.datePaiement) : '', state: 'done' }
+        : { label: validee ? 'À payer' : 'Payée', date: '', state: validee ? 'cur' : 'todo' },
+    ];
+  }
+
+  /** Initiales d'un nom complet (« Kone Awa » → « KA »). */
+  initials(name: string | null | undefined): string {
+    return (name ?? '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join('')
+      .toUpperCase();
+  }
+
+  formatTaux(taux: number): string {
+    return `${taux.toFixed(1).replace('.', ',')} %`;
+  }
+
+  /** Largeur de la barre de progression, bornée à 100 % (un objectif peut être dépassé). */
+  tauxWidth(taux: number): number {
+    return Math.max(0, Math.min(taux, 100));
+  }
 
   statutLabel(statut: PrimeObjectifStatut): string {
     switch (statut) {
