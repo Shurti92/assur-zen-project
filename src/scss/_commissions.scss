@@ -5,7 +5,8 @@
 // ---------------------------------------------------------------------------
 
 .pz-scope.im.cm {
-  a {
+  // Hors blocs SycaPay (sp-*), qui gardent leurs propres styles de lien.
+  a:where(:not([class*='sp-'])) {
     color: var(--pz-primary);
     font-weight: 600;
     text-decoration: none;

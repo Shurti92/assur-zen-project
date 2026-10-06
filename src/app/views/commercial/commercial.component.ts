@@ -1,4 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -101,7 +102,9 @@ function extractErrorMessage(err: unknown, fallback: string): string {
     ConfirmDialogComponent,
     ThousandSeparatorDirective,
     RouterLink,
+    NgTemplateOutlet,
   ],
+  host: { '(document:keydown.escape)': 'closeCommissionContractsModal()' },
 })
 export class CommercialComponent {
   private readonly commercialService = inject(CommercialService);
@@ -141,7 +144,43 @@ export class CommercialComponent {
     this.fetch();
     this.fetchVilles();
     this.fetchExercices();
+    // Chargées dès l'ouverture : la pastille de l'onglet Commissions compte les commerciaux à payer.
+    this.fetchCommissionSummaries();
+    this.fetchCommissionPayments();
   }
+
+  /** « Actualiser » de l'en-tête : recharge les données de l'onglet affiché. */
+  refreshTab(): void {
+    switch (this.activeTab()) {
+      case 'commerciaux':
+        this.fetch();
+        break;
+      case 'dashboard':
+        this.fetchDashboard();
+        break;
+      case 'paie':
+        this.fetchPayroll();
+        this.fetchBonusHistory();
+        break;
+      case 'commissions':
+        this.fetchCommissionSummaries();
+        this.fetchCommissionPayments();
+        break;
+    }
+  }
+
+  readonly refreshing = computed(() => {
+    switch (this.activeTab()) {
+      case 'commerciaux':
+        return this.loading();
+      case 'dashboard':
+        return this.dashboardLoading() || this.rankingLoading();
+      case 'paie':
+        return this.payrollLoading() || this.bonusHistoryLoading();
+      case 'commissions':
+        return this.commissionsLoading() || this.commissionPaymentsLoading();
+    }
+  });
 
   private fetchVilles(): void {
     this.villePartenaireService.list().subscribe({
@@ -1391,13 +1430,23 @@ export class CommercialComponent {
   readonly commissionsError = signal<string | null>(null);
   readonly commissionsSearch = signal('');
 
+  readonly commissionsView = signal<'aPayer' | 'historique'>('aPayer');
+  readonly commissionsToPayCount = computed(() => this.commissionSummaries().filter((s) => s.pendingContractsCount > 0).length);
+
+  /** Commerciaux à payer en tête (montant en attente décroissant), puis recherche. */
   readonly filteredCommissionSummaries = computed(() => {
     const query = this.commissionsSearch().trim().toLowerCase();
-    if (!query) return this.commissionSummaries();
-    return this.commissionSummaries().filter((s) =>
-      `${s.nomComplet} ${s.employeeCode}`.toLowerCase().includes(query)
-    );
+    return [...this.commissionSummaries()]
+      .sort((a, b) => b.totalPending - a.totalPending)
+      .filter((s) => !query || `${s.nomComplet} ${s.employeeCode}`.toLowerCase().includes(query));
   });
+
+  /** Part (en %) des contrats en attente ou payés d'un commercial, pour la barre de répartition. */
+  contractsShare(item: CommercialCommissionSummary, kind: 'pending' | 'paid'): number {
+    const total = item.pendingContractsCount + item.paidContractsCount;
+    if (total === 0) return 0;
+    return ((kind === 'pending' ? item.pendingContractsCount : item.paidContractsCount) / total) * 100;
+  }
 
   fetchCommissionSummaries(): void {
     this.commissionsLoading.set(true);
@@ -1516,6 +1565,12 @@ export class CommercialComponent {
   readonly allPendingCommissionContractsSelected = computed(() => {
     const pendingIds = this.visiblePendingCommissionContractIds();
     return pendingIds.length > 0 && pendingIds.every((id) => this.selectedCommissionContractIds().has(id));
+  });
+
+  readonly commissionContractsCounts = computed(() => {
+    const contracts = this.commissionContracts();
+    const pending = contracts.filter((c) => c.commercialCommissionStatus === 'pending').length;
+    return { pending, paid: contracts.filter((c) => c.commercialCommissionStatus === 'paid').length };
   });
 
   openCommissionContracts(item: CommercialCommissionSummary): void {
@@ -1780,6 +1835,15 @@ export class CommercialComponent {
     if (taux >= 100) return 'success';
     if (taux >= 50) return 'warning';
     return 'danger';
+  }
+
+  formatTaux(taux: number): string {
+    return `${taux.toFixed(1).replace('.', ',')} %`;
+  }
+
+  /** Largeur d'une barre de progression, bornée à 100 % (un objectif peut être dépassé). */
+  tauxWidth(taux: number | null): number {
+    return Math.max(0, Math.min(taux ?? 0, 100));
   }
 
   initials(nomComplet: string): string {

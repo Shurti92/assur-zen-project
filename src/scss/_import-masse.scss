@@ -17,7 +17,8 @@
   color: var(--pz-text);
   font: 14px/1.45 var(--pz-font);
 
-  button {
+  // Hors blocs SycaPay (sp-*), qui gardent leurs propres styles de bouton.
+  button:where(:not([class*='sp-'])) {
     font: inherit;
     color: inherit;
     cursor: pointer;
