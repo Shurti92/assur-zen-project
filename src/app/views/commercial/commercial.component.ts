@@ -906,37 +906,6 @@ export class CommercialComponent {
     return transactionId != null ? { transaction: transactionId } : { reference: reference ?? '' };
   }
 
-  /** Statut de paiement du bonus, pour les colonnes « Paiement » (historique, paie). */
-  bonusPaymentLabel(item: Pick<CommercialPerformanceResponse, 'statut' | 'eligible' | 'payable' | 'sycapayStatus' | 'modePaiement' | 'paidAt'>): string {
-    if (item.paidAt) return item.modePaiement === 'ENREGISTREMENT_MANUEL' ? 'Payé (hors application)' : 'Payé (Wave)';
-    if (item.sycapayStatus === 'PROCESSING' || item.sycapayStatus === 'PENDING') return 'Virement en cours';
-    if (item.sycapayStatus === 'UNKNOWN') return 'À réconcilier';
-    if (item.sycapayStatus === 'FAILED') return 'Échec — à relancer';
-    if (item.payable) return 'À payer';
-    if (!item.eligible) return 'Aucun bonus';
-    return 'À valider';
-  }
-
-  bonusPaymentVariant(item: Pick<CommercialPerformanceResponse, 'statut' | 'eligible' | 'payable' | 'sycapayStatus' | 'modePaiement' | 'paidAt'>): string {
-    if (item.paidAt) return 'success';
-    if (item.sycapayStatus === 'PROCESSING' || item.sycapayStatus === 'PENDING') return 'info';
-    if (item.sycapayStatus === 'UNKNOWN') return 'warning';
-    if (item.sycapayStatus === 'FAILED') return 'danger';
-    if (item.payable) return 'info';
-    return 'neutral';
-  }
-
-  /** Détail du calcul : bonus = objectif × taux si taux d'atteinte ≥ seuil (toujours sur l'objectif). */
-  bonusCalculDetail(item: CommercialPerformanceResponse): string {
-    const taux = item.bonusRateSnapshot ?? 0;
-    const seuil = item.seuilEligibilite ?? 100;
-    const base = `${taux} % de l'objectif si atteinte ≥ ${seuil} %`;
-    if (!item.objectiveAmount) return 'Aucun objectif mensuel défini ce mois-ci';
-    return item.eligible
-      ? `${base} : ${this.formatAmount(item.objectiveAmount)} × ${taux} %`
-      : `${base} (atteint : ${item.achievementRate.toFixed(1)} %)`;
-  }
-
   // ================= Historique des paiements de bonus =================
 
   readonly bonusHistory = signal<CommercialPerformanceResponse[]>([]);
@@ -1056,11 +1025,6 @@ export class CommercialComponent {
   readonly payrollError = signal<string | null>(null);
   readonly payrollExerciceId = signal('');
   readonly payrollMoisId = signal('');
-
-  setPayrollExercice(exerciceId: string): void {
-    this.payrollExerciceId.set(exerciceId);
-    this.payrollMoisId.set('');
-  }
 
   setPayrollMois(moisId: string): void {
     this.payrollMoisId.set(moisId);
@@ -1776,62 +1740,12 @@ export class CommercialComponent {
     }
   }
 
-  statutLabel(statut: CommercialPerformanceStatut): string {
-    switch (statut) {
-      case 'OPEN':
-        return 'Ouvert';
-      case 'CALCULATED':
-        return 'Calculé';
-      case 'ELIGIBLE':
-        return 'Éligible (estimé)';
-      case 'NOT_ELIGIBLE':
-        return 'Non éligible';
-      case 'VALIDATED':
-        return 'Validé';
-      case 'PAID':
-        return 'Payé';
-      case 'CLOSED':
-        return 'Clôturé';
-    }
-  }
-
-  statutVariant(statut: CommercialPerformanceStatut): string {
-    switch (statut) {
-      case 'OPEN':
-      case 'CALCULATED':
-        return 'neutral';
-      case 'ELIGIBLE':
-        return 'warning';
-      case 'NOT_ELIGIBLE':
-        return 'danger';
-      case 'VALIDATED':
-        return 'info';
-      case 'PAID':
-        return 'success';
-      case 'CLOSED':
-        return 'neutral';
-    }
-  }
-
-  /** Montant définitif uniquement à partir de VALIDATED — avant, toujours "estimé"
-   * (règle explicite du contrat, ne jamais présenter le bonus comme acquis). */
-  isBonusEstime(statut: CommercialPerformanceStatut): boolean {
-    return statut === 'OPEN' || statut === 'CALCULATED' || statut === 'ELIGIBLE' || statut === 'NOT_ELIGIBLE';
-  }
-
   canRecalculate(statut: CommercialPerformanceStatut): boolean {
     return statut !== 'VALIDATED' && statut !== 'PAID' && statut !== 'CLOSED';
   }
 
   tauxVariant(taux: number | null): string {
     if (taux === null) return 'neutral';
-    if (taux >= 100) return 'success';
-    if (taux >= 50) return 'warning';
-    return 'danger';
-  }
-
-  tauxProgressColor(taux: number | null): string {
-    if (taux === null) return 'secondary';
     if (taux >= 100) return 'success';
     if (taux >= 50) return 'warning';
     return 'danger';

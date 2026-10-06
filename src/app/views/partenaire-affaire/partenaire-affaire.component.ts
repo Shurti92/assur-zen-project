@@ -768,15 +768,6 @@ export class PartenaireAffaireComponent {
     return 'danger';
   }
 
-  /** Couleur CoreUI pour <c-progress> — mêmes seuils que tauxVariant(), mais 'secondary'
-   * plutôt que 'neutral' (nom de variante propre à nos chips .dl-chip--*, pas un couleur CoreUI valide). */
-  tauxProgressColor(taux: number | null): string {
-    if (taux === null) return 'secondary';
-    if (taux >= 100) return 'success';
-    if (taux >= 50) return 'warning';
-    return 'danger';
-  }
-
   typeLabel(type: TypePartenaire): string {
     if (type === 'DIRECT') return 'Direct';
     if (type === 'AGENT') return 'Agent';

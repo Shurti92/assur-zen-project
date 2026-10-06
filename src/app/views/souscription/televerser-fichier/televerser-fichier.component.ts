@@ -186,13 +186,6 @@ const VALID_MODE_PAIEMENT = ['COMPTANT', 'FRACTIONNE'];
 const VALID_PERIODICITES: PeriodiciteEcheance[] = ['MENSUELLE', 'TRIMESTRIELLE', 'SEMESTRIELLE', 'ANNUELLE'];
 const VALID_STATUTS: ContractStatus[] = ['signed', 'pending', 'draft', 'cancelled'];
 
-const STATUT_LABEL: Record<string, string> = {
-  signed: 'Signé',
-  pending: 'En attente',
-  draft: 'Brouillon',
-  cancelled: 'Annulé',
-};
-
 interface ParsedRow {
   line: number;
   nom: string;
@@ -739,10 +732,6 @@ export class TeleverserFichierComponent {
       if (row.errors.length > 0) group.hasErrors = true;
     }
     return Array.from(map.values());
-  }
-
-  statutLabel(value: string): string {
-    return STATUT_LABEL[value] ?? value;
   }
 
   sumPremium(group: ClientGroup): number {

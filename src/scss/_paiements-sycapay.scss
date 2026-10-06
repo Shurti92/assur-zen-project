@@ -448,6 +448,13 @@
   }
 
   .sy-switch {
+    margin: 0;
+
+    .form-check-input,
+    .form-check-label {
+      cursor: pointer;
+    }
+
     b,
     small {
       display: block;
@@ -467,9 +474,11 @@
     font-weight: 600;
   }
 
+  // Le message Telegram renvoyé par le backend tient sur plusieurs lignes.
   p.sy-feedback {
     margin: 0 0 14px;
     font-size: 13px;
+    white-space: pre-line;
   }
 
   // Champs de filtre ----------------------------------------------------------------

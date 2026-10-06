@@ -356,19 +356,6 @@ export class PrimesObjectifComponent {
     }
   }
 
-  statutVariant(statut: PrimeObjectifStatut): string {
-    switch (statut) {
-      case 'EN_ATTENTE':
-        return 'warning';
-      case 'VALIDEE':
-        return 'info';
-      case 'PAYEE':
-        return 'success';
-      case 'REJETEE':
-        return 'danger';
-    }
-  }
-
   formatAmount(value: number): string {
     return `${new Intl.NumberFormat('fr-FR').format(value)} FCFA`;
   }
