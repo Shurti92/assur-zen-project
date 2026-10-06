@@ -3,14 +3,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, forkJoin, of } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  ButtonDirective,
-  FormCheckInputDirective,
-  FormControlDirective,
-  FormLabelDirective,
-  SpinnerComponent,
-} from '@coreui/angular';
-
 import { CommissionService } from '../../core/commissions/commission.service';
 import {
   CommissionPaymentResponse,
@@ -24,7 +16,6 @@ import {
 } from '../../core/commissions/models/commission.model';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 import { sycapayErrorMessage } from '../../core/sycapay/sycapay-errors';
-import { ModalComponent } from '../../shared/modal/modal.component';
 import { SycaPayStatus } from '../../core/commercial/models/commercial-commission.model';
 import { SycaPayService } from '../../core/sycapay/sycapay.service';
 import { SycaPayTransaction, SycaPayTransactionStatus } from '../../core/sycapay/models/sycapay.model';
@@ -74,27 +65,26 @@ type ValidationFilter = 'todo' | 'paid' | 'all';
 
 type ContractStatusFilter = 'all' | 'pending' | 'paid';
 type ContractsModalTab = 'contrats' | 'demandes';
+type MainTab = 'demandes' | 'partenaires' | 'historique';
+type PartnerFilter = 'all' | 'todo' | 'done';
 
 @Component({
   selector: 'app-commissions',
   templateUrl: './commissions.component.html',
-  imports: [
-    ButtonDirective,
-    SpinnerComponent,
-    FormsModule,
-    FormControlDirective,
-    FormCheckInputDirective,
-    FormLabelDirective,
-    AlertMessageComponent,
-    ModalComponent,
-    RouterLink,
-  ],
+  imports: [FormsModule, AlertMessageComponent, RouterLink],
+  host: { '(document:keydown.escape)': 'closeContractsModal()' },
 })
 export class CommissionsComponent {
   private readonly commissionService = inject(CommissionService);
   private readonly sycapayService = inject(SycaPayService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  // Onglets de la page -------------------------------------------------
+  readonly activeTab = signal<MainTab>('demandes');
+  /** Tant que l'utilisateur n'a pas choisi d'onglet, la page s'ouvre sur « Demandes » s'il y en a
+   * à traiter, sinon sur « Partenaires ». */
+  private tabChosen = false;
 
   // Demandes à valider (partenaires + commerciaux) ---------------------
   readonly validationRequests = signal<PaymentRequestValidationItem[]>([]);
@@ -107,6 +97,15 @@ export class CommissionsComponent {
 
   /** « À traiter » = tout ce qui n'est pas payé : en attente, virement en cours ou échoué. */
   readonly validationTodoCount = computed(() => this.validationRequests().filter((r) => r.status !== 'paid').length);
+
+  readonly validationTodoAmount = computed(() =>
+    this.validationRequests()
+      .filter((r) => r.status !== 'paid')
+      .reduce((sum, r) => sum + r.requestedAmount, 0),
+  );
+  readonly validationReconcileCount = computed(
+    () => this.validationRequests().filter((r) => r.status === 'processing').length,
+  );
 
   readonly filteredValidationRequests = computed(() => {
     const filter = this.validationFilter();
@@ -121,13 +120,27 @@ export class CommissionsComponent {
   readonly partnersError = signal<string | null>(null);
   readonly partnersSearch = signal('');
 
+  readonly partnerFilter = signal<PartnerFilter>('all');
+  readonly partnersToPayCount = computed(() => this.partners().filter((p) => p.pendingContractsCount > 0).length);
+
+  /** Partenaires à payer en tête (montant en attente décroissant), puis filtre et recherche. */
   readonly filteredPartners = computed(() => {
     const query = this.partnersSearch().trim().toLowerCase();
-    if (!query) return this.partners();
-    return this.partners().filter((p) =>
-      `${p.nom} ${p.prenoms} ${p.codePartenaire}`.toLowerCase().includes(query)
-    );
+    const filter = this.partnerFilter();
+    return [...this.partners()]
+      .sort((a, b) => b.totalPending - a.totalPending)
+      .filter(
+        (p) =>
+          (filter === 'all' || (filter === 'todo') === p.pendingContractsCount > 0) &&
+          (!query || `${p.nom} ${p.prenoms} ${p.codePartenaire}`.toLowerCase().includes(query)),
+      );
   });
+
+  // Indicateurs de tête, calculés sur le résumé des partenaires ----------
+  readonly totalPending = computed(() => this.partners().reduce((sum, p) => sum + p.totalPending, 0));
+  readonly totalPaid = computed(() => this.partners().reduce((sum, p) => sum + p.totalPaid, 0));
+  readonly pendingContractsTotal = computed(() => this.partners().reduce((sum, p) => sum + p.pendingContractsCount, 0));
+  readonly paidContractsTotal = computed(() => this.partners().reduce((sum, p) => sum + p.paidContractsCount, 0));
 
   // Contracts drill-down modal -----------------------------------------
   readonly contractsModalVisible = signal(false);
@@ -160,6 +173,9 @@ export class CommissionsComponent {
     const filter = this.contractsStatusFilter();
     return this.contracts().filter((c) => filter === 'all' || c.commissionStatus === filter);
   });
+
+  readonly pendingContractsCount = computed(() => this.contracts().filter((c) => c.commissionStatus === 'pending').length);
+  readonly paidContractsCount = computed(() => this.contracts().filter((c) => c.commissionStatus === 'paid').length);
 
   readonly selectedTotal = computed(() => {
     const ids = this.selectedContractIds();
@@ -195,10 +211,21 @@ export class CommissionsComponent {
   readonly paymentsError = signal<string | null>(null);
   readonly paymentsPageSize = 15;
 
+  readonly refreshing = computed(() => this.validationLoading() || this.partnersLoading() || this.paymentsLoading());
+
   constructor() {
+    this.refreshAll();
+  }
+
+  refreshAll(): void {
     this.fetchValidationRequests();
     this.fetchPartners();
     this.fetchPayments();
+  }
+
+  setActiveTab(tab: MainTab): void {
+    this.tabChosen = true;
+    this.activeTab.set(tab);
   }
 
   // Partners ---------------------------------------------------------
@@ -231,6 +258,7 @@ export class CommissionsComponent {
     const id = Number(raw);
     const partner = this.partners().find((p) => p.partenaireId === id);
     if (partner) {
+      this.setActiveTab('partenaires');
       this.openContracts(partner);
     }
     this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
@@ -245,6 +273,7 @@ export class CommissionsComponent {
       next: (requests) => {
         this.validationRequests.set(requests);
         this.validationLoading.set(false);
+        if (!this.tabChosen && this.validationTodoCount() === 0) this.activeTab.set('partenaires');
       },
       error: () => {
         this.validationError.set('Impossible de charger les demandes de paiement.');
@@ -532,6 +561,28 @@ export class CommissionsComponent {
 
   // Formatting -----------------------------------------------------------
 
+  plural(count: number, word: string): string {
+    return `${count} ${word}${count > 1 ? 's' : ''}`;
+  }
+
+  /** Initiales d'un nom complet (« Kone Awa » → « KA »). */
+  initials(name: string | null | undefined): string {
+    return (name ?? '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join('')
+      .toUpperCase();
+  }
+
+  /** Part (en %) des contrats en attente ou payés d'un partenaire, pour la barre de répartition. */
+  contractsShare(partner: PartnerCommissionSummary, kind: 'pending' | 'paid'): number {
+    const total = partner.pendingContractsCount + partner.paidContractsCount;
+    if (total === 0) return 0;
+    return ((kind === 'pending' ? partner.pendingContractsCount : partner.paidContractsCount) / total) * 100;
+  }
+
   typeLabel(type: TypePartenaire): string {
     if (type === 'DIRECT') return 'Direct';
     if (type === 'AGENT') return 'Agent';
@@ -542,6 +593,10 @@ export class CommissionsComponent {
     if (type === 'DIRECT') return 'info';
     if (type === 'AGENT') return 'neutral';
     return 'warning';
+  }
+
+  formatNumber(value: number): string {
+    return new Intl.NumberFormat('fr-FR').format(value);
   }
 
   formatAmount(value: number): string {
