@@ -4,7 +4,6 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map, switchMap } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { SpinnerComponent } from '@coreui/angular';
 
 import { SycaPayService } from '../../core/sycapay/sycapay.service';
 import { sycapayErrorMessage } from '../../core/sycapay/sycapay-errors';
@@ -76,7 +75,7 @@ const STATUS_LABEL: Record<SycaPayTransactionStatus, string> = {
   UNKNOWN: 'Indéterminé',
 };
 
-/** Variante visuelle d'un statut — suffixe des classes .sp-chip--* (src/scss/_sycapay.scss). */
+/** Variante visuelle d'un statut — suffixe des classes .cm-badge--* (src/scss/_commissions.scss). */
 const STATUS_VARIANT: Record<SycaPayTransactionStatus, string> = {
   PENDING: 'neutral',
   PROCESSING: 'info',
@@ -110,7 +109,7 @@ interface TimelineStep {
 @Component({
   selector: 'app-sycapay',
   templateUrl: './sycapay.component.html',
-  imports: [SpinnerComponent, ReactiveFormsModule, AlertMessageComponent],
+  imports: [ReactiveFormsModule, AlertMessageComponent],
   host: { '(document:keydown.escape)': 'detailVisible() && closeDetail()' },
 })
 export class SycaPayComponent {
@@ -427,6 +426,10 @@ export class SycaPayComponent {
       return this.soldeValue(b) - this.soldeValue(a);
     }),
   );
+
+  /** Compte des commissions (Wave) en grande carte ; les autres opérateurs en tableau compact. */
+  readonly commissionBalances = computed(() => this.sortedBalances().filter((r) => this.isCommissionAccount(r)));
+  readonly otherBalances = computed(() => this.sortedBalances().filter((r) => !this.isCommissionAccount(r)));
 
   readonly balanceAgeLabel = computed(() => {
     const fetched = this.balanceLastFetched();

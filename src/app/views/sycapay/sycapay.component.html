@@ -1,54 +1,68 @@
 @if (!isAdmin()) {
   <p class="dl-empty">Ce module est réservé aux administrateurs.</p>
 } @else {
-<div class="sp">
-  <!-- ============================================================ EN-TÊTE ============================================================ -->
-  <header class="sp-header">
-    <div class="sp-header-row">
-      <div class="sp-heading">
-        <span class="sp-eyebrow">Commissions</span>
-        <h1 class="sp-title">Paiements SycaPay</h1>
-        <p class="sp-subtitle">Virements Wave des commissions commerciaux et partenaires — suivi du jour, solde marchand et historique.</p>
-      </div>
-      <div class="sp-actions">
-        @if (view() === 'dashboard' && dashboardFetchedAt(); as fetched) {
-          <span class="sp-muted">Mis à jour à {{ formatTime(fetched.toISOString()) }}</span>
-        }
-        <button (click)="refreshCurrentView()" [disabled]="refreshing()" class="sp-btn" type="button">
-          @if (refreshing()) { <c-spinner size="sm" /> } @else {
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
-          }
-          Actualiser
-        </button>
-        @if (view() === 'solde') {
-          <button (click)="fetchBalance(true)" [disabled]="balanceLoading()" class="sp-btn sp-btn--primary" type="button" title="Ignore le cache serveur (~20 s) et interroge SycaPay directement">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-            Lire en direct chez SycaPay
-          </button>
-        }
-      </div>
-    </div>
+<!-- Harmonisation de l'écran Paiements SycaPay (maquette validée le 2026-10-06) avec les écrans refondus :
+     styles dans scss/_paiements-sycapay.scss, briques communes im-* (_import-masse.scss), cm-*
+     (_commissions.scss) et pf-* (_partenaire-affaire.scss). Structure et comportements de la refonte
+     du 2026-09-23 conservés. -->
+<svg class="im-sprite" aria-hidden="true">
+  <symbol id="sy-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" /></symbol>
+  <symbol id="sy-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+  <symbol id="sy-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></symbol>
+  <symbol id="sy-redo" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3L20 9m0-5v5h-5M20 12a8 8 0 0 1-14 5.3L4 15m0 5v-5h5" /></symbol>
+  <symbol id="sy-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></symbol>
+  <symbol id="sy-warn" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></symbol>
+  <symbol id="sy-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3M7 15h10" /></symbol>
+  <symbol id="sy-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+  <symbol id="sy-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></symbol>
+  <symbol id="sy-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></symbol>
+  <symbol id="sy-send" viewBox="0 0 24 24"><path d="M4 12 20 5l-6 15-2.5-6.5z" /></symbol>
+</svg>
 
-    <nav class="sp-tabs" aria-label="Sections SycaPay">
-      <button (click)="setView('dashboard')" [attr.aria-current]="view() === 'dashboard' ? 'page' : null" class="sp-tab" type="button">Tableau de bord</button>
-      <button (click)="setView('solde')" [attr.aria-current]="view() === 'solde' ? 'page' : null" class="sp-tab" type="button">Solde marchand</button>
-      <button (click)="setView('transactions')" [attr.aria-current]="view() === 'transactions' ? 'page' : null" class="sp-tab" type="button">
-        Transactions
-        @if (statusCounts(); as counts) {
-          <span class="sp-tab-count">{{ counts.total }}</span>
+<div class="pz-scope im cm pf sy">
+  <!-- ============================================================ EN-TÊTE ============================================================ -->
+  <div class="im-head">
+    <div>
+      <h1>Paiements SycaPay</h1>
+      <p>Virements Wave des commissions commerciaux et partenaires — suivi du jour, solde marchand et historique.</p>
+    </div>
+    <div class="sy-actions">
+      @if (view() === 'dashboard' && dashboardFetchedAt(); as fetched) {
+        <small>Mis à jour à {{ formatTime(fetched.toISOString()) }}</small>
+      }
+      <button (click)="refreshCurrentView()" [disabled]="refreshing()" class="im-btn" type="button">
+        @if (refreshing()) {
+          <span class="im-spin"></span>
+        } @else {
+          <svg class="im-i"><use href="#sy-redo" /></svg>
         }
+        Actualiser
       </button>
-    </nav>
-  </header>
+      @if (view() === 'solde') {
+        <button (click)="fetchBalance(true)" [disabled]="balanceLoading()" class="im-btn im-btn--primary" type="button" title="Ignore le cache serveur (~20 s) et interroge SycaPay directement">
+          <svg class="im-i"><use href="#sy-bolt" /></svg>Lire en direct chez SycaPay
+        </button>
+      }
+    </div>
+  </div>
+
+  <nav class="sy-tabs" aria-label="Sections SycaPay">
+    <button (click)="setView('dashboard')" [attr.aria-current]="view() === 'dashboard' ? 'page' : null" [class.cm-on]="view() === 'dashboard'" class="cm-tab" type="button">Tableau de bord</button>
+    <button (click)="setView('solde')" [attr.aria-current]="view() === 'solde' ? 'page' : null" [class.cm-on]="view() === 'solde'" class="cm-tab" type="button">Solde marchand</button>
+    <button (click)="setView('transactions')" [attr.aria-current]="view() === 'transactions' ? 'page' : null" [class.cm-on]="view() === 'transactions'" class="cm-tab" type="button">
+      Transactions
+      @if (statusCounts(); as counts) {
+        <span class="cm-count sy-count">{{ counts.total }}</span>
+      }
+    </button>
+  </nav>
 
   @if (dashboard()?.testMode) {
-    <div class="sp-notice sp-notice--info" role="status">
-      <span class="sp-notice-icon">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6" /><path d="M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3" /><path d="M7 15h10" /></svg>
-      </span>
-      <div class="sp-notice-body">
-        <strong>Mode test : virements et SMS de commission partent vers {{ formatPhone(dashboard()!.testPhone ?? '') }} ({{ formatNumber(dashboard()!.testAmount ?? 0) }} FCFA par virement)</strong>
-        <span>Les commissions restent enregistrées à leur montant réel ; chaque SMS indique son vrai destinataire. Les SMS de connexion et les SMS clients ne sont pas redirigés.</span>
+    <div class="sy-notice sy-notice--info" role="status">
+      <span class="sy-notice-ico"><svg class="im-i"><use href="#sy-flask" /></svg></span>
+      <div>
+        <b>Mode test : virements et SMS de commission partent vers {{ formatPhone(dashboard()!.testPhone ?? '') }} ({{ formatNumber(dashboard()!.testAmount ?? 0) }} FCFA par virement)</b>
+        Les commissions restent enregistrées à leur montant réel ; chaque SMS indique son vrai destinataire. Les SMS de connexion et les SMS clients ne sont pas redirigés.
       </div>
     </div>
   }
@@ -56,89 +70,71 @@
   <!-- ============================================================ TABLEAU DE BORD ============================================================ -->
   @if (view() === 'dashboard') {
     @if (dashboardError()) {
-      <p class="dl-empty">{{ dashboardError() }} <button (click)="fetchDashboard()" class="sp-link" type="button">Réessayer</button></p>
+      <p class="cm-empty">{{ dashboardError() }} <button (click)="fetchDashboard()" class="cm-link" type="button">Réessayer</button></p>
     } @else if (dashboardLoading() && !dashboard()) {
-      <p class="dl-empty">Chargement du tableau de bord…</p>
+      <p class="cm-empty">Chargement du tableau de bord…</p>
     } @else if (dashboard(); as d) {
       @if (d.paiementsUnknown > 0) {
-        <div class="sp-notice sp-notice--warning">
-          <span class="sp-notice-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
-          </span>
-          <div class="sp-notice-body">
-            <strong>{{ d.paiementsUnknown }} paiement{{ d.paiementsUnknown > 1 ? 's' : '' }} d'issue incertaine à vérifier</strong>
-            <span>SycaPay n'a pas confirmé le virement. Ne le relancez pas : réconciliez-le pour connaître son statut réel.</span>
+        <div class="sy-notice sy-notice--warning">
+          <span class="sy-notice-ico"><svg class="im-i"><use href="#sy-warn" /></svg></span>
+          <div>
+            <b>{{ d.paiementsUnknown }} paiement{{ d.paiementsUnknown > 1 ? 's' : '' }} d'issue incertaine à vérifier</b>
+            SycaPay n'a pas confirmé le virement. Ne le relancez pas : réconciliez-le pour connaître son statut réel.
           </div>
-          <button (click)="showTransactionsWithStatus('UNKNOWN')" class="sp-btn sp-btn--warning" type="button">Réconcilier</button>
+          <button (click)="showTransactionsWithStatus('UNKNOWN')" class="im-btn sy-btn--warn" type="button">Réconcilier</button>
         </div>
       }
 
-      <section class="sp-grid sp-grid--hero">
-        <div class="sp-card sp-card--lg">
-          <div class="sp-hero-row">
-            <div class="sp-stat">
-              <span class="sp-stat-label">Montant payé aujourd'hui (confirmé)</span>
-              <span class="sp-amount sp-amount--xl">{{ formatNumber(d.montantPayeAujourdhui) }} <small>FCFA</small></span>
+      <section class="sy-hero">
+        <div class="im-card sy-hcard">
+          <div class="sy-hrow">
+            <div>
+              <span class="sy-lbl">Montant payé aujourd'hui (confirmé)</span>
+              <span class="sy-big">{{ formatNumber(d.montantPayeAujourdhui) }}<small>FCFA</small></span>
             </div>
-            <div class="sp-stat sp-stat--end">
-              <span class="sp-stat-label">Paiements initiés</span>
-              <span class="sp-amount sp-amount--lg">{{ d.paiementsDuJour }}</span>
+            <div class="sy-end">
+              <span class="sy-lbl">Paiements initiés</span>
+              <span class="sy-mid">{{ d.paiementsDuJour }}</span>
             </div>
           </div>
-          <div class="sp-bar" role="img" [attr.aria-label]="'Répartition : ' + d.paiementsSuccess + ' réussi(s), ' + d.paiementsPending + ' en attente, ' + d.paiementsFailed + ' échoué(s), ' + d.paiementsUnknown + ' indéterminé(s)'">
+          <div class="sy-segbar" role="img" [attr.aria-label]="'Répartition : ' + d.paiementsSuccess + ' réussi(s), ' + d.paiementsPending + ' en attente, ' + d.paiementsFailed + ' échoué(s), ' + d.paiementsUnknown + ' indéterminé(s)'">
             @for (segment of dashboardSegments(); track segment.variant) {
-              <span [class]="'sp-bar-seg sp-bg--' + segment.variant" [style.flex-grow]="segment.count"></span>
+              <i [class]="'sy-c--' + segment.variant" [style.flex-grow]="segment.count"></i>
             }
           </div>
-          <div class="sp-legend">
-            <span><i class="sp-bg--success"></i>Réussis · {{ d.paiementsSuccess }}</span>
-            <span><i class="sp-bg--info"></i>En attente / en cours · {{ d.paiementsPending }}</span>
-            <span><i class="sp-bg--danger"></i>Échoués · {{ d.paiementsFailed }}</span>
-            <span><i class="sp-bg--warning"></i>Indéterminés · {{ d.paiementsUnknown }}</span>
+          <div class="sy-stats">
+            <button (click)="showTransactionsWithStatus('SUCCESS')" class="sy-stat" type="button">
+              <i class="sy-c--success"></i><span><b>{{ d.paiementsSuccess }}</b>Réussis</span>
+            </button>
+            <div class="sy-stat">
+              <i class="sy-c--info"></i><span><b>{{ d.paiementsPending }}</b>En attente / en cours</span>
+            </div>
+            <button (click)="showTransactionsWithStatus('FAILED')" class="sy-stat" type="button">
+              <i class="sy-c--danger"></i><span><b>{{ d.paiementsFailed }}</b>Échoués</span>
+            </button>
+            <button (click)="showTransactionsWithStatus('UNKNOWN')" [class.sy-stat--alert]="d.paiementsUnknown > 0" class="sy-stat" type="button">
+              <i class="sy-c--warning"></i>
+              <span><b>{{ d.paiementsUnknown }}</b>{{ d.paiementsUnknown > 1 ? 'Indéterminés' : 'Indéterminé' }}@if (d.paiementsUnknown > 0) { · à réconcilier }</span>
+            </button>
           </div>
         </div>
 
-        <button (click)="setView('solde')" class="sp-card sp-card--navy" type="button">
-          <span class="sp-navy-row">
-            <span class="sp-navy-label">Solde disponible Wave</span>
-            <span class="sp-navy-pill">Compte marchand</span>
+        <button (click)="setView('solde')" class="sy-navy" type="button">
+          <span class="sy-hrow">
+            <span class="sy-lbl">Solde disponible Wave</span>
+            <span class="sy-npill">Compte marchand</span>
           </span>
           @if (waveBalance() !== null) {
-            <span class="sp-amount sp-amount--lg">{{ formatNumber(waveBalance()!) }} <small>FCFA</small></span>
+            <span class="sy-mid">{{ formatNumber(waveBalance()!) }}<small>FCFA</small></span>
             @if (belowThreshold()) {
-              <span class="sp-navy-pill sp-navy-pill--alert">Sous le seuil d'alerte ({{ formatNumber(threshold()!) }} FCFA)</span>
+              <span class="sy-npill sy-npill--alert">Sous le seuil d'alerte ({{ formatNumber(threshold()!) }} FCFA)</span>
             }
           } @else if (balanceLoading()) {
-            <span class="sp-navy-label">Lecture du solde…</span>
+            <span class="sy-lbl">Lecture du solde…</span>
           } @else {
-            <span class="sp-navy-label">{{ balanceError() || 'Solde indisponible' }}</span>
+            <span class="sy-lbl">{{ balanceError() || 'Solde indisponible' }}</span>
           }
-          <span class="sp-navy-link">Voir le détail par opérateur
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
-          </span>
-        </button>
-      </section>
-
-      <section class="sp-grid sp-grid--4">
-        <button (click)="showTransactionsWithStatus('SUCCESS')" class="sp-card sp-tile" type="button">
-          <span class="sp-tile-icon sp-soft--success"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg></span>
-          <span class="sp-amount sp-amount--md">{{ d.paiementsSuccess }}</span>
-          <span class="sp-muted">Réussis</span>
-        </button>
-        <div class="sp-card sp-tile">
-          <span class="sp-tile-icon sp-soft--info"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span>
-          <span class="sp-amount sp-amount--md">{{ d.paiementsPending }}</span>
-          <span class="sp-muted">En attente / en cours</span>
-        </div>
-        <button (click)="showTransactionsWithStatus('FAILED')" class="sp-card sp-tile" type="button">
-          <span class="sp-tile-icon sp-soft--danger"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></span>
-          <span class="sp-amount sp-amount--md">{{ d.paiementsFailed }}</span>
-          <span class="sp-muted">Échoués</span>
-        </button>
-        <button (click)="showTransactionsWithStatus('UNKNOWN')" [class.sp-tile--alert]="d.paiementsUnknown > 0" class="sp-card sp-tile" type="button">
-          <span class="sp-tile-icon sp-soft--warning"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><path d="M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg></span>
-          <span class="sp-amount sp-amount--md">{{ d.paiementsUnknown }}</span>
-          <span class="sp-muted">Indéterminés @if (d.paiementsUnknown > 0) { · <strong class="sp-text--warning">à réconcilier</strong> }</span>
+          <span class="sy-nlink">Voir le détail par opérateur <svg class="im-i"><use href="#sy-arrow" /></svg></span>
         </button>
       </section>
     }
@@ -147,317 +143,312 @@
   <!-- ============================================================ SOLDE MARCHAND ============================================================ -->
   @if (view() === 'solde') {
     @if (balanceError()) {
-      <p class="dl-empty">{{ balanceError() }} <button (click)="fetchBalance(false)" class="sp-link" type="button">Réessayer</button></p>
+      <p class="cm-empty">{{ balanceError() }} <button (click)="fetchBalance(false)" class="cm-link" type="button">Réessayer</button></p>
     } @else if (balanceLoading() && balanceResults().length === 0) {
-      <p class="dl-empty">Chargement du solde…</p>
+      <p class="cm-empty">Chargement du solde…</p>
     } @else if (balanceResults().length === 0) {
-      <p class="dl-empty">Aucun opérateur actif sur ce compte marchand.</p>
+      <p class="cm-empty">Aucun opérateur actif sur ce compte marchand.</p>
     } @else {
-      <section class="sp-card sp-card--navy sp-balance-hero">
-        <div class="sp-stat">
-          <span class="sp-navy-label">Solde disponible total</span>
-          <span class="sp-amount sp-amount--xl">{{ formatNumber(totalBalance()) }} <small>FCFA</small></span>
-          <span class="sp-navy-sub">Tous opérateurs</span>
+      <section class="sy-navy sy-navy--wide">
+        <div>
+          <span class="sy-lbl">Solde disponible total</span>
+          <span class="sy-big">{{ formatNumber(totalBalance()) }}<small>FCFA</small></span>
+          <span class="sy-nsub">Tous opérateurs</span>
         </div>
         @if (balanceAgeLabel(); as age) {
-          <div class="sp-stat sp-stat--end">
-            <span class="sp-navy-pill"><i class="sp-live-dot"></i>{{ age }}</span>
-            <span class="sp-navy-sub">Cache serveur ~20 s · dernière lecture {{ formatTime(balanceLastFetched()!.toISOString()) }}</span>
+          <div class="sy-end">
+            <span class="sy-npill"><i></i>{{ age }}</span>
+            <span class="sy-nsub">Cache serveur ~20 s · dernière lecture {{ formatTime(balanceLastFetched()!.toISOString()) }}</span>
           </div>
         }
       </section>
 
-      <section class="sp-grid sp-grid--4">
-        @for (result of sortedBalances(); track result.identifiant) {
-          <article [class.sp-op--main]="isCommissionAccount(result)" class="sp-card sp-op">
-            <div class="sp-op-head">
-              <span class="sp-op-name"><i [style.background]="operatorColor(result)"></i>{{ operatorLabel(result) }}</span>
-              @if (isCommissionAccount(result)) {
-                <span class="sp-badge">Commissions</span>
-              }
+      <section class="sy-ops" [class.sy-ops--solo]="otherBalances().length === 0 || commissionBalances().length === 0">
+        @for (result of commissionBalances(); track result.identifiant) {
+          <article class="im-card sy-op sy-op--main">
+            <div class="sy-op-head">
+              <span><i class="sy-dot" [style.background]="operatorColor(result)"></i>{{ operatorLabel(result) }}</span>
+              <span class="im-badge cm-badge--info">Commissions</span>
             </div>
-            <span [class.sp-amount--empty]="soldeValue(result) === 0" class="sp-amount sp-amount--md">{{ formatNumber(soldeValue(result)) }} <small>FCFA</small></span>
-            <dl class="sp-dl">
-              <div><dt>Identifiant</dt><dd class="sp-mono">{{ result.identifiant }}</dd></div>
+            <span class="sy-mid" [class.sy-zero]="soldeValue(result) === 0">{{ formatNumber(soldeValue(result)) }}<small>FCFA</small></span>
+            <dl class="sy-dl">
+              <div><dt>Identifiant</dt><dd class="cm-mono">{{ result.identifiant }}</dd></div>
               <div><dt>Pays</dt><dd>{{ result.isopays }}</dd></div>
-              <div class="sp-dl-wide"><dt>ID marchand</dt><dd class="sp-mono">{{ result.marchandid }}</dd></div>
+              <div class="sy-dl-wide"><dt>ID marchand</dt><dd class="cm-mono">{{ result.marchandid }}</dd></div>
             </dl>
+          </article>
+        }
+        @if (otherBalances().length > 0) {
+          <article class="im-card cm-panel">
+            <div class="sy-op-head sy-op-head--list"><span>Autres opérateurs</span><small>Non utilisés pour les commissions</small></div>
+            <div class="cm-rows-head sy-g-op"><span>Opérateur</span><span class="cm-right">Solde</span><span>Identifiant</span><span>Pays</span><span>ID marchand</span></div>
+            @for (result of otherBalances(); track result.identifiant) {
+              <div class="cm-row sy-g-op">
+                <b><i class="sy-dot" [style.background]="operatorColor(result)"></i>{{ operatorLabel(result) }}</b>
+                <span class="cm-num cm-right" [class.cm-num--zero]="soldeValue(result) === 0">{{ formatNumber(soldeValue(result)) }} FCFA</span>
+                <span class="cm-mono">{{ result.identifiant }}</span>
+                <span>{{ result.isopays }}</span>
+                <span class="cm-mono">{{ result.marchandid }}</span>
+              </div>
+            }
           </article>
         }
       </section>
     }
 
-    <section class="sp-card sp-alerts" aria-labelledby="sp-alerts-title">
-      <div class="sp-alerts-head">
+    <section class="im-card sy-al" aria-labelledby="sy-alerts-title">
+      <div class="sy-al-head">
         <div>
-          <h2 id="sp-alerts-title" class="sp-alerts-title">Alertes de solde sur Telegram</h2>
-          <p class="sp-muted mb-0">Rapport du solde du lundi au samedi à 8h, et alerte (au plus une par jour, vérifiée de 9h à 19h) si le solde Wave passe sous le seuil.</p>
+          <h2 id="sy-alerts-title">Alertes de solde sur Telegram</h2>
+          <small>Rapport du solde du lundi au samedi à 8h, et alerte (au plus une par jour, vérifiée de 9h à 19h) si le solde Wave passe sous le seuil.</small>
         </div>
-        <button (click)="sendBalanceToTelegram()" [disabled]="telegramSending()" class="sp-btn" type="button">
+        <button (click)="sendBalanceToTelegram()" [disabled]="telegramSending()" class="im-btn" type="button">
           @if (telegramSending()) {
-            <c-spinner size="sm" />
+            <span class="im-spin"></span>
+          } @else {
+            <svg class="im-i"><use href="#sy-send" /></svg>
           }
           Envoyer le solde maintenant
         </button>
       </div>
 
       @if (telegramMessage(); as message) {
-        <p [class]="'sp-alerts-feedback sp-text--' + message.variant" role="status">{{ message.text }}</p>
+        <p [class]="'sy-feedback sy-text--' + message.variant" role="status">{{ message.text }}</p>
       }
       @if (alertSettingsError(); as message) {
-        <p class="sp-alerts-feedback sp-text--danger">{{ message }} <button (click)="fetchAlertSettings()" class="sp-link" type="button">Réessayer</button></p>
+        <p class="sy-feedback sy-text--danger">{{ message }} <button (click)="fetchAlertSettings()" class="cm-link" type="button">Réessayer</button></p>
       }
 
       @if (thresholdConfig() && reportConfig()) {
-        <div class="sp-alerts-body">
-          <div class="form-check form-switch sp-switch">
+        <div class="sy-al-body">
+          <div class="form-check form-switch sy-switch">
             <input (change)="toggleReport()" [checked]="reportEnabled()" [disabled]="reportSaving()" class="form-check-input" id="sp-report" role="switch" type="checkbox" />
             <label class="form-check-label" for="sp-report">
-              <strong>{{ reportEnabled() ? 'Rapport et alerte activés' : 'Rapport et alerte désactivés' }}</strong>
-              <span class="sp-sub d-block">Désactivé : ni rapport quotidien ni alerte de seuil.</span>
+              <b>{{ reportEnabled() ? 'Rapport et alerte activés' : 'Rapport et alerte désactivés' }}</b>
+              <small>Désactivé : ni rapport quotidien ni alerte de seuil.</small>
             </label>
           </div>
 
-          <form (submit)="$event.preventDefault(); saveThreshold()" class="sp-alerts-threshold">
-            <label class="sp-field-label" for="sp-threshold">Seuil d'alerte</label>
-            <div class="d-flex flex-wrap align-items-center gap-2">
-              <span class="sp-field">
-                <input (input)="onThresholdInput($any($event.target).value)" [disabled]="!reportEnabled()" [value]="thresholdInput()" id="sp-threshold" inputmode="numeric" name="threshold" />
-                <span>FCFA</span>
+          <form (submit)="$event.preventDefault(); saveThreshold()">
+            <label class="sy-lbl" for="sp-threshold">Seuil d'alerte</label>
+            <div class="sy-threshold">
+              <span class="sy-inp">
+                <input (input)="onThresholdInput($any($event.target).value)" [disabled]="!reportEnabled()" [value]="thresholdInput()" id="sp-threshold" inputmode="numeric" name="threshold" size="8" />
+                FCFA
               </span>
-              <button [disabled]="!thresholdDirty() || thresholdSaving() || !reportEnabled()" class="sp-btn sp-btn--primary" type="submit">
+              <button [disabled]="!thresholdDirty() || thresholdSaving() || !reportEnabled()" class="im-btn im-btn--primary" type="submit">
                 @if (thresholdSaving()) {
-                  <c-spinner size="sm" />
+                  <span class="im-spin"></span>
                 }
                 Enregistrer
               </button>
             </div>
             @if (thresholdMessage(); as message) {
-              <span [class]="'sp-sub sp-text--' + message.variant" role="status">{{ message.text }}</span>
+              <small [class]="'sy-feedback sy-text--' + message.variant" role="status">{{ message.text }}</small>
             } @else if (belowThreshold()) {
-              <span class="sp-sub sp-text--warning">Le solde Wave actuel ({{ formatNumber(waveBalance()!) }} FCFA) est sous ce seuil.</span>
+              <small class="sy-feedback sy-text--warning">Le solde Wave actuel ({{ formatNumber(waveBalance()!) }} FCFA) est sous ce seuil.</small>
             }
           </form>
         </div>
       } @else if (!alertSettingsError()) {
-        <p class="sp-muted mb-0">Chargement des réglages…</p>
+        <small>Chargement des réglages…</small>
       }
     </section>
   }
 
   <!-- ============================================================ TRANSACTIONS ============================================================ -->
   @if (view() === 'transactions') {
-    <section class="sp-card sp-card--flush">
-      <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="sp-filters">
-        <div class="sp-filter-row">
-          <label class="sp-field sp-field--grow">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+    <section class="im-card cm-panel">
+      <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+        <div class="sy-filters">
+          <label class="sy-inp sy-inp--grow">
+            <svg class="im-i"><use href="#sy-search" /></svg>
             <span class="visually-hidden">Référence</span>
             <input formControlName="reference" placeholder="Rechercher une référence exacte (ex. SYC-2026-…)" type="search" />
           </label>
-          <label class="sp-field">
-            <span class="sp-field-label">Bénéficiaire</span>
-            <select formControlName="beneficiaryType" class="sp-select">
+          <label class="sy-inp">
+            Bénéficiaire
+            <select formControlName="beneficiaryType">
               <option value="all">Tous</option>
               <option value="COMMERCIAL">Commerciaux</option>
               <option value="PARTENAIRE">Partenaires</option>
             </select>
           </label>
           @if (beneficiaryTypeFilter() !== 'all') {
-            <label class="sp-field">
-              <span class="sp-field-label">{{ beneficiaryTypeFilter() === 'PARTENAIRE' ? 'ID partenaire' : 'ID commercial' }}</span>
-              <input formControlName="beneficiaryId" class="sp-mono sp-input--short" placeholder="Tous" type="number" />
+            <label class="sy-inp">
+              {{ beneficiaryTypeFilter() === 'PARTENAIRE' ? 'ID partenaire' : 'ID commercial' }}
+              <input formControlName="beneficiaryId" class="cm-mono sy-inp-short" placeholder="Tous" type="number" />
             </label>
           }
-          <label class="sp-field">
-            <span class="sp-field-label">Du</span>
-            <input formControlName="dateStart" type="date" />
-          </label>
-          <label class="sp-field">
-            <span class="sp-field-label">Au</span>
-            <input formControlName="dateEnd" type="date" />
-          </label>
-          <button class="sp-btn sp-btn--primary" type="submit">Rechercher</button>
+          <label class="sy-inp">Du<input formControlName="dateStart" type="date" /></label>
+          <label class="sy-inp">Au<input formControlName="dateEnd" type="date" /></label>
+          <button class="im-btn im-btn--primary" type="submit">Rechercher</button>
           @if (hasActiveFilters()) {
-            <button (click)="resetFilters()" class="sp-link" type="button">Réinitialiser</button>
+            <button (click)="resetFilters()" class="cm-link" type="button">Réinitialiser</button>
           }
         </div>
-        <div class="sp-chips" role="group" aria-label="Filtrer par statut">
-          <button (click)="setStatusFilter('all')" [attr.aria-pressed]="statusFilter() === 'all'" class="sp-chip-btn" type="button">Tous@if (statusCounts(); as counts) { · {{ counts.total }} }</button>
+        <div class="sy-chips" role="group" aria-label="Filtrer par statut">
+          <button (click)="setStatusFilter('all')" [attr.aria-pressed]="statusFilter() === 'all'" [class.sy-cbtn--on]="statusFilter() === 'all'" class="sy-cbtn" type="button">
+            Tous@if (statusCounts(); as counts) { <small>{{ counts.total }}</small> }
+          </button>
           @for (status of allStatuses; track status) {
-            <button (click)="setStatusFilter(status)" [attr.aria-pressed]="statusFilter() === status" [class]="'sp-chip-btn sp-chip-btn--' + statusVariant(status)" type="button">{{ statusLabel[status] }}@if (statusCounts(); as counts) { · {{ counts[status] }} }</button>
+            <button (click)="setStatusFilter(status)" [attr.aria-pressed]="statusFilter() === status" [class.sy-cbtn--on]="statusFilter() === status" class="sy-cbtn" type="button">
+              {{ statusLabel[status] }}@if (statusCounts(); as counts) { <small>{{ counts[status] }}</small> }
+            </button>
           }
         </div>
       </form>
 
       @if (transactionsError()) {
-        <p class="dl-empty">{{ transactionsError() }} <button (click)="fetchTransactions()" class="sp-link" type="button">Réessayer</button></p>
+        <p class="cm-empty">{{ transactionsError() }} <button (click)="fetchTransactions()" class="cm-link" type="button">Réessayer</button></p>
       } @else if (transactionsLoading() && transactions().length === 0) {
-        <p class="dl-empty">Chargement des transactions…</p>
+        <p class="cm-empty">Chargement des transactions…</p>
       } @else if (transactions().length === 0) {
-        <p class="dl-empty">Aucune transaction pour ces filtres.</p>
+        <p class="cm-empty">Aucune transaction pour ces filtres.</p>
       } @else {
-        <div class="sp-table-scroll">
-          <table class="sp-table">
-            <thead>
-              <tr>
-                <th scope="col">Référence</th>
-                <th scope="col">Bénéficiaire</th>
-                <th scope="col" class="sp-num">Montant</th>
-                <th scope="col">Statut</th>
-                <th scope="col">Demandée le</th>
-                <th scope="col"><span class="visually-hidden">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (transaction of transactions(); track transaction.id) {
-                <tr [class.sp-row--alert]="transaction.status === 'UNKNOWN'">
-                  <td>
-                    <div class="sp-mono sp-strong">{{ transaction.transactionReference }}@if (transaction.testMode) { <span class="sp-test-badge">Test</span> }</div>
-                    <div class="sp-sub">{{ transactionSubject(transaction) }} · {{ beneficiaryLabel(transaction) }}</div>
-                  </td>
-                  <td>
-                    {{ transaction.beneficiaryName || '—' }}
-                    @if (transaction.beneficiaryPhone) { <div class="sp-sub sp-mono">{{ transaction.beneficiaryPhone }}</div> }
-                  </td>
-                  <td class="sp-num sp-mono sp-strong">{{ formatNumber(transaction.amount) }} FCFA</td>
-                  <td>
-                    <span [class]="'sp-chip sp-chip--' + statusVariant(transaction.status)"><i></i>{{ statusLabel[transaction.status] }}</span>
-                    @if (transaction.status === 'FAILED' && transaction.errorMessage) {
-                      <div class="sp-sub sp-text--danger">{{ transaction.errorMessage }}</div>
-                    }
-                  </td>
-                  <td>
-                    {{ formatDate(transaction.requestDate) }}
-                    <div class="sp-sub">{{ formatTime(transaction.requestDate) }}</div>
-                  </td>
-                  <td class="sp-num">
-                    @if (transaction.status === 'UNKNOWN') {
-                      <button (click)="openDetail(transaction)" class="sp-btn sp-btn--sm sp-btn--warning" type="button">Réconcilier</button>
-                    } @else if (transaction.status === 'PROCESSING') {
-                      <button (click)="openDetail(transaction)" class="sp-btn sp-btn--sm" type="button">Vérifier</button>
-                    } @else {
-                      <button (click)="openDetail(transaction)" [attr.aria-label]="'Voir le détail de ' + transaction.transactionReference" class="sp-icon-btn" type="button">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-                      </button>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+        <div class="cm-rows-head sy-g-tx">
+          <span>Référence</span><span>Bénéficiaire</span><span class="cm-right">Montant</span><span>Statut</span><span>Demandée le</span><span></span>
         </div>
+        @for (transaction of transactions(); track transaction.id) {
+          <div (click)="openDetail(transaction)" class="cm-row sy-g-tx pf-click" [class.sy-row--alert]="transaction.status === 'UNKNOWN'">
+            <div>
+              <b class="cm-mono">{{ transaction.transactionReference }}</b>@if (transaction.testMode) { <span class="sy-test">Test</span> }
+              <small class="cm-detail cm-detail--flush">{{ transactionSubject(transaction) }}</small>
+            </div>
+            <div class="cm-who">
+              <span class="im-av">{{ initials(transaction.beneficiaryName) }}</span>
+              <div>
+                <b>{{ transaction.beneficiaryName || '—' }}</b>
+                <small>{{ beneficiaryLabel(transaction) }}@if (transaction.beneficiaryPhone) { · <span class="cm-mono">{{ transaction.beneficiaryPhone }}</span> }</small>
+              </div>
+            </div>
+            <span class="cm-num cm-num--big cm-right">{{ formatNumber(transaction.amount) }} FCFA</span>
+            <div>
+              <span [class]="'im-badge cm-badge--' + statusVariant(transaction.status)">{{ statusLabel[transaction.status] }}</span>
+              @if (transaction.status === 'FAILED' && transaction.errorMessage) {
+                <small class="cm-detail sy-text--danger">{{ transaction.errorMessage }}</small>
+              }
+            </div>
+            <div>
+              {{ formatDate(transaction.requestDate) }}
+              <small class="cm-detail cm-detail--flush">{{ formatTime(transaction.requestDate) }}</small>
+            </div>
+            <div class="sy-act">
+              @if (transaction.status === 'UNKNOWN') {
+                <button class="im-btn cm-btn-sm sy-btn--warn" type="button">Réconcilier</button>
+              } @else if (transaction.status === 'PROCESSING') {
+                <button class="im-btn cm-btn-sm" type="button">Vérifier</button>
+              } @else {
+                <button [attr.aria-label]="'Voir le détail de ' + transaction.transactionReference" class="sy-chev" type="button">
+                  <svg class="im-i"><use href="#sy-chev" /></svg>
+                </button>
+              }
+            </div>
+          </div>
+        }
 
-        <div class="sp-table-foot">
-          <span><strong>{{ transactionsTotalElements() }}</strong> transaction{{ (transactionsTotalElements() ?? 0) > 1 ? 's' : '' }} · page {{ transactionsPage() + 1 }} sur {{ transactionsTotalPages() }}</span>
-          <div class="sp-pager">
-            <button (click)="goToTransactionsPage(transactionsPage() - 1)" [disabled]="transactionsLoading() || transactionsPage() === 0" aria-label="Page précédente" class="sp-icon-btn sp-icon-btn--bordered" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
-            </button>
-            <button (click)="goToTransactionsPage(transactionsPage() + 1)" [disabled]="transactionsLoading() || transactionsPage() + 1 >= transactionsTotalPages()" aria-label="Page suivante" class="sp-icon-btn sp-icon-btn--bordered" type="button">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-            </button>
+        <div class="cm-foot">
+          <span><b>{{ transactionsTotalElements() }}</b> transaction{{ (transactionsTotalElements() ?? 0) > 1 ? 's' : '' }} · page {{ transactionsPage() + 1 }} sur {{ transactionsTotalPages() }}</span>
+          <div class="cm-pager">
+            <button (click)="goToTransactionsPage(transactionsPage() - 1)" [disabled]="transactionsLoading() || transactionsPage() === 0" class="im-btn cm-btn-sm" type="button">Précédent</button>
+            <button (click)="goToTransactionsPage(transactionsPage() + 1)" [disabled]="transactionsLoading() || transactionsPage() + 1 >= transactionsTotalPages()" class="im-btn cm-btn-sm" type="button">Suivant</button>
           </div>
         </div>
       }
     </section>
   }
-</div>
 
-<!-- ============================================================ DÉTAIL (PANNEAU LATÉRAL) ============================================================ -->
-@if (detailVisible()) {
-  @if (selectedTransaction(); as t) {
-    <div (click)="closeDetail()" class="sp-drawer-backdrop"></div>
-    <aside aria-labelledby="sp-drawer-title" aria-modal="true" class="sp-drawer" role="dialog">
-      <div class="sp-drawer-head">
-        <div class="sp-drawer-top">
-          <span class="sp-drawer-chips">
-            <span [class]="'sp-chip sp-chip--lg sp-chip--' + statusVariant(t.status)"><i></i>{{ statusLabel[t.status] }}</span>
-            @if (t.testMode) { <span class="sp-test-badge sp-test-badge--lg" title="Virement redirigé par le mode test : montant et numéro de test">Test</span> }
-          </span>
-          <button (click)="closeDetail()" aria-label="Fermer" class="sp-icon-btn sp-icon-btn--filled" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-          </button>
+  <!-- ============================================================ DÉTAIL (PANNEAU LATÉRAL) ============================================================ -->
+  @if (detailVisible()) {
+    @if (selectedTransaction(); as t) {
+      <div (click)="closeDetail()" class="cm-backdrop"></div>
+      <aside aria-labelledby="sy-drawer-title" aria-modal="true" class="cm-drawer" role="dialog">
+        <div class="cm-d-head sy-d-head">
+          <div class="cm-d-top">
+            <span [class]="'im-badge sy-badge--lg cm-badge--' + statusVariant(t.status)">{{ statusLabel[t.status] }}</span>
+            @if (t.testMode) { <span class="sy-test" title="Virement redirigé par le mode test : montant et numéro de test">Test</span> }
+            <span class="im-sp"></span>
+            <button (click)="closeDetail()" aria-label="Fermer" class="cm-ibtn" type="button">
+              <svg class="im-i"><use href="#sy-x" /></svg>
+            </button>
+          </div>
+          <h2 id="sy-drawer-title" class="sy-d-ref">{{ t.transactionReference }}</h2>
+          <span class="sy-mid">{{ formatNumber(t.amount) }}<small>{{ t.currency === 'XOF' ? 'FCFA' : t.currency }}</small></span>
+          <small class="sy-d-sub">{{ transactionSubject(t) }} · {{ beneficiaryLabel(t) }}</small>
         </div>
-        <h2 id="sp-drawer-title" class="sp-mono sp-drawer-ref">{{ t.transactionReference }}</h2>
-        <span class="sp-amount sp-amount--lg">{{ formatNumber(t.amount) }} <small>{{ t.currency === 'XOF' ? 'FCFA' : t.currency }}</small></span>
-        <span class="sp-muted"><strong>{{ transactionSubject(t) }}</strong> · <strong>{{ beneficiaryLabel(t) }}</strong></span>
-      </div>
 
-      <div class="sp-drawer-body">
-        @if (reconcileError(); as message) {
-          <app-alert-message [message]="message" />
-        }
-        @if (reconcileNoChange()) {
-          <div class="sp-notice sp-notice--info">
-            <div class="sp-notice-body">
-              <strong>Statut inchangé</strong>
-              <span>SycaPay n'a pas encore d'information exploitable sur ce virement. Réessayez plus tard.</span>
+        <div class="cm-d-body">
+          @if (reconcileError(); as message) {
+            <app-alert-message class="d-block mb-3" [message]="message" />
+          }
+          @if (reconcileNoChange()) {
+            <div class="cm-banner cm-banner--inset sy-banner sy-banner--info">
+              <svg class="im-i"><use href="#sy-warn" /></svg>
+              <span><b>Statut inchangé</b>SycaPay n'a pas encore d'information exploitable sur ce virement. Réessayez plus tard.</span>
             </div>
-          </div>
-        }
-        @if (detailNotice(); as notice) {
-          <div [class]="'sp-notice sp-notice--' + notice.variant">
-            <div class="sp-notice-body">
-              <strong>{{ notice.title }}</strong>
-              <span>{{ notice.text }}</span>
+          }
+          @if (detailNotice(); as notice) {
+            <div [class]="'cm-banner cm-banner--inset sy-banner sy-banner--' + notice.variant + ' cm-banner--' + notice.variant">
+              <svg class="im-i"><use href="#sy-warn" /></svg>
+              <span><b>{{ notice.title }}</b>{{ notice.text }}</span>
             </div>
-          </div>
-        }
+          }
 
-        <section class="sp-section">
-          <h3>Suivi</h3>
-          <ol class="sp-timeline">
-            @for (step of timeline(); track step.label) {
-              <li [class]="'sp-step sp-step--' + step.state">
-                <span class="sp-step-dot">
-                  @if (step.state === 'done') { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg> }
-                  @if (step.state === 'failed') { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg> }
-                </span>
-                <span class="sp-step-label">{{ step.label }}</span>
-                <span class="sp-mono sp-sub">{{ formatDateTime(step.date) }}</span>
-              </li>
-            }
-          </ol>
-        </section>
+          <section class="sy-sec">
+            <h3>Suivi</h3>
+            <ol class="sy-tl">
+              @for (step of timeline(); track step.label) {
+                <li [class]="'sy-tl--' + step.state">
+                  <span class="sy-tl-dot">
+                    @if (step.state === 'done') { <svg class="im-i"><use href="#sy-check" /></svg> }
+                    @if (step.state === 'failed') { <svg class="im-i"><use href="#sy-x" /></svg> }
+                  </span>
+                  <span>{{ step.label }}</span>
+                  <small class="cm-mono">{{ formatDateTime(step.date) }}</small>
+                </li>
+              }
+            </ol>
+          </section>
 
-        <section class="sp-section">
-          <h3>Bénéficiaire</h3>
-          <div class="sp-person">
-            <span class="sp-avatar">{{ initials(t.beneficiaryName) }}</span>
-            <div>
-              <div class="sp-strong">{{ t.beneficiaryName || 'Non renseigné' }}</div>
-              @if (t.beneficiaryPhone) { <div class="sp-mono sp-sub">{{ t.beneficiaryPhone }} · Wave</div> }
+          <section class="sy-sec">
+            <h3>Bénéficiaire</h3>
+            <div class="cm-who">
+              <span class="im-av">{{ initials(t.beneficiaryName) }}</span>
+              <div>
+                <b>{{ t.beneficiaryName || 'Non renseigné' }}</b>
+                @if (t.beneficiaryPhone) { <small class="cm-mono">{{ t.beneficiaryPhone }} · Wave</small> }
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="sp-section">
-          <h3>Côté SycaPay</h3>
-          <dl class="sp-dl">
-            <div><dt>Référence SycaPay</dt><dd [class.sp-empty]="!t.sycapayReference" class="sp-mono">{{ t.sycapayReference || 'Non communiquée' }}</dd></div>
-            <div><dt>ID transaction</dt><dd [class.sp-empty]="!t.sycapayTransactionId" class="sp-mono">{{ t.sycapayTransactionId || 'Non communiqué' }}</dd></div>
-            <div><dt>Réponse</dt><dd [class.sp-empty]="t.sycapayResponseCode === null">{{ t.sycapayResponseMessage || (t.sycapayResponseCode !== null ? 'Code ' + t.sycapayResponseCode : '—') }}</dd></div>
-            <div><dt>Code erreur</dt><dd [class.sp-empty]="!t.errorCode" class="sp-mono">{{ t.errorCode || '—' }}</dd></div>
-          </dl>
-        </section>
-      </div>
+          <section class="sy-sec">
+            <h3>Côté SycaPay</h3>
+            <dl class="sy-dl sy-dl--flush">
+              <div><dt>Référence SycaPay</dt><dd [class.sy-empty]="!t.sycapayReference" class="cm-mono">{{ t.sycapayReference || 'Non communiquée' }}</dd></div>
+              <div><dt>ID transaction</dt><dd [class.sy-empty]="!t.sycapayTransactionId" class="cm-mono">{{ t.sycapayTransactionId || 'Non communiqué' }}</dd></div>
+              <div><dt>Réponse</dt><dd [class.sy-empty]="t.sycapayResponseCode === null">{{ t.sycapayResponseMessage || (t.sycapayResponseCode !== null ? 'Code ' + t.sycapayResponseCode : '—') }}</dd></div>
+              <div><dt>Code erreur</dt><dd [class.sy-empty]="!t.errorCode" class="cm-mono">{{ t.errorCode || '—' }}</dd></div>
+            </dl>
+          </section>
+        </div>
 
-      <div class="sp-drawer-foot">
-        <button (click)="copyReference()" class="sp-btn" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg>
-          {{ referenceCopied() ? 'Référence copiée' : 'Copier la référence' }}
-        </button>
-        @if (isReconcilable(t.status)) {
-          <button (click)="reconcileSelected()" [disabled]="reconciling()" class="sp-btn sp-btn--primary sp-btn--grow" type="button">
-            @if (reconciling()) { <c-spinner size="sm" /> } @else {
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
-            }
-            Vérifier le statut chez SycaPay
+        <div class="cm-d-foot sy-d-foot">
+          <button (click)="copyReference()" class="im-btn im-btn--big" type="button">
+            <svg class="im-i"><use href="#sy-copy" /></svg>{{ referenceCopied() ? 'Référence copiée' : 'Copier la référence' }}
           </button>
-        }
-      </div>
-    </aside>
+          @if (isReconcilable(t.status)) {
+            <button (click)="reconcileSelected()" [disabled]="reconciling()" class="im-btn im-btn--primary im-btn--big sy-grow" type="button">
+              @if (reconciling()) {
+                <span class="im-spin"></span>
+              } @else {
+                <svg class="im-i"><use href="#sy-redo" /></svg>
+              }
+              Vérifier le statut chez SycaPay
+            </button>
+          }
+        </div>
+      </aside>
+    }
   }
-}
+</div>
 }
