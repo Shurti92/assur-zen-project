@@ -139,7 +139,7 @@ const baseNavItems: INavData[] = [
   {
     name: 'nav.primesObjectif',
     iconComponent: { name: 'cilChartPie' },
-    url: '/commissions/primes-objectif',
+    url: '/primes-objectif',
   },
   {
     name: 'nav.comptabilite.title',

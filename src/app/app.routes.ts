@@ -255,7 +255,7 @@ export const routes: Routes = [
         },
       },
       {
-        path: 'commissions/primes-objectif',
+        path: 'primes-objectif',
         loadComponent: () =>
           import('./views/commissions/primes-objectif/primes-objectif.component').then(
             (m) => m.PrimesObjectifComponent
