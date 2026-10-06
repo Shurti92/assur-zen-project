@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,7 +15,6 @@ import {
   FormDirective,
   FormLabelDirective,
   FormSelectDirective,
-  ProgressComponent,
   SpinnerComponent,
 } from '@coreui/angular';
 
@@ -111,8 +111,9 @@ const DETAIL_PAGE_SIZE = 10;
     ModalComponent,
     ConfirmDialogComponent,
     ThousandSeparatorDirective,
-    ProgressComponent,
+    NgTemplateOutlet,
   ],
+  host: { '(document:keydown.escape)': 'onEscape()' },
 })
 export class PartenaireAffaireComponent {
   private readonly partenaireService = inject(PartenaireService);
@@ -299,6 +300,10 @@ export class PartenaireAffaireComponent {
     this.partenaireService.list(this.pageIndex(), this.pageSize, this.searchQuery() || undefined, active, type, documentsEnAttente).subscribe({
       next: (result) => {
         this.items.set(result.content);
+        // Fiche ouverte : reprend les valeurs à jour (objectif, statut…) après une modification.
+        const open = this.selectedPartenaire();
+        const fresh = open && result.content.find((item) => item.id === open.id);
+        if (fresh) this.selectedPartenaire.set(fresh);
         this.totalElements.set(result.totalElements);
         this.totalPages.set(result.totalPages);
         this.loading.set(false);
@@ -717,6 +722,39 @@ export class PartenaireAffaireComponent {
         // Silent: le badge "Compte actif" reste simplement absent si ça échoue.
       },
     });
+  }
+
+  /** Échap ferme la fiche, sauf si une fenêtre ouverte par-dessus doit d'abord se fermer. */
+  onEscape(): void {
+    const overlayOpen =
+      this.formVisible() ||
+      !!this.deleteTarget() ||
+      !!this.resendAccessTarget() ||
+      !!this.resendAccessResult() ||
+      !!this.objectifTarget() ||
+      !!this.documentDeleteTarget() ||
+      !!this.documentRefuseTarget() ||
+      !!this.documentExpirationTarget();
+    if (!overlayOpen) this.detailVisible.set(false);
+  }
+
+  // Pagination des onglets de la fiche, passée au gabarit commun.
+  readonly goContracts = (index: number) => this.goToDetailContractsPage(index);
+  readonly goPrimeNonReversee = (index: number) => this.goToPrimeNonReverseePage(index);
+  readonly goHistorique = (index: number) => this.goToHistoriquePage(index);
+  readonly goAvenants = (index: number) => this.goToAvenantsPage(index);
+
+  initials(item: PartenaireResponse): string {
+    return `${item.nom.charAt(0)}${(item.prenoms ?? '').charAt(0)}`.toUpperCase();
+  }
+
+  formatTaux(taux: number | null): string {
+    return taux === null ? '—' : `${taux.toFixed(1).replace('.', ',')} %`;
+  }
+
+  /** Largeur de la barre de progression, bornée à 100 % (un objectif peut être dépassé). */
+  tauxWidth(taux: number | null): number {
+    return Math.max(0, Math.min(taux ?? 0, 100));
   }
 
   hasAccount(item: PartenaireResponse): boolean {

@@ -410,11 +410,12 @@
 
   // Panneau latéral ---------------------------------------------------------------
 
+  // Sous les modales CoreUI (1055) et leur fond (1050), au-dessus de l'en-tête et du menu latéral.
   .cm-backdrop {
     position: fixed;
     inset: 0;
     background: rgba(15, 20, 34, 0.45);
-    z-index: 1060;
+    z-index: 1040;
   }
 
   .cm-drawer {
@@ -424,7 +425,7 @@
     bottom: 0;
     width: min(680px, 100vw);
     background: var(--pz-card);
-    z-index: 1061;
+    z-index: 1041;
     display: flex;
     flex-direction: column;
     box-shadow: -12px 0 40px rgba(15, 20, 34, 0.18);
