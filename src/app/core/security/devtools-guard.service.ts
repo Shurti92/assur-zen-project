@@ -31,6 +31,8 @@ export class DevtoolsGuardService {
   /** F12 (tous navigateurs), Ctrl/Cmd+Shift+I/J/C/K (inspecteur, console, sélecteur d'élément,
    * console Firefox), Ctrl/Cmd+U (affichage du code source). */
   private isDevtoolsShortcut(event: KeyboardEvent): boolean {
+    // `event.key` peut être absent (autofill du navigateur, événements synthétiques).
+    if (!event.key) return false;
     const key = event.key.toUpperCase();
     if (key === 'F12') return true;
 
