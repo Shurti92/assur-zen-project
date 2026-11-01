@@ -1144,7 +1144,7 @@ export class CommercialComponent {
       case 'EN_COURS':
         return { label: 'En cours', variant: 'info' };
       case 'PAYE':
-        return { label: payment.paidAt ? `Payé le ${this.formatHistoryDate(payment.paidAt)}` : 'Payé', variant: 'ok' };
+        return { label: payment.paidAt ? `Payé le ${new Date(payment.paidAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}` : 'Payé', variant: 'ok' };
       case 'ECHEC':
         return { label: 'Échec', variant: 'danger' };
       default:
