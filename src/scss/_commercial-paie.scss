@@ -442,6 +442,7 @@
   // Responsive -------------------------------------------------------------
   @media (max-width: 1000px) {
     .cpz-row--benefits { grid-template-columns: 1fr 1fr; }
+    .cpz-chips { grid-column: 1 / -1; }
     .cpz-benefits { grid-template-columns: 1fr; }
     .cpz-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .cpz-row-head { display: none; }
