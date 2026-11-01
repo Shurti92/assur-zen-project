@@ -395,8 +395,54 @@
 
   .cpz-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 
+  // Transport et communication : paiements distincts du bonus (maquette validée le 2026-11-01) ----
+  .cpz-row--benefits,
+  .cpz-row-head--benefits {
+    grid-template-columns: minmax(190px, 1.3fr) minmax(200px, 1.3fr) minmax(120px, .8fr) minmax(130px, .9fr) minmax(220px, 1.3fr) 150px;
+  }
+
+  .cpz-chips { display: flex; flex-direction: column; gap: 6px; }
+
+  .cpz-chip-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .cpz-kpis--five { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+  .cpz-benefits {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px;
+    margin-top: -2px;
+    background: var(--pz-soft);
+    border-radius: 12px;
+  }
+
+  .cpz-benefit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    background: var(--pz-card);
+    border: 1px solid var(--pz-line);
+    border-radius: 12px;
+
+    h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--pz-muted); }
+  }
+
+  .cpz-benefit-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cpz-benefit-amount { font-size: 18px; font-weight: 700; }
+
   // Responsive -------------------------------------------------------------
   @media (max-width: 1000px) {
+    .cpz-row--benefits { grid-template-columns: 1fr 1fr; }
+    .cpz-benefits { grid-template-columns: 1fr; }
     .cpz-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .cpz-row-head { display: none; }
     .cpz-row { grid-template-columns: 1fr 1fr; }

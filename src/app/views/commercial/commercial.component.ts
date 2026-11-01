@@ -20,6 +20,8 @@ import {
 
 import { CommercialService } from '../../core/commercial/commercial.service';
 import {
+  CommercialBenefitKind,
+  CommercialBenefitPayment,
   CommercialBonusPaymentResponse,
   CommercialManagementDashboardResponse,
   CommercialMonthlyObjectiveResponse,
@@ -1121,6 +1123,42 @@ export class CommercialComponent {
   isBonusInProgress(item: CommercialPayrollEntry): boolean {
     return !item.paidAt && this.bonusNeedsReconcile(item.sycapayStatus);
   }
+
+  // Transport et communication ---------------------------------------------
+  // Affichage seulement : les actions de paiement attendent le contrat d'API du backend.
+
+  /** Vrai dès que le backend renvoie les blocs transport/communication (sinon écran inchangé). */
+  readonly hasBenefits = computed(() => this.payrollItems().some((i) => !!i.transport || !!i.communication));
+
+  benefitsOf(item: CommercialPayrollEntry): { kind: CommercialBenefitKind; label: string; shortLabel: string; payment: CommercialBenefitPayment | null }[] {
+    return [
+      { kind: 'TRANSPORT', label: 'Prime de transport', shortLabel: 'Transport', payment: item.transport ?? null },
+      { kind: 'COMMUNICATION', label: 'Indemnité de communication', shortLabel: 'Communication', payment: item.communication ?? null },
+    ];
+  }
+
+  benefitBadge(payment: CommercialBenefitPayment | null): { label: string; variant: 'neutral' | 'ok' | 'warn' | 'danger' | 'info' } {
+    switch (payment?.statut) {
+      case 'A_PAYER':
+        return { label: 'À payer', variant: 'warn' };
+      case 'EN_COURS':
+        return { label: 'En cours', variant: 'info' };
+      case 'PAYE':
+        return { label: payment.paidAt ? `Payé le ${this.formatHistoryDate(payment.paidAt)}` : 'Payé', variant: 'ok' };
+      case 'ECHEC':
+        return { label: 'Échec', variant: 'danger' };
+      default:
+        return { label: 'Non applicable', variant: 'neutral' };
+    }
+  }
+
+  readonly benefitKpis = computed(() => {
+    const total = (kind: 'transport' | 'communication') => {
+      const due = this.payrollItems().filter((i) => i[kind]?.payable);
+      return { amount: due.reduce((s, i) => s + (i[kind]?.amount ?? 0), 0), count: due.length };
+    };
+    return { transport: total('transport'), communication: total('communication') };
+  });
 
   readonly payrollKpis = computed(() => {
     const items = this.payrollItems();

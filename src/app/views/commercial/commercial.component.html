@@ -305,7 +305,7 @@
     } @else {
       @let kpis = payrollKpis();
       <!-- Indicateurs -->
-      <div class="cpz-kpis">
+      <div class="cpz-kpis" [class.cpz-kpis--five]="hasBenefits()">
         <div class="cpz-kpi">
           <div class="cpz-kpi-k">Rémunération fixe du mois</div>
           <div class="cpz-kpi-v cpz-num">{{ formatAmount(kpis.fixe) }}</div>
@@ -326,6 +326,19 @@
           <div class="cpz-kpi-v cpz-num">{{ formatAmount(kpis.payes) }}</div>
           <div class="cpz-kpi-s">{{ kpis.payesCount }} paiement{{ kpis.payesCount > 1 ? 's' : '' }} confirmé{{ kpis.payesCount > 1 ? 's' : '' }}</div>
         </div>
+        @if (hasBenefits()) {
+          @let bk = benefitKpis();
+          <div class="cpz-kpi cpz-kpi--accent">
+            <div class="cpz-kpi-k">Transport à payer</div>
+            <div class="cpz-kpi-v cpz-num">{{ formatAmount(bk.transport.amount) }}</div>
+            <div class="cpz-kpi-s">{{ bk.transport.count }} paiement{{ bk.transport.count > 1 ? 's' : '' }} prêt{{ bk.transport.count > 1 ? 's' : '' }}</div>
+          </div>
+          <div class="cpz-kpi cpz-kpi--accent">
+            <div class="cpz-kpi-k">Communication à payer</div>
+            <div class="cpz-kpi-v cpz-num">{{ formatAmount(bk.communication.amount) }}</div>
+            <div class="cpz-kpi-s">{{ bk.communication.count }} paiement{{ bk.communication.count > 1 ? 's' : '' }} prêt{{ bk.communication.count > 1 ? 's' : '' }}</div>
+          </div>
+        }
       </div>
 
       <div class="cpz-notice">
@@ -349,17 +362,20 @@
       </div>
 
       <div class="cpz-rows">
-        <div class="cpz-row-head">
+        <div class="cpz-row-head" [class.cpz-row-head--benefits]="hasBenefits()">
           <div>Commercial</div>
           <div>Atteinte de l'objectif</div>
           <div>Rémunération fixe</div>
           <div>Bonus du mois</div>
+          @if (hasBenefits()) {
+            <div>Transport · Communication</div>
+          }
           <div class="cpz-right">Action</div>
         </div>
 
         @for (item of filteredPayrollItems(); track item.commercialId) {
           @let expanded = expandedPayrollIds().has(item.commercialId);
-          <div class="cpz-row" [class.cpz-row--open]="expanded">
+          <div class="cpz-row" [class.cpz-row--open]="expanded" [class.cpz-row--benefits]="hasBenefits()">
             <button (click)="togglePayrollRow(item.commercialId)" class="cpz-who" [attr.aria-expanded]="expanded" type="button" title="Voir le détail">
               <span class="cpz-avatar">{{ initials(item.commercialNom) }}</span>
               <span class="cpz-who-text">
@@ -389,6 +405,17 @@
                 <span class="cpz-sub">{{ hint }}</span>
               }
             </div>
+            @if (hasBenefits()) {
+              <div class="cpz-chips">
+                @for (b of benefitsOf(item); track b.kind) {
+                  @let badge = benefitBadge(b.payment);
+                  <div class="cpz-chip-line">
+                    <span>{{ b.shortLabel }} @if (b.payment?.amount) { <b class="cpz-num">{{ formatAmount(b.payment?.amount ?? 0) }}</b> }</span>
+                    <span [class]="'cpz-badge cpz-b-' + badge.variant"><i></i>{{ badge.label }}</span>
+                  </div>
+                }
+              </div>
+            }
             <div class="cpz-act">
               @if (item.bonusPayable) {
                 <button (click)="openBonusPayFromPayroll(item)" class="cpz-btn cpz-btn-primary" type="button">
@@ -405,6 +432,30 @@
                 <span class="cpz-badge cpz-b-neutral"><i></i>Non atteint</span>
               }
             </div>
+            @if (expanded && hasBenefits()) {
+              <div class="cpz-benefits">
+                @for (b of benefitsOf(item); track b.kind) {
+                  @let badge = benefitBadge(b.payment);
+                  <div class="cpz-benefit">
+                    <h4>{{ b.label }}</h4>
+                    <div class="cpz-benefit-line">
+                      <span class="cpz-benefit-amount cpz-num" [class.cpz-muted]="!b.payment?.amount">{{ b.payment?.amount ? formatAmount(b.payment?.amount ?? 0) : '—' }}</span>
+                      <span [class]="'cpz-badge cpz-b-' + badge.variant"><i></i>{{ badge.label }}</span>
+                    </div>
+                    @if (b.payment?.sycapayMessage) {
+                      <div class="cpz-sub">{{ b.payment?.sycapayMessage }}</div>
+                    } @else if (b.payment?.statut === 'NON_APPLICABLE') {
+                      <div class="cpz-sub">Aucun montant configuré pour ce commercial</div>
+                    }
+                    @if (b.payment?.sycapayTransactionId; as txId) {
+                      <div class="cpz-benefit-line">
+                        <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: txId }" class="cpz-btn cpz-btn-ghost">Voir le virement</a>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
             @if (expanded) {
               <div class="cpz-detail">
                 <div><span>Salaire de base</span><b class="cpz-num">{{ formatAmount(item.baseSalary) }}</b></div>

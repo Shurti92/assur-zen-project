@@ -277,6 +277,28 @@ export interface CommercialPayrollEntry {
   modePaiement: CommercialBonusModePaiement | null;
   sycapayTransactionId: number | null;
   sycapayTransactionReference: string | null;
+  /** PROVISOIRE — blocs de paiement du transport et de la communication, en attente de confirmation
+   * du contrat d'API par le backend (demande envoyée le 2026-11-01). Absents tant que le backend ne les
+   * renvoie pas : l'écran n'affiche alors rien de nouveau. */
+  transport?: CommercialBenefitPayment | null;
+  communication?: CommercialBenefitPayment | null;
+}
+
+export type CommercialBenefitKind = 'TRANSPORT' | 'COMMUNICATION';
+
+export type CommercialBenefitStatut = 'A_PAYER' | 'EN_COURS' | 'PAYE' | 'ECHEC' | 'NON_APPLICABLE';
+
+/** PROVISOIRE — voir CommercialPayrollEntry.transport. */
+export interface CommercialBenefitPayment {
+  amount: number | null;
+  payable: boolean;
+  statut: CommercialBenefitStatut;
+  sycapayStatus: SycaPayTransactionStatus | null;
+  sycapayTransactionId: number | null;
+  sycapayTransactionReference: string | null;
+  sycapayMessage: string | null;
+  paidAt: string | null;
+  modePaiement: CommercialBonusModePaiement | null;
 }
 
 /** GET /commercials/options — force de vente interne proposée dans la liste « Commercial » de la
