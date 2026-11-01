@@ -277,9 +277,8 @@ export interface CommercialPayrollEntry {
   modePaiement: CommercialBonusModePaiement | null;
   sycapayTransactionId: number | null;
   sycapayTransactionReference: string | null;
-  /** PROVISOIRE — blocs de paiement du transport et de la communication, en attente de confirmation
-   * du contrat d'API par le backend (demande envoyée le 2026-11-01). Absents tant que le backend ne les
-   * renvoie pas : l'écran n'affiche alors rien de nouveau. */
+  /** Paiements distincts du transport et de la communication (indépendants du bonus). Absents sur un
+   * backend qui ne les renvoie pas : l'écran n'affiche alors rien de plus. */
   transport?: CommercialBenefitPayment | null;
   communication?: CommercialBenefitPayment | null;
 }
@@ -288,8 +287,9 @@ export type CommercialBenefitKind = 'TRANSPORT' | 'COMMUNICATION';
 
 export type CommercialBenefitStatut = 'A_PAYER' | 'EN_COURS' | 'PAYE' | 'ECHEC' | 'NON_APPLICABLE';
 
-/** PROVISOIRE — voir CommercialPayrollEntry.transport. */
+/** Bloc d'état d'un avantage (transport ou communication) — `payable` vaut true pour A_PAYER et ECHEC. */
 export interface CommercialBenefitPayment {
+  type: CommercialBenefitKind;
   amount: number | null;
   payable: boolean;
   statut: CommercialBenefitStatut;
@@ -299,6 +299,58 @@ export interface CommercialBenefitPayment {
   sycapayMessage: string | null;
   paidAt: string | null;
   modePaiement: CommercialBonusModePaiement | null;
+  paymentReference: string | null;
+  paymentId: number | null;
+}
+
+/** POST /commercials/{id}/payroll/{moisId}/transport|communication/pay — 404 inconnu, 409 déjà payé /
+ * virement en cours / numéro Wave absent, 422 non applicable. */
+export interface CommercialBenefitPaymentRequest {
+  reference?: string;
+  motif?: string;
+}
+
+/** sycapayStatus : SUCCESS (payé), PROCESSING/UNKNOWN (ne pas relancer), FAILED (relançable),
+ * REJECTED (aucune tentative), null en mode ENREGISTREMENT_MANUEL. */
+export interface CommercialBenefitPaymentResponse {
+  avantage: CommercialBenefitPayment;
+  modePaiement: CommercialBonusModePaiement;
+  sycapayStatus: SycaPayTransactionStatus | 'REJECTED' | null;
+  sycapayTransactionReference: string | null;
+  sycapayMessage: string | null;
+}
+
+/** GET /commercial-payroll/summary?moisComptableId= — agrégats calculés côté API. */
+export interface CommercialPayrollSummary {
+  moisComptableId: number;
+  transportAPayerTotal: number;
+  transportAPayerCount: number;
+  communicationAPayerTotal: number;
+  communicationAPayerCount: number;
+  transportPayeTotal: number;
+  transportPayeCount: number;
+  communicationPayeTotal: number;
+  communicationPayeCount: number;
+}
+
+/** GET /commercial-performance/payments?commercialId=&type= — historique, plus récent d'abord. */
+export interface CommercialPaymentHistoryEntry {
+  type: 'BONUS' | CommercialBenefitKind;
+  paymentId: number;
+  commercialId: number;
+  commercialNom: string;
+  employeeCode: string | null;
+  moisComptableId: number;
+  moisLibelle: string;
+  amount: number | null;
+  statut: CommercialBenefitStatut | string;
+  modePaiement: CommercialBonusModePaiement | null;
+  paymentReference: string | null;
+  paidAt: string | null;
+  sycapayStatus: SycaPayTransactionStatus | null;
+  sycapayTransactionId: number | null;
+  sycapayTransactionReference: string | null;
+  sycapayMessage: string | null;
 }
 
 /** GET /commercials/options — force de vente interne proposée dans la liste « Commercial » de la

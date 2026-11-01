@@ -3,6 +3,11 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  CommercialBenefitKind,
+  CommercialBenefitPaymentRequest,
+  CommercialBenefitPaymentResponse,
+  CommercialPaymentHistoryEntry,
+  CommercialPayrollSummary,
   CommercialBonusPaymentRequest,
   CommercialBonusPaymentResponse,
   CommercialFilter,
@@ -171,5 +176,32 @@ export class CommercialService {
   payroll(moisComptableId: number): Observable<CommercialPayrollEntry[]> {
     const params = new HttpParams().set('moisComptableId', moisComptableId);
     return this.http.get<CommercialPayrollEntry[]>('/commercial-payroll', { params });
+  }
+
+  payrollSummary(moisComptableId: number): Observable<CommercialPayrollSummary> {
+    const params = new HttpParams().set('moisComptableId', moisComptableId);
+    return this.http.get<CommercialPayrollSummary>('/commercial-payroll/summary', { params });
+  }
+
+  /** Paiement réel du transport ou de la communication — virement SycaPay, ou enregistrement manuel si
+   * SycaPay est désactivé ; toujours lire `sycapayStatus` de la réponse. */
+  payBenefit(
+    kind: CommercialBenefitKind,
+    commercialId: number,
+    moisComptableId: number,
+    payload: CommercialBenefitPaymentRequest,
+  ): Observable<CommercialBenefitPaymentResponse> {
+    const segment = kind === 'TRANSPORT' ? 'transport' : 'communication';
+    return this.http.post<CommercialBenefitPaymentResponse>(
+      `/commercials/${commercialId}/payroll/${moisComptableId}/${segment}/pay`,
+      payload,
+    );
+  }
+
+  /** Historique des paiements de transport et de communication (sans `type` : les trois types). */
+  benefitPayments(type: CommercialBenefitKind, commercialId?: number): Observable<CommercialPaymentHistoryEntry[]> {
+    let params = new HttpParams().set('type', type);
+    if (commercialId) params = params.set('commercialId', commercialId);
+    return this.http.get<CommercialPaymentHistoryEntry[]>('/commercial-performance/payments', { params });
   }
 }

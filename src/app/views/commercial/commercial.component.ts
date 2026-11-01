@@ -1,4 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { forkJoin } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -22,6 +23,9 @@ import { CommercialService } from '../../core/commercial/commercial.service';
 import {
   CommercialBenefitKind,
   CommercialBenefitPayment,
+  CommercialBenefitPaymentResponse,
+  CommercialPaymentHistoryEntry,
+  CommercialPayrollSummary,
   CommercialBonusPaymentResponse,
   CommercialManagementDashboardResponse,
   CommercialMonthlyObjectiveResponse,
@@ -56,6 +60,19 @@ type DetailView = 'objectifsAnnuels' | 'objectifsMensuels' | 'performance';
 type CommissionContractStatusFilter = 'all' | 'pending' | 'paid';
 
 const PAGE_SIZE = 20;
+
+/** Transport ou communication à payer, ouvert depuis l'onglet Paie. */
+interface BenefitPayTarget {
+  kind: CommercialBenefitKind;
+  commercialId: number;
+  commercialNom: string;
+  moisComptableId: number;
+  moisLibelle: string;
+  amount: number | null;
+  telephoneMasque: string | null;
+  /** Paiement précédent échoué : une nouvelle tentative est lancée. */
+  relance: boolean;
+}
 
 /** Bonus à payer, ouvert depuis l'historique de performance d'un commercial ou depuis l'onglet Paie. */
 interface BonusPayTarget {
@@ -916,6 +933,7 @@ export class CommercialComponent {
   readonly bonusHistoryError = signal<string | null>(null);
 
   fetchBonusHistory(): void {
+    this.fetchBenefitHistory();
     this.bonusHistoryLoading.set(true);
     this.bonusHistoryError.set(null);
     this.commercialService.bonusPayments().subscribe({
@@ -1038,6 +1056,10 @@ export class CommercialComponent {
     if (!moisId) return;
     this.payrollLoading.set(true);
     this.payrollError.set(null);
+    this.commercialService.payrollSummary(Number(moisId)).subscribe({
+      next: (summary) => this.benefitSummary.set(summary),
+      error: () => this.benefitSummary.set(null),
+    });
     this.commercialService.payroll(Number(moisId)).subscribe({
       next: (items) => {
         this.payrollItems.set(items);
@@ -1152,13 +1174,154 @@ export class CommercialComponent {
     }
   }
 
+  /** Agrégats calculés côté API (GET /commercial-payroll/summary). */
+  readonly benefitSummary = signal<CommercialPayrollSummary | null>(null);
+
   readonly benefitKpis = computed(() => {
-    const total = (kind: 'transport' | 'communication') => {
-      const due = this.payrollItems().filter((i) => i[kind]?.payable);
-      return { amount: due.reduce((s, i) => s + (i[kind]?.amount ?? 0), 0), count: due.length };
+    const s = this.benefitSummary();
+    return {
+      transport: { amount: s?.transportAPayerTotal ?? 0, count: s?.transportAPayerCount ?? 0 },
+      communication: { amount: s?.communicationAPayerTotal ?? 0, count: s?.communicationAPayerCount ?? 0 },
     };
-    return { transport: total('transport'), communication: total('communication') };
   });
+
+  // Paiement du transport / de la communication (virement SycaPay réel, ou enregistrement manuel) ----
+
+  readonly benefitPayTarget = signal<BenefitPayTarget | null>(null);
+  readonly benefitPayReference = signal('');
+  readonly benefitPaying = signal(false);
+  readonly benefitPayError = signal<string | null>(null);
+  readonly benefitPayResult = signal<CommercialBenefitPaymentResponse | null>(null);
+
+  openBenefitPay(item: CommercialPayrollEntry, kind: CommercialBenefitKind): void {
+    const payment = kind === 'TRANSPORT' ? item.transport : item.communication;
+    if (!payment?.payable) return;
+    this.benefitPayTarget.set({
+      kind,
+      commercialId: item.commercialId,
+      commercialNom: item.commercialNom,
+      moisComptableId: item.moisComptableId,
+      moisLibelle: item.moisLibelle,
+      amount: payment.amount,
+      telephoneMasque: item.telephoneMasque,
+      relance: payment.statut === 'ECHEC',
+    });
+    this.benefitPayReference.set('');
+    this.benefitPayError.set(null);
+    this.benefitPayResult.set(null);
+  }
+
+  closeBenefitPay(): void {
+    if (this.benefitPaying()) return;
+    this.benefitPayTarget.set(null);
+    this.benefitPayResult.set(null);
+    this.benefitPayError.set(null);
+  }
+
+  payBenefit(): void {
+    const target = this.benefitPayTarget();
+    if (!target || this.benefitPaying()) return;
+    this.benefitPaying.set(true);
+    this.benefitPayError.set(null);
+    this.commercialService
+      .payBenefit(target.kind, target.commercialId, target.moisComptableId, { reference: this.benefitPayReference().trim() || undefined })
+      .subscribe({
+        next: (result) => {
+          this.benefitPaying.set(false);
+          this.benefitPayResult.set(result);
+          this.refreshAfterBenefitPayment();
+        },
+        error: (err: unknown) => {
+          this.benefitPaying.set(false);
+          this.benefitPayError.set(sycapayErrorMessage(err, extractErrorMessage(err, 'Impossible de payer cet avantage. Réessayez.'), 'pay'));
+          this.refreshAfterBenefitPayment();
+        },
+      });
+  }
+
+  private refreshAfterBenefitPayment(): void {
+    if (this.payrollMoisId()) this.fetchPayroll();
+    this.fetchBenefitHistory();
+  }
+
+  benefitKindLabel(kind: CommercialBenefitKind): string {
+    return kind === 'TRANSPORT' ? 'la prime de transport' : "l'indemnité de communication";
+  }
+
+  benefitPayResultVariant(result: CommercialBenefitPaymentResponse): 'success' | 'warning' | 'danger' | 'info' {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL' || result.sycapayStatus === 'SUCCESS') return 'success';
+    if (result.sycapayStatus === 'PROCESSING') return 'info';
+    if (result.sycapayStatus === 'UNKNOWN') return 'warning';
+    return 'danger';
+  }
+
+  benefitPayResultTitle(result: CommercialBenefitPaymentResponse): string {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL') return 'Paiement enregistré';
+    switch (result.sycapayStatus) {
+      case 'SUCCESS':
+        return 'Paiement effectué';
+      case 'PROCESSING':
+        return 'Virement en cours';
+      case 'UNKNOWN':
+        return 'Issue du virement incertaine';
+      case 'FAILED':
+        return 'Virement échoué';
+      default:
+        return 'Paiement non effectué';
+    }
+  }
+
+  benefitPayResultDetail(result: CommercialBenefitPaymentResponse): string {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL') {
+      return 'SycaPay est désactivé : le paiement a été enregistré (virement effectué hors application).';
+    }
+    switch (result.sycapayStatus) {
+      case 'SUCCESS':
+        return `Virement Wave confirmé${result.sycapayTransactionReference ? ' (réf. ' + result.sycapayTransactionReference + ')' : ''}. L'écriture comptable est créée.`;
+      case 'PROCESSING':
+      case 'UNKNOWN':
+        return 'Ne relancez pas le paiement : un double virement est possible. Utilisez « Réconcilier » pour vérifier son statut auprès de SycaPay.';
+      case 'FAILED':
+        return `${this.sycapayMessageLabel(result.sycapayMessage) || 'Le virement a échoué'}. Aucun montant n'est parti : le paiement peut être relancé.`;
+      default:
+        return `${this.sycapayMessageLabel(result.sycapayMessage) || "Aucun virement n'a été tenté"}.`;
+    }
+  }
+
+  // Historique transport et communication ----------------------------------------------------------
+
+  readonly benefitHistory = signal<CommercialPaymentHistoryEntry[]>([]);
+  readonly benefitHistoryError = signal<string | null>(null);
+
+  fetchBenefitHistory(): void {
+    this.benefitHistoryError.set(null);
+    forkJoin([this.commercialService.benefitPayments('TRANSPORT'), this.commercialService.benefitPayments('COMMUNICATION')]).subscribe({
+      next: ([transport, communication]) => {
+        const date = (e: CommercialPaymentHistoryEntry) => (e.paidAt ? new Date(e.paidAt).getTime() : 0);
+        this.benefitHistory.set([...transport, ...communication].sort((a, b) => date(b) - date(a)));
+      },
+      error: () => this.benefitHistoryError.set("Impossible de charger l'historique du transport et de la communication."),
+    });
+  }
+
+  benefitHistoryState(entry: CommercialPaymentHistoryEntry): 'ok' | 'danger' | 'info' {
+    if (entry.statut === 'PAYE') return 'ok';
+    if (entry.statut === 'ECHEC') return 'danger';
+    return 'info';
+  }
+
+  benefitHistoryLabel(entry: CommercialPaymentHistoryEntry): string {
+    switch (entry.statut) {
+      case 'PAYE':
+        return 'Payé';
+      case 'ECHEC':
+        return 'Échec';
+      case 'EN_COURS':
+        return 'En cours';
+      default:
+        return 'À payer';
+    }
+  }
 
   readonly payrollKpis = computed(() => {
     const items = this.payrollItems();

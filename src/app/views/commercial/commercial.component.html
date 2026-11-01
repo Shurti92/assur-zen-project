@@ -447,9 +447,20 @@
                     } @else if (b.payment?.statut === 'NON_APPLICABLE') {
                       <div class="cpz-sub">Aucun montant configuré pour ce commercial</div>
                     }
-                    @if (b.payment?.sycapayTransactionId; as txId) {
+                    @if (b.payment?.payable || b.payment?.sycapayTransactionId) {
                       <div class="cpz-benefit-line">
-                        <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: txId }" class="cpz-btn cpz-btn-ghost">Voir le virement</a>
+                        @if (b.payment?.statut === 'EN_COURS') {
+                          <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(b.payment?.sycapayTransactionId ?? null, b.payment?.sycapayTransactionReference ?? null)" class="cpz-btn cpz-btn-warn">Réconcilier</a>
+                        } @else if (b.payment?.sycapayTransactionId; as txId) {
+                          <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: txId }" class="cpz-btn cpz-btn-ghost">Voir le virement</a>
+                        } @else {
+                          <span></span>
+                        }
+                        @if (b.payment?.payable) {
+                          <button (click)="openBenefitPay(item, b.kind)" class="cpz-btn cpz-btn-primary" type="button">
+                            {{ b.payment?.statut === 'ECHEC' ? 'Relancer le paiement' : 'Payer ' + (b.kind === 'TRANSPORT' ? 'le transport' : 'la communication') }}
+                          </button>
+                        }
                       </div>
                     }
                   </div>
@@ -525,6 +536,45 @@
               <div class="cpz-hide-sm"><span [class]="'cpz-badge cpz-b-' + state"><i></i>{{ historyLabel(item) }}</span></div>
               <div class="cpz-hide-sm cpz-sub cpz-num">{{ formatHistoryDate(item.paidAt ?? item.sycapayRequestDate) }}</div>
               <div class="cpz-tl-amount cpz-num" [class.cpz-muted]="state === 'danger'">{{ formatAmount(item.bonusAmount) }}</div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <!-- Historique transport et communication -->
+    <div class="cpz-history">
+      <div class="cpz-toolbar">
+        <h3>Historique du transport et de la communication</h3>
+        <button (click)="fetchBenefitHistory()" class="cpz-btn cpz-btn-ghost" type="button">Actualiser</button>
+      </div>
+      @if (benefitHistoryError()) {
+        <p class="dl-empty">{{ benefitHistoryError() }} <button (click)="fetchBenefitHistory()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+      } @else if (benefitHistory().length === 0) {
+        <p class="dl-empty">Aucun paiement de transport ou de communication pour le moment.</p>
+      } @else {
+        <ul class="cpz-tl">
+          @for (entry of benefitHistory(); track entry.type + entry.paymentId) {
+            @let state = benefitHistoryState(entry);
+            <li>
+              <div [class]="'cpz-tl-icon ' + state">
+                @if (state === 'ok') {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+                } @else if (state === 'danger') {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                } @else {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                }
+              </div>
+              <div class="cpz-tl-main">
+                <b>{{ entry.commercialNom || '—' }}</b> · <span class="cpz-muted">{{ entry.moisLibelle }}</span>
+                <div class="cpz-sub">
+                  {{ entry.type === 'TRANSPORT' ? 'Transport' : 'Communication' }}{{ entry.modePaiement === 'ENREGISTREMENT_MANUEL' ? ' · enregistré hors application' : entry.sycapayTransactionReference ? ' · réf. ' + entry.sycapayTransactionReference : '' }}
+                </div>
+              </div>
+              <div class="cpz-hide-sm"><span [class]="'cpz-badge cpz-b-' + state"><i></i>{{ benefitHistoryLabel(entry) }}</span></div>
+              <div class="cpz-hide-sm cpz-sub cpz-num">{{ formatHistoryDate(entry.paidAt) }}</div>
+              <div class="cpz-tl-amount cpz-num" [class.cpz-muted]="state === 'danger'">{{ formatAmount(entry.amount ?? 0) }}</div>
             </li>
           }
         </ul>
@@ -1414,6 +1464,72 @@
           <button (click)="closeBonusPay()" [disabled]="bonusPaying()" class="cpz-btn cpz-btn-outline" type="button">Annuler</button>
           <button (click)="payBonus()" [disabled]="bonusPaying()" class="cpz-btn cpz-btn-primary" type="button">
             @if (bonusPaying()) {
+              <c-spinner size="sm" />
+            }
+            Confirmer le paiement
+          </button>
+        </div>
+      </div>
+    }
+  }
+</app-modal>
+
+<!-- ================= Modale paiement du transport / de la communication ================= -->
+<app-modal
+  [visible]="!!benefitPayTarget()"
+  [title]="benefitPayTarget()?.kind === 'TRANSPORT' ? 'Payer la prime de transport' : 'Payer l\'indemnité de communication'"
+  (closed)="closeBenefitPay()"
+>
+  @if (benefitPayTarget(); as target) {
+    @if (benefitPayError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    @if (benefitPayResult(); as result) {
+      <section [class]="'sp-payresult sp-payresult--' + benefitPayResultVariant(result)" aria-labelledby="cm-benefit-payresult-title">
+        <header class="sp-payresult-head">
+          <span [class]="'sp-payresult-icon sp-soft--' + benefitPayResultVariant(result)">
+            @if (benefitPayResultVariant(result) === 'success') {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+            }
+          </span>
+          <div class="sp-payresult-title">
+            <h3 id="cm-benefit-payresult-title">{{ benefitPayResultTitle(result) }}</h3>
+            <p>{{ benefitPayResultDetail(result) }}</p>
+          </div>
+        </header>
+        @if (bonusNeedsReconcile(result.sycapayStatus)) {
+          <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(result.avantage.sycapayTransactionId, result.sycapayTransactionReference)" class="sp-btn sp-btn--sm sp-btn--warning">Réconcilier</a>
+        }
+      </section>
+      <div class="d-flex justify-content-end mt-3">
+        <button (click)="closeBenefitPay()" cButton color="secondary" type="button" variant="outline">Fermer</button>
+      </div>
+    } @else {
+      <div class="pz-scope cpz">
+        <div class="cpz-pay-hero">
+          <div class="cpz-pay-lbl">{{ target.kind === 'TRANSPORT' ? 'Transport' : 'Communication' }} {{ moisDe(target.moisLibelle) }}</div>
+          <div class="cpz-pay-big cpz-num">{{ formatAmount(target.amount ?? 0) }}</div>
+          <div class="cpz-pay-sub">{{ target.commercialNom }}{{ target.telephoneMasque ? ' · Wave ' + target.telephoneMasque : '' }}</div>
+        </div>
+        @if (target.relance) {
+          <p class="cpz-warn-text">Le virement précédent a échoué sans qu'aucun montant ne parte : une nouvelle tentative va être lancée.</p>
+        }
+        <ol class="cpz-steps">
+          <li><b>1</b>Le montant est celui de la fiche du commercial : il est figé au paiement. Le bonus n'est pas concerné.</li>
+          <li><b>2</b>Le virement Wave est envoyé après vérification du solde SycaPay (ou enregistré tel quel si SycaPay est désactivé).</li>
+          <li><b>3</b>Une fois confirmé : avantage payé et écriture comptable créée.</li>
+        </ol>
+        <div class="cpz-field">
+          <label for="benefit-payment-reference">Référence (facultatif)</label>
+          <input [ngModel]="benefitPayReference()" (ngModelChange)="benefitPayReference.set($event)" id="benefit-payment-reference" maxlength="100" [placeholder]="'Ex. ' + (target.kind === 'TRANSPORT' ? 'transport ' : 'communication ') + moisDe(target.moisLibelle)" type="text" />
+        </div>
+        <div class="cpz-modal-foot">
+          <button (click)="closeBenefitPay()" [disabled]="benefitPaying()" class="cpz-btn cpz-btn-outline" type="button">Annuler</button>
+          <button (click)="payBenefit()" [disabled]="benefitPaying()" class="cpz-btn cpz-btn-primary" type="button">
+            @if (benefitPaying()) {
               <c-spinner size="sm" />
             }
             Confirmer le paiement
