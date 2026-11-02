@@ -1,0 +1,124 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <packaging>pom</packaging>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.0</version>
+    <relativePath/>
+  </parent>
+
+  <modules>
+    <module>assur-zen-gateway</module>
+    <module>assur-zen-jms</module>
+    <module>assur-zen-jpa</module>
+    <module>assur-zen-mail</module>
+  </modules>
+
+  <groupId>ci.assurzen</groupId>
+  <artifactId>assur-zen-portal</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <name>assur-zen-portal</name>
+
+  <properties>
+    <spring-cloud.version>2025.1.0</spring-cloud.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <java.version>21</java.version>
+  </properties>
+
+  <dependencies>
+    <!-- ✅ Spring Boot 4.0.0 + Spring Cloud 2025.1.0 -->
+
+    <!-- 1. Web (inchangé, toujours le même) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter</artifactId>
+    </dependency>
+
+    <!-- 2. Actuator — le bon artifact (starter, pas juste actuator) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- 3. DevTools (inchangé) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <scope>runtime</scope>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- 4. Lombok — version gérée par le parent Spring Boot, ne pas fixer la version -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- 5. Swagger — Springfox est abandonné, remplacé par SpringDoc OpenAPI 3 -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>3.0.2</version>
+    </dependency>
+
+    <!-- 6. HttpClient — httpclient 4.x remplacé par HttpClient 5 -->
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+      <!-- version gérée par Spring Boot BOM -->
+    </dependency>
+
+    <!-- 7. Micrometer — version gérée par Spring Boot BOM, ne pas fixer -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+    </dependency>
+
+    <!-- 7bis. Registre Prometheus — expose /actuator/prometheus au format scrape -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <!-- 8. Tests — JUnit 5 natif, plus besoin d'exclusion ni de junit 3.x -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- 10. Sécurité (inchangé) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <release>21</release>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -1,0 +1,349 @@
+# ==========================================================
+# APPLICATION — Configuration COMMUNE a tous les environnements
+# ==========================================================
+#
+# Regle : ce fichier ne doit contenir QUE ce qui est identique en TEST et en PROD.
+# Tout ce qui differe par environnement (datasource, ddl-auto, show-sql, sql.init...)
+# vit UNIQUEMENT dans application-test.yml / application-prod.yml.
+#
+# Spring Boot charge TOUJOURS application.yml, puis merge par-dessus le fichier du
+# profil actif (application-{profile}.yml) : en cas de cle en commun, le fichier de
+# profil gagne. Voir la note d'architecture jointe pour le detail de cette resolution.
+
+spring:
+
+  application:
+    name: assur-zen-gateway
+
+  # Profil actif PAR DEFAUT si aucun n'est fourni au demarrage. Sert de filet de securite
+  # local ; en TEST/PROD reels, toujours le passer explicitement au lancement plutot que
+  # de compter sur cette valeur (cf. section "ordre de priorite" de la documentation jointe).
+  profiles:
+    active: dev # test ou prod ou dev
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+  # ========================================================
+  # MAIL — active le JavaMailSender auto-configure par Spring Boot.
+  # Reutilise les memes variables d'env que mail.smtp.* (source unique), necessaire depuis
+  # l'ajout de MailService pour les campagnes marketing par email (module Fidelisation).
+  # ========================================================
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:25}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+
+  # ========================================================
+  # SSL BUNDLE
+  # ========================================================
+
+  ssl:
+    bundle:
+      jks:
+        gateway:
+          keystore:
+            location: classpath:certs/gateway.p12
+            password: ${SSL_KEYSTORE_PASSWORD:}
+            type: PKCS12
+            alias: assurzen-gateway
+
+  # ========================================================
+  # ACTIVEMQ
+  # ========================================================
+
+  activemq:
+    broker-url: ${ACTIVEMQ_URL:tcp://localhost:61616?jms.useAsyncSend=true&jms.watchTopicAdvisories=false}
+    username: ${ACTIVEMQ_USERNAME:admin}
+    password: ${ACTIVEMQ_PASSWORD:}
+
+    packages:
+      trust-all: true
+
+  # ========================================================
+  # JMS
+  # ========================================================
+
+  jms:
+    pub-sub-domain: false
+
+    listener:
+      acknowledge-mode: client
+      auto-startup: true
+      concurrency: 1
+      max-concurrency: 20
+
+# ==========================================================
+# SERVER
+# ==========================================================
+
+server:
+
+  port: ${SERVER_PORT:9190}
+
+  error:
+    # include-message a "always" faisait fuiter le message brut de N'IMPORTE QUELLE exception non
+    # geree (ex. messages Hibernate internes comme "Query did not return a unique result") a
+    # n'importe quel client, y compris en PROD (rien ne differait par profil). Faille remontee par
+    # l'audit de securite pre-production du 2026-08-23. Les exceptions metier volontaires restent
+    # normalisees via GlobalExceptionHandler/AuthExceptionHandler (@RestControllerAdvice), qui
+    # composent eux-memes leur propre message controle - ce comportement est inchange.
+    include-message: never
+    include-stacktrace: never
+
+  servlet:
+    session:
+      timeout: 15m
+
+  http2:
+    enabled: true
+
+  ssl:
+    enabled: true
+    bundle: gateway
+
+    enabled-protocols:
+      - TLSv1.3
+      - TLSv1.2
+
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      - TLS_CHACHA20_POLY1305_SHA256
+
+# ==========================================================
+# MANAGEMENT
+# ==========================================================
+
+management:
+
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  endpoint:
+    health:
+      # "always" exposait le detail des composants (DB, disque...) a tout appelant non
+      # authentifie sur /actuator/health - confirme en audit pre-prod (2026-08-25). Le detail
+      # reste utile en interne : SecurityConfig protege desormais /actuator/health/** derriere
+      # hasRole('ADMIN'), seule la racine /actuator/health (statut UP/DOWN nu) reste publique
+      # pour un load balancer, donc "never" ici est le bon defaut pour ce cas non authentifie.
+      show-details: never
+
+  metrics:
+    tags:
+      application: assur-zen-gateway
+
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# ==========================================================
+# LOGGING (niveaux communs ; affinage par profil dans application-{profile}.yml)
+# ==========================================================
+
+logging:
+
+  level:
+    root: INFO
+    ci.assurzen: DEBUG
+    org.springframework.security: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.web: INFO
+    org.springframework.jms: INFO
+    org.apache.activemq: INFO
+
+# ==========================================================
+# CUSTOM APPLICATION
+# ==========================================================
+
+app:
+  name: AssurZen Gateway
+  version: 1.0.0
+  api-prefix: /api-assur-zen
+  tls:
+    enabled: true
+  partenaire:
+    # Lien inclus dans le SMS de bienvenue partenaire (PartenaireService, contrat "Lien application
+    # dans le SMS de bienvenue partenaire", 2026-08-30) - defaut sandbox ici (confort dev/test local),
+    # explicitement redefini en prod (application-prod.yml).
+    lien-connexion: ${PARTENAIRE_LIEN_CONNEXION:https://assurzen.ci/partenaire-sandbox/login}
+  vignette:
+    # Base du lien de suivi public envoye par SMS (LienSuiviVignetteService) - {token} y est ajoute
+    # en query param. Domaine confirme par l'utilisateur le 2026-09-17 (meme convention sandbox/prod
+    # que app.partenaire.lien-connexion ci-dessus).
+    suivi-lien-base-url: ${VIGNETTE_SUIVI_LIEN_BASE_URL:https://assurzen.ci/suivi-sandbox/vignette}
+  cors:
+    # Liste separee par des virgules (binding Spring List<String>, lue comme des ALLOWED ORIGIN
+    # PATTERNS - "*" autorise un joker, cf. SecurityConfig.corsConfigurationSource()).
+    # medicis-apps.com : frontend de recette distant (assur-zen-gateway-recette), ajoute suite a un
+    # blocage CORS reel constate en prod (preflight OPTIONS /auth/login rejete faute
+    # d'Access-Control-Allow-Origin).
+    # vente-red.vercel.app / vente-*-dore772-6340s-projects.vercel.app : retires le 2026-08-23 sur
+    # demande explicite (remplaces par assurzen.ci) - ne plus reajouter sans confirmation.
+    # assurzen.ci / www.assurzen.ci : futur frontend "Espace Partenaire", ajoute le 2026-08-23 avant
+    # meme son deploiement (demande explicite) - a retirer si le domaine final differe.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,https://medicis-apps.com,https://assurzen.ci,https://www.assurzen.ci}
+  config:
+    # Cle de chiffrement (AES-256-GCM) des configurations sensibles en base, dont les identifiants
+    # SycaPay (2026-09-24). AUCUNE valeur par defaut ici : a fournir par l'environnement uniquement
+    # (secret >= 32 caracteres, sel hexadecimal). Sans elles, l'enregistrement de valeurs sensibles
+    # est refuse et les identifiants SycaPay restent lus depuis les variables d'environnement.
+    # Ne JAMAIS changer ces valeurs sans re-saisir les configurations sensibles (illisibles sinon).
+    encryption-secret: ${APP_CONFIG_ENCRYPTION_SECRET:}
+    encryption-salt: ${APP_CONFIG_ENCRYPTION_SALT:}
+  jwt:
+    secret: ${JWT_SECRET:}
+    access-ttl-seconds: ${JWT_ACCESS_TTL_SECONDS:3600}
+    refresh-ttl-seconds: ${JWT_REFRESH_TTL_SECONDS:604800}
+  logs:
+    file: ${LOG_FILE:./logs/assur-zen-portal/assur-zen-portal-logger-ci.log}
+  uploads:
+    sinistres-dir: ${SINISTRES_UPLOADS_DIR:./uploads/sinistres}
+    satisfaction-imports-dir: ${SATISFACTION_IMPORTS_DIR:./uploads/satisfaction-imports}
+    reclamations-dir: ${RECLAMATIONS_UPLOADS_DIR:./uploads/reclamations}
+    partenaires-dir: ${PARTENAIRES_UPLOADS_DIR:./uploads/partenaires}
+    fleet-imports-dir: ${FLEET_IMPORTS_UPLOADS_DIR:./uploads/fleet-imports}
+    ged-dir: ${GED_UPLOADS_DIR:./uploads/ged}
+    paiements-dir: ${PAIEMENTS_UPLOADS_DIR:./uploads/paiements}
+  geoip:
+    # Historique de connexion (GeoIpLookupService) : chemins locaux des bases MaxMind GeoLite2
+    # (.mmdb). Vides par defaut - tant qu'aucun fichier n'est present a ces chemins, la
+    # geolocalisation reste simplement inactive (pas d'erreur), cf. plan "Historique de connexion".
+    city-db-path: ${GEOIP_CITY_DB_PATH:}
+    asn-db-path: ${GEOIP_ASN_DB_PATH:}
+    # Necessaires uniquement pour la mise a jour mensuelle automatique (GeoIpDatabaseUpdateScheduler) -
+    # compte gratuit sur maxmind.com. Sans ces deux valeurs, le job mensuel se contente de logger un
+    # avertissement ; les fichiers .mmdb peuvent aussi etre deposes manuellement aux chemins ci-dessus.
+    account-id: ${GEOIP_ACCOUNT_ID:}
+    license-key: ${GEOIP_LICENSE_KEY:}
+
+# ==========================================================
+# ACTIVEMQ QUEUE
+# ==========================================================
+
+activemq:
+
+  message-queue: assur-zen-queue
+
+# ==========================================================
+# ARTEMIS
+# ==========================================================
+
+artemis:
+  redelivery:
+    max-attempts: 5
+    dead-letter-queue: DLQ.mail.queue
+
+# ==========================================================
+# MAIL
+# ==========================================================
+
+mail:
+  smtp:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:25}
+    auth: false
+    starttls:
+      enable: true
+
+mailer:
+  from:
+    address: ${MAIL_FROM:noreply.espace-partenaire@allianz.com}
+    name: AssurZen Assurance Côte d'Ivoire
+
+  cc:
+    mail: ${MAIL_CC:info@assurzen.ci}
+
+# ==========================================================
+# SMS
+# ==========================================================
+
+credential:
+  sms:
+    bearer: ${SMS_BEARER:}
+    sender: ASSUR ZEN
+    mock: ${SMS_MOCK:false}
+    base-url: ${SMS_BASE_URL:https://apis.letexto.com/v1/messages}
+  telegram:
+    enabled: ${TELEGRAM_ENABLED:true}
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    chat-id: ${TELEGRAM_CHAT_ID:}
+
+# ==========================================================
+# SYCAPAY — paiement des commissions commerciales (virement Wave)
+# ==========================================================
+# merchant-id/api-key/secret-key : PAS de valeur reelle par defaut (contrairement a
+# credential.sms.bearer/telegram.bot-token ci-dessus, qui committent des secrets reels en clair -
+# pattern preexistant, volontairement NON reproduit ici). Defaut = chaine vide, sans risque tant que
+# sycapay.enabled reste false (SycaPayProperties.validate() fait echouer le demarrage si enabled=true
+# avec un champ obligatoire vide, plutot que de tenter silencieusement un appel avec des identifiants
+# invalides). A fournir uniquement via variables d'environnement, par environnement (DEV/RECETTE/PROD).
+sycapay:
+  enabled: ${SYCAPAY_ENABLED:false}
+  base-url: ${SYCAPAY_BASE_URL:https://www.sycaretail.com/delivery/v1}
+  merchant-id: ${SYCAPAY_MERCHANT_ID:}
+  api-key: ${SYCAPAY_API_KEY:}
+  secret-key: ${SYCAPAY_SECRET_KEY:}
+  provider: Wave
+  currency: XOF
+  language: fr
+  connect-timeout-ms: ${SYCAPAY_CONNECT_TIMEOUT_MS:5000}
+  read-timeout-ms: ${SYCAPAY_READ_TIMEOUT_MS:15000}
+  # Duree de vie du token confirmee a 40 secondes (2026-09-22).
+  token-ttl-seconds: ${SYCAPAY_TOKEN_TTL_SECONDS:40}
+  token-expiry-margin-seconds: 5
+  # Valeur par defaut confirmee (2026-09-22) - ne pas modifier sans instruction explicite.
+  type-transfer: ${SYCAPAY_TYPE_TRANSFER:1}
+  callback-success-url: ${SYCAPAY_CALLBACK_SUCCESS_URL:https://assurzen.ci/sycapay/callback/success}
+  callback-cancel-url: ${SYCAPAY_CALLBACK_CANCEL_URL:https://assurzen.ci/sycapay/callback/cancel}
+  merchant-display-name: AssurZen
+  # Cache du GET /sycapay/balance (polling frontend) UNIQUEMENT - le flux de paiement verifie toujours
+  # le solde en direct, jamais via ce cache (cf. SycaPayBalanceService/SycaPayPaymentService).
+  balance-cache-ttl-seconds: ${SYCAPAY_BALANCE_CACHE_TTL_SECONDS:20}
+  # Mode TEST (2026-09-24, SycaPayModeTest) : HORS PRODUCTION uniquement (ignore si un profil "prod" est
+  # actif). Tout virement de commission part vers le numero et le montant de test. Lu au demarrage
+  # depuis l'environnement, jamais depuis la configuration dynamique. Pas de numero par defaut.
+  test-mode:
+    enabled: ${SYCAPAY_TEST_MODE_ENABLED:false}
+    beneficiary-phone: ${SYCAPAY_TEST_MODE_PHONE:}
+    amount: ${SYCAPAY_TEST_MODE_AMOUNT:100}
+
+# ==========================================================
+# ENVIRONNEMENT
+# ==========================================================
+
+# Web Push de l'application EP (2026-09-26, sans Firebase) - une paire de cles VAPID PAR ENVIRONNEMENT.
+# AUTOMATIQUE : sans VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY, la paire est generee au premier demarrage et
+# conservee en base (cle privee chiffree, necessite APP_CONFIG_ENCRYPTION_SECRET/SALT) - VapidKeyInitializer.
+# VAPID_* dans l'environnement restent prioritaires (ex. base copiee d'un autre environnement). Jamais
+# dans Git. Format npm web-push (java deploy/GenerateVapidKeys.java). Coupure sans redeploiement :
+# cle dynamique WEBPUSH_ENABLED=false.
+webpush:
+  vapid:
+    public-key: ${VAPID_PUBLIC_KEY:}
+    private-key: ${VAPID_PRIVATE_KEY:}
+    subject: ${VAPID_SUBJECT:https://assurzen.ci}
+  ttl-seconds: ${WEBPUSH_TTL_SECONDS:86400}
+  connect-timeout-ms: 5000
+  request-timeout-ms: 10000
+  max-failures: 5
+
+env:
+  ws: /api-assur-zen/
+
+swagger:
+  version: v1.0.3
+  name: AssurZen Gateway

@@ -1,0 +1,130 @@
+# ==========================================================
+# PROFIL: PROD
+# ==========================================================
+# Active via : --spring.profiles.active=prod  (ou SPRING_PROFILES_ACTIVE=prod)
+# Base cible  : assur_zen_ci_db
+#
+# Ce fichier n'est charge par Spring Boot QUE lorsque le profil "prod" est actif
+# (convention de nommage application-{profile}.yml). Ses cles fusionnent par-dessus
+# celles d'application.yml ; en cas de collision, CE fichier gagne.
+#
+# IMPORTANT (secrets) : en PROD reelle, DB_USERNAME/DB_PASSWORD/JWT_SECRET/... doivent
+# etre injectes par l'environnement (variables d'env, secret manager, vault CI/CD) et
+# NE JAMAIS etre commit en clair.
+#
+# DB_USERNAME/DB_PASSWORD n'ont plus de defaut (audit de securite pre-production, 2026-08-25,
+# meme decision et meme raison que JWT_SECRET plus bas) : les anciens defauts (root / mot de passe
+# vide) permettaient a un deploiement qui oublierait d'injecter ces 2 variables de demarrer quand
+# meme, silencieusement, avec des identifiants faibles - au lieu d'echouer bruyamment comme on
+# pourrait s'y attendre. Le profil prod refuse desormais de demarrer sans les deux fournies
+# explicitement. Quiconque utilise le flux "simulation prod en local" doit maintenant les
+# injecter lui-meme (ex. DB_USERNAME=root DB_PASSWORD= mvn ... -Dspring-boot.run.profiles=prod).
+
+spring:
+
+  # ========================================================
+  # DATASOURCE — base de PRODUCTION
+  # ========================================================
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://localhost:3306/assur_zen_ci_db?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Africa/Abidjan}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+
+    hikari:
+      pool-name: assur-zen-hikari-prod
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 30000
+      keepalive-time: 60000
+      connection-test-query: SELECT 1
+
+  # ========================================================
+  # JPA / HIBERNATE — strict en PROD
+  # ========================================================
+  jpa:
+    show-sql: false
+    generate-ddl: true
+    hibernate:
+      # NOTE ARCHITECTE : "update" est conserve ici pour ne pas casser le mode de
+      # deploiement actuel (aucun outil de migration en place). Des que possible,
+      # passer a "validate" + un outil de migration versionne (Flyway/Liquibase) :
+      # laisser Hibernate auto-modifier le schema de PROD au boot est un risque a
+      # moyen terme (aucune tracabilite, aucun rollback possible).
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: false
+
+  # ========================================================
+  # SQL INIT — data.sql NE DOIT PAS etre rejoue en PROD a chaque redemarrage
+  # (ce fichier contient un utilisateur ADMIN de test avec mot de passe connu ;
+  # continue-on-error=true en TEST masquerait sinon des erreurs bien plus graves ici)
+  # ========================================================
+  sql:
+    init:
+      mode: never
+      continue-on-error: false
+
+# ==========================================================
+# LOGGING — sobre en PROD
+# ==========================================================
+logging:
+  level:
+    ci.assurzen: INFO
+    org.hibernate.SQL: WARN
+
+
+swagger:
+  version: v3.4.2
+  name: AssurZen Gateway Production
+
+# ==========================================================
+# CORS — liste stricte en PROD (audit de securite, point moyen n°4, 2026-08-23)
+# ==========================================================
+# application.yml (base) inclut http://localhost:5173 dans son defaut - correct pour dev, mais ce
+# defaut se propageait aussi a PROD si CORS_ALLOWED_ORIGINS n'etait pas positionnee explicitement au
+# niveau du deploiement (meme lacune de principe que SPRINGDOC_ENABLED plus haut). Ici on fige la
+# liste PROD sans le fallback dev : uniquement les frontends confirmes actifs en production.
+# vente-red.vercel.app / vente-*-dore772-6340s-projects.vercel.app : retires le 2026-08-23 sur
+# demande explicite (remplaces par assurzen.ci) - ne plus reajouter sans confirmation.
+# assurzen.ci / www.assurzen.ci : futur frontend "Espace Partenaire" (2026-08-23, ajoute avant meme
+# son deploiement) - a retirer si le domaine final differe.
+app:
+  partenaire:
+    lien-connexion: ${PARTENAIRE_LIEN_CONNEXION:https://assurzen.ci/partenaire/login}
+  vignette:
+    suivi-lien-base-url: ${VIGNETTE_SUIVI_LIEN_BASE_URL:https://assurzen.ci/suivi/vignette}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://medicis-apps.com,https://assurzen.ci,https://www.assurzen.ci}
+  jwt:
+    # Sans defaut ici (contrairement a application.yml, qui garde un defaut de confort pour
+    # dev/test local) : audit de securite pre-production (2026-08-25) a releve que le defaut
+    # "ChangeThisSecretKeyToALongRandomValueAtLeast32Chars" est un placeholder de tutoriel
+    # public, devinable - un JWT signe avec reste parfaitement valide et fonctionnel (donc
+    # aucune erreur visible), contrairement a un mot de passe DB vide qui echoue bruyamment.
+    # JWT_SECRET absent en profil prod doit desormais faire echouer le demarrage plutot que
+    # de demarrer silencieusement avec ce secret public.
+    secret: ${JWT_SECRET:}
+
+# ==========================================================
+# SPRINGDOC — desactive en PROD (audit de securite pre-production du 2026-08-23)
+# ==========================================================
+# /v3/api-docs (JSON complet des 253 endpoints) et /swagger-ui.html etaient publics
+# (SecurityConfig les laisse en permitAll, aucune distinction par profil). Ici on desactive
+# springdoc lui-meme : les endpoints ne sont plus enregistres du tout (404), quel que soit
+# l'etat de SecurityConfig. A activer explicitement (SPRINGDOC_ENABLED=true) si une recette
+# a besoin d'un acces temporaire.
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
+
+sycapay:
+  enabled: ${SYCAPAY_ENABLED:true}
+  merchant-id: ${SYCAPAY_MERCHANT_ID:}
+  api-key: ${SYCAPAY_API_KEY:}
+  secret-key: ${SYCAPAY_SECRET_KEY:}

@@ -1,0 +1,116 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ci.assurzen</groupId>
+        <artifactId>assur-zen-portal</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>assur-zen-gateway</artifactId>
+    <!-- FIX 1 : WAR → JAR (recommandé Spring Boot 4, déploiement embarqué) -->
+    <packaging>war</packaging>
+    <name>assur-zen-gateway</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>21</java.version>
+        <spring-cloud.version>2025.1.0</spring-cloud.version>
+    </properties>
+
+    <!-- FIX 2 : Spring Cloud BOM -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+
+        <!-- Modules internes -->
+        <dependency>
+            <groupId>ci.assurzen</groupId>
+            <artifactId>assur-zen-jpa</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ci.assurzen</groupId>
+            <artifactId>assur-zen-jms</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>ci.assurzen</groupId>
+            <artifactId>assur-zen-mail</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- OkHttp3 — version gérée par Spring Boot BOM -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+        </dependency>
+
+
+
+    </dependencies>
+
+    <build>
+        <finalName>${build.finalName}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                </configuration>
+            </plugin>
+
+            <!-- FIX 4 : source/target 14 → release 21 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <release>${java.version}</release>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!--
+        finalName variable par environnement, aligne sur les profils Spring deja existants
+        (application-test.yml / application-prod.yml) :
+          - mvn clean package -P test  -> assur-zen-gateway-recette.war
+          - mvn clean package -P prod  -> assur-zen-gateway.war (comportement par defaut, actif
+            meme sans -P explicite, pour ne rien casser dans les commandes/CI existantes)
+    -->
+    <profiles>
+        <profile>
+            <id>prod</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <build.finalName>assur-zen-gateway</build.finalName>
+            </properties>
+        </profile>
+        <profile>
+            <id>test</id>
+            <properties>
+                <build.finalName>assur-zen-gateway-recette</build.finalName>
+            </properties>
+        </profile>
+    </profiles>
+
+</project>

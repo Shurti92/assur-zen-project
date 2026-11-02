@@ -1,0 +1,61 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+.kotlin
+
+### Secrets / donnees locales (ajoute le 2026-09-22, git init pour la revue de securite SycaPay) ###
+# assur-zen-gateway/.env contient des secrets reels (DB_PASSWORD, SMS_BEARER, TELEGRAM_BOT_TOKEN,
+# SSL_KEYSTORE_PASSWORD...) - ne doit JAMAIS etre committe, meme localement.
+.env
+*.env
+logs/
+uploads/
+.idea/workspace.xml
+*.log
+# assur-zen-gateway/src/main/resources/certs/gateway.p12 : keystore TLS reel (cle privee incluse) -
+# ne doit JAMAIS etre committe. A l'avenir, provisionner ce fichier hors du controle de version
+# (secret manager / volume monte au deploiement), pas dans src/main/resources.
+*.p12
+*.jks
+*.pem
+# Bases GeoIP volumineuses (binaires telecharges, pas du code) + fichiers temporaires de telechargement.
+*.mmdb
+*.mmdb.tmp
+.claude/scheduled_tasks.lock
+
+### IntelliJ IDEA ###
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/libraries/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+# Config locale de Claude Code (peut contenir des secrets)
+.claude/

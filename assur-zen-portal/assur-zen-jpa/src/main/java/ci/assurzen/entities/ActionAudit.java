@@ -1,0 +1,42 @@
+package ci.assurzen.entities;
+
+public enum ActionAudit {
+    CREATE,
+    UPDATE,
+    DELETE,
+    ACTIVATE,
+    DEACTIVATE,
+    VALIDATE,
+    REJECT,
+    APPROVE,
+    CANCEL,
+    SUSPEND,
+    RESTORE,
+    EXPORT,
+    DOWNLOAD,
+    LOGIN,
+    LOGOUT,
+    PASSWORD_CHANGE,
+    PERMISSION_CHANGE,
+    CLOSE,
+    ADD,
+    REMOVE,
+    REPLACE,
+    TRANSFER,
+    ARCHIVE,
+    SUBMIT,
+    REVIEW,
+    AUTHORIZE,
+    DISBURSE,
+    REPAY,
+    // Integration SycaPay (paiement des commissions commerciales, 2026-09-22) - meme enum partage
+    // que le reste de l'audit fonctionnel, pas de systeme parallele.
+    AUTHENTICATE,
+    BALANCE_CHECK,
+    PAYMENT_INITIATED,
+    PAYMENT_SUCCESS,
+    PAYMENT_FAILED,
+    PAYMENT_UNKNOWN,
+    PAYMENT_RETRY,
+    OTHER
+}

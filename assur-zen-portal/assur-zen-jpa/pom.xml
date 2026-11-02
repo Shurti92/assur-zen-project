@@ -1,0 +1,196 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>ci.assurzen</groupId>
+        <artifactId>assur-zen-portal</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>assur-zen-jpa</artifactId>
+    <packaging>jar</packaging>
+    <name>assur-zen-jpa</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>21</java.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+    </properties>
+
+    <!-- FIX 2 : Unirest 4 — gestion via BOM, unirest-java est relocalisé vers unirest-java-core -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.konghq</groupId>
+                <artifactId>unirest-java-bom</artifactId>
+                <version>4.5.1</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+
+        <!-- JPA / Hibernate -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Caffeine — cache en memoire pour DynamicConfigurationService (moteur de configuration
+             sans redeploiement). Pas de Redis : cette app tourne en instance unique, pas de besoin
+             de synchronisation de cache cross-instance. -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
+        <!-- Spring AOP — necessaire pour @Auditable / AuditAspect (moteur d'audit fonctionnel HistoriqueModification).
+             spring-boot-starter-aop n'existe plus en tant qu'artefact gere par le parent Spring Boot 4.0.0 ;
+             spring-aop (proxying @Around) est deja transitif via spring-context, il ne manque que aspectjweaver
+             (parsing des expressions de pointcut @annotation(...)). -->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+
+        <!-- FIX 3 : mysql:mysql-connector-java → com.mysql:mysql-connector-j (Spring Boot 3+) -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spring Security Crypto — version gérée par le BOM parent -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- Gson — version gérée par Spring Boot BOM -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.12.0</version>
+        </dependency>
+        <!-- Web Push (notifications push navigateur de l'application EP, 2026-09-26) : chiffrement
+             RFC 8291 + VAPID RFC 8292 avec la seule crypto du JDK, envoi via java.net.http - aucune
+             dependance transitive (okhttp/jose4j/bouncycastle y sont optionnels ou de test). -->
+        <dependency>
+            <groupId>com.zerodeplibs</groupId>
+            <artifactId>zerodep-web-push-java</artifactId>
+            <version>2.1.2</version>
+        </dependency>
+
+        <!-- Historique de connexion : parsing du User-Agent (device/navigateur/OS). Coordonnees
+             Maven reelles du fork maintenu "uap-java" (le groupId/artifactId "ua_parser:ua-parser"
+             historique n'est plus publie sur Maven Central) - le nom de package Java reste ua_parser.* -->
+        <dependency>
+            <groupId>com.github.ua-parser</groupId>
+            <artifactId>uap-java</artifactId>
+            <version>1.6.1</version>
+        </dependency>
+
+        <!-- Historique de connexion : geolocalisation IP (ville/pays/ISP) via base locale MaxMind
+             GeoLite2 (.mmdb) - pas d'appel reseau au moment du login. -->
+        <dependency>
+            <groupId>com.maxmind.geoip2</groupId>
+            <artifactId>geoip2</artifactId>
+            <version>4.2.0</version>
+        </dependency>
+
+        <!-- Historique de connexion : extraction du .tar.gz livre par l'API de mise a jour MaxMind
+             (GeoIpDatabaseUpdateScheduler) - java.util.zip gere le gzip mais pas le format tar. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.27.1</version>
+        </dependency>
+
+        <!-- Module Gestion de flotte : import de vehicules CSV/XLSX. commons-csv (pas de parseur
+             fait-maison) evite de reproduire l'historique de bugs du parseur CSV artisanal de
+             SatisfactionImport (saut de ligne dans un champ entre guillemets). -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.12.0</version>
+        </dependency>
+        <!-- Dependance transitive requise par commons-csv 1.12.0 (UnsynchronizedBufferedReader) mais
+             non resolue automatiquement dans ce build - constate en test (NoClassDefFoundError). -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.17.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+
+        <!-- MapStruct -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!-- Spring Context Support — version gérée par le BOM parent -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context-support</artifactId>
+        </dependency>
+
+        <!-- Mail — necessaire pour MailService (campagnes marketing par email, module Fidelisation) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- OpenPDF — generation de rapports PDF (export du dashboard Satisfaction Client) -->
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- FIX 6 : un seul maven-compiler-plugin avec tout consolidé + Java 21 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- FIX 7 : utiliser <release> au lieu de <source>/<target> (recommandé Java 9+) -->
+                    <release>${java.version}</release>
+                    <!-- FIX 8 : Lombok AVANT mapstruct-processor (ordre obligatoire) -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

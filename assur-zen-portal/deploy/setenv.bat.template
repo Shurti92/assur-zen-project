@@ -1,0 +1,114 @@
+@echo off
+REM ==========================================================
+REM  MODELE - a copier vers %CATALINA_BASE%\bin\setenv.bat sur
+REM  le serveur Tomcat 11 de production, PUIS a completer avec
+REM  les vraies valeurs (marquees <A_COMPLETER>).
+REM
+REM  Ce fichier n'est PAS lu par Tomcat depuis cet emplacement
+REM  (il doit vivre dans %CATALINA_BASE%\bin\ sur le serveur
+REM  cible) - catalina.bat l'execute automatiquement a chaque
+REM  demarrage si present a cet endroit precis.
+REM
+REM  SECURITE : une fois complete avec les vrais secrets sur le
+REM  serveur, ce fichier NE DOIT JAMAIS etre committe dans git
+REM  ni copie ailleurs que sur ce serveur. Restreindre les droits
+REM  NTFS en lecture au seul compte de service qui execute Tomcat.
+REM ==========================================================
+
+REM Active le profil Spring "prod" (application-prod.yml) - sans
+REM ca l'appli demarre quand meme mais reste sur le profil "dev"
+REM par defaut.
+set SPRING_PROFILES_ACTIVE=prod
+
+REM ----------------------------------------------------------
+REM  Base de donnees (plus de valeur par defaut en profil prod
+REM  depuis l'audit de securite du 2026-08-25 - demarrage refuse
+REM  si l'une des deux est absente)
+REM ----------------------------------------------------------
+set DB_URL=jdbc:mysql://<A_COMPLETER_hote_reel>:3306/assur_zen_ci_db?createDatabaseIfNotExist=true^&useUnicode=true^&serverTimezone=Africa/Abidjan
+set DB_USERNAME=<A_COMPLETER>
+set DB_PASSWORD=<A_COMPLETER>
+
+REM ----------------------------------------------------------
+REM  JWT (idem : plus de valeur par defaut en profil prod)
+REM  Genere un secret aleatoire d'au moins 32 caracteres, ex. :
+REM  openssl rand -base64 48   (ou tout generateur equivalent)
+REM  Ne JAMAIS reutiliser le placeholder de tutoriel
+REM  "ChangeThisSecretKeyToALongRandomValueAtLeast32Chars".
+REM ----------------------------------------------------------
+set JWT_SECRET=<A_COMPLETER_secret_aleatoire_32_caracteres_minimum>
+
+REM ----------------------------------------------------------
+REM  CORS - a ajuster si les frontends actifs different de ce
+REM  qui est deja fige par defaut dans application-prod.yml
+REM ----------------------------------------------------------
+set CORS_ALLOWED_ORIGINS=https://medicis-apps.com,https://assurzen.ci,https://www.assurzen.ci
+
+REM ----------------------------------------------------------
+REM  Mail (SMTP) - valeurs par defaut deja presentes dans
+REM  application.yml, a decommenter/adapter si le serveur SMTP
+REM  reel differe.
+REM ----------------------------------------------------------
+REM set SMTP_HOST=<A_COMPLETER>
+REM set SMTP_PORT=25
+
+REM ----------------------------------------------------------
+REM  ActiveMQ - a completer si le mot de passe reel differe du
+REM  defaut de dev (admin/admin, PAS a utiliser en prod)
+REM ----------------------------------------------------------
+set ACTIVEMQ_URL=tcp://localhost:61616?jms.useAsyncSend=true^&jms.watchTopicAdvisories=false
+set ACTIVEMQ_USERNAME=<A_COMPLETER>
+set ACTIVEMQ_PASSWORD=<A_COMPLETER>
+
+REM ----------------------------------------------------------
+REM  Cle de chiffrement des configurations sensibles en base
+REM  (AES-256-GCM, dont les identifiants SycaPay - 2026-09-24).
+REM  OBLIGATOIRE pour saisir un secret depuis le back-office.
+REM  Generer UNE FOIS, propre a CET environnement (jamais celle
+REM  de dev), et la SAUVEGARDER hors du serveur : perdue, les
+REM  secrets en base deviennent illisibles.
+REM    openssl rand -hex 32   -> SECRET (64 caracteres)
+REM    openssl rand -hex 16   -> SALT   (32 caracteres hexa)
+REM ----------------------------------------------------------
+set APP_CONFIG_ENCRYPTION_SECRET=<A_COMPLETER_64_caracteres_hexa>
+set APP_CONFIG_ENCRYPTION_SALT=<A_COMPLETER_32_caracteres_hexa>
+
+REM ----------------------------------------------------------
+REM  SycaPay (paiement des commissions par virement Wave).
+REM  Identifiants de repli : utilises tant que les lignes
+REM  SYCAPAY_MERCHANT_ID / _API_KEY / _SECRET_KEY sont vides en
+REM  base (module Configuration). Une fois saisies dans le
+REM  back-office, ces 3 lignes peuvent etre retirees d'ici.
+REM  SYCAPAY_ENABLED : laisser a false ici, l'activation se fait
+REM  depuis le back-office (module Configuration).
+REM  JAMAIS de SYCAPAY_TEST_MODE_* en production (mode test des
+REM  virements, de toute facon ignore sous le profil prod).
+REM ----------------------------------------------------------
+set SYCAPAY_ENABLED=false
+set SYCAPAY_MERCHANT_ID=<A_COMPLETER>
+set SYCAPAY_API_KEY=<A_COMPLETER>
+set SYCAPAY_SECRET_KEY=<A_COMPLETER>
+
+REM ----------------------------------------------------------
+REM  Swagger/OpenAPI - reste desactive en prod sauf besoin
+REM  ponctuel documente (cf. audit de securite du 2026-08-23)
+REM ----------------------------------------------------------
+set SPRINGDOC_ENABLED=false
+
+REM ----------------------------------------------------------
+REM  Optionnel : geolocalisation IP de l'historique de connexion
+REM  (module Login History) - laisser vide si non utilise, la
+REM  fonctionnalite reste simplement inactive sans erreur.
+REM ----------------------------------------------------------
+REM set GEOIP_CITY_DB_PATH=
+REM set GEOIP_ASN_DB_PATH=
+REM set GEOIP_ACCOUNT_ID=
+REM set GEOIP_LICENSE_KEY=
+
+REM ----------------------------------------------------------
+REM  RAPPEL : le SSL/HTTPS et le port d'ecoute ne se configurent
+REM  PAS ici - en WAR deployee dans Tomcat externe, server.ssl.*/
+REM  server.port d'application.yml sont ignores. Ca se regle dans
+REM  conf\server.xml de Tomcat (connecteur SSL + son propre
+REM  keystore), pas via ce fichier.
+REM ----------------------------------------------------------

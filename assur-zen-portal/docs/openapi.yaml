@@ -1,0 +1,514 @@
+openapi: 3.0.3
+info:
+  title: Espace Partenaire — API Assurance
+  version: 1.0.0
+  license:
+    name: Propriétaire
+  description: >
+    Contrat d'interface entre l'application front (PWA force de vente) et le
+    backend. Toute implémentation backend DOIT respecter ce contrat au champ
+    près : c'est ce qui permet de basculer le front des mocks vers l'API réelle
+    (VITE_USE_MOCKS=false) sans modifier une seule ligne d'UI ou de store.
+
+    Conventions transverses :
+    - Tous les corps de requête/réponse sont en JSON (application/json).
+    - Les montants sont des ENTIERS en FCFA (pas de décimales).
+    - Les taux (commissionRate, conversionRate, objectiveProgress) sont des
+      nombres entre 0 et 1.
+    - Les dates sont des chaînes ISO 8601 (date-time, UTC), ou null.
+    - L'authentification est un JWT Bearer (voir securitySchemes).
+    - Les noms de champs sont en camelCase et NE DOIVENT PAS être renommés.
+
+servers:
+  - url: https://api.boxafrica.example/api
+    description: Production (exemple — voir VITE_API_URL)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Authentification & profil
+  - name: Contracts
+    description: Contrats (polices d'assurance)
+  - name: Dashboard
+    description: Indicateurs agrégés
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Authentifier un commercial
+      security: [] # public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: Authentification réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Identifiants invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshTokens
+      summary: Rafraîchir les tokens (refresh silencieux sur 401)
+      security: [] # le refresh token est dans le corps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Nouveaux tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          description: Refresh token invalide ou expiré
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Déconnexion (invalide le refresh token côté serveur)
+      responses:
+        '204':
+          description: Déconnecté
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getMe
+      summary: Profil de l'utilisateur connecté
+      responses:
+        '200':
+          description: Profil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Auth]
+      operationId: updateMe
+      summary: Mettre à jour son profil
+      description: >
+        Mise à jour partielle. Seuls fullName, email et sector sont modifiables.
+        Renvoie le profil complet à jour.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfilePatch'
+      responses:
+        '200':
+          description: Profil mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Données invalides (ex. email mal formé)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /contracts:
+    get:
+      tags: [Contracts]
+      operationId: listContracts
+      summary: Lister les contrats du commercial connecté
+      description: >
+        Renvoie uniquement les contrats rattachés au commercial authentifié.
+        Le filtrage (search, status) est appliqué côté serveur.
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          description: >
+            Recherche plein texte sur nom, prénom, n° de police, ville, branche.
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: '#/components/schemas/ContractStatusFilter'
+          description: Filtre par statut. 'all' ou absent = pas de filtre.
+      responses:
+        '200':
+          description: Liste de contrats (triée par createdAt décroissant)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Contract'
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /contracts/{id}:
+    get:
+      tags: [Contracts]
+      operationId: getContract
+      summary: Détail d'un contrat
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Le contrat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contract'
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Contrat introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/kpis:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboardKpis
+      summary: Indicateurs agrégés du commercial connecté
+      description: >
+        Tous les agrégats portent sur le périmètre du commercial authentifié,
+        filtrés par la période demandée.
+      parameters:
+        - in: query
+          name: period
+          required: true
+          schema:
+            $ref: '#/components/schemas/DashboardPeriod'
+          description: >
+            'month' = mois calendaire courant ; 'all' = tout le portefeuille.
+      responses:
+        '200':
+          description: KPIs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardKPIs'
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        En-tête `Authorization: Bearer <accessToken>`. Sur réponse 401, le front
+        appelle automatiquement /auth/refresh une fois puis rejoue la requête.
+
+  schemas:
+    Credentials:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: commercial
+        password:
+          type: string
+          format: password
+          example: '1234'
+
+    AuthTokens:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          description: JWT court (Bearer).
+        refreshToken:
+          type: string
+          description: Jeton de rafraîchissement (longue durée).
+        expiresIn:
+          type: integer
+          description: Durée de validité de l'access token, en SECONDES.
+          example: 3600
+
+    LoginResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/AuthTokens'
+
+    User:
+      type: object
+      required: [id, fullName, email, role, sector]
+      properties:
+        id:
+          type: string
+          example: u-001
+        fullName:
+          type: string
+          example: Awa Diop
+        email:
+          type: string
+          format: email
+          example: commercial@gmail.com
+        role:
+          type: string
+          enum: [commercial, manager]
+        sector:
+          type: string
+          example: Dakar — Plateau
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    ProfilePatch:
+      type: object
+      description: Mise à jour partielle du profil (tous les champs optionnels).
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        sector:
+          type: string
+
+    ContractStatus:
+      type: string
+      description: >
+        signed = en vigueur ; pending = en attente ; draft = devis ;
+        cancelled = résilié.
+      enum: [signed, pending, draft, cancelled]
+
+    ContractStatusFilter:
+      type: string
+      description: Comme ContractStatus, plus 'all' pour ne pas filtrer.
+      enum: [all, signed, pending, draft, cancelled]
+
+    CommissionStatus:
+      type: string
+      description: paid = commission versée ; pending = à venir.
+      enum: [paid, pending]
+
+    DashboardPeriod:
+      type: string
+      enum: [month, all]
+
+    Contract:
+      type: object
+      required:
+        - id
+        - policyNumber
+        - clientFirstName
+        - clientLastName
+        - clientPhone
+        - clientCity
+        - product
+        - premium
+        - commissionRate
+        - commissionAmount
+        - partnerShare
+        - status
+        - commissionStatus
+        - effectiveDate
+        - signedAt
+        - createdAt
+        - salesRep
+      properties:
+        id:
+          type: string
+          example: c-001
+        policyNumber:
+          type: string
+          example: POL-2026-1001
+        clientFirstName:
+          type: string
+          example: Mamadou
+        clientLastName:
+          type: string
+          example: Sow
+        clientPhone:
+          type: string
+          example: '+221 77 100 20 30'
+        clientCity:
+          type: string
+          example: Dakar
+        product:
+          type: string
+          description: Branche d'assurance (Auto, Habitation (MRH), Santé, …).
+          example: Auto
+        premium:
+          type: integer
+          description: Prime annuelle en FCFA.
+          example: 150000
+        commissionRate:
+          type: number
+          format: float
+          description: Taux de commission (0..1), dépend de la branche.
+          example: 0.1
+        commissionAmount:
+          type: integer
+          description: >
+            Commission du commercial en FCFA.
+            INVARIANT : commissionAmount = round(premium * commissionRate).
+          example: 15000
+        partnerShare:
+          type: integer
+          description: >
+            Montant reversé au partenaire (compagnie), en FCFA.
+            INVARIANT : partnerShare = premium - commissionAmount.
+          example: 135000
+        status:
+          $ref: '#/components/schemas/ContractStatus'
+        commissionStatus:
+          $ref: '#/components/schemas/CommissionStatus'
+        effectiveDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d'effet. null tant que le contrat n'est pas en vigueur.
+        signedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date de signature. null si non signé.
+        createdAt:
+          type: string
+          format: date-time
+        salesRep:
+          type: string
+          description: Nom du commercial rattaché.
+          example: Awa Diop
+        notes:
+          type: string
+          nullable: true
+
+    DashboardKPIs:
+      type: object
+      required:
+        - totalContracts
+        - signedContracts
+        - pendingContracts
+        - production
+        - totalCommission
+        - paidCommission
+        - pendingCommission
+        - partnerShare
+        - conversionRate
+        - monthlyObjective
+        - objectiveProgress
+      properties:
+        totalContracts:
+          type: integer
+          description: Nombre de contrats sur la période.
+        signedContracts:
+          type: integer
+          description: Contrats en vigueur (status=signed).
+        pendingContracts:
+          type: integer
+        production:
+          type: integer
+          description: >
+            Somme des primes des contrats en vigueur (FCFA).
+            INVARIANT : production = Σ premium where status=signed.
+        totalCommission:
+          type: integer
+          description: 'INVARIANT : Σ commissionAmount where status=signed.'
+        paidCommission:
+          type: integer
+          description: Part de totalCommission avec commissionStatus=paid.
+        pendingCommission:
+          type: integer
+          description: 'INVARIANT : pendingCommission = totalCommission - paidCommission.'
+        partnerShare:
+          type: integer
+          description: 'INVARIANT : Σ partnerShare where status=signed.'
+        conversionRate:
+          type: number
+          format: float
+          description: 'INVARIANT : signedContracts / totalContracts (0 si aucun).'
+        monthlyObjective:
+          type: integer
+          description: Objectif de production (FCFA).
+        objectiveProgress:
+          type: number
+          format: float
+          description: 'INVARIANT : min(production / monthlyObjective, 1).'
+
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: Message lisible (affiché tel quel par le front).
+        code:
+          type: string
+          description: Code machine optionnel (ex. INVALID_CREDENTIALS).

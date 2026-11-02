@@ -1,0 +1,71 @@
+# ==========================================================
+# PROFIL: DEV
+# ==========================================================
+# Active via : --spring.profiles.active=dev  (ou SPRING_PROFILES_ACTIVE=dev)
+# Base cible  : assur_zen_ci_db_test
+#
+# Ce fichier n'est charge par Spring Boot QUE lorsque le profil "dev" est actif
+# (convention de nommage application-{profile}.yml). Ses cles fusionnent par-dessus
+# celles d'application.yml ; en cas de collision, CE fichier gagne.
+
+spring:
+
+  # ========================================================
+  # DATASOURCE — base de TEST, isolee de la production
+  # ========================================================
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://localhost:3306/assur_zen_ci_db_test?createDatabaseIfNotExist=true&useUnicode=true&serverTimezone=Africa/Abidjan}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+
+    hikari:
+      pool-name: assur-zen-hikari-test
+      # Pool volontairement plus petit qu'en PROD : charge faible/ponctuelle en environnement de test.
+      minimum-idle: 2
+      maximum-pool-size: 8
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 30000
+      keepalive-time: 60000
+      connection-test-query: SELECT 1
+
+  # ========================================================
+  # JPA / HIBERNATE — permissif en TEST (base jetable, reinitialisable)
+  # ========================================================
+  jpa:
+    show-sql: true
+    generate-ddl: true
+    # Sur une base TEST toute neuve, Hibernate n'a pas encore cree les tables au moment
+    # ou Spring Boot execute data.sql par defaut (le script tourne AVANT l'initialisation
+    # de l'EntityManagerFactory). defer-datasource-initialization=true inverse l'ordre :
+    # le schema (ddl-auto) est cree D'ABORD, puis data.sql s'execute dessus.
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ========================================================
+  # SQL INIT — data.sql rejoue a chaque demarrage, erreurs tolerees
+  # (utile pour repartir d'un jeu de donnees de test propre)
+  # ========================================================
+  sql:
+    init:
+      mode: always
+      continue-on-error: true
+
+# ==========================================================
+# LOGGING — plus verbeux en TEST pour faciliter le debug
+# ==========================================================
+logging:
+  level:
+    ci.assurzen: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+
+
+swagger:
+  version: v1.0.8
+  name: AssurZen Gateway Dev

@@ -1,0 +1,81 @@
+# ==========================================================
+# PROFIL: TEST
+# ==========================================================
+# Active via : --spring.profiles.active=test  (ou SPRING_PROFILES_ACTIVE=test)
+# Base cible  : assur_zen_ci_db_test
+#
+# Ce fichier n'est charge par Spring Boot QUE lorsque le profil "test" est actif
+# (convention de nommage application-{profile}.yml). Ses cles fusionnent par-dessus
+# celles d'application.yml ; en cas de collision, CE fichier gagne.
+
+spring:
+
+  # ========================================================
+  # DATASOURCE — base de TEST, isolee de la production
+  # ========================================================
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://localhost:3306/assur_zen_ci_db_test?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Africa/Abidjan}
+    username: ${DB_USERNAME:root}
+    # Vrai mot de passe committe en clair ici jusqu'au 2026-08-24 (meme faille que celle deja
+    # corrigee dans application-prod.yml lors de l'audit de securite du 2026-08-23, reintroduite ici
+    # par une modification externe non identifiee) - remplace par un defaut vide : DB_PASSWORD doit
+    # etre injecte par l'environnement en TEST/RECETTE reel, jamais committe.
+    password: ${DB_PASSWORD:}
+
+    hikari:
+      pool-name: assur-zen-hikari-test
+      # Pool volontairement plus petit qu'en PROD : charge faible/ponctuelle en environnement de test.
+      minimum-idle: 2
+      maximum-pool-size: 8
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 30000
+      keepalive-time: 60000
+      connection-test-query: SELECT 1
+
+  # ========================================================
+  # JPA / HIBERNATE — permissif en TEST (base jetable, reinitialisable)
+  # ========================================================
+  jpa:
+    show-sql: true
+    generate-ddl: true
+    # Sur une base TEST toute neuve, Hibernate n'a pas encore cree les tables au moment
+    # ou Spring Boot execute data.sql par defaut (le script tourne AVANT l'initialisation
+    # de l'EntityManagerFactory). defer-datasource-initialization=true inverse l'ordre :
+    # le schema (ddl-auto) est cree D'ABORD, puis data.sql s'execute dessus.
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ========================================================
+  # SQL INIT — data.sql rejoue a chaque demarrage, erreurs tolerees
+  # (utile pour repartir d'un jeu de donnees de test propre)
+  # ========================================================
+  sql:
+    init:
+      mode: always
+      continue-on-error: true
+
+# ==========================================================
+# LOGGING — plus verbeux en TEST pour faciliter le debug
+# ==========================================================
+logging:
+  level:
+    ci.assurzen: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+
+
+app:
+  partenaire:
+    lien-connexion: ${PARTENAIRE_LIEN_CONNEXION:https://assurzen.ci/partenaire-sandbox/login}
+  vignette:
+    suivi-lien-base-url: ${VIGNETTE_SUIVI_LIEN_BASE_URL:https://assurzen.ci/suivi-sandbox/vignette}
+
+swagger:
+  version: v3.1.4
+  name: AssurZen Gateway Recette
