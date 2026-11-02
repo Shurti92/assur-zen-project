@@ -1,0 +1,390 @@
+<!-- Refonte de l'import en masse (maquette validée le 2026-10-05) : styles dans scss/_import-masse.scss. -->
+<svg class="im-sprite" aria-hidden="true">
+  <symbol id="im-up" viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></symbol>
+  <symbol id="im-down" viewBox="0 0 24 24"><path d="M12 4v12m0 0-4-4m4 4 4-4M4 20h16" /></symbol>
+  <symbol id="im-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4" /></symbol>
+  <symbol id="im-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" /></symbol>
+  <symbol id="im-warn" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></symbol>
+  <symbol id="im-users" viewBox="0 0 24 24"><path d="M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 20v-1a4 4 0 0 0-3-3.9M15.5 4.1a3.5 3.5 0 0 1 0 6.8" /></symbol>
+  <symbol id="im-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" /></symbol>
+  <symbol id="im-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></symbol>
+  <symbol id="im-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+  <symbol id="im-back" viewBox="0 0 24 24"><path d="M19 12H5m0 0 6-6m-6 6 6 6" /></symbol>
+  <symbol id="im-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+  <symbol id="im-redo" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3L20 9m0-5v5h-5M20 12a8 8 0 0 1-14 5.3L4 15m0 5v-5h5" /></symbol>
+  <symbol id="im-skip" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M8 12h8" /></symbol>
+</svg>
+
+<!-- Ligne client dépliable, commune à l'aperçu et au résultat. -->
+<ng-template #clientRow let-group let-mode="mode">
+  <div class="im-client" [class.im-client--open]="isOpen(group)">
+    <button (click)="toggleOpen(group)" [attr.aria-expanded]="isOpen(group)" class="im-client-head" type="button">
+      <span class="im-av">{{ initials(group) }}</span>
+      <span class="im-who">
+        <b>{{ group.nom }} {{ group.prenoms }}</b>
+        <small>{{ groupSubtitle(group) }}</small>
+        @if (mode === 'resultat') {
+          @if (group.status === 'succes' && group.policyNumbers.length > 0) {
+            <span class="im-chips">
+              @for (policy of group.policyNumbers; track policy) {
+                <span class="im-chip">{{ policy }}</span>
+              }
+            </span>
+          } @else if (group.status === 'echec') {
+            <span class="im-msg im-msg--ko">{{ group.resultMessage }}</span>
+          }
+        }
+      </span>
+      @if (mode === 'apercu') {
+        <span class="im-amount">
+          {{ formatAmount(sumPremium(group)) }}
+          <small>{{ plural(group.rows.length, 'produit') }}</small>
+        </span>
+        @if (group.hasErrors) {
+          <span class="im-badge im-badge--ko"><svg class="im-i"><use href="#im-warn" /></svg>Erreur</span>
+        } @else {
+          <span class="im-badge im-badge--ok"><svg class="im-i"><use href="#im-check" /></svg>Prêt</span>
+        }
+      } @else {
+        @switch (group.status) {
+          @case ('en_attente') { <span class="im-badge im-badge--mu">En attente</span> }
+          @case ('en_cours') { <span class="im-badge im-badge--run"><span class="im-spin"></span>En cours</span> }
+          @case ('succes') { <span class="im-badge im-badge--ok"><svg class="im-i"><use href="#im-check" /></svg>Réussi</span> }
+          @case ('echec') { <span class="im-badge im-badge--ko"><svg class="im-i"><use href="#im-x" /></svg>Échec</span> }
+        }
+      }
+      <span class="im-chev"><svg class="im-i"><use href="#im-chev" /></svg></span>
+    </button>
+    <div class="im-lines">
+      @for (row of group.rows; track row.line) {
+        <div class="im-line" [class.im-line--bad]="row.errors.length > 0">
+          <span class="im-ln">Ligne {{ row.line }}</span>
+          <span><b>{{ row.produitNom || '—' }}</b></span>
+          <span>{{ row.compagnieNom || '—' }}</span>
+          <span><small>Effet</small>{{ formatEffet(row) }}</span>
+          <span class="im-pr">{{ row.premium ? formatAmount(row.premium) : '—' }}</span>
+          @if (row.errors.length > 0) {
+            <ul class="im-errs">
+              @for (error of row.errors; track error) {
+                <li><svg class="im-i"><use href="#im-warn" /></svg>{{ error }}</li>
+              }
+            </ul>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</ng-template>
+
+<div class="pz-scope im">
+  <div class="im-head">
+    <div>
+      <h1>Souscription en masse</h1>
+      <p>Créez plusieurs assurés et leurs contrats à partir d'un seul fichier CSV.</p>
+    </div>
+    @if (!referenceLoading()) {
+      <nav class="im-stepper" aria-label="Étapes de l'import">
+        @for (label of steps; track label; let i = $index) {
+          <span class="im-step" [class.im-step--active]="i === currentStep()" [class.im-step--done]="i < currentStep()">
+            <i>
+              @if (i < currentStep()) {
+                <svg class="im-i"><use href="#im-check" /></svg>
+              } @else {
+                {{ i + 1 }}
+              }
+            </i>
+            {{ label }}
+          </span>
+        }
+      </nav>
+    }
+  </div>
+
+  @if (referenceError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+
+  @if (referenceLoading()) {
+    <p class="dl-empty">Chargement des données de référence…</p>
+  } @else {
+    <!-- Étape 1 : Fichier -->
+    @if (currentStep() === 0) {
+      <div class="im-stack">
+        <div class="im-layout">
+          <div class="im-card im-pad">
+            <h2 class="im-title"><span class="im-num">1</span>Partez du modèle</h2>
+            <p class="im-sub im-sub--flush">
+              Une ligne = un produit souscrit. Les lignes qui partagent le même téléphone forment une seule souscription.
+            </p>
+            <div class="im-rule">
+              <div class="im-rule-row"><span>nom</span><span>telephone</span><span>produit</span></div>
+              <div class="im-rule-row im-rule-row--g"><span>Kone</span><span>0700000001</span><span>Assurance Auto</span></div>
+              <div class="im-rule-row im-rule-row--g"><span>Kone</span><span>0700000001</span><span>Assurance Santé</span></div>
+              <div class="im-rule-row"><span>Traore</span><span>0700000002</span><span>Habitation</span></div>
+              <div class="im-rule-foot">
+                <svg class="im-i"><use href="#im-users" /></svg>
+                <span><b>2 assurés, 3 contrats</b> : Kone reçoit ses deux contrats.</span>
+              </div>
+            </div>
+            <button (click)="downloadTemplate()" class="im-btn im-btn--block" type="button">
+              <svg class="im-i"><use href="#im-down" /></svg>Télécharger le modèle (CSV)
+            </button>
+          </div>
+
+          <div class="im-card im-pad">
+            <h2 class="im-title"><span class="im-num">2</span>Déposez votre fichier rempli</h2>
+            <p class="im-sub">
+              Le fichier est lu sur votre poste et vérifié ligne par ligne. Rien n'est créé avant votre confirmation.
+            </p>
+            @if (fileError(); as message) {
+              <div class="im-alert im-alert--danger" role="alert">
+                <svg class="im-i"><use href="#im-warn" /></svg>
+                <div class="im-alert-txt"><b>{{ selectedFileName() }} n'a pas pu être lu</b>{{ message }}</div>
+              </div>
+            }
+            <div
+              (dragleave)="dragOver.set(false)"
+              (dragover)="onDragOver($event)"
+              (drop)="onDrop($event)"
+              [class.im-drop--over]="dragOver()"
+              class="im-drop"
+            >
+              <div class="im-drop-ico"><svg class="im-i"><use href="#im-up" /></svg></div>
+              <b>Glissez-déposez votre fichier CSV ici</b>
+              <span>ou choisissez-le sur votre poste</span><br />
+              <input #fileInput (change)="onFileSelected($event)" accept=".csv" hidden type="file" />
+              <button (click)="fileInput.click()" [disabled]="fileReading()" class="im-btn im-btn--primary" type="button">
+                @if (fileReading()) {
+                  <span class="im-spin"></span>Lecture…
+                } @else {
+                  <svg class="im-i"><use href="#im-file" /></svg>Parcourir…
+                }
+              </button>
+              <div class="im-meta">
+                <span class="im-pill">Format .csv</span>
+                <span class="im-pill">Séparateur point-virgule ( ; )</span>
+                <span class="im-pill">Encodage UTF-8</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="im-card im-pad">
+          <div class="im-bar">
+            <h2 class="im-title im-title--flush">Guide des colonnes</h2>
+            <div class="im-bar-tools">
+              <div class="im-seg">
+                <button (click)="guideFilter.set('all')" [class.im-on]="guideFilter() === 'all'" type="button">
+                  Toutes<small>{{ guideColumnCount }}</small>
+                </button>
+                <button (click)="guideFilter.set('required')" [class.im-on]="guideFilter() === 'required'" type="button">
+                  Obligatoires<small>{{ guideRequiredCount }}</small>
+                </button>
+                <button (click)="guideFilter.set('optional')" [class.im-on]="guideFilter() === 'optional'" type="button">
+                  Facultatives<small>{{ guideColumnCount - guideRequiredCount }}</small>
+                </button>
+              </div>
+              <label class="im-search">
+                <svg class="im-i"><use href="#im-search" /></svg>
+                <input
+                  (input)="guideQuery.set($any($event.target).value)"
+                  [value]="guideQuery()"
+                  aria-label="Rechercher une colonne"
+                  placeholder="Rechercher une colonne"
+                  type="search"
+                />
+              </label>
+            </div>
+          </div>
+          <div class="im-groups">
+            @for (group of guideGroups(); track group.title) {
+              <div class="im-group">
+                <h3>{{ group.title }}<span>{{ plural(group.columns.length, 'colonne') }}</span></h3>
+                @for (column of group.columns; track column.name) {
+                  <div class="im-col">
+                    <div>
+                      <code>{{ column.name }}</code>
+                      @if (column.required) {
+                        <span class="im-req">Obligatoire</span>
+                      } @else {
+                        <span class="im-opt">Facultative</span>
+                      }
+                    </div>
+                    <div>
+                      <p>{{ column.description }}</p>
+                      @if (column.defaultValue) {
+                        <span class="im-def">défaut : {{ column.defaultValue }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            } @empty {
+              <p class="im-sub">Aucune colonne ne correspond.</p>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Étape 2 : Aperçu -->
+    @if (currentStep() === 1) {
+      <div class="im-card im-filebar">
+        <span class="im-fico"><svg class="im-i"><use href="#im-file" /></svg></span>
+        <div>
+          <b>{{ selectedFileName() }}</b>
+          <small>{{ plural(totalRows(), 'ligne') }} lue{{ totalRows() > 1 ? 's' : '' }} · vérifié à l'instant</small>
+        </div>
+        <span class="im-sp"></span>
+        <button (click)="backToFile()" class="im-btn" type="button">
+          <svg class="im-i"><use href="#im-redo" /></svg>Changer de fichier
+        </button>
+      </div>
+
+      <div class="im-kpis">
+        <div class="im-card im-kpi">
+          <span class="im-ic"><svg class="im-i"><use href="#im-users" /></svg></span>
+          <div><b>{{ clientGroups().length }}</b><span>Clients détectés</span></div>
+        </div>
+        <div class="im-card im-kpi">
+          <span class="im-ic"><svg class="im-i"><use href="#im-layers" /></svg></span>
+          <div><b>{{ totalRows() }}</b><span>Lignes — 1 par produit</span></div>
+        </div>
+        <div class="im-card im-kpi im-kpi--ok">
+          <span class="im-ic"><svg class="im-i"><use href="#im-check" /></svg></span>
+          <div><b>{{ validGroups().length }}</b><span>Clients prêts</span></div>
+        </div>
+        <div class="im-card im-kpi im-kpi--ko">
+          <span class="im-ic"><svg class="im-i"><use href="#im-warn" /></svg></span>
+          <div><b>{{ rowsWithErrors() }}</b><span>Lignes en erreur</span></div>
+        </div>
+      </div>
+
+      @if (invalidGroups().length > 0) {
+        <div class="im-alert im-alert--warn" role="alert">
+          <svg class="im-i"><use href="#im-warn" /></svg>
+          <div class="im-alert-txt">
+            <b>
+              {{ plural(invalidGroups().length, 'client') }}
+              {{ invalidGroups().length > 1 ? 'ne seront pas importés' : 'ne sera pas importé' }}
+            </b>
+            {{ invalidGroups().length > 1 ? 'Ils comportent' : 'Il comporte' }} au moins une ligne en erreur. Corrigez
+            le fichier et déposez-le à nouveau, ou lancez la création pour les clients prêts uniquement.
+          </div>
+          <button (click)="exportErrors()" class="im-btn" type="button">
+            <svg class="im-i"><use href="#im-down" /></svg>Lignes en erreur (CSV)
+          </button>
+        </div>
+      }
+
+      <div class="im-card">
+        <div class="im-list-bar">
+          <div class="im-seg">
+            <button (click)="listFilter.set('all')" [class.im-on]="listFilter() === 'all'" type="button">
+              Tous<small>{{ clientGroups().length }}</small>
+            </button>
+            <button (click)="listFilter.set('ready')" [class.im-on]="listFilter() === 'ready'" type="button">
+              Prêts<small>{{ validGroups().length }}</small>
+            </button>
+            <button (click)="listFilter.set('error')" [class.im-on]="listFilter() === 'error'" type="button">
+              En erreur<small>{{ invalidGroups().length }}</small>
+            </button>
+          </div>
+          <label class="im-search">
+            <svg class="im-i"><use href="#im-search" /></svg>
+            <input
+              (input)="listQuery.set($any($event.target).value)"
+              [value]="listQuery()"
+              aria-label="Rechercher un client ou un téléphone"
+              placeholder="Rechercher un client ou un téléphone"
+              type="search"
+            />
+          </label>
+        </div>
+        @for (group of shownGroups(); track group.key) {
+          <ng-container *ngTemplateOutlet="clientRow; context: { $implicit: group, mode: 'apercu' }" />
+        } @empty {
+          <p class="im-empty">Aucun client ne correspond.</p>
+        }
+      </div>
+
+      <div class="im-card im-sticky">
+        <button (click)="backToFile()" class="im-btn im-btn--ghost" type="button">
+          <svg class="im-i"><use href="#im-back" /></svg>Retour
+        </button>
+        <span class="im-sp"></span>
+        <span class="im-sum">
+          <b>{{ plural(validGroups().length, 'client') }}</b> · <b>{{ plural(validContracts(), 'contrat') }}</b> ·
+          <b>{{ formatAmount(validPremium()) }}</b> de primes
+        </span>
+        <button
+          (click)="startImport()"
+          [disabled]="validGroups().length === 0"
+          class="im-btn im-btn--primary im-btn--big"
+          type="button"
+        >
+          Lancer la création
+        </button>
+      </div>
+    }
+
+    <!-- Étape 3 : Résultat -->
+    @if (currentStep() === 2) {
+      <div class="im-card im-prog">
+        <div class="im-prog-top">
+          <b>{{ processing() ? 'Création en cours…' : 'Traitement terminé' }}</b>
+          <span>{{ processedCount() }} / {{ plural(validGroups().length, 'client') }} traité{{ validGroups().length > 1 ? 's' : '' }}</span>
+        </div>
+        <div
+          [attr.aria-valuemax]="validGroups().length"
+          [attr.aria-valuenow]="processedCount()"
+          aria-label="Avancement de la création"
+          class="im-progress"
+          role="progressbar"
+        >
+          <i class="im-progress-ok" [style.width.%]="(succeededCount() / validGroups().length) * 100"></i>
+          <i class="im-progress-ko" [style.width.%]="(failedCount() / validGroups().length) * 100"></i>
+        </div>
+        <small>
+          @if (processing()) {
+            Gardez cette page ouverte : les clients sont créés un par un.
+          } @else {
+            {{ plural(succeededCount(), 'souscription') }} créée{{ succeededCount() > 1 ? 's' : '' }},
+            {{ plural(failedCount(), 'échec') }}.
+          }
+        </small>
+      </div>
+
+      <div class="im-kpis im-kpis--three">
+        <div class="im-card im-kpi im-kpi--ok">
+          <span class="im-ic"><svg class="im-i"><use href="#im-check" /></svg></span>
+          <div><b>{{ succeededCount() }}</b><span>Réussis</span></div>
+        </div>
+        <div class="im-card im-kpi im-kpi--ko">
+          <span class="im-ic"><svg class="im-i"><use href="#im-x" /></svg></span>
+          <div><b>{{ failedCount() }}</b><span>Échecs</span></div>
+        </div>
+        <div class="im-card im-kpi im-kpi--mu">
+          <span class="im-ic"><svg class="im-i"><use href="#im-skip" /></svg></span>
+          <div><b>{{ invalidGroups().length }}</b><span>Ignorés (erreurs dans le fichier)</span></div>
+        </div>
+      </div>
+
+      <div class="im-card">
+        @for (group of validGroups(); track group.key) {
+          <ng-container *ngTemplateOutlet="clientRow; context: { $implicit: group, mode: 'resultat' }" />
+        }
+      </div>
+
+      <div class="im-card im-sticky">
+        <button (click)="exportResult()" [disabled]="processing()" class="im-btn" type="button">
+          <svg class="im-i"><use href="#im-down" /></svg>Exporter le résultat (CSV)
+        </button>
+        <span class="im-sp"></span>
+        <button (click)="resetAll()" [disabled]="processing()" class="im-btn im-btn--primary im-btn--big" type="button">
+          Nouvel import
+        </button>
+      </div>
+    }
+  }
+</div>

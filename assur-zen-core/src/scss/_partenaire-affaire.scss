@@ -1,0 +1,459 @@
+// ---------------------------------------------------------------------------
+// Partenaires d'affaire — liste et fiche (maquette validée le 2026-10-06), reproduites à l'identique.
+// À utiliser avec class="pz-scope im cm pf" : jetons de .pz-scope, briques im-* (_import-masse.scss)
+// et cm-* (_commissions.scss, dont le panneau latéral), classes propres à l'écran préfixées pf-.
+// ---------------------------------------------------------------------------
+
+.pz-scope.im.cm.pf {
+  .pf-head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pf-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid var(--pz-line);
+    background: var(--pz-card);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--pz-muted);
+
+    &--on {
+      border-color: var(--pz-warn);
+      background: var(--pz-warn-soft);
+      color: var(--pz-warn);
+    }
+  }
+
+  .pf-select {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--pz-line);
+    border-radius: 12px;
+    background: var(--pz-card);
+    color: var(--pz-text);
+    font: inherit;
+  }
+
+  .pf-grow {
+    flex: 1 1 240px;
+  }
+
+  // Liste -------------------------------------------------------------------------
+
+  .pf-g-list {
+    grid-template-columns: minmax(280px, 2fr) 110px minmax(220px, 1.4fr) 100px 110px 40px;
+  }
+
+  .pf-click {
+    cursor: pointer;
+
+    &:hover {
+      background: var(--pz-soft);
+    }
+  }
+
+  .pf-name {
+    display: block;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .pf-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 5px;
+  }
+
+  .pf-badge--ac {
+    background: var(--pz-accent-soft);
+    color: var(--pz-accent);
+  }
+
+  .pf-prog-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 6px;
+
+    span {
+      color: var(--pz-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    b {
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .pf-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--pz-soft);
+    overflow: hidden;
+
+    i {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: var(--pz-danger);
+    }
+
+    .pf-track--warning {
+      background: var(--pz-warn);
+    }
+
+    .pf-track--success {
+      background: var(--pz-ok);
+    }
+
+    .pf-track--neutral {
+      background: var(--pz-line);
+    }
+  }
+
+  .pf-click:hover .pf-track,
+  .cm-d-stat .pf-track {
+    background: var(--pz-line);
+  }
+
+  .pf-menu-cell {
+    cursor: default;
+  }
+
+  .pf-dots {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    color: var(--pz-muted);
+
+    &:hover,
+    &.show {
+      border-color: var(--pz-line);
+      background: var(--pz-card);
+      color: var(--pz-primary);
+    }
+  }
+
+  .pf-menu {
+    width: 250px;
+    padding: 6px;
+    border-radius: 14px;
+    background: var(--pz-card);
+    border: 1px solid var(--pz-line);
+    box-shadow: 0 12px 32px rgba(20, 30, 60, 0.16);
+    font-family: var(--pz-font);
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 10px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--pz-text);
+
+      &:hover,
+      &:focus {
+        background: var(--pz-soft);
+        color: var(--pz-text);
+      }
+
+      .im-i {
+        width: 16px;
+        height: 16px;
+        color: var(--pz-muted);
+      }
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid var(--pz-line);
+      margin: 6px 0;
+      opacity: 1;
+    }
+
+    .pf-menu-danger,
+    .pf-menu-danger:hover,
+    .pf-menu-danger:focus,
+    .pf-menu-danger .im-i {
+      color: var(--pz-danger);
+    }
+  }
+
+  // Fiche (panneau latéral) -----------------------------------------------------
+
+  .pf-drawer {
+    width: min(1040px, 100vw);
+  }
+
+  .pf-d-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .pf-d-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .pf-d-stats {
+    grid-template-columns: 1.6fr 1fr 1fr 1fr;
+
+    .pf-track {
+      margin-top: 8px;
+    }
+
+    small {
+      font-weight: 600;
+    }
+  }
+
+  .pf-d-val {
+    font-size: 15px;
+  }
+
+  .pf-d-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .pf-g-ct {
+    grid-template-columns: 150px 1.2fr 1.4fr 120px 110px 120px 100px;
+  }
+
+  .pf-g-pnr {
+    grid-template-columns: 150px 1.2fr 1.4fr 120px 150px;
+  }
+
+  .pf-g-av {
+    grid-template-columns: 150px 1fr 1fr 1.4fr 170px;
+  }
+
+  .cm-d-body {
+    .cm-rows-head {
+      border-radius: 12px 12px 0 0;
+      border: 1px solid var(--pz-line);
+    }
+
+    .cm-row {
+      border: 1px solid var(--pz-line);
+      border-top: 0;
+      padding: 12px 18px;
+
+      &:last-of-type {
+        border-radius: 0 0 12px 12px;
+      }
+    }
+
+    .cm-foot {
+      padding: 12px 2px 0;
+      border-top: 0;
+    }
+  }
+
+  // Documents ---------------------------------------------------------------------
+
+  .pf-upload {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+    padding: 16px;
+    border: 2px dashed var(--pz-line);
+    border-radius: 14px;
+    background: var(--pz-soft);
+    margin-bottom: 16px;
+
+    label:not(.im-btn) {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--pz-muted);
+      margin-bottom: 6px;
+    }
+
+    .pf-select,
+    .cm-field {
+      width: 100%;
+      height: 40px;
+    }
+
+    small {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .pf-upload-btn {
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .pf-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .pf-doc {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: 14px;
+    align-items: start;
+    padding: 14px 16px;
+    border: 1px solid var(--pz-line);
+    border-radius: 14px;
+    margin-bottom: 10px;
+
+    b {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    &--wait {
+      border-color: var(--pz-warn);
+      background: color-mix(in srgb, var(--pz-warn-soft) 45%, var(--pz-card));
+    }
+  }
+
+  .pf-doc-ico {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--pz-primary-soft);
+    color: var(--pz-primary);
+    display: grid;
+    place-items: center;
+  }
+
+  .pf-doc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+    margin-top: 5px;
+    font-size: 12px;
+    color: var(--pz-muted);
+
+    .cm-link {
+      font-size: 12px;
+    }
+  }
+
+  .pf-doc-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .pf-doc-acts {
+    grid-column: 2 / -1;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .pf-btn--ok {
+    color: var(--pz-ok);
+    border-color: color-mix(in srgb, var(--pz-ok) 45%, var(--pz-line));
+  }
+
+  .pf-btn--ko {
+    color: var(--pz-danger);
+    border-color: color-mix(in srgb, var(--pz-danger) 45%, var(--pz-line));
+  }
+
+  .pf-doc-motif {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--pz-danger-soft);
+    font-size: 12px;
+
+    b {
+      display: inline;
+      color: var(--pz-danger);
+    }
+  }
+
+  // Historique --------------------------------------------------------------------
+
+  .pf-tl {
+    position: relative;
+    padding-left: 26px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: var(--pz-line);
+    }
+  }
+
+  .pf-tl-item {
+    position: relative;
+    padding: 0 0 18px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -24px;
+      top: 4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--pz-card);
+      border: 3px solid var(--pz-primary);
+    }
+
+    small {
+      display: block;
+      margin-top: 3px;
+    }
+  }
+
+  .pf-tl-l1 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    font-weight: 600;
+  }
+
+  @media (max-width: 1100px) {
+    .pf-d-stats,
+    .pf-upload {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+}

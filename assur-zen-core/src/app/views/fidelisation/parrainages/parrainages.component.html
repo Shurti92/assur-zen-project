@@ -1,0 +1,948 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Parrainages</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Vue">
+      <button (click)="setView('dashboard')" [attr.data-active]="view() === 'dashboard'" class="dl-pill" type="button">Tableau de bord</button>
+      <button (click)="setView('parrainages')" [attr.data-active]="view() === 'parrainages'" class="dl-pill" type="button">Parrainages</button>
+      <button (click)="setView('programmes')" [attr.data-active]="view() === 'programmes'" class="dl-pill" type="button">Programmes</button>
+      <button (click)="setView('regles')" [attr.data-active]="view() === 'regles'" class="dl-pill" type="button">Règles</button>
+      <button (click)="setView('recompenses')" [attr.data-active]="view() === 'recompenses'" class="dl-pill" type="button">Récompenses</button>
+      <button (click)="setView('parametres')" [attr.data-active]="view() === 'parametres'" class="dl-pill" type="button">Paramètres</button>
+    </div>
+
+    @if (view() === 'parrainages') {
+      <select (change)="setStatutFilter($any($event.target).value)" cSelect style="max-width: 220px;">
+        <option value="">Tous les statuts</option>
+        @for (statut of statutOrder; track statut) {
+          <option [value]="statut">{{ statutLabel[statut] }}</option>
+        }
+      </select>
+      <select (change)="setProgrammeFilter($any($event.target).value)" cSelect style="max-width: 200px;">
+        <option value="">Tous les programmes</option>
+        @for (programme of programmes(); track programme.id) {
+          <option [value]="programme.id">{{ programme.nom }}</option>
+        }
+      </select>
+      <div class="dl-actions">
+        <button (click)="fetchParrainages()" [disabled]="parrainagesLoading()" cButton class="dl-btn" type="button">
+          @if (parrainagesLoading()) { <c-spinner size="sm" /> }
+          Actualiser
+        </button>
+        <button (click)="openCreateParrainage()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouveau parrainage
+        </button>
+      </div>
+    }
+    @if (view() === 'programmes') {
+      <div class="dl-actions">
+        <button (click)="fetchProgrammes()" [disabled]="programmesLoading()" cButton class="dl-btn" type="button">
+          @if (programmesLoading()) { <c-spinner size="sm" /> }
+          Actualiser
+        </button>
+        <button (click)="openCreateProgramme()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouveau programme
+        </button>
+      </div>
+    }
+    @if (view() === 'regles') {
+      <div class="dl-actions">
+        <button (click)="fetchRegles()" [disabled]="reglesLoading()" cButton class="dl-btn" type="button">
+          @if (reglesLoading()) { <c-spinner size="sm" /> }
+          Actualiser
+        </button>
+        <button (click)="openCreateRegle()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouvelle règle
+        </button>
+      </div>
+    }
+    @if (view() === 'recompenses') {
+      <select (change)="setRecompenseStatutFilter($any($event.target).value)" cSelect style="max-width: 200px;">
+        <option value="">Tous les statuts</option>
+        <option value="EN_ATTENTE">En attente</option>
+        <option value="ELIGIBLE">Éligible</option>
+        <option value="APPROUVEE">Approuvée</option>
+        <option value="ATTRIBUEE">Attribuée</option>
+        <option value="UTILISEE">Utilisée</option>
+        <option value="EXPIREE">Expirée</option>
+        <option value="ANNULEE">Annulée</option>
+        <option value="REVERSEE">Reversée</option>
+      </select>
+      <div class="dl-actions">
+        <button (click)="fetchRecompenses()" [disabled]="recompensesLoading()" cButton class="dl-btn" type="button">
+          @if (recompensesLoading()) { <c-spinner size="sm" /> }
+          Actualiser
+        </button>
+      </div>
+    }
+    @if (view() === 'parametres') {
+      <div class="dl-actions">
+        <button (click)="fetchParametres()" [disabled]="parametresLoading()" cButton class="dl-btn" type="button">
+          @if (parametresLoading()) { <c-spinner size="sm" /> }
+          Actualiser
+        </button>
+        <button (click)="openEditParametre(null)" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouveau paramètre
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- ================= Tableau de bord ================= -->
+  @if (view() === 'dashboard') {
+    <div class="mc-body">
+      @if (dashboardLoading()) {
+        <p class="dl-empty">Chargement du tableau de bord…</p>
+      } @else {
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-3">
+            <div class="mc-kpi-card mc-kpi-card--primary">
+              <span class="mc-kpi-icon"><svg cIcon name="cilUserFollow" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ overview()?.totalParrainages ?? 0 }}</div>
+                <div class="mc-kpi-label">Parrainages</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mc-kpi-card mc-kpi-card--info">
+              <span class="mc-kpi-icon"><svg cIcon name="cilCheckCircle" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ (overview()?.tauxConversion ?? 0) | number: '1.0-1' }}%</div>
+                <div class="mc-kpi-label">Taux de conversion</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mc-kpi-card mc-kpi-card--success">
+              <span class="mc-kpi-icon"><svg cIcon name="cilTags" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ formatAmount(overview()?.montantTotalRecompenses ?? 0) }}</div>
+                <div class="mc-kpi-label">Récompenses distribuées ({{ overview()?.recompensesAttribuees ?? 0 }})</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mc-kpi-card mc-kpi-card--warning">
+              <span class="mc-kpi-icon"><svg cIcon name="cilPeople" size="lg"></svg></span>
+              <div class="mc-kpi-body">
+                <div class="mc-kpi-value">{{ overview()?.parrainsActifs ?? 0 }}</div>
+                <div class="mc-kpi-label">Parrains actifs</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-lg-7">
+            <div class="ldb-panel h-100">
+              <div class="ldb-panel-head"><h3>Évolution mensuelle</h3></div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box ldb-chart-box--tall">
+                  @if (mensuelData) {
+                    <c-chart type="line" [data]="mensuelData" [options]="mensuelOptions" />
+                  } @else {
+                    <p class="dl-empty p-0">Aucune donnée mensuelle.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="ldb-panel h-100">
+              <div class="ldb-panel-head"><h3>Répartition par statut</h3></div>
+              <div class="ldb-panel-body">
+                @if (parStatutRows().length === 0) {
+                  <p class="dl-empty p-0">Aucune donnée.</p>
+                } @else {
+                  <div class="d-flex flex-column gap-2">
+                    @for (row of parStatutRows(); track row.statut) {
+                      <div>
+                        <div class="d-flex justify-content-between mb-1">
+                          <span [class]="'dl-chip dl-chip--' + parStatutVariant(row.statut)">
+                            <span class="dl-chip-dot"></span>{{ statutLabel[row.statut] }}
+                          </span>
+                          <strong class="dl-cell-detail">{{ row.nombre }}</strong>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                          <div class="progress-bar" [style.width.%]="(row.nombre / parStatutMax()) * 100"></div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ldb-panel">
+          <div class="ldb-panel-head"><h3>Top parrains</h3></div>
+          <div class="ldb-panel-body p-0">
+            @if (topParrains().length === 0) {
+              <p class="dl-empty">Aucun parrain actif pour le moment.</p>
+            } @else {
+              <div class="dl-table-scroll">
+                <table class="dl-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Parrain</th>
+                      <th scope="col">Parrainages</th>
+                      <th scope="col">Convertis</th>
+                      <th scope="col">Récompenses cumulées</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of topParrains(); track row.parrainId) {
+                      <tr>
+                        <td>{{ row.parrainNom }}</td>
+                        <td class="dl-timestamp">{{ row.nombreParrainages }}</td>
+                        <td class="dl-timestamp">{{ row.nombreConvertis }}</td>
+                        <td class="dl-timestamp">{{ formatAmount(row.recompensesTotal) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ================= Parrainages ================= -->
+  @if (view() === 'parrainages') {
+    @if (parrainagesError()) {
+      <p class="dl-empty">{{ parrainagesError() }}</p>
+    } @else if (parrainagesLoading()) {
+      <p class="dl-empty">Chargement des parrainages…</p>
+    } @else if (parrainages().length === 0) {
+      <p class="dl-empty">Aucun parrainage ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-summary">
+        <span>{{ parrainages().length }} parrainage(s) — {{ statOuvertes() }} en cours, {{ statConvertis() }} converti(s)</span>
+      </div>
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Référence</th>
+              <th scope="col">Parrain</th>
+              <th scope="col">Filleul</th>
+              <th scope="col">Programme</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of filteredParrainages(); track p.id) {
+              <tr>
+                <td><span class="dl-tag">{{ p.reference }}</span></td>
+                <td>{{ p.parrainNom }}</td>
+                <td>
+                  <div class="dl-insured-name">{{ p.filleulNom }}</div>
+                  @if (p.filleulTelephone) { <div class="dl-insured-meta">{{ p.filleulTelephone }}</div> }
+                </td>
+                <td>{{ p.programmeNom }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + parrainageStatutVariant(p.statut)">
+                    <span class="dl-chip-dot"></span>{{ statutLabel[p.statut] }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openDetail(p)" cButton class="dl-btn" size="sm" type="button">Suivre</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ================= Programmes ================= -->
+  @if (view() === 'programmes') {
+    @if (programmesError()) {
+      <p class="dl-empty">{{ programmesError() }}</p>
+    } @else if (programmesLoading()) {
+      <p class="dl-empty">Chargement des programmes…</p>
+    } @else if (programmes().length === 0) {
+      <p class="dl-empty">Aucun programme de parrainage défini pour le moment.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Programme</th>
+              <th scope="col">Période</th>
+              <th scope="col">Limites</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (programme of programmes(); track programme.id) {
+              <tr>
+                <td>
+                  <div class="dl-insured-name">{{ programme.nom }}</div>
+                  <div class="dl-insured-meta">{{ programme.code }}</div>
+                </td>
+                <td class="dl-timestamp">{{ formatDate(programme.dateDebut) }} — {{ formatDate(programme.dateFin) }}</td>
+                <td class="dl-cell-detail">
+                  @if (programme.maxParrainagesParClient) { {{ programme.maxParrainagesParClient }} parrainage(s)/client }
+                  @if (programme.dureeValiditeJours) { · valide {{ programme.dureeValiditeJours }} j }
+                </td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + programmeStatutVariant[programme.statut]">
+                    <span class="dl-chip-dot"></span>{{ programmeStatutLabel[programme.statut] }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <c-dropdown alignment="end" [popperOptions]="{ strategy: 'fixed' }">
+                      <button [caret]="false" cDropdownToggle class="dl-icon-btn" title="Actions" type="button">
+                        <svg cIcon name="cilOptions" size="sm"></svg>
+                      </button>
+                      <div cDropdownMenu>
+                        <button (click)="openEditProgramme(programme)" cDropdownItem class="hdr-user-menu-item" type="button">
+                          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                            <svg cIcon name="cilPen" size="lg"></svg>
+                          </span>
+                          Modifier
+                        </button>
+                        @if (programme.statut === 'BROUILLON' || programme.statut === 'SUSPENDU') {
+                          <button (click)="askProgrammeAction(programme, 'activer')" cDropdownItem class="hdr-user-menu-item" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                              <svg cIcon name="cilCheckCircle" size="lg"></svg>
+                            </span>
+                            Activer
+                          </button>
+                        }
+                        @if (programme.statut === 'ACTIF') {
+                          <button (click)="askProgrammeAction(programme, 'suspendre')" cDropdownItem class="hdr-user-menu-item" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--warning">
+                              <svg cIcon name="cilWarning" size="lg"></svg>
+                            </span>
+                            Suspendre
+                          </button>
+                        }
+                        @if (programme.statut !== 'CLOTURE') {
+                          <hr class="dropdown-divider" />
+                          <button (click)="askProgrammeAction(programme, 'cloturer')" cDropdownItem class="hdr-user-menu-item hdr-user-menu-item--danger" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--danger">
+                              <svg cIcon name="cilTrash" size="lg"></svg>
+                            </span>
+                            Clôturer
+                          </button>
+                        }
+                      </div>
+                    </c-dropdown>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ================= Règles de récompense ================= -->
+  @if (view() === 'regles') {
+    @if (reglesError()) {
+      <p class="dl-empty">{{ reglesError() }}</p>
+    } @else if (reglesLoading()) {
+      <p class="dl-empty">Chargement des règles…</p>
+    } @else if (regles().length === 0) {
+      <p class="dl-empty">Aucune règle de récompense définie pour le moment.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Règle</th>
+              <th scope="col">Programme</th>
+              <th scope="col">Type</th>
+              <th scope="col">Bénéficiaire</th>
+              <th scope="col">Montant</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (regle of regles(); track regle.id) {
+              <tr>
+                <td>{{ regle.nom }}</td>
+                <td>{{ regle.programmeNom }}</td>
+                <td>{{ typeRecompenseLabel[regle.typeRecompense] }}</td>
+                <td>{{ beneficiaireLabel[regle.beneficiaire] }}</td>
+                <td class="dl-timestamp">
+                  @if (regle.montantFixe) { {{ formatAmount(regle.montantFixe) }} }
+                  @else if (regle.pourcentage) { {{ regle.pourcentage }}% }
+                  @else if (regle.points) { {{ regle.points }} pts }
+                  @else { — }
+                </td>
+                <td>
+                  @if (regle.actif) {
+                    <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Active</span>
+                  } @else {
+                    <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Inactive</span>
+                  }
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditRegle(regle)" class="dl-icon-btn" title="Modifier" type="button">
+                      <svg cIcon name="cilPen" size="sm"></svg>
+                    </button>
+                    <button (click)="askDeleteRegle(regle)" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                      <svg cIcon name="cilTrash" size="sm"></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ================= Récompenses ================= -->
+  @if (view() === 'recompenses') {
+    @if (recompensesError()) {
+      <p class="dl-empty">{{ recompensesError() }}</p>
+    } @else if (recompensesLoading()) {
+      <p class="dl-empty">Chargement des récompenses…</p>
+    } @else if (recompenses().length === 0) {
+      <p class="dl-empty">Aucune récompense ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Parrainage</th>
+              <th scope="col">Bénéficiaire</th>
+              <th scope="col">Type</th>
+              <th scope="col">Montant</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (recompense of recompenses(); track recompense.id) {
+              <tr>
+                <td><span class="dl-tag">{{ recompense.parrainageReference }}</span></td>
+                <td>{{ recompense.beneficiaireNom }}</td>
+                <td>{{ typeRecompenseLabel[recompense.typeRecompense] }}</td>
+                <td class="dl-timestamp">
+                  @if (recompense.montant) { {{ formatAmount(recompense.montant) }} }
+                  @else if (recompense.points) { {{ recompense.points }} pts }
+                  @else { — }
+                </td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + recompenseStatutVariant[recompense.statut]">
+                    <span class="dl-chip-dot"></span>{{ recompenseStatutLabel[recompense.statut] }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    @if (recompense.statut === 'ELIGIBLE' || recompense.statut === 'EN_ATTENTE') {
+                      <button (click)="askRecompenseAction(recompense, 'approuver')" cButton class="dl-btn" size="sm" type="button">Approuver</button>
+                    }
+                    @if (recompense.statut === 'APPROUVEE') {
+                      <button (click)="askRecompenseAction(recompense, 'attribuer')" cButton class="dl-btn" size="sm" type="button">Attribuer</button>
+                    }
+                    @if (recompense.statut === 'ATTRIBUEE') {
+                      <button (click)="askRecompenseAction(recompense, 'reverser')" cButton class="dl-btn" size="sm" type="button">Reverser</button>
+                    }
+                    @if (recompense.statut !== 'ANNULEE' && recompense.statut !== 'UTILISEE' && recompense.statut !== 'REVERSEE') {
+                      <button (click)="askRecompenseAction(recompense, 'annuler')" class="dl-icon-btn dl-icon-btn--danger" title="Annuler" type="button">
+                        <svg cIcon name="cilTrash" size="sm"></svg>
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ================= Paramètres ================= -->
+  @if (view() === 'parametres') {
+    @if (parametresError()) {
+      <p class="dl-empty">{{ parametresError() }}</p>
+    } @else if (parametresLoading()) {
+      <p class="dl-empty">Chargement des paramètres…</p>
+    } @else if (parametres().length === 0) {
+      <p class="dl-empty">Aucun paramètre défini.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Clé</th>
+              <th scope="col">Valeur</th>
+              <th scope="col">Description</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (parametre of parametres(); track parametre.id) {
+              <tr>
+                <td><span class="dl-tag">{{ parametre.cle }}</span></td>
+                <td>{{ parametre.valeur }}</td>
+                <td class="dl-cell">{{ parametre.description || '—' }}</td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditParametre(parametre)" class="dl-icon-btn" title="Modifier" type="button">
+                      <svg cIcon name="cilPen" size="sm"></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
+
+<!-- ================= Modale : nouveau parrainage ================= -->
+<app-modal [visible]="createVisible()" size="lg" title="Nouveau parrainage" (closed)="closeCreateParrainage()">
+  @if (createError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="parrainageForm" cForm (ngSubmit)="submitCreateParrainage()">
+    <p class="dl-cell-detail mb-3">Renseignez soit un code de parrainage existant, soit un parrain et un programme.</p>
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel>Code de parrainage (optionnel)</label>
+        <input cFormControl formControlName="code" placeholder="Ex. PARRAIN-AB12" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Programme</label>
+        <select cSelect formControlName="programmeId">
+          <option [value]="0">Sélectionner…</option>
+          @for (programme of programmes(); track programme.id) {
+            <option [value]="programme.id">{{ programme.nom }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Parrain (assuré)</label>
+        <select cSelect formControlName="parrainInsuredId">
+          <option [value]="0">Sélectionner…</option>
+          @for (insured of insureds(); track insured.id) {
+            <option [value]="insured.id">{{ insuredLabel(insured) }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Nom du filleul<span class="wz-required">*</span></label>
+        <input cFormControl formControlName="filleulNom" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Email du filleul (optionnel)</label>
+        <input cFormControl formControlName="filleulEmail" type="email" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Téléphone du filleul (optionnel)</label>
+        <input cFormControl formControlName="filleulTelephone" type="text" />
+      </div>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button (click)="closeCreateParrainage()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="createSaving()" cButton class="dl-btn dl-btn-primary" type="submit">
+        @if (createSaving()) { <c-spinner size="sm" /> }
+        Créer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ================= Modale : détail parrainage ================= -->
+<app-modal [visible]="detailVisible()" size="xl" title="Parrainage {{ selectedParrainage()?.reference }}" (closed)="detailVisible.set(false)">
+  @if (selectedParrainage(); as p) {
+    @if (detailActionError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    <div class="d-flex flex-wrap gap-4 mb-3 pb-3" style="border-bottom: 1px solid var(--cui-border-color);">
+      <div>
+        <div class="dl-cell-detail">Parrain</div>
+        <div>{{ p.parrainNom }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Filleul</div>
+        <div>{{ p.filleulNom }} @if (p.filleulTelephone) { — {{ p.filleulTelephone }} }</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Programme</div>
+        <div>{{ p.programmeNom }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Statut actuel</div>
+        <span [class]="'dl-chip dl-chip--' + parrainageStatutVariant(p.statut)">
+          <span class="dl-chip-dot"></span>{{ statutLabel[p.statut] }}
+        </span>
+      </div>
+      @if (p.contratPolicyNumber) {
+        <div>
+          <div class="dl-cell-detail">Contrat</div>
+          <div>{{ p.contratPolicyNumber }}</div>
+        </div>
+      }
+    </div>
+
+    @if (!isTerminal(p.statut)) {
+      <h6 class="fw-semibold mb-2">Faire avancer le dossier</h6>
+      <div class="d-flex flex-wrap gap-2 mb-4">
+        @if (p.statut === 'CREE') {
+          <button (click)="doInviter()" [disabled]="detailActionSaving()" cButton class="dl-btn dl-btn-primary" type="button">Envoyer l'invitation</button>
+        }
+        @if (p.statut === 'INVITE') {
+          <form [formGroup]="inscriptionForm" cForm (ngSubmit)="submitInscription()" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+              <label cLabel>Filleul inscrit (assuré)</label>
+              <select cSelect formControlName="filleulInsuredId" style="min-width: 260px;">
+                <option [value]="0">Sélectionner…</option>
+                @for (insured of insureds(); track insured.id) {
+                  <option [value]="insured.id">{{ insuredLabel(insured) }}</option>
+                }
+              </select>
+            </div>
+            <button [disabled]="detailActionSaving()" cButton class="dl-btn dl-btn-primary" type="submit">Confirmer l'inscription</button>
+          </form>
+        }
+        @if (p.statut === 'INSCRIT') {
+          <form [formGroup]="contratForm" cForm (ngSubmit)="submitContrat()" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+              <label cLabel>Contrat souscrit par le filleul</label>
+              <select cSelect formControlName="contratId" style="min-width: 260px;">
+                <option [value]="0">Sélectionner…</option>
+                @for (contrat of filleulContracts(); track contrat.id) {
+                  <option [value]="contrat.id">{{ contrat.policyNumber }} — {{ contrat.productName }}</option>
+                }
+              </select>
+            </div>
+            <button [disabled]="detailActionSaving()" cButton class="dl-btn dl-btn-primary" type="submit">Rattacher le contrat</button>
+          </form>
+        }
+        @if (p.statut === 'CONTRAT_CREE' || p.statut === 'CONTRAT_ACTIF') {
+          <button (click)="doValider()" [disabled]="detailActionSaving()" cButton class="dl-btn dl-btn-primary" type="button">Valider l'éligibilité</button>
+        }
+        <button (click)="doExpirer()" [disabled]="detailActionSaving()" cButton class="dl-btn" type="button">Marquer comme expiré</button>
+        <button (click)="runAntifraude()" [disabled]="detailActionSaving()" cButton class="dl-btn" type="button">Lancer un contrôle anti-fraude</button>
+      </div>
+
+      <form [formGroup]="annulerForm" cForm (ngSubmit)="submitAnnuler()" class="d-flex gap-2 align-items-end flex-wrap mb-4">
+        <div class="flex-grow-1">
+          <label cLabel>Motif d'annulation (optionnel)</label>
+          <input cFormControl formControlName="motif" type="text" />
+        </div>
+        <button [disabled]="detailActionSaving()" cButton class="dl-btn" type="submit">Annuler le parrainage</button>
+      </form>
+    }
+
+    @if (lastValidation(); as validation) {
+      <div class="mb-4">
+        <app-alert-message
+          class="d-block mb-2"
+          [variant]="validation.eligible ? 'success' : 'warning'"
+          [message]="validation.eligible ? 'Parrainage éligible.' : 'Parrainage non éligible pour le moment.'"
+        />
+        <ul class="list-unstyled dl-cell-detail mb-0">
+          @for (v of validation.verifications; track v.critere) {
+            <li>{{ v.satisfait ? '✓' : '✗' }} {{ v.critere }} — {{ v.detail }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <h6 class="fw-semibold mb-2">Historique</h6>
+        @if (historique().length === 0) {
+          <p class="dl-empty">Aucun évènement pour le moment.</p>
+        } @else {
+          <ul class="list-unstyled d-flex flex-column gap-2">
+            @for (event of historique(); track event.id) {
+              <li class="dl-cell-detail">
+                <strong class="text-body">{{ event.typeEvenement }}</strong>
+                @if (event.description) { — {{ event.description }} }
+                <div>{{ formatDateTime(event.createdAt) }}@if (event.auteurNom) { — {{ event.auteurNom }} }</div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+      <div class="col-lg-6">
+        <h6 class="fw-semibold mb-2">Contrôles anti-fraude</h6>
+        @if (controles().length === 0) {
+          <p class="dl-empty">Aucun contrôle exécuté pour le moment.</p>
+        } @else {
+          <ul class="list-unstyled d-flex flex-column gap-2">
+            @for (controle of controles(); track controle.id) {
+              <li>
+                <span [class]="'dl-chip dl-chip--' + antifraudeVariant(controle.statut)">
+                  <span class="dl-chip-dot"></span>{{ controle.typeControle }}
+                </span>
+                <div class="dl-cell-detail">{{ controle.motif || 'Aucune anomalie détectée.' }} — {{ formatDateTime(controle.createdAt) }}</div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+  }
+</app-modal>
+
+<!-- ================= Modale : programme (créer/modifier) ================= -->
+<app-modal
+  [visible]="programmeFormVisible()"
+  size="lg"
+  title="{{ programmeFormMode() === 'create' ? 'Nouveau programme' : 'Modifier le programme' }}"
+  (closed)="closeProgrammeForm()"
+>
+  @if (programmeFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="programmeForm" cForm (ngSubmit)="submitProgrammeForm()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel>Code<span class="wz-required">*</span></label>
+        <input cFormControl formControlName="code" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Nom<span class="wz-required">*</span></label>
+        <input cFormControl formControlName="nom" type="text" />
+      </div>
+      <div class="col-12">
+        <label cLabel>Description (optionnel)</label>
+        <textarea cFormControl formControlName="description" rows="2"></textarea>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Date de début (optionnel)</label>
+        <input cFormControl formControlName="dateDebut" type="date" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Date de fin (optionnel)</label>
+        <input cFormControl formControlName="dateFin" type="date" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Max. parrainages / client (optionnel)</label>
+        <input cFormControl formControlName="maxParrainagesParClient" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Max. récompenses / client (optionnel)</label>
+        <input cFormControl formControlName="maxRecompensesParClient" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Délai de carence (jours, optionnel)</label>
+        <input cFormControl formControlName="delaiCarenceJours" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Durée de validité (jours, optionnel)</label>
+        <input cFormControl formControlName="dureeValiditeJours" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Prime minimum (FCFA, optionnel)</label>
+        <input cFormControl formControlName="primeMinimum" min="0" type="number" />
+      </div>
+      <div class="col-12">
+        <label cLabel>Produits éligibles (optionnel — tous si aucun coché)</label>
+        <div class="d-flex flex-wrap gap-3 mt-1">
+          @for (produit of produits(); track produit.id) {
+            <div class="form-check">
+              <input
+                (change)="toggleProduitEligible(produit.id, $any($event.target).checked)"
+                [checked]="programmeForm.controls.produitsEligibles.value.includes(produit.id)"
+                class="form-check-input"
+                id="prog-produit-{{ produit.id }}"
+                type="checkbox"
+              />
+              <label class="form-check-label" for="prog-produit-{{ produit.id }}">{{ produit.nomProduit }}</label>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button (click)="closeProgrammeForm()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="programmeFormSaving()" cButton class="dl-btn dl-btn-primary" type="submit">
+        @if (programmeFormSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="pendingProgrammeAction() !== null"
+  [title]="pendingProgrammeActionTitle()"
+  [message]="pendingProgrammeActionMessage()"
+  icon="cilWarning"
+  (confirmed)="confirmProgrammeAction()"
+  (cancelled)="cancelProgrammeAction()"
+/>
+
+<!-- ================= Modale : règle de récompense (créer/modifier) ================= -->
+<app-modal
+  [visible]="regleFormVisible()"
+  size="lg"
+  title="{{ regleFormMode() === 'create' ? 'Nouvelle règle' : 'Modifier la règle' }}"
+  (closed)="closeRegleForm()"
+>
+  @if (regleFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="regleForm" cForm (ngSubmit)="submitRegleForm()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel>Programme<span class="wz-required">*</span></label>
+        <select cSelect formControlName="programmeId">
+          <option [value]="0">Sélectionner…</option>
+          @for (programme of programmes(); track programme.id) {
+            <option [value]="programme.id">{{ programme.nom }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Nom<span class="wz-required">*</span></label>
+        <input cFormControl formControlName="nom" type="text" />
+      </div>
+      <div class="col-12">
+        <label cLabel>Description (optionnel)</label>
+        <textarea cFormControl formControlName="description" rows="2"></textarea>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Type de récompense</label>
+        <select cSelect formControlName="typeRecompense">
+          <option value="CASHBACK">Cashback</option>
+          <option value="REMISE">Remise</option>
+          <option value="BONUS">Bonus</option>
+          <option value="POINTS">Points</option>
+          <option value="CADEAU">Cadeau</option>
+          <option value="COUPON">Coupon</option>
+          <option value="REDUCTION_PRIME">Réduction de prime</option>
+          <option value="AUTRE">Autre</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Bénéficiaire</label>
+        <select cSelect formControlName="beneficiaire">
+          <option value="PARRAIN">Parrain</option>
+          <option value="FILLEUL">Filleul</option>
+          <option value="LES_DEUX">Les deux</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Montant fixe (FCFA, optionnel)</label>
+        <input cFormControl formControlName="montantFixe" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Pourcentage (%, optionnel)</label>
+        <input cFormControl formControlName="pourcentage" min="0" step="0.01" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Points (optionnel)</label>
+        <input cFormControl formControlName="points" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Prime minimum requise (FCFA, optionnel)</label>
+        <input cFormControl formControlName="primeMinimum" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Plafond de récompense (FCFA, optionnel)</label>
+        <input cFormControl formControlName="plafondRecompense" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel>Priorité</label>
+        <input cFormControl formControlName="priorite" type="number" />
+      </div>
+      <div class="col-12">
+        <div class="form-check form-switch">
+          <input cFormCheckInput formControlName="actif" id="regle-actif" switch type="checkbox" />
+          <label cLabel for="regle-actif">Règle active</label>
+        </div>
+      </div>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button (click)="closeRegleForm()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="regleFormSaving()" cButton class="dl-btn dl-btn-primary" type="submit">
+        @if (regleFormSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="pendingDeleteRegle() !== null"
+  title="Supprimer cette règle ?"
+  message="La règle « {{ pendingDeleteRegle()?.nom }} » sera définitivement supprimée."
+  icon="cilTrash"
+  (confirmed)="confirmDeleteRegle()"
+  (cancelled)="cancelDeleteRegle()"
+/>
+
+<!-- ================= Modale : action sur récompense ================= -->
+<app-modal [visible]="pendingRecompenseAction() !== null" title="{{ pendingRecompenseActionTitle() }}" (closed)="cancelRecompenseAction()">
+  <p>
+    {{ pendingRecompenseActionTitle() }} pour « {{ pendingRecompense()?.beneficiaireNom }} »
+    ({{ pendingRecompense()?.parrainageReference }}) ?
+  </p>
+  @if (recompenseActionNeedsMotif()) {
+    <form [formGroup]="recompenseMotifForm">
+      <label cLabel>Motif (optionnel)</label>
+      <input cFormControl formControlName="motif" type="text" />
+    </form>
+  }
+  <div class="d-flex justify-content-end gap-2 mt-3">
+    <button (click)="cancelRecompenseAction()" cButton class="dl-btn" type="button">Annuler</button>
+    <button (click)="confirmRecompenseAction()" [disabled]="recompenseActionSaving()" cButton class="dl-btn dl-btn-primary" type="button">
+      @if (recompenseActionSaving()) { <c-spinner size="sm" /> }
+      Confirmer
+    </button>
+  </div>
+</app-modal>
+
+<!-- ================= Modale : paramètre (créer/modifier) ================= -->
+<app-modal
+  [visible]="parametreFormVisible()"
+  title="{{ editingParametreCle() ? 'Modifier le paramètre' : 'Nouveau paramètre' }}"
+  (closed)="closeParametreForm()"
+>
+  @if (parametreFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="parametreForm" cForm (ngSubmit)="submitParametreForm()">
+    <div class="mb-3">
+      <label cLabel>Clé<span class="wz-required">*</span></label>
+      <input [readOnly]="!!editingParametreCle()" cFormControl formControlName="cle" type="text" />
+    </div>
+    <div class="mb-3">
+      <label cLabel>Valeur<span class="wz-required">*</span></label>
+      <input cFormControl formControlName="valeur" type="text" />
+    </div>
+    <div class="mb-3">
+      <label cLabel>Description (optionnel)</label>
+      <textarea cFormControl formControlName="description" rows="2"></textarea>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button (click)="closeParametreForm()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="parametreFormSaving()" cButton class="dl-btn dl-btn-primary" type="submit">
+        @if (parametreFormSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>

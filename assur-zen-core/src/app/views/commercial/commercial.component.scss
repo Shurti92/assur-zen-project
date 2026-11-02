@@ -1,0 +1,24 @@
+// Onglet Paie (refonte validée le 2026-10-02) : seul contenu d'onglet resté dans un panneau
+// .dl-panel, qui n'a pas de marge intérieure propre. Les autres onglets suivent la refonte du
+// 2026-10-06 (scss/_force-de-vente.scss).
+.cm-tab-body {
+  padding: 0 1.3rem 1.3rem;
+
+  &--solo {
+    padding-top: 1.3rem;
+  }
+}
+
+.cm-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cm-form-section {
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--cui-tertiary-bg);
+}

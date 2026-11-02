@@ -1,0 +1,58 @@
+// Sections du formulaire Nouveau/Modifier partenaire — cartes visuellement distinctes
+// (contrairement à .fs-section, qui n'est qu'un séparateur, voir _form-sections.scss).
+// Validé sur maquette avant implémentation (2026-08-25).
+.pa-form-section {
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.75rem;
+  padding: 1rem 1.15rem;
+  background: var(--cui-tertiary-bg);
+  margin-bottom: 0.9rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &--accent {
+    background: var(--cui-primary-bg-subtle, rgba(var(--cui-primary-rgb), 0.12));
+    border-color: var(--cui-primary-border-subtle, var(--cui-primary));
+  }
+}
+
+.pa-form-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+
+  svg {
+    color: var(--cui-primary);
+    flex-shrink: 0;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--cui-primary-text-emphasis, var(--cui-primary));
+  }
+}
+
+// Fenêtres de refus et de date d'expiration d'un document.
+.pa-doc-notice {
+  margin-bottom: 0.9rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.6rem;
+  font-size: 0.84rem;
+  background: var(--cui-warning-bg-subtle);
+  color: var(--cui-warning-text-emphasis, var(--cui-warning));
+}
+
+.pa-doc-counter {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  font-size: 0.76rem;
+  color: var(--cui-secondary-color);
+}

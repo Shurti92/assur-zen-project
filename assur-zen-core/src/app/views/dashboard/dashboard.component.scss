@@ -1,0 +1,48 @@
+:host {
+  .legend {
+    small {
+      font-size: x-small;
+    }
+  }
+}
+
+// En-tête du tableau de bord (refonte validée le 2026-10-02)
+.db-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  font-family: var(--pz-font);
+}
+
+.db-kicker { font-size: 12px; color: var(--pz-muted); }
+.db-title { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--pz-text); }
+
+.db-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--pz-card);
+  border: 1px solid var(--pz-line);
+  border-radius: 999px;
+}
+
+.db-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font: 500 13px var(--pz-font);
+  color: var(--pz-muted);
+  cursor: pointer;
+
+  svg { width: 15px; height: 15px; }
+
+  &.active { background: var(--pz-primary); color: #fff; }
+}

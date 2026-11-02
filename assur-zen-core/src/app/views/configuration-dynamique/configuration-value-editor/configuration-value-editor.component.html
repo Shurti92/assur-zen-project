@@ -1,0 +1,99 @@
+@switch (valueType()) {
+  @case ('BOOLEAN') {
+    <div class="form-check form-switch">
+      <input
+        [checked]="booleanValue"
+        (change)="onBooleanChange($any($event.target).checked)"
+        [disabled]="disabled()"
+        cFormCheckInput
+        switch
+        type="checkbox"
+      />
+      <label cLabel>{{ booleanValue ? 'Vrai' : 'Faux' }}</label>
+    </div>
+  }
+
+  @case ('JSON') {
+    <textarea
+      [ngModel]="value()"
+      (ngModelChange)="onJsonChange($event)"
+      [disabled]="disabled()"
+      cFormControl
+      rows="6"
+      placeholder='{ "cle": "valeur" }'
+    ></textarea>
+    @if (jsonError()) {
+      <div class="text-danger mt-1" style="font-size: 0.8rem;">{{ jsonError() }}</div>
+    }
+  }
+
+  @case ('LIST') {
+    <div class="d-flex flex-column gap-2">
+      @if (listItems().length > 0) {
+        <ul class="list-unstyled d-flex flex-column gap-1 mb-0">
+          @for (item of listItems(); track $index) {
+            <li class="d-flex align-items-center gap-2">
+              <span class="dl-tag flex-grow-1">{{ item }}</span>
+              <button (click)="moveListItem($index, -1)" [disabled]="disabled() || $index === 0" cButton class="dl-btn" size="sm" type="button">↑</button>
+              <button (click)="moveListItem($index, 1)" [disabled]="disabled() || $index === listItems().length - 1" cButton class="dl-btn" size="sm" type="button">↓</button>
+              <button (click)="removeListItem($index)" [disabled]="disabled()" cButton class="dl-btn" color="danger" size="sm" variant="outline" type="button">
+                <svg cIcon name="cilTrash" size="sm"></svg>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+      <div class="d-flex gap-2">
+        <input
+          [ngModel]="listDraft()"
+          (ngModelChange)="listDraft.set($event)"
+          (keydown.enter)="$event.preventDefault(); addListItem()"
+          [disabled]="disabled()"
+          cFormControl
+          placeholder="Ajouter une valeur…"
+          type="text"
+        />
+        <button (click)="addListItem()" [disabled]="disabled()" cButton class="dl-btn" type="button">Ajouter</button>
+      </div>
+    </div>
+  }
+
+  @case ('ENUM') {
+    <select [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cSelect>
+      <option value="">Sélectionner…</option>
+      @for (option of enumOptions(); track option) {
+        <option [value]="option">{{ option }}</option>
+      }
+    </select>
+  }
+
+  @case ('DATE') {
+    <input [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cFormControl type="date" />
+  }
+
+  @case ('DATETIME') {
+    <input [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cFormControl type="datetime-local" />
+  }
+
+  @case ('INTEGER') {
+    <input [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cFormControl step="1" type="number" />
+  }
+  @case ('LONG') {
+    <input [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cFormControl step="1" type="number" />
+  }
+  @case ('DECIMAL') {
+    <input [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cFormControl step="any" type="number" />
+  }
+
+  @case ('URL') {
+    <input [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cFormControl placeholder="https://…" type="url" />
+  }
+
+  @case ('DURATION') {
+    <input [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cFormControl placeholder="Ex. PT30M, 30m, 1h" type="text" />
+  }
+
+  @default {
+    <input [ngModel]="value()" (ngModelChange)="value.set($event)" [disabled]="disabled()" cFormControl type="text" />
+  }
+}

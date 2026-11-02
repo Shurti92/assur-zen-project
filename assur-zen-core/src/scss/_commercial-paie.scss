@@ -1,0 +1,605 @@
+// Onglet Paie des commerciaux et modale de paiement du bonus — refonte validée le 2026-10-02
+// (maquette « Paie des commerciaux »). Tokens --pz-* repris de _souscription-wizard.scss (.pz-scope,
+// y compris le thème sombre) : à utiliser avec class="pz-scope cpz".
+
+.pz-scope {
+  --pz-info: #2f6fd6;
+  --pz-info-soft: #e7f0fd;
+}
+
+[data-coreui-theme="dark"] .pz-scope {
+  --pz-info: #7aa7f0;
+  --pz-info-soft: #1b2a47;
+}
+
+.cpz {
+  color: var(--pz-text);
+  font: 14px/1.45 var(--pz-font);
+
+  .cpz-num { font-variant-numeric: tabular-nums; }
+  .cpz-muted { color: var(--pz-muted); }
+  .cpz-sub { font-size: 12px; color: var(--pz-muted); }
+  .cpz-right { text-align: right; }
+  .cpz-mt { margin-top: 4px; }
+
+  // Boutons ----------------------------------------------------------------
+  .cpz-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font: 600 13px var(--pz-font);
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+
+    &:disabled { opacity: .55; cursor: not-allowed; }
+  }
+
+  .cpz-btn-primary { background: var(--pz-primary); color: #fff; }
+  .cpz-btn-primary:not(:disabled):hover { filter: brightness(1.08); }
+  .cpz-btn-outline { background: var(--pz-card); color: var(--pz-text); border-color: var(--pz-line); }
+  .cpz-btn-outline:not(:disabled):hover { background: var(--pz-soft); }
+  .cpz-btn-warn { background: var(--pz-warn-soft); color: var(--pz-warn); }
+  .cpz-btn-ghost { background: none; color: var(--pz-primary); padding: 0 6px; height: auto; }
+
+  .cpz-icon-btn {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--pz-line);
+    background: var(--pz-card);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--pz-text);
+
+    &:not(:disabled):hover { background: var(--pz-soft); }
+    &:disabled { opacity: .4; cursor: not-allowed; }
+  }
+
+  // Badges -----------------------------------------------------------------
+  .cpz-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+
+    i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  }
+
+  .cpz-b-neutral { background: var(--pz-soft); color: var(--pz-muted); }
+  .cpz-b-ok { background: var(--pz-ok-soft); color: var(--pz-ok); }
+  .cpz-b-warn { background: var(--pz-warn-soft); color: var(--pz-warn); }
+  .cpz-b-danger { background: var(--pz-danger-soft); color: var(--pz-danger); }
+  .cpz-b-info { background: var(--pz-info-soft); color: var(--pz-info); }
+
+  // Période ----------------------------------------------------------------
+  .cpz-period {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .cpz-period-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .cpz-period-actions { display: flex; gap: 8px; align-items: center; }
+  .cpz-period-label { min-width: 190px; }
+  .cpz-period-label strong { display: block; font-size: 20px; letter-spacing: -0.01em; }
+  .cpz-period-label span { font-size: 12px; color: var(--pz-muted); }
+
+  .cpz-select {
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--pz-line);
+    border-radius: 10px;
+    background: var(--pz-card);
+    font: 500 13px var(--pz-font);
+    color: var(--pz-text);
+  }
+
+  // Indicateurs ------------------------------------------------------------
+  .cpz-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .cpz-kpi { padding: 14px 16px; border: 1px solid var(--pz-line); border-radius: 14px; background: var(--pz-card); }
+  .cpz-kpi-k { font-size: 12px; color: var(--pz-muted); font-weight: 500; }
+  .cpz-kpi-v { font-size: 22px; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
+  .cpz-kpi-s { font-size: 12px; color: var(--pz-muted); margin-top: 2px; }
+  .cpz-kpi--accent { background: var(--pz-primary-soft); border-color: transparent; }
+  .cpz-kpi--accent .cpz-kpi-v { color: var(--pz-primary); }
+
+  .cpz-notice {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--pz-soft);
+    color: var(--pz-muted);
+    font-size: 13px;
+    margin-bottom: 14px;
+
+    svg { flex: none; margin-top: 2px; color: var(--pz-primary); }
+    strong { color: var(--pz-text); }
+  }
+
+  // Liste ------------------------------------------------------------------
+  .cpz-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+
+    h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  }
+
+  .cpz-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .cpz-chip {
+    border: 1px solid var(--pz-line);
+    background: var(--pz-card);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font: 500 12px var(--pz-font);
+    color: var(--pz-muted);
+    cursor: pointer;
+
+    b { margin-left: 4px; }
+
+    &.active { border-color: var(--pz-primary); color: var(--pz-primary); background: var(--pz-primary-soft); }
+  }
+
+  .cpz-rows { border: 1px solid var(--pz-line); border-radius: 14px; overflow: hidden; }
+
+  .cpz-row-head,
+  .cpz-row {
+    display: grid;
+    grid-template-columns: minmax(200px, 1.4fr) minmax(220px, 1.6fr) minmax(130px, .9fr) minmax(150px, 1fr) 160px;
+    gap: 18px;
+    align-items: center;
+    padding: 14px 18px;
+  }
+
+  .cpz-row-head {
+    background: var(--pz-soft);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--pz-muted);
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .cpz-row { border-top: 1px solid var(--pz-line); background: var(--pz-card); }
+  .cpz-row:hover { background: color-mix(in srgb, var(--pz-soft) 40%, var(--pz-card)); }
+
+  .cpz-who {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .cpz-who-text { display: flex; flex-direction: column; min-width: 0; }
+
+  .cpz-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+    font-size: 13px;
+    background: var(--pz-primary-soft);
+    color: var(--pz-primary);
+    flex: none;
+  }
+
+  .cpz-who-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cpz-who-code { font-size: 12px; color: var(--pz-muted); }
+
+  .cpz-progress-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 6px;
+
+    strong { font-size: 14px; }
+  }
+
+  .cpz-bar {
+    position: relative;
+    height: 8px;
+    background: var(--pz-soft);
+    border-radius: 999px;
+
+    span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+  }
+
+  .cpz-goal {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    margin-left: -2px;
+    background: var(--pz-text);
+    opacity: .35;
+    border-radius: 2px;
+  }
+
+  .cpz-fill-low { background: var(--pz-danger); }
+  .cpz-fill-mid { background: var(--pz-warn); }
+  .cpz-fill-ok { background: var(--pz-ok); }
+
+  .cpz-amount { font-weight: 600; }
+  .cpz-act { display: flex; justify-content: flex-end; }
+
+  .cpz-detail {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px 14px;
+    margin-top: -2px;
+    background: var(--pz-soft);
+    border-radius: 12px;
+    font-size: 13px;
+
+    div span {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--pz-muted);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+  }
+
+  .cpz-formula {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    color: var(--pz-muted);
+    font-size: 12.5px;
+
+    code {
+      font: 600 12.5px var(--pz-font);
+      color: var(--pz-text);
+      background: var(--pz-card);
+      border: 1px solid var(--pz-line);
+      padding: 2px 8px;
+      border-radius: 8px;
+    }
+  }
+
+  // Historique -------------------------------------------------------------
+  .cpz-history { margin-top: 28px; }
+
+  .cpz-tl {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--pz-line);
+    border-radius: 14px;
+    overflow: hidden;
+
+    li {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1.5fr) minmax(0, 1fr) 160px 150px;
+      gap: 14px;
+      align-items: center;
+      padding: 12px 18px;
+      border-top: 1px solid var(--pz-line);
+      background: var(--pz-card);
+    }
+
+    li:first-child { border-top: 0; }
+  }
+
+  .cpz-tl-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+
+    &.ok { background: var(--pz-ok-soft); color: var(--pz-ok); }
+    &.info { background: var(--pz-info-soft); color: var(--pz-info); }
+    &.danger { background: var(--pz-danger-soft); color: var(--pz-danger); }
+  }
+
+  .cpz-tl-main { min-width: 0; }
+  .cpz-tl-amount { text-align: right; font-weight: 700; }
+
+  // Modale de paiement -------------------------------------------------------
+  .cpz-pay-hero {
+    text-align: center;
+    padding: 18px;
+    border-radius: 14px;
+    background: var(--pz-primary-soft);
+    margin-bottom: 16px;
+    color: var(--pz-primary);
+  }
+
+  .cpz-pay-lbl { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .cpz-pay-big { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  .cpz-pay-sub { opacity: .8; font-size: 13px; }
+
+  .cpz-warn-text { color: var(--pz-warn); font-size: 13px; }
+
+  .cpz-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    display: grid;
+    gap: 8px;
+
+    li { display: flex; gap: 10px; font-size: 13px; color: var(--pz-muted); }
+
+    b {
+      width: 22px;
+      height: 22px;
+      flex: none;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      background: var(--pz-soft);
+      color: var(--pz-text);
+    }
+  }
+
+  .cpz-field {
+    label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+
+    input {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--pz-line);
+      border-radius: 10px;
+      padding: 0 12px;
+      font: 14px var(--pz-font);
+      background: var(--pz-card);
+      color: var(--pz-text);
+    }
+  }
+
+  .cpz-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  // Transport et communication : paiements distincts du bonus (maquette validée le 2026-11-01) ----
+  .cpz-row--benefits,
+  .cpz-row-head--benefits {
+    grid-template-columns: minmax(190px, 1.3fr) minmax(200px, 1.3fr) minmax(120px, .8fr) minmax(130px, .9fr) minmax(220px, 1.3fr) 150px;
+  }
+
+  .cpz-chips { display: flex; flex-direction: column; gap: 6px; }
+
+  .cpz-chip-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .cpz-kpis--five { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+  .cpz-benefits {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px;
+    margin-top: -2px;
+    background: var(--pz-soft);
+    border-radius: 12px;
+  }
+
+  .cpz-benefit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    background: var(--pz-card);
+    border: 1px solid var(--pz-line);
+    border-radius: 12px;
+
+    h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--pz-muted); }
+  }
+
+  .cpz-benefit-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cpz-benefit-amount { font-size: 18px; font-weight: 700; }
+
+  // Responsive -------------------------------------------------------------
+  @media (max-width: 1000px) {
+    .cpz-row--benefits { grid-template-columns: 1fr 1fr; }
+    .cpz-chips { grid-column: 1 / -1; }
+    .cpz-benefits { grid-template-columns: 1fr; }
+    .cpz-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cpz-row-head { display: none; }
+    .cpz-row { grid-template-columns: 1fr 1fr; }
+    .cpz-act { grid-column: 1 / -1; justify-content: stretch; }
+    .cpz-act .cpz-btn { width: 100%; }
+    .cpz-detail { grid-template-columns: 1fr 1fr; }
+    .cpz-tl li { grid-template-columns: 44px 1fr auto; }
+    .cpz-hide-sm { display: none; }
+  }
+}
+
+// Fiche commercial : en-tête de la fenêtre et onglet Performance (refonte validée le 2026-10-02) ----
+.cpz {
+  .cpz-primary { color: var(--pz-primary); }
+  .cpz-strong { font-weight: 700; color: var(--pz-text); }
+
+  &.cpz-head { display: flex; align-items: flex-start; gap: 16px; }
+
+  .cpz-head-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 17px;
+    background: var(--pz-primary);
+    color: #fff;
+    flex: none;
+  }
+
+  .cpz-head-main { flex: 1; min-width: 0; }
+  .cpz-head-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cpz-head-title h2 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+
+  .cpz-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--pz-muted);
+
+    b { color: var(--pz-text); font-weight: 600; }
+  }
+
+  // Synthèse + mini-graphique
+  .cpz-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1.6fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .cpz-chart { padding: 12px 16px 10px 40px; border: 1px solid var(--pz-line); border-radius: 14px; }
+  .cpz-chart-k { display: flex; justify-content: space-between; font-size: 12px; color: var(--pz-muted); font-weight: 500; }
+
+  .cpz-bars {
+    position: relative;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  // Ligne des 100 % : positionnée (top, en px) dans la zone des barres de 56px, au-dessus des libellés.
+  .cpz-bars-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1.5px dashed var(--pz-muted);
+    opacity: .55;
+    pointer-events: none;
+    z-index: 1;
+
+    span {
+      position: absolute;
+      left: -2px;
+      top: -7px;
+      transform: translateX(-100%);
+      padding-right: 4px;
+      font-size: 10px;
+      color: var(--pz-muted);
+    }
+  }
+
+  .cpz-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .cpz-bar-area { position: relative; width: 100%; height: 56px; display: flex; align-items: flex-end; justify-content: center; }
+  .cpz-bar-v { width: 100%; max-width: 26px; border-radius: 6px 6px 3px 3px; }
+  .cpz-bar-col small { font-size: 10px; color: var(--pz-muted); }
+  .cpz-c-ok { background: var(--pz-ok); }
+  .cpz-c-mid { background: var(--pz-warn); }
+  .cpz-c-low { background: var(--pz-danger); }
+  .cpz-c-current { outline: 2px solid var(--pz-primary); outline-offset: 2px; }
+
+  // Cartes mensuelles
+  .cpz-months { display: grid; gap: 12px; }
+  .cpz-month { border: 1px solid var(--pz-line); border-radius: 16px; padding: 16px 18px; background: var(--pz-card); }
+  .cpz-month--current { border-color: var(--pz-primary); box-shadow: 0 0 0 3px var(--pz-primary-soft); }
+  .cpz-m-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .cpz-m-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cpz-m-title strong { font-size: 16px; }
+  .cpz-m-grid { display: grid; grid-template-columns: 1.7fr 1fr 1fr; gap: 22px; margin-top: 14px; align-items: center; }
+  .cpz-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--pz-muted); font-weight: 600; }
+  .cpz-val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  .cpz-month .cpz-formula { margin-top: 10px; }
+  .cpz-month .cpz-formula code { background: var(--pz-soft); }
+
+  .cpz-m-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--pz-line);
+  }
+
+  .cpz-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cpz-actions .cpz-btn { height: 34px; padding: 0 13px; }
+  .cpz-actions .cpz-btn-ghost { height: auto; padding: 0 6px; }
+
+  // Suivi du bonus : Calculé → Validé → Payé
+  .cpz-track { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; }
+  .cpz-step { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--pz-muted); }
+
+  .cpz-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    background: var(--pz-soft);
+    border: 1.5px solid var(--pz-line);
+    color: var(--pz-muted);
+    flex: none;
+  }
+
+  .cpz-step--done { color: var(--pz-ok); }
+  .cpz-step--done .cpz-dot { background: var(--pz-ok); border-color: var(--pz-ok); color: #fff; }
+  .cpz-step--now { color: var(--pz-primary); }
+  .cpz-step--now .cpz-dot { background: var(--pz-primary-soft); border-color: var(--pz-primary); color: var(--pz-primary); }
+  .cpz-step--fail { color: var(--pz-danger); }
+  .cpz-step--fail .cpz-dot { background: var(--pz-danger-soft); border-color: var(--pz-danger); color: var(--pz-danger); }
+
+  .cpz-sep { width: 28px; height: 1.5px; background: var(--pz-line); margin: 0 8px; }
+  .cpz-sep--done { background: var(--pz-ok); }
+
+  @media (max-width: 860px) {
+    .cpz-summary { grid-template-columns: 1fr 1fr; }
+    .cpz-chart { grid-column: 1 / -1; }
+    .cpz-m-grid { grid-template-columns: 1fr 1fr; }
+    .cpz-m-grid > :first-child { grid-column: 1 / -1; }
+  }
+}

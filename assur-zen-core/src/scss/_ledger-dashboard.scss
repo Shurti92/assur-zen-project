@@ -1,0 +1,265 @@
+// Comptabilité générale — dashboard chrome: dense KPI tiles, chart panels and
+// insight/alert cards in the vein of SAP Fiori / Oracle Fusion / Power BI
+// overview pages. Built on the same --cui-* tokens as the rest of the app so
+// it stays consistent across light/dark themes.
+
+.ldb-kpi-card {
+  position: relative;
+  height: 100%;
+  padding: 1.1rem 1.2rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--cui-border-color);
+  background: var(--cui-body-bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--ldb-accent, var(--cui-primary));
+  }
+
+  &--primary { --ldb-accent: var(--cui-primary); }
+  &--success { --ldb-accent: var(--cui-success); }
+  &--warning { --ldb-accent: var(--cui-warning); }
+  &--info { --ldb-accent: var(--cui-info); }
+  &--danger { --ldb-accent: var(--cui-danger); }
+}
+
+.ldb-kpi-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ldb-kpi-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cui-secondary-color);
+}
+
+.ldb-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--ldb-accent, var(--cui-primary)) 14%, transparent);
+  color: var(--ldb-accent, var(--cui-primary));
+  flex-shrink: 0;
+}
+
+.ldb-kpi-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.ldb-kpi-sub {
+  font-size: 0.76rem;
+  color: var(--cui-secondary-color);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+// Chart panels ----------------------------------------------------------
+
+.ldb-panel {
+  height: 100%;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.85rem;
+  background: var(--cui-body-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.ldb-panel-head {
+  padding: 1rem 1.15rem 0.6rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  h3 {
+    font-size: 0.88rem;
+    font-weight: 700;
+    margin: 0;
+  }
+}
+
+.ldb-panel-sub {
+  font-size: 0.72rem;
+  color: var(--cui-secondary-color);
+}
+
+.ldb-panel-body {
+  flex: 1;
+  padding: 0.4rem 1.15rem 1.15rem;
+  min-height: 0;
+}
+
+.ldb-chart-box {
+  position: relative;
+  height: 260px;
+  overflow: hidden;
+
+  canvas {
+    max-width: 100%;
+  }
+}
+
+.ldb-chart-box--tall {
+  height: 300px;
+}
+
+// Compact legend under doughnut/pie charts, PowerBI-style value list --------
+
+.ldb-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.ldb-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.ldb-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ldb-dot);
+}
+
+.ldb-legend-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--cui-body-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ldb-legend-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--cui-secondary-color);
+}
+
+// Insight / alert cards ---------------------------------------------------
+
+.ldb-alert-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--cui-border-color);
+  background: var(--cui-tertiary-bg);
+  box-shadow: inset 3px 0 0 0 var(--ldb-accent, var(--cui-secondary-color));
+
+  &--ok { --ldb-accent: var(--cui-success); }
+  &--warning { --ldb-accent: var(--cui-warning); }
+  &--danger { --ldb-accent: var(--cui-danger); }
+}
+
+.ldb-alert-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.ldb-alert-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.65rem;
+  background: var(--cui-body-bg);
+  color: var(--ldb-accent, var(--cui-secondary-color));
+  flex-shrink: 0;
+}
+
+.ldb-alert-count {
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.ldb-alert-label {
+  font-size: 0.78rem;
+  color: var(--cui-secondary-color);
+}
+
+.ldb-alert-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 8.5rem;
+  overflow-y: auto;
+}
+
+.ldb-alert-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.5rem;
+  background: var(--cui-body-bg);
+
+  span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ldb-alert-item-meta {
+  flex-shrink: 0;
+  color: var(--cui-secondary-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.ldb-alert-empty {
+  font-size: 0.78rem;
+  color: var(--cui-secondary-color);
+  padding: 0.4rem 0;
+}
+
+.ldb-alert-link {
+  align-self: flex-start;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.ldb-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cui-secondary-color);
+  margin: 0 0 0.85rem;
+}

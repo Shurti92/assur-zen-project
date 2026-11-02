@@ -1,0 +1,99 @@
+<div class="sv-page">
+  <app-suivi-header />
+
+  <main class="sv-main" aria-live="polite">
+    @switch (etat()) {
+      @case ('loading') {
+        <div class="sv-content">
+          <app-suivi-skeleton />
+        </div>
+      }
+
+      @case ('tokenAbsent') {
+        <div class="ep-stage sv-error-stage">
+          <div class="ep-panel">
+            <div class="ep-badge ep-badge--warn">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M24 14v14" stroke-linecap="round"></path>
+                <circle cx="24" cy="33" r="1.6" fill="currentColor" stroke="none"></circle>
+                <circle cx="24" cy="24" r="15"></circle>
+              </svg>
+            </div>
+            <p class="ep-code ep-code--warn">Lien incomplet</p>
+            <h1 class="ep-title">Le lien de suivi est incomplet</h1>
+            <p class="ep-lede">Veuillez utiliser le lien reçu par SMS, sans le modifier.</p>
+          </div>
+        </div>
+      }
+
+      @case ('tokenInvalid') {
+        <div class="ep-stage sv-error-stage">
+          <div class="ep-panel">
+            <div class="ep-badge ep-badge--warn">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="24" cy="24" r="15"></circle>
+                <path d="M18 18l12 12M30 18l-12 12"></path>
+              </svg>
+            </div>
+            <p class="ep-code ep-code--warn">Lien invalide</p>
+            <h1 class="ep-title">Ce lien de suivi n'est plus valide</h1>
+            <p class="ep-lede">
+              Il a peut-être expiré ou été révoqué. Contactez votre agence AssurZen pour obtenir un nouveau lien de suivi.
+            </p>
+          </div>
+        </div>
+      }
+
+      @case ('serverError') {
+        <div class="ep-stage sv-error-stage">
+          <div class="ep-panel">
+            <div class="ep-badge">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M24 6 4 40h40Z"></path>
+                <path d="M24 20v8" stroke-linecap="round"></path>
+                <circle cx="24" cy="33" r="1.6" fill="currentColor" stroke="none"></circle>
+              </svg>
+            </div>
+            <p class="ep-code">Service indisponible</p>
+            <h1 class="ep-title">Le service de suivi est temporairement indisponible</h1>
+            <p class="ep-lede">Veuillez réessayer dans quelques instants.</p>
+            <div class="ep-actions">
+              <button (click)="load()" class="ep-btn" type="button">Réessayer</button>
+            </div>
+          </div>
+        </div>
+      }
+
+      @case ('success') {
+        @if (result(); as suivi) {
+          <div class="sv-content">
+            <h1 class="sv-page-title">Suivez votre demande de vignette</h1>
+            <p class="sv-page-lede">Consultez les différentes étapes de traitement de votre demande en toute simplicité.</p>
+
+            <app-suivi-summary-card [suivi]="suivi" />
+
+            @if (suivi.statut === 'REJETEE' || suivi.statut === 'ANNULEE') {
+              <div class="sv-section">
+                <app-suivi-exceptional-status [suivi]="suivi" />
+              </div>
+            } @else {
+              <div class="sv-section">
+                <app-suivi-timeline [suivi]="suivi" />
+              </div>
+
+              <button (click)="load()" class="sv-refresh-btn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                  <path d="M21 3v6h-6"></path>
+                </svg>
+                Actualiser
+              </button>
+
+              <p class="sv-contact">Besoin d'aide ? Contactez votre agence AssurZen.</p>
+            }
+          </div>
+        }
+      }
+    }
+  </main>
+</div>

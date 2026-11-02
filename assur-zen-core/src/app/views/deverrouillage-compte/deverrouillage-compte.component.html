@@ -1,0 +1,43 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Déverrouillage de compte</h2>
+    </div>
+  </div>
+
+  <div class="px-3 pb-3" style="max-width: 480px;">
+    <p class="dl-empty">
+      Un compte est temporairement bloqué après trop de tentatives de connexion échouées
+      (voir la configuration <code>MAX_LOGIN_ATTEMPTS</code>). Saisissez le nom d'utilisateur
+      pour lever ce blocage immédiatement, sans attendre le délai automatique.
+    </p>
+
+    @if (successMessage(); as message) {
+      <app-alert-message class="d-block mb-3" variant="success" [message]="message" />
+    }
+    @if (errorMessage(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    <form [formGroup]="form" cForm (ngSubmit)="askUnlock()">
+      <div class="mb-3">
+        <label cLabel for="unlock-username">Nom d'utilisateur</label>
+        <input cFormControl formControlName="username" id="unlock-username" placeholder="Ex. 0700000000" type="text" />
+        @if (form.controls.username.invalid && form.controls.username.touched) {
+          <p class="text-danger small mt-1">Le nom d'utilisateur est requis.</p>
+        }
+      </div>
+
+      <button [disabled]="submitting()" cButton class="dl-btn dl-btn-primary" type="submit">Déverrouiller le compte</button>
+    </form>
+  </div>
+</section>
+
+<app-confirm-dialog
+  [visible]="confirmVisible()"
+  title="Déverrouiller ce compte ?"
+  [message]="'Voulez-vous vraiment déverrouiller immédiatement le compte « ' + form.getRawValue().username + ' » ?'"
+  confirmLabel="Déverrouiller"
+  (cancelled)="cancelUnlock()"
+  (confirmed)="confirmUnlock()"
+/>

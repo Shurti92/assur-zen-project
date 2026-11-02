@@ -1,0 +1,808 @@
+@if (!isAdmin()) {
+  <p class="dl-empty">Ce module est réservé aux administrateurs.</p>
+} @else {
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>GED — Gestion électronique des documents</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Vue">
+      <button (click)="setView('documents')" [attr.data-active]="view() === 'documents'" class="dl-pill" type="button">Documents</button>
+      <button (click)="setView('types')" [attr.data-active]="view() === 'types'" class="dl-pill" type="button">Types de documents</button>
+      <button (click)="setView('categories')" [attr.data-active]="view() === 'categories'" class="dl-pill" type="button">Catégories</button>
+    </div>
+
+    @if (view() === 'documents') {
+      <div class="dl-actions">
+        <button (click)="fetchDocuments()" [disabled]="documentsLoading()" cButton class="dl-btn" type="button">
+          @if (documentsLoading()) { <c-spinner size="sm" /> }
+          Actualiser
+        </button>
+        <button (click)="openUploadForm()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilCloudUpload"></svg>Déposer un document
+        </button>
+      </div>
+    }
+    @if (view() === 'types') {
+      <div class="dl-actions">
+        <button (click)="openCreateType()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouveau type
+        </button>
+      </div>
+    }
+    @if (view() === 'categories') {
+      <div class="dl-actions">
+        <button (click)="openCreateCategory()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouvelle catégorie
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- ================= DOCUMENTS ================= -->
+  @if (view() === 'documents') {
+    <div class="d-flex flex-wrap align-items-center gap-2 p-3" style="border-bottom: 1px solid var(--cui-border-color);">
+      <div class="dl-search" style="max-width: 220px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="onNumeroFilterInput($any($event.target).value)" [value]="numeroFilter()" autocomplete="off" placeholder="N° de document…" type="search" />
+      </div>
+      <select (change)="setTypeFilter($any($event.target).value)" [value]="typeFilter()" cSelect style="max-width: 180px;">
+        <option value="">Tous les types</option>
+        @for (t of types(); track t.id) {
+          <option [value]="t.code">{{ t.nom }}</option>
+        }
+      </select>
+      <select (change)="setCategoryFilter($any($event.target).value)" [value]="categoryFilter()" cSelect style="max-width: 180px;">
+        <option value="">Toutes les catégories</option>
+        @for (c of categories(); track c.id) {
+          <option [value]="c.code">{{ c.nom }}</option>
+        }
+      </select>
+      <select (change)="setStatusFilter($any($event.target).value)" [value]="statusFilter()" cSelect style="max-width: 160px;">
+        <option value="all">Tous statuts</option>
+        <option value="UPLOADED">Déposé</option>
+        <option value="VALIDATED">Validé</option>
+        <option value="REJECTED">Rejeté</option>
+        <option value="ARCHIVED">Archivé</option>
+      </select>
+      <select (change)="setConfidentialityFilter($any($event.target).value)" [value]="confidentialityFilter()" cSelect style="max-width: 170px;">
+        <option value="all">Toute confidentialité</option>
+        <option value="PUBLIC">Public</option>
+        <option value="INTERNAL">Interne</option>
+        <option value="CONFIDENTIAL">Confidentiel</option>
+        <option value="RESTRICTED">Restreint</option>
+      </select>
+      <button (click)="resetFilters()" cButton class="dl-btn" size="sm" type="button">Réinitialiser</button>
+    </div>
+
+    @if (documentsError()) {
+      <p class="dl-empty">{{ documentsError() }} <button (click)="fetchDocuments()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (documentsLoading()) {
+      <p class="dl-empty">Chargement des documents…</p>
+    } @else if (documents().length === 0) {
+      <p class="dl-empty">Aucun document ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">N° document</th>
+              <th scope="col">Titre</th>
+              <th scope="col">Type</th>
+              <th scope="col">Catégorie</th>
+              <th scope="col">Statut</th>
+              <th scope="col">Version</th>
+              <th scope="col">Confidentialité</th>
+              <th scope="col">Créé le</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (doc of documents(); track doc.id) {
+              <tr>
+                <td><span class="dl-tag">{{ doc.documentNumber }}</span></td>
+                <td>{{ doc.title }}</td>
+                <td>{{ doc.documentTypeNom }}</td>
+                <td class="dl-cell-detail">{{ doc.categoryNom || '—' }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + statusVariant(doc.status)">
+                    <span class="dl-chip-dot"></span>{{ statusLabel[doc.status] }}
+                  </span>
+                </td>
+                <td class="dl-timestamp">v{{ doc.currentVersionNumber }}</td>
+                <td class="dl-cell-detail">{{ confidentialityLabel[doc.confidentialityLevel] }}</td>
+                <td class="dl-timestamp">{{ formatDate(doc.createdAt) }}</td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openDetail(doc)" class="dl-icon-btn" title="Voir" type="button">
+                      <svg cIcon name="cilInfo" size="sm"></svg>
+                    </button>
+                    <c-dropdown alignment="end" [popperOptions]="{ strategy: 'fixed' }">
+                      <button [caret]="false" cDropdownToggle class="dl-icon-btn" title="Actions" type="button">
+                        <svg cIcon name="cilOptions" size="sm"></svg>
+                      </button>
+                      <div cDropdownMenu>
+                        <button (click)="downloadCurrentVersion(doc)" cDropdownItem class="hdr-user-menu-item" type="button">
+                          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                            <svg cIcon name="cilCloudDownload" size="lg"></svg>
+                          </span>
+                          Télécharger
+                        </button>
+                        @if (doc.status === 'UPLOADED') {
+                          <button (click)="validateDocument(doc)" cDropdownItem class="hdr-user-menu-item" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                              <svg cIcon name="cilCheckCircle" size="lg"></svg>
+                            </span>
+                            Valider
+                          </button>
+                          <button (click)="askReject(doc)" cDropdownItem class="hdr-user-menu-item hdr-user-menu-item--danger" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--danger">
+                              <svg cIcon name="cilXCircle" size="lg"></svg>
+                            </span>
+                            Rejeter
+                          </button>
+                        }
+                        @if (doc.status === 'VALIDATED') {
+                          <button (click)="archiveDocument(doc)" cDropdownItem class="hdr-user-menu-item" type="button">
+                            <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--warning">
+                              <svg cIcon name="cilInbox" size="lg"></svg>
+                            </span>
+                            Archiver
+                          </button>
+                        }
+                      </div>
+                    </c-dropdown>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <div class="dl-footnote">
+      <span><strong>{{ documents().length }}</strong> sur {{ documentsTotalElements() }} documents (page {{ documentsPage() + 1 }} sur {{ documentsTotalPages() }})</span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToDocumentsPage(documentsPage() - 1)" [disabled]="documentsPage() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToDocumentsPage(documentsPage() + 1)" [disabled]="documentsPage() + 1 >= documentsTotalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= TYPES DE DOCUMENTS ================= -->
+  @if (view() === 'types') {
+    <div class="d-flex flex-wrap align-items-center gap-2 p-3" style="border-bottom: 1px solid var(--cui-border-color);">
+      <div class="dl-search" style="max-width: 260px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="typesSearch.set($any($event.target).value)" autocomplete="off" placeholder="Rechercher un code, un nom…" type="search" />
+      </div>
+      <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+        <button (click)="typesActifFilter.set('all')" [attr.data-active]="typesActifFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+        <button (click)="typesActifFilter.set('active')" [attr.data-active]="typesActifFilter() === 'active'" class="dl-pill dl-pill--success" type="button">Actifs</button>
+        <button (click)="typesActifFilter.set('inactive')" [attr.data-active]="typesActifFilter() === 'inactive'" class="dl-pill dl-pill--warning" type="button">Inactifs</button>
+      </div>
+    </div>
+
+    @if (typesError()) {
+      <p class="dl-empty">{{ typesError() }}</p>
+    } @else if (typesLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (filteredTypes().length === 0) {
+      <p class="dl-empty">Aucun type de document ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Code</th>
+              <th scope="col">Nom</th>
+              <th scope="col">Ordre</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of filteredTypes(); track item.id) {
+              <tr>
+                <td><span class="dl-tag">{{ item.code }}</span></td>
+                <td>{{ item.nom }}</td>
+                <td class="dl-timestamp">{{ item.ordre ?? '—' }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + (item.actif ? 'success' : 'neutral')">
+                    <span class="dl-chip-dot"></span>{{ item.actif ? 'Actif' : 'Inactif' }}
+                  </span>
+                  @if (item.systeme) {
+                    <span class="dl-chip dl-chip--info ms-1">Système</span>
+                  }
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditType(item)" class="dl-icon-btn" title="Modifier" type="button">
+                      <svg cIcon name="cilPencil" size="sm"></svg>
+                    </button>
+                    <button (click)="confirmDeleteType(item)" [disabled]="item.systeme" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                      <svg cIcon name="cilTrash" size="sm"></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- ================= CATÉGORIES ================= -->
+  @if (view() === 'categories') {
+    <div class="d-flex flex-wrap align-items-center gap-2 p-3" style="border-bottom: 1px solid var(--cui-border-color);">
+      <div class="dl-search" style="max-width: 260px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="categoriesSearch.set($any($event.target).value)" autocomplete="off" placeholder="Rechercher un code, un nom…" type="search" />
+      </div>
+      <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+        <button (click)="categoriesActifFilter.set('all')" [attr.data-active]="categoriesActifFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+        <button (click)="categoriesActifFilter.set('active')" [attr.data-active]="categoriesActifFilter() === 'active'" class="dl-pill dl-pill--success" type="button">Actifs</button>
+        <button (click)="categoriesActifFilter.set('inactive')" [attr.data-active]="categoriesActifFilter() === 'inactive'" class="dl-pill dl-pill--warning" type="button">Inactifs</button>
+      </div>
+    </div>
+
+    @if (categoriesError()) {
+      <p class="dl-empty">{{ categoriesError() }}</p>
+    } @else if (categoriesLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (filteredCategories().length === 0) {
+      <p class="dl-empty">Aucune catégorie ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Code</th>
+              <th scope="col">Nom</th>
+              <th scope="col">Ordre</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of filteredCategories(); track item.id) {
+              <tr>
+                <td><span class="dl-tag">{{ item.code }}</span></td>
+                <td>{{ item.nom }}</td>
+                <td class="dl-timestamp">{{ item.ordre ?? '—' }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + (item.actif ? 'success' : 'neutral')">
+                    <span class="dl-chip-dot"></span>{{ item.actif ? 'Actif' : 'Inactif' }}
+                  </span>
+                  @if (item.systeme) {
+                    <span class="dl-chip dl-chip--info ms-1">Système</span>
+                  }
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditCategory(item)" class="dl-icon-btn" title="Modifier" type="button">
+                      <svg cIcon name="cilPencil" size="sm"></svg>
+                    </button>
+                    <button (click)="confirmDeleteCategory(item)" [disabled]="item.systeme" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                      <svg cIcon name="cilTrash" size="sm"></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
+
+<!-- ===== Modale : dépôt d'un document ===== -->
+<app-modal [visible]="uploadFormVisible()" size="xl" title="Déposer un document" (closed)="uploadFormVisible.set(false)">
+  @if (uploadError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="uploadForm" cForm (ngSubmit)="submitUpload()">
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Fichier</div>
+      <input #gedFileInput (change)="onFileSelected($event)" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.csv" hidden id="ged-file" type="file" />
+      @if (selectedFile(); as file) {
+        <div class="dl-file-picked">
+          <span class="dl-file-picked-icon"><svg cIcon name="cilFile" size="lg"></svg></span>
+          <span class="dl-file-picked-info">
+            <strong>{{ file.name }}</strong>
+            <span class="dl-cell-detail">{{ formatSize(file.size) }}</span>
+          </span>
+          <button (click)="clearSelectedFile()" class="dl-file-picked-change" type="button">Changer</button>
+        </div>
+      } @else {
+        <button
+          (click)="gedFileInput.click()"
+          (drop)="onDropzoneDrop($event)"
+          (dragover)="onDropzoneDragOver($event)"
+          class="dl-dropzone"
+          type="button"
+        >
+          <svg cIcon name="cilCloudUpload"></svg>
+          <strong>Glissez un fichier ici ou cliquez pour parcourir</strong>
+        </button>
+      }
+      <div class="dl-cell-detail mt-2">Formats autorisés : PDF, PNG, JPG, JPEG, DOCX, XLSX, CSV. Taille max. selon configuration serveur.</div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Informations</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="ged-title">Titre</label>
+          <input cFormControl formControlName="title" id="ged-title" type="text" />
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="ged-type">Type de document</label>
+          <select cSelect formControlName="documentTypeId" id="ged-type">
+            <option value="">Sélectionner…</option>
+            @for (t of types(); track t.id) {
+              <option [value]="t.id">{{ t.nom }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="ged-category">Catégorie (optionnel)</label>
+          <select cSelect formControlName="categoryId" id="ged-category">
+            <option value="">Sélectionner…</option>
+            @for (c of categories(); track c.id) {
+              <option [value]="c.id">{{ c.nom }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="ged-source">Source (optionnel)</label>
+          <input cFormControl formControlName="source" id="ged-source" placeholder="ex. UPLOAD, EMAIL, SCAN…" type="text" />
+        </div>
+        <div class="col-12">
+          <label>Niveau de confidentialité</label>
+          <div class="dl-chip-toggle-group dl-chip-toggle-group--stretch" role="group" aria-label="Niveau de confidentialité">
+            @for (opt of confidentialityOptions; track opt.value) {
+              <button
+                (click)="uploadForm.controls.confidentialityLevel.setValue(opt.value)"
+                [attr.data-active]="uploadForm.controls.confidentialityLevel.value === opt.value"
+                [class]="'dl-chip-toggle dl-chip-toggle--' + opt.variant"
+                type="button"
+              >
+                <span class="dl-chip-dot"></span>{{ opt.label }}
+              </button>
+            }
+          </div>
+        </div>
+        <div class="col-12">
+          <label cLabel for="ged-description">Description (optionnel)</label>
+          <textarea cFormControl formControlName="description" id="ged-description" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Associer le document (optionnel)</div>
+      <label>Type d'entité</label>
+      <div class="dl-pillgroup dl-pillgroup--stretch" role="group" aria-label="Type d'entité">
+        @for (opt of entityTypeOptions; track opt.value) {
+          <button
+            (click)="onEntityTypeChange(uploadForm.controls.entityType.value === opt.value ? '' : opt.value)"
+            [attr.data-active]="uploadForm.controls.entityType.value === opt.value"
+            class="dl-pill dl-pill--solid"
+            type="button"
+          >
+            <svg cIcon [name]="opt.icon" size="sm"></svg>
+            {{ opt.label }}
+          </button>
+        }
+      </div>
+
+      @if (uploadForm.controls.entityType.value) {
+        <div class="row g-3 mt-1">
+          <div class="col-sm-6">
+            <label cLabel for="ged-entity-id">Identifiant</label>
+            <input cFormControl formControlName="entityId" id="ged-entity-id" type="number" />
+          </div>
+          <div class="col-sm-6 d-flex align-items-end">
+            <button (click)="resolveEntity()" [disabled]="resolvingEntity()" cButton class="dl-btn w-100" type="button">
+              @if (resolvingEntity()) { <c-spinner size="sm" /> }
+              Vérifier
+            </button>
+          </div>
+        </div>
+        @if (resolvedEntityLabel(); as label) {
+          <div class="dl-inline-banner dl-inline-banner--success">
+            <svg cIcon name="cilCheckCircle" size="sm"></svg>
+            Trouvé : <strong>{{ label }}</strong>
+          </div>
+        }
+        @if (resolvedEntityError(); as err) {
+          <div class="dl-inline-banner dl-inline-banner--danger">
+            <svg cIcon name="cilXCircle" size="sm"></svg>
+            {{ err }}
+          </div>
+        }
+      }
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="uploadFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="uploadSaving()" cButton color="primary" type="submit">
+        @if (uploadSaving()) { <c-spinner size="sm" /> }
+        Déposer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : détail d'un document ===== -->
+<app-modal [visible]="detailVisible()" size="xl" title="{{ selectedDocument()?.title }} ({{ selectedDocument()?.documentNumber }})" (closed)="closeDetail()">
+  @if (selectedDocument(); as doc) {
+    @if (detailActionError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    <div class="dl-detail-grid mb-3">
+      <div><div class="dl-cell-detail">Type</div><div>{{ doc.documentTypeNom }}</div></div>
+      <div><div class="dl-cell-detail">Catégorie</div><div>{{ doc.categoryNom || '—' }}</div></div>
+      <div>
+        <div class="dl-cell-detail">Statut</div>
+        <div>
+          <span [class]="'dl-chip dl-chip--' + statusVariant(doc.status)">
+            <span class="dl-chip-dot"></span>{{ statusLabel[doc.status] }}
+          </span>
+        </div>
+      </div>
+      <div><div class="dl-cell-detail">Confidentialité</div><div>{{ confidentialityLabel[doc.confidentialityLevel] }}</div></div>
+      <div><div class="dl-cell-detail">Version actuelle</div><div>v{{ doc.currentVersionNumber }}</div></div>
+      <div><div class="dl-cell-detail">Créé le</div><div>{{ formatDateTime(doc.createdAt) }}@if (doc.createdBy) { — {{ doc.createdBy }} }</div></div>
+      @if (doc.updatedAt) {
+        <div><div class="dl-cell-detail">Modifié le</div><div>{{ formatDateTime(doc.updatedAt) }}@if (doc.updatedBy) { — {{ doc.updatedBy }} }</div></div>
+      }
+      @if (doc.status === 'REJECTED' && doc.rejectionReason) {
+        <div><div class="dl-cell-detail">Motif du rejet</div><div>{{ doc.rejectionReason }}</div></div>
+      }
+      @if (doc.status === 'ARCHIVED') {
+        <div><div class="dl-cell-detail">Archivé le</div><div>{{ formatDateTime(doc.archivedAt) }}@if (doc.archivedBy) { — {{ doc.archivedBy }} }</div></div>
+      }
+      @if (doc.duplicateOfDocumentId) {
+        <div><div class="dl-cell-detail">Doublon possible de</div><div>Document #{{ doc.duplicateOfDocumentId }}</div></div>
+      }
+      @if (doc.description) {
+        <div style="grid-column: 1 / -1;"><div class="dl-cell-detail">Description</div><div>{{ doc.description }}</div></div>
+      }
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      <button (click)="downloadCurrentVersion(doc)" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilCloudDownload" size="sm"></svg>Télécharger
+      </button>
+      <button (click)="openEditMeta(doc)" cButton class="dl-btn" type="button">
+        <svg cIcon name="cilPencil" size="sm"></svg>Modifier les métadonnées
+      </button>
+      @if (doc.status === 'UPLOADED') {
+        <button (click)="validateDocument(doc)" [disabled]="detailActionPending()" cButton class="dl-btn" color="success" type="button">
+          @if (detailActionPending()) { <c-spinner size="sm" /> }
+          <svg cIcon name="cilCheckCircle" size="sm"></svg>Valider
+        </button>
+        <button (click)="askReject(doc)" cButton class="dl-btn" color="danger" type="button">
+          <svg cIcon name="cilXCircle" size="sm"></svg>Rejeter
+        </button>
+      }
+      @if (doc.status === 'VALIDATED') {
+        <button (click)="archiveDocument(doc)" [disabled]="detailActionPending()" cButton class="dl-btn" type="button">
+          @if (detailActionPending()) { <c-spinner size="sm" /> }
+          <svg cIcon name="cilInbox" size="sm"></svg>Archiver
+        </button>
+      }
+    </div>
+
+    <h6 class="fw-semibold mb-2">Nouvelle version</h6>
+    @if (newVersionError(); as message) {
+      <app-alert-message class="d-block mb-2" [message]="message" />
+    }
+    <div class="d-flex align-items-center gap-2 mb-4">
+      <input (change)="onNewVersionFileSelected($event)" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.csv" type="file" />
+      <button (click)="submitNewVersion(doc)" [disabled]="newVersionSaving()" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (newVersionSaving()) { <c-spinner size="sm" /> }
+        Ajouter
+      </button>
+    </div>
+
+    <h6 class="fw-semibold mb-2">Versions</h6>
+    @if (detailVersionsLoading()) {
+      <p class="dl-empty">Chargement des versions…</p>
+    } @else if (detailVersions().length === 0) {
+      <p class="dl-empty">Aucune version.</p>
+    } @else {
+      <div class="dl-table-scroll mb-4">
+        <table class="dl-table dl-table--modal">
+          <thead>
+            <tr>
+              <th scope="col">Version</th>
+              <th scope="col">Fichier</th>
+              <th scope="col">Taille</th>
+              <th scope="col">Auteur</th>
+              <th scope="col">Date</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (v of detailVersions(); track v.id) {
+              <tr>
+                <td><span class="dl-tag">v{{ v.versionNumber }}</span></td>
+                <td>{{ v.originalFileName }}</td>
+                <td class="dl-timestamp">{{ formatSize(v.fileSizeBytes) }}</td>
+                <td class="dl-cell-detail">{{ v.createdBy || '—' }}</td>
+                <td class="dl-timestamp">{{ formatDateTime(v.createdAt) }}</td>
+                <td>
+                  <button (click)="downloadVersion(doc, v)" class="dl-icon-btn" title="Télécharger" type="button">
+                    <svg cIcon name="cilCloudDownload" size="sm"></svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <h6 class="fw-semibold m-0">Entités liées</h6>
+      <button (click)="openAddLink()" cButton class="dl-btn" size="sm" type="button">
+        <svg cIcon name="cilPlus" size="sm"></svg>Rattacher
+      </button>
+    </div>
+    @if (detailLinksLoading()) {
+      <p class="dl-empty">Chargement des liens…</p>
+    } @else if (detailLinks().length === 0) {
+      <p class="dl-empty">Aucune entité rattachée.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table dl-table--modal">
+          <thead>
+            <tr>
+              <th scope="col">Type</th>
+              <th scope="col">Identifiant</th>
+              <th scope="col">Relation</th>
+              <th scope="col">Rattaché le</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (link of detailLinks(); track link.id) {
+              <tr>
+                <td>{{ entityTypeLabel[link.entityType] || link.entityType }}</td>
+                <td class="dl-timestamp">#{{ link.entityId }}</td>
+                <td class="dl-cell-detail">{{ link.relationshipType || '—' }}</td>
+                <td class="dl-timestamp">{{ formatDate(link.createdAt) }}</td>
+                <td>
+                  <button (click)="confirmDeleteLink(link)" class="dl-icon-btn dl-icon-btn--danger" title="Détacher" type="button">
+                    <svg cIcon name="cilXCircle" size="sm"></svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</app-modal>
+
+<!-- ===== Modale : rejet (motif obligatoire) ===== -->
+<app-modal [visible]="!!rejectTarget()" title="Rejeter « {{ rejectTarget()?.title }} »" (closed)="rejectTarget.set(null)">
+  @if (rejectError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="rejectForm" cForm (ngSubmit)="submitReject()">
+    <div class="mb-3">
+      <label cLabel for="ged-reject-reason">Motif du rejet</label>
+      <textarea cFormControl formControlName="reason" id="ged-reject-reason" rows="3"></textarea>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="rejectTarget.set(null)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="rejectSaving()" cButton color="danger" type="submit">
+        @if (rejectSaving()) { <c-spinner size="sm" /> }
+        Confirmer le rejet
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : modification des métadonnées ===== -->
+<app-modal [visible]="editMetaVisible()" title="Modifier les métadonnées" (closed)="editMetaVisible.set(false)">
+  @if (editMetaError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="editMetaForm" cForm (ngSubmit)="submitEditMeta()">
+    <div class="mb-3">
+      <label cLabel for="ged-meta-title">Titre</label>
+      <input cFormControl formControlName="title" id="ged-meta-title" type="text" />
+    </div>
+    <div class="mb-3">
+      <label cLabel for="ged-meta-category">Catégorie</label>
+      <select cSelect formControlName="categoryId" id="ged-meta-category">
+        <option value="">Sélectionner…</option>
+        @for (c of categories(); track c.id) {
+          <option [value]="c.id">{{ c.nom }}</option>
+        }
+      </select>
+    </div>
+    <div class="mb-3">
+      <label cLabel for="ged-meta-confidentiality">Niveau de confidentialité</label>
+      <select cSelect formControlName="confidentialityLevel" id="ged-meta-confidentiality">
+        <option value="PUBLIC">Public</option>
+        <option value="INTERNAL">Interne</option>
+        <option value="CONFIDENTIAL">Confidentiel</option>
+        <option value="RESTRICTED">Restreint</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label cLabel for="ged-meta-description">Description</label>
+      <textarea cFormControl formControlName="description" id="ged-meta-description" rows="2"></textarea>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <button (click)="editMetaVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="editMetaSaving()" cButton color="primary" type="submit">
+        @if (editMetaSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : rattacher à une entité ===== -->
+<app-modal [visible]="linkFormVisible()" title="Rattacher à une entité" (closed)="linkFormVisible.set(false)">
+  @if (linkError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="linkForm" cForm (ngSubmit)="submitAddLink()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="ged-link-type">Type d'entité</label>
+        <select cSelect formControlName="entityType" id="ged-link-type">
+          <option value="CLIENT">Client</option>
+          <option value="CONTRACT">Contrat</option>
+          <option value="VEHICLE">Véhicule</option>
+          <option value="FLEET">Flotte</option>
+          <option value="CLAIM">Sinistre</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="ged-link-id">Identifiant</label>
+        <input cFormControl formControlName="entityId" id="ged-link-id" type="number" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="ged-link-rel">Type de relation (optionnel)</label>
+        <input cFormControl formControlName="relationshipType" id="ged-link-rel" type="text" />
+      </div>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="linkFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="linkSaving()" cButton color="primary" type="submit">
+        @if (linkSaving()) { <c-spinner size="sm" /> }
+        Rattacher
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : création / modification d'un type de document ===== -->
+<app-modal [visible]="typeFormVisible()" title="{{ editingTypeId() ? 'Modifier le type de document' : 'Nouveau type de document' }}" (closed)="typeFormVisible.set(false)">
+  @if (typeFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="typeForm" cForm (ngSubmit)="saveType()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="gedtype-code">Code</label>
+        <input cFormControl formControlName="code" id="gedtype-code" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="gedtype-nom">Nom</label>
+        <input cFormControl formControlName="nom" id="gedtype-nom" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="gedtype-ordre">Ordre</label>
+        <input cFormControl formControlName="ordre" id="gedtype-ordre" type="number" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="gedtype-description">Description (optionnel)</label>
+        <textarea cFormControl formControlName="description" id="gedtype-description" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="actif" id="gedtype-actif" switch type="checkbox" />
+      <label cLabel for="gedtype-actif">Actif</label>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="typeFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="typeFormSaving()" cButton color="primary" type="submit">
+        @if (typeFormSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : création / modification d'une catégorie ===== -->
+<app-modal [visible]="categoryFormVisible()" title="{{ editingCategoryId() ? 'Modifier la catégorie' : 'Nouvelle catégorie' }}" (closed)="categoryFormVisible.set(false)">
+  @if (categoryFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="categoryForm" cForm (ngSubmit)="saveCategory()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="gedcat-code">Code</label>
+        <input cFormControl formControlName="code" id="gedcat-code" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="gedcat-nom">Nom</label>
+        <input cFormControl formControlName="nom" id="gedcat-nom" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="gedcat-ordre">Ordre</label>
+        <input cFormControl formControlName="ordre" id="gedcat-ordre" type="number" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="gedcat-description">Description (optionnel)</label>
+        <textarea cFormControl formControlName="description" id="gedcat-description" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="actif" id="gedcat-actif" switch type="checkbox" />
+      <label cLabel for="gedcat-actif">Actif</label>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="categoryFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="categoryFormSaving()" cButton color="primary" type="submit">
+        @if (categoryFormSaving()) { <c-spinner size="sm" /> }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteTypeTarget()"
+  title="Supprimer ce type de document ?"
+  [message]="'Le type « ' + (deleteTypeTarget()?.nom ?? '') + ' » sera définitivement supprimé.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteTypeTarget.set(null)"
+  (confirmed)="performDeleteType()"
+/>
+
+<app-confirm-dialog
+  [visible]="!!deleteCategoryTarget()"
+  title="Supprimer cette catégorie ?"
+  [message]="'La catégorie « ' + (deleteCategoryTarget()?.nom ?? '') + ' » sera définitivement supprimée.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteCategoryTarget.set(null)"
+  (confirmed)="performDeleteCategory()"
+/>
+
+<app-confirm-dialog
+  [visible]="!!deleteLinkTarget()"
+  title="Détacher cette entité ?"
+  message="Le rattachement sera supprimé. Le document lui-même n'est pas affecté."
+  confirmLabel="Détacher"
+  icon="cilXCircle"
+  (cancelled)="deleteLinkTarget.set(null)"
+  (confirmed)="performDeleteLink()"
+/>
+}

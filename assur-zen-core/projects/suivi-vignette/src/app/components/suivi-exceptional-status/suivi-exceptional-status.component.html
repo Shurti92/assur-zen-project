@@ -1,0 +1,21 @@
+<div class="es-wrap">
+  <div class="es-badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <line x1="9" y1="9" x2="15" y2="15"></line>
+      <line x1="15" y1="9" x2="9" y2="15"></line>
+    </svg>
+  </div>
+  <h1 class="es-title">{{ titre() }}</h1>
+
+  @if (suivi().motifRejet) {
+    <section class="es-motif" aria-label="Motif">
+      <div class="es-motif-label">Motif</div>
+      <div class="es-motif-text">{{ suivi().motifRejet }}</div>
+    </section>
+  }
+
+  <div class="es-contact">
+    <p>Pour toute assistance, contactez votre agence AssurZen.</p>
+  </div>
+</div>

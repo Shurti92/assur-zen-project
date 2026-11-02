@@ -1,0 +1,102 @@
+// Layout de page uniquement — le détail visuel de chaque état vit dans ses composants
+// (suivi-summary-card, suivi-timeline, suivi-exceptional-status, suivi-skeleton) ou dans les
+// classes globales .ep-* (src/scss/_error-pages.scss) pour les écrans d'erreur.
+
+.sv-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(70% 55% at 18% 12%, rgba(var(--cui-primary-rgb), 0.06), transparent 60%),
+    radial-gradient(60% 50% at 88% 92%, rgba(var(--brand-orange-rgb), 0.06), transparent 60%),
+    var(--cui-tertiary-bg);
+}
+
+.sv-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+// Les écrans d'erreur/token réutilisent .ep-stage tel quel (voir _error-pages.scss), mais sa
+// min-height: 100vh déborderait sous le header de cette page — on la recadre à la hauteur
+// restante plutôt que de dupliquer toute la règle.
+.sv-error-stage {
+  min-height: 0;
+  flex: 1;
+  padding-block: 2.5rem;
+}
+
+.sv-content {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 2.5rem;
+}
+
+.sv-page-title {
+  font-family: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--cui-body-color);
+  margin: 0 0 0.3rem;
+  text-align: center;
+}
+
+.sv-page-lede {
+  font-size: 0.82rem;
+  color: var(--cui-secondary-color);
+  text-align: center;
+  margin: 0 0 1.4rem;
+  line-height: 1.5;
+}
+
+.sv-section {
+  margin-top: 1.6rem;
+}
+
+.sv-refresh-btn {
+  width: 100%;
+  margin-top: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.72rem;
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color);
+  border-radius: var(--cui-border-radius, 0.5625rem);
+  color: var(--cui-body-color);
+  font-weight: 700;
+  font-size: 0.83rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: var(--cui-primary);
+    border-color: var(--cui-primary);
+  }
+}
+
+.sv-contact {
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--cui-secondary-color);
+  margin: 1.1rem 0 0;
+}
+
+@media (min-width: 48rem) {
+  .sv-content {
+    padding-top: 2.5rem;
+  }
+
+  .sv-page-title {
+    font-size: 1.5rem;
+  }
+}

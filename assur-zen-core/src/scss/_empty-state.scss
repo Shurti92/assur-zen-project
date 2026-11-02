@@ -1,0 +1,54 @@
+// Generic "not built yet" panel content (see ComingSoonComponent) — an
+// embedded empty state that lives inside .dl-panel, as opposed to the
+// full-viewport .ep-* treatment used for standalone 404/500 pages.
+
+.cs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+}
+
+.cs-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin-bottom: 1.1rem;
+  background: rgba(var(--cui-primary-rgb), 0.1);
+  color: var(--cui-primary);
+
+  svg {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.cs-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-orange);
+  background: var(--brand-orange-soft);
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  margin-bottom: 0.75rem;
+}
+
+.cs-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+
+.cs-lede {
+  margin: 0;
+  max-width: 58ch;
+  color: var(--cui-secondary-color);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}

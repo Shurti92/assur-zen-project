@@ -1,0 +1,477 @@
+<c-row class="g-3 mb-3">
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="targetCheck" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statTotal() }}</div>
+        <div class="mc-kpi-label">{{ title }}</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="bell" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statDestinatairesTouches() }}</div>
+        <div class="mc-kpi-label">Envois effectués</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--primary">
+      <span class="mc-kpi-icon"><svg cIcon name="trendUp" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statTauxSucces() }} %</div>
+        <div class="mc-kpi-label">Taux de succès</div>
+      </div>
+    </div>
+  </c-col>
+  <c-col sm="6" xl="3">
+    <div class="mc-kpi-card mc-kpi-card--flag">
+      <span class="mc-kpi-icon"><svg cIcon name="clock" size="lg"></svg></span>
+      <div class="mc-kpi-body">
+        <div class="mc-kpi-value">{{ statFlagValue() }}</div>
+        <div class="mc-kpi-label">{{ statFlagLabel() }}</div>
+      </div>
+    </div>
+  </c-col>
+</c-row>
+
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>{{ title }}</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        placeholder="Rechercher une campagne…"
+        type="search"
+      />
+    </div>
+
+    @if (!isStatsMode && !isHistoriqueMode) {
+      <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par statut">
+        <button (click)="setStatutFilter('all')" [attr.data-active]="statutFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+        @for (statut of statutOrder; track statut) {
+          <button
+            (click)="setStatutFilter(statut)"
+            [attr.data-active]="statutFilter() === statut"
+            [class]="'dl-pill dl-pill--' + statutVariant(statut)"
+            type="button"
+          >
+            {{ statutLabel(statut) }}
+          </button>
+        }
+      </div>
+    }
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="refresh" size="sm"></svg>
+        }
+        Actualiser
+      </button>
+      @if (!isStatsMode && !isHistoriqueMode) {
+        <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus" size="sm"></svg>
+          Nouvelle campagne
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des campagnes…</p>
+  } @else if (isStatsMode) {
+    <div class="dl-summary">
+      <dl>
+        <dt>Campagnes</dt>
+        <dd>{{ statTotal() }}</dd>
+      </dl>
+      <dl>
+        <dt>Envois effectués</dt>
+        <dd>{{ statDestinatairesTouches() }}</dd>
+      </dl>
+      <dl>
+        <dt>Taux de succès</dt>
+        <dd>{{ statTauxSucces() }} %</dd>
+      </dl>
+    </div>
+
+    <div class="mc-body">
+      <div>
+        <div class="mc-section-head"><h3>Répartition par statut</h3></div>
+        <div class="dl-table-scroll">
+          <table class="dl-table">
+            <thead><tr><th scope="col">Statut</th><th scope="col">Campagnes</th><th scope="col">Envoyés</th><th scope="col">Destinataires</th></tr></thead>
+            <tbody>
+              @for (row of breakdownByStatut(); track row.label) {
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td class="dl-timestamp">{{ row.count }}</td>
+                  <td class="dl-timestamp">{{ row.envoyes }}</td>
+                  <td class="dl-timestamp">{{ row.destinataires }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div class="mc-section-head"><h3>Répartition par type</h3></div>
+        <div class="dl-table-scroll">
+          <table class="dl-table">
+            <thead><tr><th scope="col">Type</th><th scope="col">Campagnes</th><th scope="col">Envoyés</th><th scope="col">Destinataires</th></tr></thead>
+            <tbody>
+              @for (row of breakdownByType(); track row.label) {
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td class="dl-timestamp">{{ row.count }}</td>
+                  <td class="dl-timestamp">{{ row.envoyes }}</td>
+                  <td class="dl-timestamp">{{ row.destinataires }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div class="mc-section-head"><h3>Répartition par cible</h3></div>
+        <div class="dl-table-scroll">
+          <table class="dl-table">
+            <thead><tr><th scope="col">Cible</th><th scope="col">Campagnes</th><th scope="col">Envoyés</th><th scope="col">Destinataires</th></tr></thead>
+            <tbody>
+              @for (row of breakdownByCible(); track row.label) {
+                <tr>
+                  <td>{{ row.label }}</td>
+                  <td class="dl-timestamp">{{ row.count }}</td>
+                  <td class="dl-timestamp">{{ row.envoyes }}</td>
+                  <td class="dl-timestamp">{{ row.destinataires }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  } @else if (pagedCampagnes().length === 0) {
+    <p class="dl-empty">Aucune campagne ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Campagne</th>
+            <th scope="col">Type</th>
+            <th scope="col">Cible</th>
+            <th scope="col">Période</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Envois</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (campagne of pagedCampagnes(); track campagne.id) {
+            <tr>
+              <td>
+                <span class="dl-tag">{{ campagne.code }}</span>
+                <div class="dl-cell-detail">{{ campagne.nom }}</div>
+              </td>
+              <td>{{ typeLabel(campagne.type) }}</td>
+              <td>{{ cibleLabel(campagne.cible) }}</td>
+              <td class="dl-timestamp">{{ formatDate(campagne.dateDebut) }} → {{ formatDate(campagne.dateFin) }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statutVariant(campagne.statut)">
+                  <span class="dl-chip-dot"></span>{{ statutLabel(campagne.statut) }}
+                </span>
+              </td>
+              <td class="dl-timestamp">{{ campagne.nbEnvoyes }} / {{ campagne.nbDestinataires }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  @if (canEdit(campagne)) {
+                    <button (click)="openEdit(campagne)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+                  }
+                  <button (click)="openDetail(campagne)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (!isStatsMode) {
+    <div class="dl-footnote">
+      <span>
+        <strong>{{ pagedCampagnes().length }}</strong> sur {{ filteredCampagnes().length }} campagnes
+        (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
+      </span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">
+          Précédent
+        </button>
+        <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">
+          Suivant
+        </button>
+      </div>
+    </div>
+  }
+</section>
+
+<app-modal [visible]="formVisible()" size="lg" [title]="formMode() === 'create' ? 'Nouvelle campagne' : 'Modifier la campagne'" (closed)="closeForm()">
+  @if (formError()) {
+    <app-alert-message class="d-block mb-3" [message]="formError()!" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="submitForm()">
+    <div class="row g-3">
+      <div class="col-sm-6">
+        <label cLabel for="camp-nom">Nom de la campagne</label>
+        <input cFormControl formControlName="nom" id="camp-nom" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="camp-type">Canal</label>
+        <select cSelect formControlName="type" id="camp-type">
+          <option value="SMS">SMS</option>
+          <option value="EMAIL">Email</option>
+          <option value="SMS_EMAIL">SMS + Email</option>
+          <option value="WHATSAPP">WhatsApp</option>
+          <option value="PUSH">Notification push</option>
+          <option value="PDF">PDF</option>
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="camp-cible">Cible</label>
+        <select cSelect formControlName="cible" id="camp-cible">
+          <option value="TOUS_CLIENTS">Tous les clients</option>
+          <option value="CLIENTS_FIDELES">Clients fidèles</option>
+          <option value="ECHEANCE_PROCHE">Échéance proche</option>
+          <option value="NON_RENOUVELES">Non renouvelés</option>
+          <option value="SEGMENT_PERSONNALISE">Segment personnalisé</option>
+          <option value="SEGMENT_DYNAMIQUE">Segment dynamique</option>
+        </select>
+      </div>
+      @if (showSegmentSelect()) {
+        <div class="col-sm-6">
+          <label cLabel for="camp-segment">Segment</label>
+          <select cSelect formControlName="segmentId" id="camp-segment">
+            <option value="">Sélectionner un segment…</option>
+            @for (segment of segments(); track segment.id) {
+              <option [value]="segment.id">{{ segment.nom }}</option>
+            }
+          </select>
+        </div>
+      }
+      <div class="col-sm-6">
+        <label cLabel for="camp-template">Modèle de message (optionnel)</label>
+        <select
+          cSelect
+          formControlName="templateId"
+          id="camp-template"
+          (change)="onTemplateSelected($any($event.target).value)"
+        >
+          <option value="">Aucun (message libre)</option>
+          @for (template of templates(); track template.id) {
+            <option [value]="template.id">{{ template.nom }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="camp-budget">Budget prévu (FCFA)</label>
+        <input cFormControl formControlName="budgetPrevu" id="camp-budget" min="0" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="camp-debut">Date de début</label>
+        <input cFormControl formControlName="dateDebut" id="camp-debut" type="date" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="camp-fin">Date de fin</label>
+        <input cFormControl formControlName="dateFin" id="camp-fin" type="date" />
+      </div>
+      @if (showSujetEmail()) {
+        <div class="col-12">
+          <label cLabel for="camp-sujet">Sujet de l'email</label>
+          <input cFormControl formControlName="sujetEmail" id="camp-sujet" type="text" />
+        </div>
+      }
+      <div class="col-12">
+        <label cLabel for="camp-message">Message</label>
+        <textarea cFormControl formControlName="messageContenu" id="camp-message" rows="4"></textarea>
+      </div>
+      <div class="col-12">
+        <label cLabel for="camp-description">Description (interne, optionnelle)</label>
+        <textarea cFormControl formControlName="description" id="camp-description" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button (click)="closeForm()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-modal [visible]="detailVisible()" size="lg" title="Campagne {{ selectedCampagne()?.code }}" (closed)="detailVisible.set(false)">
+  @if (selectedCampagne(); as campagne) {
+    <span [class]="'dl-chip dl-chip--' + statutVariant(campagne.statut) + ' mb-3 d-inline-flex'">
+      <span class="dl-chip-dot"></span>{{ statutLabel(campagne.statut) }}
+    </span>
+
+    <div class="dl-detail-grid mb-3">
+      <div>
+        <div class="dl-cell-detail">Nom</div>
+        <div>{{ campagne.nom }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Canal</div>
+        <div>{{ typeLabel(campagne.type) }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Cible</div>
+        <div>{{ cibleLabel(campagne.cible) }}</div>
+      </div>
+      @if (campagne.segmentNom) {
+        <div>
+          <div class="dl-cell-detail">Segment</div>
+          <div>{{ campagne.segmentNom }}</div>
+        </div>
+      }
+      @if (campagne.templateNom) {
+        <div>
+          <div class="dl-cell-detail">Modèle utilisé</div>
+          <div>{{ campagne.templateNom }}</div>
+        </div>
+      }
+      <div>
+        <div class="dl-cell-detail">Budget prévu</div>
+        <div>{{ formatAmount(campagne.budgetPrevu) }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Date de début</div>
+        <div>{{ formatDate(campagne.dateDebut) }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Date de fin</div>
+        <div>{{ formatDate(campagne.dateFin) }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Créée par</div>
+        <div>{{ campagne.createdBy }}</div>
+      </div>
+      <div>
+        <div class="dl-cell-detail">Créée le</div>
+        <div>{{ formatDateTime(campagne.createdAt) }}</div>
+      </div>
+      @if (campagne.sujetEmail) {
+        <div>
+          <div class="dl-cell-detail">Sujet de l'email</div>
+          <div>{{ campagne.sujetEmail }}</div>
+        </div>
+      }
+      <div>
+        <div class="dl-cell-detail">Envois</div>
+        <div>{{ campagne.nbEnvoyes }} / {{ campagne.nbDestinataires }} ({{ taux(campagne.nbEnvoyes, campagne.nbDestinataires) }} %) — {{ campagne.nbEchecs }} échec(s)</div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <div class="dl-cell-detail mb-1">Message</div>
+      <div>{{ campagne.messageContenu }}</div>
+    </div>
+
+    @if (campagne.description) {
+      <div class="mb-3 pt-3" style="border-top: 1px solid var(--cui-border-color);">
+        <div class="dl-cell-detail mb-1">Description</div>
+        <div>{{ campagne.description }}</div>
+      </div>
+    }
+
+    <div class="d-flex gap-2 mb-3">
+      @if (canLancer(campagne)) {
+        <button (click)="askLancer(campagne)" cButton class="dl-btn dl-btn-primary" size="sm" type="button">
+          <svg cIcon name="cilPaperPlane" size="sm"></svg>
+          Lancer
+        </button>
+      }
+      @if (canAnnuler(campagne)) {
+        <button (click)="askAnnuler(campagne)" cButton class="dl-btn" color="danger" size="sm" type="button">Annuler la campagne</button>
+      }
+      @if (canDelete(campagne)) {
+        <button (click)="askSupprimer(campagne)" cButton class="dl-btn" color="danger" size="sm" type="button">Supprimer</button>
+      }
+    </div>
+
+    <div class="pt-3" style="border-top: 1px solid var(--cui-border-color);">
+      <div class="fs-section-head">
+        <svg cIcon name="bell" size="lg"></svg>
+        <h3>Destinataires</h3>
+      </div>
+      @if (destinatairesLoading()) {
+        <p class="dl-empty">Chargement des destinataires…</p>
+      } @else if (destinataires().length === 0) {
+        <p class="dl-empty">Aucun destinataire résolu pour cette campagne pour le moment.</p>
+      } @else {
+        <div class="dl-table-scroll">
+          <table class="dl-table">
+            <thead>
+              <tr>
+                <th scope="col">Assuré</th>
+                <th scope="col">Canal</th>
+                <th scope="col">Statut d'envoi</th>
+                <th scope="col">Envoyé le</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of destinataires(); track d.id) {
+                <tr>
+                  <td>{{ d.insuredName }}</td>
+                  <td>{{ d.canal }}</td>
+                  <td>
+                    <span [class]="'dl-chip dl-chip--' + (d.statutEnvoi === 'ENVOYE' ? 'success' : d.statutEnvoi === 'ECHEC' ? 'danger' : 'neutral')">
+                      <span class="dl-chip-dot"></span>{{ d.statutEnvoi }}
+                    </span>
+                    @if (d.erreurMessage) {
+                      <div class="dl-cell-detail">{{ d.erreurMessage }}</div>
+                    }
+                  </td>
+                  <td class="dl-timestamp">{{ formatDateTime(d.dateEnvoi) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+</app-modal>
+
+<app-confirm-dialog
+  [cancelLabel]="'Annuler'"
+  [confirmLabel]="pendingActionConfirmLabel()"
+  icon="cilWarning"
+  [message]="pendingActionMessage()"
+  [title]="pendingActionTitle()"
+  [visible]="pendingAction() !== null"
+  (cancelled)="cancelPendingAction()"
+  (confirmed)="confirmPendingAction()"
+/>

@@ -1,0 +1,78 @@
+// Résultat d'un paiement de commissions par virement SycaPay (panneau des contrats, écran Force de
+// vente). Préfixe sp-. Ce fichier portait aussi les styles de l'écran Paiements SycaPay (refonte du
+// 2026-09-23) : depuis son harmonisation du 2026-10-06, ceux-ci sont dans _paiements-sycapay.scss.
+//
+// Couleurs : le thème de l'app ne redéfinit PAS en sombre les --cui-*-bg-subtle / -text-emphasis /
+// --cui-primary (valeurs claires conservées) — d'où des jetons locaux --sp-* dérivés par color-mix
+// du fond de page (qui, lui, suit le thème), avec textes éclaircis en sombre.
+
+$mono: "Consolas", ui-monospace, "SFMono-Regular", monospace;
+$variants: (success, info, danger, warning);
+
+@mixin sp-vars {
+  --sp-primary-text: var(--cui-primary);
+  --sp-primary-soft: color-mix(in srgb, var(--cui-primary) 14%, var(--cui-body-bg));
+  @each $v in $variants {
+    --sp-#{$v}-soft: color-mix(in srgb, var(--cui-#{$v}) 16%, var(--cui-body-bg));
+    --sp-#{$v}-border: color-mix(in srgb, var(--cui-#{$v}) 45%, var(--cui-body-bg));
+    --sp-#{$v}-text: color-mix(in srgb, var(--cui-#{$v}) 62%, #000);
+  }
+}
+
+.sp-mono { font-family: $mono; }
+
+// -- boutons --
+.sp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; padding: 0 1.1rem;
+  border-radius: 0.625rem; border: 1px solid var(--cui-border-color); background: var(--cui-body-bg); color: var(--cui-body-color); font-weight: 500; white-space: nowrap;
+  &:hover:not(:disabled) { background: var(--cui-tertiary-bg); }
+  &:disabled { opacity: 0.6; }
+  &--warning { background: #8a4b08; border-color: #8a4b08; color: #fff; font-weight: 600; &:hover:not(:disabled) { background: #6b3a06; } }
+  &--sm { min-height: 2.25rem; padding: 0 0.875rem; font-size: 0.8125rem; }
+}
+.sp-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 0.5rem;
+  border: 0; background: none; color: var(--cui-secondary-color);
+  &:hover:not(:disabled) { background: var(--cui-tertiary-bg); color: var(--cui-body-color); }
+  &:disabled { opacity: 0.4; }
+}
+
+// -- couleurs de statut (fonds doux, pastilles, textes) --
+@each $v in $variants {
+  .sp-soft--#{$v} { background: var(--sp-#{$v}-soft); color: var(--sp-#{$v}-text); }
+  .sp-chip--#{$v} { background: var(--sp-#{$v}-soft); color: var(--sp-#{$v}-text); i { background: var(--cui-#{$v}); } }
+  .sp-text--#{$v} { color: var(--sp-#{$v}-text); }
+}
+.sp-chip--neutral { background: var(--cui-tertiary-bg); color: var(--cui-body-color); i { background: var(--cui-secondary-color); } }
+.sp-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+  i { width: 0.375rem; height: 0.375rem; border-radius: 999px; }
+}
+
+// -- résultat d'un paiement de commissions --
+.sp-payresult { @include sp-vars; margin-bottom: 1rem; border: 1px solid var(--cui-border-color); border-left-width: 4px; border-radius: 0.75rem; background: var(--cui-body-bg); overflow: hidden;
+  svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  @each $v in (success, warning, danger) { &--#{$v} { border-left-color: var(--cui-#{$v}); } }
+}
+[data-coreui-theme='dark'] .sp-payresult {
+  --sp-primary-text: color-mix(in srgb, var(--cui-primary) 38%, #fff);
+  @each $v in $variants { --sp-#{$v}-text: color-mix(in srgb, var(--cui-#{$v}) 55%, #fff); }
+}
+.sp-payresult-head { display: flex; align-items: center; gap: 0.875rem; padding: 0.875rem 1rem; border-bottom: 1px solid var(--cui-border-color); }
+.sp-payresult-icon { display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; }
+.sp-payresult-title { flex-grow: 1; min-width: 0;
+  h3 { margin: 0; font-size: 0.9375rem; font-weight: 600; }
+  p { margin: 0.1rem 0 0; font-size: 0.8125rem; color: var(--cui-secondary-color); }
+}
+.sp-payresult-list { list-style: none; margin: 0; padding: 0; }
+.sp-payresult-row {
+  display: grid; grid-template-columns: minmax(9rem, auto) auto minmax(0, 1fr) auto auto; align-items: center; gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem; font-size: 0.875rem;
+  & + & { border-top: 1px solid var(--cui-border-color); }
+  @media (max-width: 576px) { grid-template-columns: 1fr auto; }
+}
+.sp-payresult-policy { font-weight: 600; }
+.sp-payresult-message { color: var(--cui-secondary-color); }
+.sp-payresult-amount { font-weight: 600; text-align: right; white-space: nowrap; }
+.sp-payresult-link { font-weight: 600; color: var(--sp-primary-text); white-space: nowrap; }
+.sp-payresult-note { margin: 0; padding: 0.625rem 1rem; border-top: 1px solid var(--cui-border-color); font-size: 0.8125rem; }

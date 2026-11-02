@@ -1,0 +1,199 @@
+// Multi-step form wizard: stepper header + récapitulatif cards. Used by the
+// Souscription flow; generic enough to reuse for any other step-based form.
+
+.wz-stepper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.75rem;
+}
+
+.wz-step {
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  &:not(:disabled):hover .wz-step-circle {
+    box-shadow: 0 0 0 3px rgba(var(--cui-primary-rgb), 0.15);
+  }
+}
+
+.wz-step-circle {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 2px solid var(--cui-border-color);
+  color: var(--cui-secondary-color);
+  background: var(--cui-body-bg);
+  transition: all 0.15s ease;
+}
+
+.wz-step-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--cui-secondary-color);
+  white-space: nowrap;
+}
+
+.wz-step--active .wz-step-circle {
+  border-color: var(--cui-primary);
+  background: var(--cui-primary);
+  color: #fff;
+}
+
+.wz-step--active .wz-step-label {
+  color: var(--cui-body-color);
+}
+
+.wz-step--done .wz-step-circle {
+  border-color: var(--cui-success);
+  background: var(--cui-success);
+  color: #fff;
+}
+
+.wz-step--done .wz-step-label {
+  color: var(--cui-body-color);
+}
+
+.wz-step-connector {
+  flex: 1 1 2rem;
+  height: 2px;
+  min-width: 1.5rem;
+  background: var(--cui-border-color);
+  margin: 0 0.6rem;
+  transition: background 0.15s ease;
+
+  &--done {
+    background: var(--cui-success);
+  }
+}
+
+@media (max-width: 576px) {
+  .wz-step-label {
+    display: none;
+  }
+}
+
+// Required-field marker, appended to a label (e.g. "Nom *") ------------------
+
+.wz-required {
+  color: var(--cui-danger);
+  margin-left: 0.15rem;
+}
+
+// Sub-sections inside a wizard step (e.g. Produit / Couverture / Paiement
+// within a "Produits souscrits" row) ---------------------------------------
+
+.wz-subsection {
+  margin-top: 1.15rem;
+  padding-top: 1.05rem;
+  border-top: 1px dashed var(--cui-border-color);
+
+  &:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+.wz-subsection-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cui-secondary-color);
+  margin-bottom: 0.7rem;
+}
+
+// Récapitulatif — per-product sub-header inside an accordion body ------------
+
+.wz-recap-card-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  margin-bottom: 0.85rem;
+  color: var(--cui-body-color);
+}
+
+// Récapitulatif accordion (modern card look, replaces the flush Bootstrap
+// default) ------------------------------------------------------------------
+
+.wz-recap-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+
+  .accordion-item {
+    border: 1px solid var(--cui-border-color);
+    border-radius: 0.9rem;
+    overflow: hidden;
+    background: var(--cui-body-bg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  .accordion-header {
+    margin: 0;
+  }
+
+  .accordion-button {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: var(--cui-body-bg);
+    box-shadow: none;
+
+    &::after {
+      margin-left: auto;
+      transition: transform 0.2s ease;
+    }
+
+    &:focus {
+      box-shadow: none;
+    }
+
+    &:not(.collapsed) {
+      background: var(--cui-tertiary-bg);
+      color: var(--cui-body-color);
+    }
+  }
+
+  .accordion-body {
+    padding: 1.15rem 1.25rem 1.35rem;
+    border-top: 1px solid var(--cui-border-color);
+  }
+}
+
+.wz-recap-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--cui-primary) 14%, transparent);
+  color: var(--cui-primary);
+}
+
+.wz-recap-header-title {
+  font-size: 0.94rem;
+  font-weight: 700;
+}

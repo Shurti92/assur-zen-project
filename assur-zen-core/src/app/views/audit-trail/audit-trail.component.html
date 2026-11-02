@@ -1,0 +1,444 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>{{ title() }}</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Vue">
+      <button (click)="setView('dashboard')" [attr.data-active]="view() === 'dashboard'" class="dl-pill" type="button">Tableau de bord</button>
+      <button (click)="setView('historique')" [attr.data-active]="view() === 'historique'" class="dl-pill" type="button">Historique des modifications</button>
+      <button (click)="setView('sensibles')" [attr.data-active]="view() === 'sensibles'" class="dl-pill" type="button">Actions sensibles</button>
+    </div>
+
+    @if (view() === 'dashboard') {
+      <div class="dl-actions">
+        <button (click)="fetchStatistics()" [disabled]="statsLoading()" cButton class="dl-btn" type="button">
+          @if (statsLoading()) { <c-spinner size="sm" /> } @else { <svg cIcon name="refresh" size="sm"></svg> }
+          Actualiser
+        </button>
+      </div>
+    }
+    @if (view() === 'historique') {
+      <div class="dl-actions">
+        <button (click)="askExport()" [disabled]="exporting()" cButton class="dl-btn" type="button">
+          <svg cIcon name="download" size="sm"></svg>Exporter (.csv)
+        </button>
+        <button (click)="fetchLogs()" [disabled]="loading()" cButton class="dl-btn" type="button">
+          @if (loading()) { <c-spinner size="sm" /> } @else { <svg cIcon name="refresh" size="sm"></svg> }
+          Actualiser
+        </button>
+      </div>
+    }
+    @if (view() === 'sensibles') {
+      <div class="dl-actions">
+        <button (click)="fetchSensibles()" [disabled]="sensiblesLoading()" cButton class="dl-btn" type="button">
+          @if (sensiblesLoading()) { <c-spinner size="sm" /> } @else { <svg cIcon name="refresh" size="sm"></svg> }
+          Actualiser
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (exportError()) {
+    <p class="dl-empty">{{ exportError() }}</p>
+  }
+
+  <!-- ================= Tableau de bord ================= -->
+  @if (view() === 'dashboard') {
+    @if (statsError()) {
+      <p class="dl-empty">{{ statsError() }} <button (click)="fetchStatistics()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (statsLoading()) {
+      <p class="dl-empty">Chargement des statistiques…</p>
+    } @else if (!statistics()) {
+      <p class="dl-empty">Aucune donnée disponible.</p>
+    } @else {
+      <div class="mc-body">
+        <div>
+          <div class="mc-section-head">
+            <h3>Indicateurs clés</h3>
+          </div>
+          <c-row class="g-3">
+            @for (kpi of kpis(); track kpi.key) {
+              <c-col sm="6" xl="4">
+                <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                  <div class="ldb-kpi-head">
+                    <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                    <span class="ldb-kpi-icon">
+                      <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                    </span>
+                  </div>
+                  <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                </div>
+              </c-col>
+            }
+          </c-row>
+        </div>
+
+        <div>
+          <div class="mc-section-head">
+            <h3>Analyses</h3>
+          </div>
+          <c-row class="g-3">
+            <c-col lg="7">
+              <div class="ldb-panel">
+                <div class="ldb-panel-head">
+                  <h3>Évolution des actions</h3>
+                  <span class="ldb-panel-sub">Par jour</span>
+                </div>
+                <div class="ldb-panel-body">
+                  <div class="ldb-chart-box ldb-chart-box--tall">
+                    @if (parJourData) {
+                      <c-chart type="line" [data]="parJourData" [options]="parJourOptions" />
+                    } @else {
+                      <p class="dl-empty p-0">Aucune donnée.</p>
+                    }
+                  </div>
+                </div>
+              </div>
+            </c-col>
+            <c-col lg="5">
+              <div class="ldb-panel">
+                <div class="ldb-panel-head">
+                  <h3>Répartition par action</h3>
+                </div>
+                <div class="ldb-panel-body">
+                  <div class="ldb-chart-box">
+                    @if (parActionData) {
+                      <c-chart type="bar" [data]="parActionData" [options]="parActionOptions" />
+                    } @else {
+                      <p class="dl-empty p-0">Aucune donnée.</p>
+                    }
+                  </div>
+                </div>
+              </div>
+            </c-col>
+          </c-row>
+        </div>
+
+        <div>
+          <div class="mc-section-head">
+            <h3>Par module et par utilisateur</h3>
+          </div>
+          <c-row class="g-3">
+            <c-col lg="6">
+              <div class="ldb-panel">
+                <div class="ldb-panel-head"><h3>Par module</h3></div>
+                <div class="ldb-panel-body p-0">
+                  @if (statistics()!.parModule.length === 0) {
+                    <p class="dl-empty">Aucune donnée.</p>
+                  } @else {
+                    <div class="dl-table-scroll">
+                      <table>
+                        <thead><tr><th scope="col">Module</th><th scope="col">Total</th></tr></thead>
+                        <tbody>
+                          @for (row of statistics()!.parModule; track row.libelle) {
+                            <tr><td>{{ row.libelle }}</td><td>{{ formatInt(row.nombre) }}</td></tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  }
+                </div>
+              </div>
+            </c-col>
+            <c-col lg="6">
+              <div class="ldb-panel">
+                <div class="ldb-panel-head"><h3>Par utilisateur</h3></div>
+                <div class="ldb-panel-body p-0">
+                  @if (statistics()!.parUtilisateur.length === 0) {
+                    <p class="dl-empty">Aucune donnée.</p>
+                  } @else {
+                    <div class="dl-table-scroll">
+                      <table>
+                        <thead><tr><th scope="col">Utilisateur</th><th scope="col">Total</th></tr></thead>
+                        <tbody>
+                          @for (row of statistics()!.parUtilisateur; track row.libelle) {
+                            <tr><td>{{ row.libelle }}</td><td>{{ formatInt(row.nombre) }}</td></tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  }
+                </div>
+              </div>
+            </c-col>
+          </c-row>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ================= Historique des modifications ================= -->
+  @if (view() === 'historique') {
+    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" cForm class="dl-filters">
+      <div class="dl-filter-field">
+        <label for="af-date-debut">Date début</label>
+        <input cFormControl formControlName="dateDebut" id="af-date-debut" type="date" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="af-date-fin">Date fin</label>
+        <input cFormControl formControlName="dateFin" id="af-date-fin" type="date" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="af-user-id">ID utilisateur</label>
+        <input cFormControl formControlName="userId" id="af-user-id" type="number" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="af-module">Module</label>
+        <input cFormControl formControlName="module" id="af-module" placeholder="Ex. CONTRAT" type="text" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="af-entite">Entité</label>
+        <input cFormControl formControlName="entityName" id="af-entite" placeholder="Ex. Contrat" type="text" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="af-entite-id">ID objet</label>
+        <input cFormControl formControlName="entityId" id="af-entite-id" type="text" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="af-action">Action</label>
+        <select cSelect formControlName="action" id="af-action">
+          <option value="">Toutes</option>
+          @for (a of actionOrder; track a) {
+            <option [value]="a">{{ actionLabel[a] }}</option>
+          }
+        </select>
+      </div>
+      <div class="dl-filter-field">
+        <label for="af-statut">Statut</label>
+        <select cSelect formControlName="statut" id="af-statut">
+          <option value="">Tous</option>
+          @for (s of statutOrder; track s) {
+            <option [value]="s">{{ statutLabel[s] }}</option>
+          }
+        </select>
+      </div>
+      <div class="dl-filter-field justify-content-end">
+        <div class="d-flex gap-2">
+          <button cButton class="dl-btn" type="button" (click)="resetFilters()">Réinitialiser</button>
+          <button cButton class="dl-btn dl-btn-primary" type="submit">Rechercher</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="dl-cell-detail px-3 pt-3">
+      <strong>{{ formatInt(totalElements()) }}</strong> événement(s)
+    </div>
+
+    @if (error()) {
+      <p class="dl-empty">{{ error() }} <button (click)="fetchLogs()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (loading()) {
+      <p class="dl-empty">Chargement du journal d'audit…</p>
+    } @else if (items().length === 0) {
+      <p class="dl-empty">Aucun événement ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Utilisateur</th>
+              <th scope="col">Module</th>
+              <th scope="col">Entité</th>
+              <th scope="col">Action</th>
+              <th scope="col">Statut</th>
+              <th scope="col">Canal</th>
+              <th scope="col">IP</th>
+              <th scope="col">Référence</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.id) {
+              <tr>
+                <td class="dl-timestamp">{{ formatDateTime(item.createdAt) }}</td>
+                <td>{{ item.username ?? '—' }}</td>
+                <td>{{ item.module ?? '—' }}</td>
+                <td>{{ item.entityName }}@if (item.entityId) { <span class="dl-cell-detail">#{{ item.entityId }}</span> }</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + actionVariant(item.action)">
+                    <span class="dl-chip-dot"></span>{{ actionLabel[item.action] }}
+                  </span>
+                </td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + statutVariant(item.statut)">
+                    <span class="dl-chip-dot"></span>{{ statutLabel[item.statut] }}
+                  </span>
+                </td>
+                <td>{{ item.canal ?? '—' }}</td>
+                <td>{{ item.ipAddress ?? '—' }}</td>
+                <td>{{ item.reference ?? '—' }}</td>
+                <td>
+                  <button (click)="openDetail(item)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dl-footnote">
+        <span>Page {{ pageIndex() + 1 }} sur {{ totalPages() }}</span>
+        <div class="dl-actions">
+          <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+          <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ================= Actions sensibles ================= -->
+  @if (view() === 'sensibles') {
+    <p class="dl-cell-detail px-3 pt-3 mb-0">
+      L'API ne permet de consulter qu'une action sensible à la fois — choisissez laquelle ci-dessous.
+    </p>
+    <form [formGroup]="sensiblesFilterForm" (ngSubmit)="applySensiblesFilters()" cForm class="dl-filters">
+      <div class="dl-filter-field">
+        <label for="sf-action">Action sensible</label>
+        <select cSelect formControlName="action" id="sf-action">
+          @for (a of sensitiveActionOrder; track a) {
+            <option [value]="a">{{ actionLabel[a] }}</option>
+          }
+        </select>
+      </div>
+      <div class="dl-filter-field">
+        <label for="sf-date-debut">Date début</label>
+        <input cFormControl formControlName="dateDebut" id="sf-date-debut" type="date" />
+      </div>
+      <div class="dl-filter-field">
+        <label for="sf-date-fin">Date fin</label>
+        <input cFormControl formControlName="dateFin" id="sf-date-fin" type="date" />
+      </div>
+      <div class="dl-filter-field justify-content-end">
+        <button cButton class="dl-btn dl-btn-primary" type="submit">Rechercher</button>
+      </div>
+    </form>
+
+    <div class="dl-cell-detail px-3 pt-3">
+      <strong>{{ formatInt(sensiblesTotalElements()) }}</strong> événement(s)
+    </div>
+
+    @if (sensiblesError()) {
+      <p class="dl-empty">{{ sensiblesError() }} <button (click)="fetchSensibles()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (sensiblesLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (sensiblesItems().length === 0) {
+      <p class="dl-empty">Aucun événement ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Utilisateur</th>
+              <th scope="col">Module</th>
+              <th scope="col">Entité</th>
+              <th scope="col">Description</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of sensiblesItems(); track item.id) {
+              <tr>
+                <td class="dl-timestamp">{{ formatDateTime(item.createdAt) }}</td>
+                <td>{{ item.username ?? '—' }}</td>
+                <td>{{ item.module ?? '—' }}</td>
+                <td>{{ item.entityName }}@if (item.entityId) { <span class="dl-cell-detail">#{{ item.entityId }}</span> }</td>
+                <td>{{ item.description ?? '—' }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + statutVariant(item.statut)">
+                    <span class="dl-chip-dot"></span>{{ statutLabel[item.statut] }}
+                  </span>
+                </td>
+                <td>
+                  <button (click)="openDetail(item)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dl-footnote">
+        <span>Page {{ sensiblesPageIndex() + 1 }} sur {{ sensiblesTotalPages() }}</span>
+        <div class="dl-actions">
+          <button (click)="goToSensiblesPage(sensiblesPageIndex() - 1)" [disabled]="sensiblesPageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+          <button (click)="goToSensiblesPage(sensiblesPageIndex() + 1)" [disabled]="sensiblesPageIndex() + 1 >= sensiblesTotalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+        </div>
+      </div>
+    }
+  }
+</section>
+
+<!-- ================= Détail ================= -->
+<app-modal [visible]="detailVisible()" size="xl" title="Détail de l'événement" (closed)="detailVisible.set(false)">
+  @if (selectedLog(); as log) {
+    <h6 class="fw-semibold mb-2">Informations générales</h6>
+    <div class="row g-3 mb-4">
+      <div class="col-sm-6"><div class="dl-cell-detail">Date</div><div>{{ formatDateTime(log.createdAt) }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Utilisateur</div><div>{{ log.username ?? '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Rôle</div><div>{{ log.userRole ?? '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Module</div><div>{{ log.module ?? '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Entité</div><div>{{ log.entityName }}@if (log.entityId) { — {{ log.entityId }} }</div></div>
+      <div class="col-sm-6">
+        <div class="dl-cell-detail">Action</div>
+        <span [class]="'dl-chip dl-chip--' + actionVariant(log.action)"><span class="dl-chip-dot"></span>{{ actionLabel[log.action] }}</span>
+      </div>
+      <div class="col-sm-6">
+        <div class="dl-cell-detail">Statut</div>
+        <span [class]="'dl-chip dl-chip--' + statutVariant(log.statut)"><span class="dl-chip-dot"></span>{{ statutLabel[log.statut] }}</span>
+      </div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Motif</div><div>{{ log.motif ?? '—' }}</div></div>
+      @if (log.description) {
+        <div class="col-12"><div class="dl-cell-detail">Description</div><div>{{ log.description }}</div></div>
+      }
+      @if (log.errorMessage) {
+        <div class="col-12"><div class="dl-cell-detail">Erreur</div><div class="text-danger">{{ log.errorMessage }}</div></div>
+      }
+    </div>
+
+    <h6 class="fw-semibold mb-2">Contexte technique</h6>
+    <div class="row g-3 mb-4">
+      <div class="col-sm-6"><div class="dl-cell-detail">Canal</div><div>{{ log.canal ?? '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Adresse IP</div><div>{{ log.ipAddress ?? '—' }}</div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Référence</div><div><span class="dl-tag">{{ log.reference ?? '—' }}</span></div></div>
+      <div class="col-sm-6"><div class="dl-cell-detail">Correlation ID</div><div><span class="dl-tag">{{ log.correlationId ?? '—' }}</span></div></div>
+    </div>
+
+    @if (log.champsModifies || log.ancienneValeur || log.nouvelleValeur) {
+      <h6 class="fw-semibold mb-2">Changements</h6>
+      @if (champsModifiesList(log.champsModifies).length > 0) {
+        <div class="mb-3 d-flex flex-wrap gap-1">
+          @for (champ of champsModifiesList(log.champsModifies); track champ) {
+            <span class="dl-tag">{{ champ }}</span>
+          }
+        </div>
+      }
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <div class="dl-cell-detail mb-1">Ancienne valeur</div>
+          <pre class="dl-code-block">{{ formatValeur(log.ancienneValeur) }}</pre>
+        </div>
+        <div class="col-sm-6">
+          <div class="dl-cell-detail mb-1">Nouvelle valeur</div>
+          <pre class="dl-code-block">{{ formatValeur(log.nouvelleValeur) }}</pre>
+        </div>
+      </div>
+    }
+  }
+</app-modal>
+
+<!-- ================= Export ================= -->
+@if (exportPending()) {
+  <app-modal [visible]="true" title="Exporter les journaux d'audit" (closed)="cancelExport()">
+    <p>Exporter le résultat de la recherche actuelle au format CSV ?</p>
+    <div class="d-flex justify-content-end gap-2">
+      <button (click)="cancelExport()" cButton color="secondary" variant="outline" type="button">Annuler</button>
+      <button (click)="confirmExport()" [disabled]="exporting()" cButton color="primary" type="button">
+        @if (exporting()) { <c-spinner size="sm" /> }
+        Exporter
+      </button>
+    </div>
+  </app-modal>
+}

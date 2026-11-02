@@ -1,0 +1,268 @@
+<!-- Refonte de l'écran Primes d'objectif (maquette validée le 2026-10-06) : styles dans
+     scss/_primes-objectif.scss, briques communes im-* (_import-masse.scss) et cm-* (_commissions.scss).
+     Les confirmations et la fenêtre de rejet, plus bas, gardent leur présentation. -->
+<svg class="im-sprite" aria-hidden="true">
+  <symbol id="po-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" /></symbol>
+  <symbol id="po-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+  <symbol id="po-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></symbol>
+  <symbol id="po-redo" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3L20 9m0-5v5h-5M20 12a8 8 0 0 1-14 5.3L4 15m0 5v-5h5" /></symbol>
+  <symbol id="po-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+  <symbol id="po-wallet" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h11a1 1 0 0 1 1 1v2M4 7v10a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H6a2 2 0 0 1-2-1zM16 13.5h.01" /></symbol>
+  <symbol id="po-swap" viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3" /></symbol>
+  <symbol id="po-warn" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></symbol>
+</svg>
+
+<div class="pz-scope im cm po">
+  <div class="im-head">
+    <div>
+      <h1>Primes d'objectif</h1>
+      <p>Traitez les demandes de prime des partenaires qui ont atteint leur objectif de production.</p>
+    </div>
+    <div class="po-head-actions">
+      <button (click)="fetch()" [disabled]="loading()" class="im-btn" type="button">
+        @if (loading()) {
+          <span class="im-spin"></span>
+        } @else {
+          <svg class="im-i"><use href="#po-redo" /></svg>
+        }
+        Actualiser
+      </button>
+      <button (click)="openRequestModal()" class="im-btn im-btn--primary" type="button">
+        <svg class="im-i"><use href="#po-plus" /></svg>Nouvelle demande
+      </button>
+    </div>
+  </div>
+
+  <div class="im-card cm-panel">
+    <div class="cm-bar">
+      <div class="im-seg" role="tablist" aria-label="Filtrer par statut">
+        <button (click)="setStatutFilter('all')" [class.im-on]="statutFilter() === 'all'" type="button">Toutes</button>
+        <button (click)="setStatutFilter('EN_ATTENTE')" [class.im-on]="statutFilter() === 'EN_ATTENTE'" type="button">En attente</button>
+        <button (click)="setStatutFilter('VALIDEE')" [class.im-on]="statutFilter() === 'VALIDEE'" type="button">Validées</button>
+        <button (click)="setStatutFilter('PAYEE')" [class.im-on]="statutFilter() === 'PAYEE'" type="button">Payées</button>
+        <button (click)="setStatutFilter('REJETEE')" [class.im-on]="statutFilter() === 'REJETEE'" type="button">Rejetées</button>
+      </div>
+    </div>
+
+    @if (error()) {
+      <p class="cm-empty">{{ error() }} <button (click)="fetch()" class="cm-link" type="button">Réessayer</button></p>
+    } @else if (loading() && items().length === 0) {
+      <p class="cm-empty">Chargement des demandes…</p>
+    } @else if (items().length === 0) {
+      <p class="cm-empty">Aucune demande de prime d'objectif pour ce filtre.</p>
+    } @else {
+      <div class="cm-rows-head po-g-list">
+        <span>Demande</span><span>Objectif de production</span><span class="cm-right">Prime</span><span>Avancement</span><span></span>
+      </div>
+      @for (item of items(); track item.id) {
+        <div class="cm-row po-g-list po-row">
+          <div class="cm-who">
+            <span class="im-av">{{ initials(item.partenaireNom) }}</span>
+            <div>
+              <b>{{ item.partenaireNom }}</b>
+              <small><span class="im-chip">{{ item.reference }}</span> · {{ item.exerciceComptableLibelle }}</small>
+              <small class="po-when">Demandée le {{ formatDateTime(item.dateDemande) }}</small>
+            </div>
+          </div>
+          <div>
+            <div class="po-prog-top">
+              <span>{{ formatAmount(item.objectifRealise) }} / {{ formatAmount(item.objectifProduction) }}</span>
+              <b>{{ formatTaux(item.tauxRealisation) }}</b>
+            </div>
+            <div class="po-track"><i [style.width.%]="tauxWidth(item.tauxRealisation)"></i></div>
+          </div>
+          <span class="cm-num cm-num--big cm-right">{{ formatAmount(item.montant) }}</span>
+          <div>
+            <div class="po-steps" [attr.aria-label]="'Statut : ' + statutLabel(item.statut)">
+              @for (step of steps(item); track $index) {
+                <div [class]="'po-st po-st--' + step.state"><b>{{ step.label }}</b>{{ step.date }}</div>
+              }
+            </div>
+            @if (item.statut === 'REJETEE' && item.motifRejet) {
+              <div class="po-motif"><b>Motif</b> {{ item.motifRejet }}</div>
+            }
+          </div>
+          <div class="po-acts">
+            @if (item.statut === 'EN_ATTENTE') {
+              <button (click)="confirmValider(item)" class="im-btn im-btn--primary cm-btn-sm" type="button">
+                <svg class="im-i"><use href="#po-check" /></svg>Valider
+              </button>
+            }
+            @if (item.statut === 'VALIDEE') {
+              <button (click)="confirmPayer(item)" class="im-btn im-btn--primary cm-btn-sm" type="button">
+                <svg class="im-i"><use href="#po-wallet" /></svg>Marquer payée
+              </button>
+            }
+            @if (item.statut === 'EN_ATTENTE' || item.statut === 'VALIDEE') {
+              <button (click)="openReject(item)" class="im-btn cm-btn-sm po-btn--ko" type="button">
+                <svg class="im-i"><use href="#po-x" /></svg>Rejeter
+              </button>
+            }
+          </div>
+        </div>
+      }
+    }
+
+    <div class="cm-foot">
+      <span><b>{{ items().length }}</b> sur {{ totalElements() }} demandes · page {{ page() + 1 }} sur {{ totalPages() }}</span>
+      <div class="cm-pager">
+        <button (click)="goToPage(page() - 1)" [disabled]="loading() || page() === 0" class="im-btn cm-btn-sm" type="button">Précédent</button>
+        <button (click)="goToPage(page() + 1)" [disabled]="loading() || page() + 1 >= totalPages()" class="im-btn cm-btn-sm" type="button">Suivant</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panneau latéral : nouvelle demande (recherche du partenaire, puis simulation) -->
+  @if (requestModalVisible()) {
+    <div (click)="closeRequestModal()" class="cm-backdrop"></div>
+    <aside class="cm-drawer po-drawer" role="dialog" aria-modal="true" aria-labelledby="po-drawer-title">
+      <div class="cm-d-head po-d-head">
+        <div class="cm-d-top">
+          <div>
+            <h2 id="po-drawer-title">Nouvelle demande</h2>
+            <p>Choisissez un partenaire : la prime est simulée avant toute création.</p>
+          </div>
+          <span class="im-sp"></span>
+          <button (click)="closeRequestModal()" aria-label="Fermer" class="cm-ibtn" type="button">
+            <svg class="im-i"><use href="#po-x" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="cm-d-body">
+        @if (createError(); as message) {
+          <app-alert-message class="d-block mb-3" [message]="message" />
+        }
+
+        @if (!selectedPartner()) {
+          <label class="po-lbl" for="prime-objectif-partner-search">Rechercher un partenaire</label>
+          <label class="im-search po-search">
+            <svg class="im-i"><use href="#po-search" /></svg>
+            <input
+              (input)="onPartnerSearchInput($any($event.target).value)"
+              [value]="partnerSearchQuery()"
+              autocomplete="off"
+              id="prime-objectif-partner-search"
+              placeholder="Nom, code…"
+              type="search"
+            />
+          </label>
+          @if (partnerSearchLoading()) {
+            <p class="cm-empty">Recherche…</p>
+          } @else if (partnerSearchResults().length > 0) {
+            @for (partner of partnerSearchResults(); track partner.id) {
+              <button (click)="selectPartner(partner)" class="po-res" type="button">
+                <span class="im-av">{{ initials(partner.nom + ' ' + partner.prenoms) }}</span>
+                <div><b>{{ partner.nom }} {{ partner.prenoms }}</b><small class="cm-mono">{{ partner.codePartenaire }}</small></div>
+              </button>
+            }
+          } @else if (partnerSearchQuery().trim()) {
+            <p class="cm-empty">Aucun partenaire trouvé.</p>
+          }
+        } @else {
+          <div class="po-picked">
+            <span class="im-av">{{ initials(selectedPartner()?.nom + ' ' + selectedPartner()?.prenoms) }}</span>
+            <div><b>{{ selectedPartner()?.nom }} {{ selectedPartner()?.prenoms }}</b><small class="cm-mono">{{ selectedPartner()?.codePartenaire }}</small></div>
+            <span class="im-sp"></span>
+            <button (click)="selectedPartner.set(null); simulation.set(null)" class="im-btn cm-btn-sm" type="button">
+              <svg class="im-i"><use href="#po-swap" /></svg>Changer
+            </button>
+          </div>
+
+          @if (simulationLoading()) {
+            <p class="cm-empty">Calcul de la simulation…</p>
+          } @else if (simulationError()) {
+            <app-alert-message class="d-block mb-3" [message]="simulationError()!" />
+          } @else if (simulation(); as sim) {
+            <div class="po-sim" [class.po-sim--off]="!sim.eligible">
+              <span>Montant simulé · {{ sim.exerciceComptableLibelle }}</span>
+              <b>{{ formatAmount(sim.montantSimule) }}</b>
+              <div class="po-prog-top">
+                <span>{{ formatAmount(sim.objectifRealise) }} / {{ formatAmount(sim.objectifProduction) }}</span>
+                <b>{{ formatTaux(sim.tauxRealisation) }}</b>
+              </div>
+              <div class="po-track" [class.po-track--warn]="!sim.objectifAtteint"><i [style.width.%]="tauxWidth(sim.tauxRealisation)"></i></div>
+            </div>
+
+            <h3 class="po-h3">Conditions d'éligibilité</h3>
+            <div class="po-checks">
+              @for (check of simulationChecks(); track check.label) {
+                <div class="po-chk" [class.po-chk--no]="!check.ok">
+                  <span class="po-dot"><svg class="im-i"><use [attr.href]="check.ok ? '#po-check' : '#po-x'" /></svg></span>
+                  {{ check.label }}
+                </div>
+              }
+            </div>
+            @if (!sim.eligible) {
+              <div class="cm-banner cm-banner--warning cm-banner--inset po-banner" role="status">
+                <svg class="im-i"><use href="#po-warn" /></svg><span>Cette demande ne peut pas être créée pour le moment.</span>
+              </div>
+            }
+          }
+        }
+      </div>
+
+      @if (selectedPartner()) {
+        <div class="cm-d-foot po-d-foot">
+          <button (click)="closeRequestModal()" class="im-btn im-btn--big" type="button">Annuler</button>
+          <button (click)="confirmCreate()" [disabled]="!simulation()?.eligible || creating()" class="im-btn im-btn--primary im-btn--big" type="button">
+            @if (creating()) {
+              <span class="im-spin"></span>
+            } @else {
+              <svg class="im-i"><use href="#po-plus" /></svg>
+            }
+            Créer la demande
+          </button>
+        </div>
+      }
+    </aside>
+  }
+</div>
+
+<app-confirm-dialog
+  [visible]="!!statutTarget() && statutAction() === 'VALIDEE'"
+  title="Valider cette demande ?"
+  [message]="'La demande « ' + (statutTarget()?.reference ?? '') + ' » sera validée. Elle pourra ensuite être marquée payée.'"
+  confirmLabel="Valider"
+  icon="cilCheckCircle"
+  (cancelled)="cancelStatutAction()"
+  (confirmed)="performStatutAction()"
+/>
+
+<app-confirm-dialog
+  [visible]="!!statutTarget() && statutAction() === 'PAYEE'"
+  title="Marquer cette prime comme payée ?"
+  [message]="'La prime « ' + (statutTarget()?.reference ?? '') + ' » sera marquée payée — une écriture comptable est générée automatiquement et un SMS est envoyé au partenaire. Action définitive.'"
+  confirmLabel="Marquer payée"
+  icon="cilDollar"
+  (cancelled)="cancelStatutAction()"
+  (confirmed)="performStatutAction()"
+/>
+
+<app-modal [visible]="!!rejectTarget()" title="Rejeter cette demande ?" (closed)="cancelReject()">
+  @if (rejectError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <p>La demande « {{ rejectTarget()?.reference }} » sera rejetée. Action définitive.</p>
+  <div class="mb-3">
+    <label cLabel for="prime-objectif-reject-motif">Motif du rejet<span class="wz-required">*</span></label>
+    <textarea
+      (input)="rejectMotif.set($any($event.target).value)"
+      [ngModel]="rejectMotif()"
+      cFormControl
+      id="prime-objectif-reject-motif"
+      maxlength="500"
+      name="rejectMotif"
+      rows="3"
+    ></textarea>
+  </div>
+  <div class="d-flex align-items-center justify-content-end gap-2">
+    <button (click)="cancelReject()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+    <button [disabled]="rejectPending()" (click)="performReject()" cButton color="danger" type="button">
+      @if (rejectPending()) {
+        <c-spinner size="sm" />
+      }
+      Rejeter
+    </button>
+  </div>
+</app-modal>

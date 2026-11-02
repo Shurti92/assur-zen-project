@@ -1,0 +1,225 @@
+// ---------------------------------------------------------------------------
+// Force de vente (maquette validée le 2026-10-06), reproduite à l'identique. À utiliser avec
+// class="pz-scope im cm pf fv" : jetons de .pz-scope, briques im-* (_import-masse.scss), cm-*
+// (_commissions.scss, dont le panneau latéral) et pf-* (_partenaire-affaire.scss : menu d'actions,
+// ligne cliquable, listes déroulantes), classes propres à l'écran préfixées fv-.
+// L'onglet Paie (classes cpz-*, _commercial-paie.scss) reste en dehors de cette portée.
+// ---------------------------------------------------------------------------
+
+.pz-scope.im.cm.pf.fv {
+  // En-tête + onglets : le contenu de l'onglet suit dans son propre bloc.
+  &.fv-shell {
+    padding-bottom: 0;
+  }
+
+  .fv-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 1px solid var(--pz-line);
+    margin-bottom: 20px;
+
+    .cm-tab {
+      padding: 12px 14px;
+      font-size: 14px;
+    }
+  }
+
+  // Onglet Commerciaux ------------------------------------------------------------
+
+  .fv-g-co {
+    grid-template-columns: minmax(300px, 2fr) 1fr 1fr 120px 120px 40px;
+  }
+
+  // Onglet Tableau de bord & classement --------------------------------------------
+
+  .fv-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 16px;
+  }
+
+  .fv-kpis {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .fv-ptrack {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--pz-soft);
+    overflow: hidden;
+
+    i {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: var(--pz-primary);
+    }
+
+    &--kpi {
+      margin-top: 10px;
+    }
+
+    .fv-ptrack--success {
+      background: var(--pz-ok);
+    }
+
+    .fv-ptrack--warning {
+      background: var(--pz-warn);
+    }
+
+    .fv-ptrack--danger {
+      background: var(--pz-danger);
+    }
+
+    .fv-ptrack--neutral {
+      background: var(--pz-line);
+    }
+
+    .fv-ptrack--accent {
+      background: var(--pz-accent);
+    }
+  }
+
+  .fv-board-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 0;
+
+    h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+  }
+
+  .fv-podium {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    gap: 16px;
+    align-items: end;
+    padding: 20px;
+
+    &--solo {
+      grid-template-columns: minmax(0, 420px);
+      justify-content: center;
+    }
+  }
+
+  .fv-pod {
+    border: 1px solid var(--pz-line);
+    border-radius: 16px;
+    padding: 18px;
+    text-align: center;
+    position: relative;
+    background: var(--pz-card);
+
+    .im-av {
+      width: 52px;
+      height: 52px;
+      font-size: 16px;
+      margin: 0 auto 10px;
+    }
+
+    b {
+      display: block;
+    }
+
+    &--gold {
+      border-color: var(--pz-accent);
+      background: linear-gradient(180deg, var(--pz-accent-soft), var(--pz-card) 70%);
+      padding-top: 26px;
+      padding-bottom: 24px;
+
+      .fv-rank {
+        background: var(--pz-accent);
+        color: #fff;
+      }
+
+      .im-av {
+        width: 62px;
+        height: 62px;
+        font-size: 18px;
+        background: var(--pz-accent);
+        color: #fff;
+      }
+
+      .fv-rate {
+        font-size: 30px;
+        color: var(--pz-accent);
+      }
+    }
+  }
+
+  .fv-rank {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--pz-soft);
+    color: var(--pz-muted);
+
+    .im-i {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .fv-rate {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin: 10px 0 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .fv-g-rk {
+    grid-template-columns: 34px minmax(220px, 1.2fr) 2fr 90px;
+  }
+
+  .fv-rk {
+    font-weight: 700;
+    color: var(--pz-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  // Onglet Commissions ------------------------------------------------------------
+
+  .fv-g-cm {
+    grid-template-columns: minmax(240px, 1.6fr) 1.5fr 1fr 1fr 24px;
+  }
+
+  .fv-d-stats {
+    margin-bottom: 18px;
+  }
+
+  .fv-d-body {
+    border-top: 1px solid var(--pz-line);
+
+    .sp-payresult {
+      margin-bottom: 16px;
+    }
+  }
+
+  @media (max-width: 1100px) {
+    .fv-kpis {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .fv-podium {
+      grid-template-columns: 1fr;
+    }
+  }
+}

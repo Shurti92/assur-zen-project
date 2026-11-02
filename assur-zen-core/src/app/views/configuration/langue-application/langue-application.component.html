@@ -1,0 +1,127 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Langue Application</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher une langue…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus"></svg>Nouvelle langue
+      </button>
+    </div>
+  </div>
+
+  <p class="dl-cell-detail px-3 pt-3 mb-0">
+    Langues proposées aux utilisateurs pour l'interface de l'application. Seules les langues actives sont
+    disponibles au choix.
+  </p>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des langues…</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="dl-empty">Aucune langue ne correspond à cette recherche.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Code</th>
+            <th scope="col">Libellé</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.id) {
+            <tr>
+              <td><span class="dl-tag">{{ item.code }}</span></td>
+              <td>{{ item.libelle }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (item.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ item.active ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEdit(item)" class="dl-icon-btn" title="Modifier" type="button">
+                    <svg cIcon name="cilPencil" size="sm"></svg>
+                  </button>
+                  <button (click)="confirmDelete(item)" class="dl-icon-btn dl-icon-btn--danger" title="Supprimer" type="button">
+                    <svg cIcon name="cilTrash" size="sm"></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredItems().length }}</strong> sur {{ items().length }} langues — {{ activeCount() }} active(s)</span>
+  </div>
+</section>
+
+<app-modal [visible]="formVisible()" title="{{ editingId() ? 'Modifier la langue' : 'Nouvelle langue' }}" (closed)="formVisible.set(false)">
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="save()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-5">
+        <label cLabel for="langue-code">Code</label>
+        <input cFormControl formControlName="code" id="langue-code" placeholder="FR" type="text" />
+      </div>
+      <div class="col-sm-7">
+        <label cLabel for="langue-libelle">Libellé</label>
+        <input cFormControl formControlName="libelle" id="langue-libelle" placeholder="Français" type="text" />
+      </div>
+    </div>
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="active" id="langue-active" switch type="checkbox" />
+      <label cLabel for="langue-active">Langue active (proposée aux utilisateurs)</label>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteTarget()"
+  title="Supprimer cette langue ?"
+  [message]="'La langue « ' + (deleteTarget()?.libelle ?? '') + ' » sera définitivement supprimée.'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteTarget.set(null)"
+  (confirmed)="performDelete()"
+/>

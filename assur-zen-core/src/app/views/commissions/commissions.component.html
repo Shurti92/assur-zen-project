@@ -1,0 +1,564 @@
+<!-- Refonte de l'écran Commissions (maquette validée le 2026-10-06) : styles dans scss/_commissions.scss,
+     briques communes im-* dans scss/_import-masse.scss. -->
+<svg class="im-sprite" aria-hidden="true">
+  <symbol id="cm-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" /></symbol>
+  <symbol id="cm-warn" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></symbol>
+  <symbol id="cm-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></symbol>
+  <symbol id="cm-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></symbol>
+  <symbol id="cm-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+  <symbol id="cm-redo" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3L20 9m0-5v5h-5M20 12a8 8 0 0 1-14 5.3L4 15m0 5v-5h5" /></symbol>
+  <symbol id="cm-wallet" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h11a1 1 0 0 1 1 1v2M4 7v10a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H6a2 2 0 0 1-2-1zM16 13.5h.01" /></symbol>
+  <symbol id="cm-inbox" viewBox="0 0 24 24"><path d="M4 13 6.5 5h11L20 13M4 13v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5M4 13h4.5l1 2.5h5l1-2.5H20" /></symbol>
+  <symbol id="cm-sync" viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3" /></symbol>
+  <symbol id="cm-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></symbol>
+  <symbol id="cm-send" viewBox="0 0 24 24"><path d="M4 12 20 5l-6 15-2.5-6.5z" /></symbol>
+</svg>
+
+<div class="pz-scope im cm">
+  <div class="im-head">
+    <div>
+      <h1>Commissions</h1>
+      <p>Validez les demandes de versement et réglez les commissions dues à vos partenaires.</p>
+    </div>
+    <button (click)="refreshAll()" [disabled]="refreshing()" class="im-btn" type="button">
+      @if (refreshing()) {
+        <span class="im-spin"></span>
+      } @else {
+        <svg class="im-i"><use href="#cm-redo" /></svg>
+      }
+      Actualiser
+    </button>
+  </div>
+
+  <div class="cm-kpis">
+    <div class="im-card cm-kpi cm-kpi--ac">
+      <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#cm-wallet" /></svg></span>Commissions à verser</div>
+      <b>{{ formatNumber(totalPending()) }}<small>FCFA</small></b>
+      <span>{{ plural(pendingContractsTotal(), 'contrat') }} chez {{ plural(partnersToPayCount(), 'partenaire') }}</span>
+    </div>
+    <div class="im-card cm-kpi cm-kpi--ok">
+      <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#cm-check" /></svg></span>Déjà versé</div>
+      <b>{{ formatNumber(totalPaid()) }}<small>FCFA</small></b>
+      <span>{{ plural(paidContractsTotal(), 'contrat') }} réglé{{ paidContractsTotal() > 1 ? 's' : '' }}</span>
+    </div>
+    <div class="im-card cm-kpi">
+      <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#cm-inbox" /></svg></span>Demandes à traiter</div>
+      <b>{{ validationTodoCount() }}</b>
+      <span>{{ formatAmount(validationTodoAmount()) }} demandés</span>
+    </div>
+    <div class="im-card cm-kpi cm-kpi--in">
+      <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#cm-sync" /></svg></span>Virements à réconcilier</div>
+      <b>{{ validationReconcileCount() }}</b>
+      <span>Issue à vérifier auprès de SycaPay</span>
+    </div>
+  </div>
+
+  <div class="im-card cm-panel">
+    <div class="cm-tabs" role="tablist" aria-label="Sections des commissions">
+      <button (click)="setActiveTab('demandes')" [attr.aria-selected]="activeTab() === 'demandes'" [class.cm-on]="activeTab() === 'demandes'" class="cm-tab" role="tab" type="button">
+        Demandes à valider<span class="cm-count" [class.cm-count--hot]="validationTodoCount() > 0">{{ validationTodoCount() }}</span>
+      </button>
+      <button (click)="setActiveTab('partenaires')" [attr.aria-selected]="activeTab() === 'partenaires'" [class.cm-on]="activeTab() === 'partenaires'" class="cm-tab" role="tab" type="button">
+        Partenaires<span class="cm-count">{{ partners().length }}</span>
+      </button>
+      <button (click)="setActiveTab('historique')" [attr.aria-selected]="activeTab() === 'historique'" [class.cm-on]="activeTab() === 'historique'" class="cm-tab" role="tab" type="button">
+        Historique des paiements
+      </button>
+    </div>
+
+    <!-- Onglet : Demandes à valider -->
+    @if (activeTab() === 'demandes') {
+      <div class="cm-bar">
+        <div class="im-seg" role="tablist" aria-label="Filtrer les demandes">
+          <button (click)="setValidationFilter('todo')" [class.im-on]="validationFilter() === 'todo'" type="button">
+            À traiter<small>{{ validationTodoCount() }}</small>
+          </button>
+          <button (click)="setValidationFilter('paid')" [class.im-on]="validationFilter() === 'paid'" type="button">Payées</button>
+          <button (click)="setValidationFilter('all')" [class.im-on]="validationFilter() === 'all'" type="button">Toutes</button>
+        </div>
+      </div>
+
+      @if (validationError(); as message) {
+        <div class="cm-banner cm-banner--danger" role="alert">
+          <svg class="im-i"><use href="#cm-warn" /></svg><span>{{ message }}</span>
+        </div>
+      }
+      @if (validationResult(); as validation) {
+        @let resultMessage = partialPaymentResultMessage(validation.result);
+        <div [class]="'cm-banner cm-banner--' + resultMessage.variant" role="status">
+          <svg class="im-i"><use [attr.href]="resultMessage.variant === 'success' ? '#cm-check' : '#cm-warn'" /></svg>
+          {{ validation.nom }} <span>— {{ resultMessage.text }}</span>
+        </div>
+      }
+
+      @if (validationLoading() && validationRequests().length === 0) {
+        <p class="cm-empty">Chargement des demandes…</p>
+      } @else if (filteredValidationRequests().length === 0) {
+        <p class="cm-empty">{{ validationFilter() === 'todo' ? 'Aucune demande à traiter.' : 'Aucune demande pour ce filtre.' }}</p>
+      } @else {
+        <div class="cm-rows-head cm-g-req" [class.cm-rows-head--after]="validationError() || validationResult()">
+          <span>Bénéficiaire</span><span>Numéro de versement</span><span>Montant</span><span>Statut</span><span></span>
+        </div>
+        @for (item of filteredValidationRequests(); track item.id) {
+          <div class="cm-row cm-g-req">
+            <div class="cm-who">
+              <span class="im-av">{{ initials(item.beneficiaireNom) || '—' }}</span>
+              <div>
+                <b>{{ item.beneficiaireNom || '—' }}</b>
+                <small>{{ beneficiaryTypeLabel(item) }} · {{ formatDateTime(item.requestedAt) }}</small>
+              </div>
+            </div>
+            <span class="cm-mono">{{ item.telephoneVersement || '—' }}</span>
+            <span class="cm-num cm-num--big">{{ formatAmount(item.requestedAmount) }}</span>
+            <div>
+              <span [class]="'im-badge cm-badge--' + partialStatusVariant(item.status)" [title]="item.sycapayMessage || ''">
+                {{ partialStatusLabel(item.status) }}
+              </span>
+              @if (item.status === 'paid' && item.validatedAt) {
+                <small class="cm-detail">
+                  le {{ formatDateTime(item.validatedAt) }}{{ item.modePaiement === 'ENREGISTREMENT_MANUEL' ? ' · virement hors application' : '' }}
+                </small>
+              } @else if (item.status === 'failed' && item.sycapayMessage) {
+                <small class="cm-detail">{{ item.sycapayMessage }}</small>
+              }
+            </div>
+            <div class="cm-right">
+              @if (item.status === 'processing') {
+                @if (item.sycapayTransactionPk) {
+                  <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: item.sycapayTransactionPk }">Réconcilier</a>
+                } @else {
+                  <a [routerLink]="['/sycapay']">Réconcilier depuis Paiements SycaPay</a>
+                }
+              } @else if (item.status !== 'paid') {
+                <button
+                  (click)="validateListRequest(item)"
+                  [class.im-btn--primary]="item.status !== 'failed'"
+                  [disabled]="validatingListRequestId() !== null"
+                  class="im-btn cm-btn-sm"
+                  type="button"
+                >
+                  @if (validatingListRequestId() === item.id) {
+                    <span class="im-spin"></span>
+                  } @else {
+                    <svg class="im-i"><use [attr.href]="item.status === 'failed' ? '#cm-redo' : '#cm-send'" /></svg>
+                  }
+                  {{ item.status === 'failed' ? 'Relancer le virement' : 'Valider' }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+      }
+    }
+
+    <!-- Onglet : Partenaires -->
+    @if (activeTab() === 'partenaires') {
+      <div class="cm-bar">
+        <div class="im-seg" role="tablist" aria-label="Filtrer les partenaires">
+          <button (click)="partnerFilter.set('all')" [class.im-on]="partnerFilter() === 'all'" type="button">
+            Tous<small>{{ partners().length }}</small>
+          </button>
+          <button (click)="partnerFilter.set('todo')" [class.im-on]="partnerFilter() === 'todo'" type="button">
+            À payer<small>{{ partnersToPayCount() }}</small>
+          </button>
+          <button (click)="partnerFilter.set('done')" [class.im-on]="partnerFilter() === 'done'" type="button">
+            À jour<small>{{ partners().length - partnersToPayCount() }}</small>
+          </button>
+        </div>
+        <span class="im-sp"></span>
+        <label class="im-search cm-search">
+          <svg class="im-i"><use href="#cm-search" /></svg>
+          <input
+            (input)="onPartnersSearch($any($event.target).value)"
+            [value]="partnersSearch()"
+            aria-label="Rechercher un partenaire ou un code"
+            autocomplete="off"
+            placeholder="Rechercher un partenaire ou un code"
+            type="search"
+          />
+        </label>
+      </div>
+
+      @if (partnersError()) {
+        <p class="cm-empty">{{ partnersError() }} <button (click)="fetchPartners()" class="cm-link" type="button">Réessayer</button></p>
+      } @else if (partnersLoading() && partners().length === 0) {
+        <p class="cm-empty">Chargement des partenaires…</p>
+      } @else if (filteredPartners().length === 0) {
+        <p class="cm-empty">Aucun partenaire ne correspond.</p>
+      } @else {
+        <div class="cm-rows-head cm-g-par">
+          <span>Partenaire</span><span>Type</span><span>Contrats</span><span class="cm-right">En attente</span><span class="cm-right">Payé</span><span></span>
+        </div>
+        @for (partner of filteredPartners(); track partner.partenaireId) {
+          <button (click)="openContracts(partner)" class="cm-row cm-g-par" type="button">
+            <div class="cm-who">
+              <span class="im-av">{{ initials(partner.nom + ' ' + partner.prenoms) }}</span>
+              <div>
+                <b>{{ partner.nom }} {{ partner.prenoms }}</b>
+                <small class="cm-mono">{{ partner.codePartenaire }}</small>
+              </div>
+            </div>
+            <span><span [class]="'im-badge cm-badge--' + typeVariant(partner.type)">{{ typeLabel(partner.type) }}</span></span>
+            <div>
+              <div class="cm-split">
+                <i class="cm-split-p" [style.width.%]="contractsShare(partner, 'pending')"></i>
+                <i class="cm-split-d" [style.width.%]="contractsShare(partner, 'paid')"></i>
+              </div>
+              <small>
+                @if (partner.pendingContractsCount > 0) {
+                  {{ plural(partner.pendingContractsCount, 'contrat') }} en attente ·
+                }
+                {{ partner.paidContractsCount }} payé{{ partner.paidContractsCount > 1 ? 's' : '' }}
+              </small>
+            </div>
+            <span class="cm-num cm-num--big cm-right" [class.cm-num--hot]="partner.totalPending > 0" [class.cm-num--zero]="partner.totalPending === 0">
+              {{ formatAmount(partner.totalPending) }}
+            </span>
+            <span class="cm-num cm-right" [class.cm-num--zero]="partner.totalPaid === 0">{{ formatAmount(partner.totalPaid) }}</span>
+            <span class="cm-chev"><svg class="im-i"><use href="#cm-chev" /></svg></span>
+          </button>
+        }
+      }
+      <div class="cm-foot">
+        <span><b>{{ filteredPartners().length }}</b> sur {{ plural(partners().length, 'partenaire') }} · les partenaires à payer sont en tête</span>
+      </div>
+    }
+
+    <!-- Onglet : Historique des paiements -->
+    @if (activeTab() === 'historique') {
+      @if (paymentsError()) {
+        <p class="cm-empty">{{ paymentsError() }} <button (click)="fetchPayments()" class="cm-link" type="button">Réessayer</button></p>
+      } @else if (paymentsLoading() && payments().length === 0) {
+        <p class="cm-empty">Chargement de l'historique…</p>
+      } @else if (payments().length === 0) {
+        <p class="cm-empty">Aucun paiement enregistré pour le moment.</p>
+      } @else {
+        <div class="cm-rows-head cm-rows-head--first cm-g-his">
+          <span>Date</span><span>Partenaire</span><span>Contrat</span><span>Montant</span><span>Référence</span><span>Payé par</span><span>SMS</span>
+        </div>
+        @for (payment of payments(); track payment.id) {
+          <div class="cm-row cm-g-his">
+            <span class="cm-mu">{{ formatDateTime(payment.paidAt) }}</span>
+            <b>{{ payment.partenaireNom }}</b>
+            <span><span class="im-chip">{{ payment.policyNumber }}</span></span>
+            <div>
+              <span class="cm-num">{{ formatAmount(payment.montantVerse ?? payment.amount) }}</span>
+              @if (advanceBreakdown(payment); as breakdown) {
+                <small class="cm-detail cm-detail--flush">{{ breakdown }}</small>
+              }
+            </div>
+            <span>{{ payment.reference || '—' }}</span>
+            <div>
+              @if (payment.automatic) {
+                <span class="im-badge cm-badge--info" title="Virement SycaPay automatique (fréquence « Immédiatement » ou réconciliation)">Automatique</span>
+                @if (payment.sycapayStatus && payment.sycapayStatus !== 'SUCCESS') {
+                  <span [class]="'im-badge cm-badge--' + sycapayStatusVariant(payment.sycapayStatus)" [title]="payment.sycapayMessage || ''">
+                    Virement {{ sycapayStatusLabel(payment.sycapayStatus) }}
+                  </span>
+                }
+                @if (payment.sycapayTransactionPk) {
+                  <small class="cm-detail"><a [routerLink]="['/sycapay']" [queryParams]="{ transaction: payment.sycapayTransactionPk }">Voir le virement</a></small>
+                }
+              } @else {
+                {{ payment.paidByUsername || '—' }}
+                @if (payment.modePaiement === 'VIREMENT_SYCAPAY' && payment.sycapayTransactionPk) {
+                  <small class="cm-detail"><a [routerLink]="['/sycapay']" [queryParams]="{ transaction: payment.sycapayTransactionPk }">Voir le virement</a></small>
+                }
+              }
+            </div>
+            <span>
+              @if (payment.notificationEnvoyee === true) {
+                <span class="im-badge cm-badge--success">Envoyé</span>
+              } @else if (payment.notificationEnvoyee === false) {
+                <span class="im-badge cm-badge--danger">Échec</span>
+              } @else {
+                <span class="cm-mu" title="Aucune trace d'envoi (paiement antérieur au 24/09/2026)">—</span>
+              }
+            </span>
+          </div>
+        }
+      }
+      <div class="cm-foot">
+        <span>
+          <b>{{ payments().length }}</b> sur {{ plural(paymentsTotalElements(), 'paiement') }} · page {{ paymentsPageIndex() + 1 }} sur
+          {{ paymentsTotalPages() || 1 }}
+        </span>
+        <div class="cm-pager">
+          <button (click)="goToPaymentsPage(paymentsPageIndex() - 1)" [disabled]="paymentsLoading() || paymentsPageIndex() === 0" class="im-btn cm-btn-sm" type="button">
+            Précédent
+          </button>
+          <button (click)="goToPaymentsPage(paymentsPageIndex() + 1)" [disabled]="paymentsLoading() || paymentsPageIndex() + 1 >= paymentsTotalPages()" class="im-btn cm-btn-sm" type="button">
+            Suivant
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Panneau latéral : contrats et versements anticipés d'un partenaire -->
+  @if (contractsModalVisible()) {
+    @if (selectedPartner(); as partner) {
+      <div (click)="closeContractsModal()" class="cm-backdrop"></div>
+      <aside class="cm-drawer" role="dialog" aria-modal="true" aria-labelledby="cm-drawer-title">
+        <div class="cm-d-head">
+          <div class="cm-d-top">
+            <span class="im-av">{{ initials(partner.nom + ' ' + partner.prenoms) }}</span>
+            <div>
+              <h2 id="cm-drawer-title">{{ partner.nom }} {{ partner.prenoms }}</h2>
+              <small class="cm-mono">{{ partner.codePartenaire }}</small>
+              <span [class]="'im-badge cm-d-type cm-badge--' + typeVariant(partner.type)">{{ typeLabel(partner.type) }}</span>
+            </div>
+            <span class="im-sp"></span>
+            <button (click)="closeContractsModal()" aria-label="Fermer" class="cm-ibtn" type="button">
+              <svg class="im-i"><use href="#cm-x" /></svg>
+            </button>
+          </div>
+          <div class="cm-d-stats">
+            <div class="cm-d-stat cm-d-stat--hot">
+              <span>En attente · {{ plural(partner.pendingContractsCount, 'contrat') }}</span>
+              <b>{{ formatAmount(partner.totalPending) }}</b>
+            </div>
+            <div class="cm-d-stat">
+              <span>Déjà payé · {{ plural(partner.paidContractsCount, 'contrat') }}</span>
+              <b>{{ formatAmount(partner.totalPaid) }}</b>
+            </div>
+          </div>
+          <div class="cm-d-tabs" role="tablist" aria-label="Section du panneau">
+            <button (click)="setContractsModalTab('contrats')" [class.cm-on]="contractsModalTab() === 'contrats'" class="cm-tab" role="tab" type="button">
+              Contrats à payer
+            </button>
+            <button (click)="setContractsModalTab('demandes')" [class.cm-on]="contractsModalTab() === 'demandes'" class="cm-tab" role="tab" type="button">
+              Versements anticipés
+              @if (pendingPartialPaymentCount() > 0) {
+                <span class="cm-count cm-count--hot">{{ pendingPartialPaymentCount() }}</span>
+              }
+            </button>
+          </div>
+        </div>
+
+        <div class="cm-d-body">
+          @if (contractsModalTab() === 'contrats') {
+            @if (payError(); as message) {
+              <app-alert-message class="d-block mb-3" [message]="message" />
+            }
+            @if (payBlockedTransactions().length > 0) {
+              <div class="cm-result">
+                @for (blocked of payBlockedTransactions(); track blocked.transactionId) {
+                  <div class="cm-res-line">
+                    <span class="im-chip">{{ blocked.policyNumber }}</span>
+                    @if (blocked.reconcilable) {
+                      <span class="cm-mu">Virement {{ blocked.status === 'UNKNOWN' ? 'indéterminé' : 'en cours' }}</span>
+                      <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: blocked.transactionId }">Réconcilier</a>
+                    } @else {
+                      <span class="cm-mu">Virement en attente chez SycaPay — patientez avant de réessayer</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            @if (payResult(); as results) {
+              <div class="cm-result">
+                <h3>Résultat du paiement</h3>
+                @for (result of results; track result.contractId) {
+                  <div class="cm-res-line">
+                    <span class="im-chip">{{ result.policyNumber || '#' + result.contractId }}</span>
+                    <span class="cm-num">{{ advanceBreakdown(result) ?? formatAmount(result.amount) }}</span>
+                    <span [class]="'im-badge cm-badge--' + payResultVariant(result)">{{ payResultLabel(result) }}</span>
+                    @if (result.modePaiement === 'AVANCE_IMPUTEE') {
+                      <span class="cm-mu">{{ result.sycapayMessage || 'Commission couverte par les avances déjà versées' }}</span>
+                    } @else if (result.modePaiement === 'ENREGISTREMENT_MANUEL') {
+                      <span class="cm-mu">Paiement enregistré (virement effectué hors application)</span>
+                    } @else if (!isRecorded(result) && result.sycapayMessage) {
+                      <span class="cm-mu">{{ result.sycapayMessage }}</span>
+                    }
+                    @if (needsReconcile(result)) {
+                      <a [routerLink]="['/sycapay']" [queryParams]="reconcileQueryParams(result)">Réconcilier</a>
+                    }
+                  </div>
+                }
+                @if (payResultNeedsReconcile()) {
+                  <div class="cm-banner cm-banner--warning cm-banner--inset">
+                    <svg class="im-i"><use href="#cm-warn" /></svg>
+                    <span>
+                      Virement en cours ou d'issue incertaine : <b>ne le relancez pas</b>, un double virement est possible.
+                      Utilisez « Réconcilier » pour vérifier son statut auprès de SycaPay.
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+
+            <div class="cm-d-bar">
+              @if (visiblePendingIds().length > 0) {
+                <button (click)="toggleSelectAllPending()" [attr.aria-pressed]="allPendingSelected()" class="cm-all" type="button">
+                  <span class="cm-check" [class.cm-check--on]="allPendingSelected()"><svg class="im-i"><use href="#cm-check" /></svg></span>
+                  Tout sélectionner
+                </button>
+              } @else {
+                <span></span>
+              }
+              <div class="im-seg" role="tablist" aria-label="Filtrer par statut de commission">
+                <button (click)="setContractsStatusFilter('pending')" [class.im-on]="contractsStatusFilter() === 'pending'" type="button">
+                  En attente<small>{{ pendingContractsCount() }}</small>
+                </button>
+                <button (click)="setContractsStatusFilter('paid')" [class.im-on]="contractsStatusFilter() === 'paid'" type="button">
+                  Payés<small>{{ paidContractsCount() }}</small>
+                </button>
+                <button (click)="setContractsStatusFilter('all')" [class.im-on]="contractsStatusFilter() === 'all'" type="button">Tous</button>
+              </div>
+            </div>
+
+            @if (contractsError()) {
+              <p class="cm-empty">{{ contractsError() }} <button (click)="fetchContracts()" class="cm-link" type="button">Réessayer</button></p>
+            } @else if (contractsLoading()) {
+              <p class="cm-empty">Chargement des contrats…</p>
+            } @else if (filteredContracts().length === 0) {
+              <p class="cm-empty">Aucun contrat pour ce filtre.</p>
+            } @else {
+              @for (contract of filteredContracts(); track contract.contractId) {
+                @if (contract.commissionStatus === 'pending') {
+                  <button
+                    (click)="toggleContract(contract.contractId)"
+                    [attr.aria-pressed]="isSelected(contract.contractId)"
+                    [class.cm-citem--sel]="isSelected(contract.contractId)"
+                    class="cm-citem"
+                    type="button"
+                  >
+                    <span class="cm-check" [class.cm-check--on]="isSelected(contract.contractId)"><svg class="im-i"><use href="#cm-check" /></svg></span>
+                    <div><b>{{ contract.policyNumber }}</b><small>Souscrit le {{ formatDate(contract.signedAt) }}</small></div>
+                    <span class="cm-num">{{ formatAmount(contract.partnerShare) }}</span>
+                    <span class="im-badge cm-badge--warning">En attente</span>
+                  </button>
+                } @else {
+                  <div class="cm-citem cm-citem--paid">
+                    <span></span>
+                    <div><b>{{ contract.policyNumber }}</b><small>Souscrit le {{ formatDate(contract.signedAt) }}</small></div>
+                    <span class="cm-num">{{ formatAmount(contract.partnerShare) }}</span>
+                    <span class="im-badge cm-badge--success">Payé</span>
+                  </div>
+                }
+              }
+            }
+
+            @if (contractsStatusFilter() !== 'paid') {
+              <div class="cm-note">
+                <svg class="im-i"><use href="#cm-info" /></svg>
+                <span>
+                  Si SycaPay est activé, un virement Wave part vers le numéro de commission du partenaire, contrat par
+                  contrat ; le contrat n'est payé qu'une fois le virement confirmé. Sinon, le paiement est seulement
+                  enregistré (virement fait hors application).
+                </span>
+              </div>
+            }
+          }
+
+          @if (contractsModalTab() === 'demandes') {
+            @if (partialPaymentError(); as message) {
+              <app-alert-message class="d-block mb-3" [message]="message" />
+            }
+            @if (partialPaymentResult(); as result) {
+              @let resultMessage = partialPaymentResultMessage(result);
+              <div [class]="'cm-banner cm-banner--inset cm-banner--' + resultMessage.variant" role="status">
+                <svg class="im-i"><use [attr.href]="resultMessage.variant === 'success' ? '#cm-check' : '#cm-warn'" /></svg>
+                <span>{{ resultMessage.text }}</span>
+              </div>
+            }
+
+            @if (partialPaymentLoading()) {
+              <p class="cm-empty">Chargement…</p>
+            } @else if (partialPaymentStatus(); as status) {
+              <div class="cm-d-stats cm-d-stats--three">
+                <div class="cm-d-stat"><span>Solde en attente</span><b>{{ formatAmount(status.pendingBalance) }}</b></div>
+                <div class="cm-d-stat"><span>Demandes aujourd'hui</span><b>{{ status.requestsToday }} / {{ status.maxRequestsPerDay }}</b></div>
+                @if (status.nextRequestAvailableAt) {
+                  <div class="cm-d-stat"><span>Prochaine demande</span><b class="cm-d-stat-sm">{{ formatDateTime(status.nextRequestAvailableAt) }}</b></div>
+                }
+              </div>
+
+              @if (status.history.length === 0) {
+                <p class="cm-empty">Aucune demande de versement anticipé pour ce partenaire.</p>
+              } @else {
+                @for (request of status.history; track request.id) {
+                  <div class="cm-req">
+                    <div>
+                      <b class="cm-num cm-num--big">{{ formatAmount(request.requestedAmount) }}</b>
+                      <small>demandés le {{ formatDateTime(request.requestedAt) }}</small>
+                    </div>
+                    @if (request.status === 'processing') {
+                      @if (request.sycapayTransactionPk) {
+                        <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: request.sycapayTransactionPk }">Réconcilier</a>
+                      } @else {
+                        <span></span>
+                      }
+                    } @else if (request.status === 'paid') {
+                      @if (request.sycapayTransactionPk) {
+                        <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: request.sycapayTransactionPk }">Voir le virement</a>
+                      } @else {
+                        <span></span>
+                      }
+                    } @else {
+                      <button
+                        (click)="validatePartialPayment(request.id)"
+                        [class.im-btn--primary]="request.status !== 'failed'"
+                        [disabled]="validatingRequestId() !== null"
+                        class="im-btn cm-btn-sm"
+                        type="button"
+                      >
+                        @if (validatingRequestId() === request.id) {
+                          <span class="im-spin"></span>
+                        } @else {
+                          <svg class="im-i"><use [attr.href]="request.status === 'failed' ? '#cm-redo' : '#cm-send'" /></svg>
+                        }
+                        {{ request.status === 'failed' ? 'Relancer le virement' : 'Valider' }}
+                      </button>
+                    }
+                    <div class="cm-req-l2">
+                      <span [class]="'im-badge cm-badge--' + partialStatusVariant(request.status)" [title]="request.sycapayMessage || ''">
+                        {{ partialStatusLabel(request.status) }}
+                      </span>
+                      <span>Solde {{ formatNumber(request.pendingBalanceBefore) }} → {{ formatAmount(request.pendingBalanceAfter) }}</span>
+                      <span>Wave <span class="cm-mono">{{ request.numeroWaveCommission || '—' }}</span></span>
+                      @if (request.status === 'paid' && request.modePaiement === 'ENREGISTREMENT_MANUEL') {
+                        <span>Virement hors application</span>
+                      } @else if (request.status === 'failed' && request.sycapayMessage) {
+                        <span>{{ request.sycapayMessage }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              }
+            }
+          }
+        </div>
+
+        @if (contractsModalTab() === 'contrats' && contractsStatusFilter() !== 'paid') {
+          <div class="cm-d-foot">
+            <div class="cm-d-sum">
+              <span>{{ plural(selectedContractIds().size, 'contrat') }} sélectionné{{ selectedContractIds().size > 1 ? 's' : '' }}</span>
+              <b>{{ formatAmount(selectedTotal()) }}</b>
+            </div>
+            <div class="cm-d-pay">
+              <input
+                (input)="onReferenceInput($any($event.target).value)"
+                [value]="paymentReference()"
+                aria-label="Référence du paiement (optionnel)"
+                class="cm-field"
+                placeholder="Référence du paiement (optionnel)"
+                type="text"
+              />
+              <button (click)="payCommission()" [disabled]="paying() || selectedContractIds().size === 0" class="im-btn im-btn--primary im-btn--big" type="button">
+                @if (paying()) {
+                  <span class="im-spin"></span>
+                } @else {
+                  <svg class="im-i"><use href="#cm-send" /></svg>
+                }
+                Payer la sélection
+              </button>
+            </div>
+          </div>
+        }
+      </aside>
+    }
+  }
+</div>

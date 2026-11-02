@@ -1,0 +1,43 @@
+<div class="auth-page d-flex align-items-center justify-content-center py-5">
+  <c-card class="auth-card">
+    <c-card-body class="p-4 p-sm-4">
+      <div class="text-center mb-4">
+        <c-avatar
+          class="mb-3"
+          shape="rounded-circle"
+          size="xl"
+          [src]="user()?.avatarUrl ?? './assets/images/avatars/8.jpg'"
+          alt="User avatar"
+        />
+        <div class="auth-brand-name">{{ user()?.fullName }}</div>
+        <p class="text-body-secondary small mb-0">Session verrouillée. Saisissez votre mot de passe pour continuer.</p>
+      </div>
+
+      @if (errorMessage(); as message) {
+        <app-alert-message class="d-block mb-3" [message]="message" />
+      }
+
+      <form [formGroup]="form" cForm (ngSubmit)="unlock()">
+        <div class="mb-3">
+          <label cLabel for="lock-password">Mot de passe</label>
+          <app-password-field autoComplete="current-password" formControlName="password" id="lock-password" />
+          @if (form.controls.password.invalid && form.controls.password.touched) {
+            <p class="text-danger small mb-0 mt-1">Le mot de passe est requis.</p>
+          }
+        </div>
+
+        <button [disabled]="loading()" cButton class="w-100 mb-2" color="primary" type="submit">
+          @if (loading()) {
+            <c-spinner size="sm" />
+          }
+          Déverrouiller
+        </button>
+
+        <button (click)="logout()" cButton class="w-100" color="link" type="button">
+          <svg cIcon class="me-2" name="cilAccountLogout"></svg>
+          Ce n'est pas vous ? Se déconnecter
+        </button>
+      </form>
+    </c-card-body>
+  </c-card>
+</div>

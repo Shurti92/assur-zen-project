@@ -1,0 +1,1040 @@
+<section class="dl-panel pz-scope">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Souscription produit</h2>
+    </div>
+  </div>
+
+  <div class="mc-body">
+    @if (success(); as result) {
+      <app-alert-message class="d-block mb-3" variant="success" [message]="successSummary(result)" />
+    }
+    @if (error(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    @if (referenceError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    @if (commissionWarning(); as message) {
+      <!-- À l'étape Paiement, l'information est portée par chaque carte produit. -->
+      @if (currentStep() !== 3) {
+        <app-alert-message class="d-block mb-3" [message]="message" />
+      }
+    }
+
+    @if (referenceLoading()) {
+      <p class="dl-empty">Chargement des données de référence…</p>
+    } @else {
+      <nav class="wz-stepper pz-stepper" aria-label="Étapes de la souscription">
+        @for (label of steps; track label; let i = $index; let last = $last) {
+          <button
+            (click)="goToStep(i)"
+            [disabled]="i > furthestStep()"
+            [class]="'wz-step' + (i === currentStep() ? ' wz-step--active' : '') + (i < currentStep() ? ' wz-step--done' : '')"
+            type="button"
+          >
+            <span class="wz-step-circle">
+              @if (i < currentStep()) {
+                <svg cIcon name="cilCheck" size="sm"></svg>
+              } @else {
+                {{ i + 1 }}
+              }
+            </span>
+            <span class="wz-step-label">{{ label }}</span>
+          </button>
+          @if (!last) {
+            <span [class]="'wz-step-connector' + (i < currentStep() ? ' wz-step-connector--done' : '')"></span>
+          }
+        }
+      </nav>
+
+      <form [formGroup]="form" cForm (ngSubmit)="submit()">
+        <!-- Étape 1 : Assuré (maquette validée le 2026-09-27) -->
+        @if (currentStep() === 0) {
+          @let a = assureView();
+          <div class="pz" formGroupName="insured">
+            <div class="pz-layout">
+              <div>
+                <div class="pz-card pz-product">
+                  <div class="pz-product-head">
+                    <div class="pz-product-title">
+                      <div class="pz-product-icon">👤</div>
+                      <div><b>Qui souscrit ?</b><small>Retrouvez un client existant ou créez-en un nouveau</small></div>
+                    </div>
+                    @if (a.complete) {
+                      <span class="pz-badge pz-badge--ok">✓ Complet</span>
+                    } @else {
+                      <span class="pz-badge pz-badge--warn">● À compléter</span>
+                    }
+                  </div>
+
+                  <!-- ① CLIENT EXISTANT -->
+                  <div class="pz-section pz-section--first">
+                    <div class="pz-section-title"><span class="pz-num">1</span>Client existant</div>
+                    <div class="pz-search">
+                      <div class="pz-field pz-field--lg">
+                        <span class="pz-ico">🔍</span>
+                        <input
+                          (blur)="onInsuredSearchBlur()"
+                          (focus)="onInsuredSearchFocus()"
+                          (input)="onInsuredSearchInput($any($event.target).value)"
+                          (keydown)="onInsuredSearchKeydown($event)"
+                          autocomplete="off"
+                          formControlName="insuredSearchQuery"
+                          id="ins-search"
+                          placeholder="Rechercher par nom, prénoms ou téléphone…"
+                          type="text"
+                        />
+                        @if (selectedExistingInsured()) {
+                          <button (click)="clearExistingInsuredSelection()" class="pz-field-clear" title="Repartir sur un nouveau client" type="button">✕</button>
+                        } @else if (insuredSearchOpen()) {
+                          <span class="pz-suffix">Échap pour fermer</span>
+                        }
+                      </div>
+                      @if (insuredSearchOpen()) {
+                        <div class="pz-drop">
+                          @if (insuredSearchLoading()) {
+                            <div class="pz-drop-empty"><c-spinner size="sm" /> Recherche…</div>
+                          } @else if (insuredSearchError()) {
+                            <div class="pz-drop-empty">{{ insuredSearchError() }}</div>
+                          } @else if (form.controls.insured.controls.insuredSearchQuery.value.trim().length < 2) {
+                            <div class="pz-drop-empty">Continuez à saisir… (2 caractères minimum)</div>
+                          } @else {
+                            @for (result of insuredSearchResults(); track result.id; let j = $index) {
+                              @let count = insuredContractCount(result.id);
+                              <button
+                                (mousedown)="selectExistingInsured(result)"
+                                (mouseenter)="insuredActiveIndex.set(j)"
+                                [class.hl]="j === insuredActiveIndex()"
+                                class="pz-drop-item"
+                                type="button"
+                              >
+                                <span class="pz-drop-av">{{ initials(result.nom, result.prenoms) }}</span>
+                                <span class="pz-drop-info">
+                                  <b>{{ result.nom }} {{ result.prenoms }}</b>
+                                  <small>{{ result.clientPhone || '—' }} · {{ result.clientCity || '—' }} · {{ typeClientLabel(result.typeClient ?? 'PARTICULIER') }}</small>
+                                </span>
+                                <span class="pz-drop-count">{{ count ? count + (count > 1 ? ' contrats' : ' contrat') : '—' }}</span>
+                              </button>
+                            } @empty {
+                              <div class="pz-drop-empty">Aucun assuré trouvé.</div>
+                            }
+                            <button (mousedown)="startNewInsured()" class="pz-drop-new" type="button">＋ Aucun ne correspond : saisir un nouveau client</button>
+                          }
+                        </div>
+                      }
+                    </div>
+                    @if (selectedExistingInsured(); as existing) {
+                      <div class="pz-direct">
+                        <span>ⓘ</span>
+                        <div>Champs pré-remplis depuis la fiche de <b>{{ existing.nom }} {{ existing.prenoms }}</b> (#{{ existing.id }}). Vous pouvez les modifier.</div>
+                      </div>
+                    } @else {
+                      <div class="pz-hint">Nom, prénoms ou téléphone · 2 caractères minimum · ↑ ↓ pour naviguer, Entrée pour choisir</div>
+                    }
+                  </div>
+
+                  @if (!selectedExistingInsured()) {
+                    <div class="pz-or">ou nouveau client</div>
+                  }
+
+                  <!-- ② TYPE DE CLIENT -->
+                  <div [class.pz-section--after-or]="!selectedExistingInsured()" class="pz-section">
+                    <div class="pz-section-title"><span class="pz-num">2</span>Type de client</div>
+                    <div class="pz-types">
+                      <button (click)="setTypeClient('PARTICULIER')" [class.on]="form.controls.insured.controls.typeClient.value === 'PARTICULIER'" class="pz-type" type="button">
+                        <span class="pz-type-ico">🧑</span>
+                        <span><b>Particulier</b><small>Personne physique</small></span>
+                      </button>
+                      <button (click)="setTypeClient('ENTREPRISE')" [class.on]="form.controls.insured.controls.typeClient.value === 'ENTREPRISE'" class="pz-type" type="button">
+                        <span class="pz-type-ico">🏢</span>
+                        <span><b>Entreprise</b><small>Société, association…</small></span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- ③ IDENTITÉ -->
+                  <div class="pz-section">
+                    <div class="pz-section-title"><span class="pz-num">3</span>Identité</div>
+                    <div class="pz-grid2">
+                      <div>
+                        <label class="pz-lbl" for="ins-nom">Nom <em>*</em></label>
+                        <div class="pz-field">
+                          <input formControlName="nom" id="ins-nom" type="text" />
+                          @if (form.controls.insured.controls.nom.value.trim()) {
+                            <span class="pz-ok-ico">✓</span>
+                          }
+                        </div>
+                      </div>
+                      <div>
+                        <label class="pz-lbl" for="ins-prenoms">Prénoms <em>*</em></label>
+                        <div class="pz-field">
+                          <input formControlName="prenoms" id="ins-prenoms" type="text" />
+                          @if (form.controls.insured.controls.prenoms.value.trim()) {
+                            <span class="pz-ok-ico">✓</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- ④ COORDONNÉES -->
+                  <div class="pz-section">
+                    <div class="pz-section-title"><span class="pz-num">4</span>Coordonnées</div>
+                    <div class="pz-grid2">
+                      <div>
+                        <label class="pz-lbl" for="ins-phone">Téléphone <em>*</em></label>
+                        <div [class.pz-field--err]="a.phoneError" class="pz-field">
+                          <span class="pz-prefix">+225</span>
+                          <input (blur)="phoneTouched.set(true)" formControlName="clientPhone" id="ins-phone" inputmode="tel" placeholder="07 00 00 00 00" type="text" />
+                          @if (a.phone && !a.phoneError && isPhoneValid(a.phone)) {
+                            <span class="pz-ok-ico">✓</span>
+                          }
+                        </div>
+                        @if (a.phoneError) {
+                          <div class="pz-hint pz-hint--err">Numéro incomplet : 10 chiffres attendus</div>
+                        }
+                      </div>
+                      <div>
+                        <label class="pz-lbl" for="ins-phone2">2e téléphone</label>
+                        <div [class.pz-field--err]="a.phone2Error" class="pz-field">
+                          <span class="pz-prefix">+225</span>
+                          <input (blur)="phone2Touched.set(true)" formControlName="clientPhone2" id="ins-phone2" inputmode="tel" placeholder="07 00 00 00 00" type="text" />
+                          @if (a.phone2 && !a.phone2Error && isPhoneValid(a.phone2)) {
+                            <span class="pz-ok-ico">✓</span>
+                          }
+                        </div>
+                        @if (a.phone2Error) {
+                          <div class="pz-hint pz-hint--err">Numéro incomplet : 10 chiffres attendus</div>
+                        } @else {
+                          <div class="pz-hint">Optionnel · reçoit aussi les SMS et le cycle de vie du contrat</div>
+                        }
+                      </div>
+                    </div>
+                    <div class="pz-grid2 pz-mt">
+                      <div>
+                        <label class="pz-lbl" for="ins-email">Email</label>
+                        <div class="pz-field">
+                          <span class="pz-ico">✉</span>
+                          <input formControlName="clientEmail" id="ins-email" placeholder="nom@exemple.ci" type="email" />
+                        </div>
+                        <div class="pz-hint">Optionnel</div>
+                      </div>
+                      <div>
+                        <label class="pz-lbl" for="ins-city">Ville <em>*</em></label>
+                        <div class="pz-field">
+                          <span class="pz-ico">📍</span>
+                          <input autocomplete="off" formControlName="clientCity" id="ins-city" list="ville-suggestions" placeholder="Rechercher une ville…" type="text" />
+                        </div>
+                        <datalist id="ville-suggestions">
+                          @for (ville of villes(); track ville.id) {
+                            <option [value]="ville.nomVille"></option>
+                          }
+                        </datalist>
+                        <div class="pz-chips">
+                          @for (city of topCities(); track city) {
+                            <button (click)="setCity(city)" [class.on]="a.city.toLowerCase() === city.toLowerCase()" class="pz-chip" type="button">{{ city }}</button>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pz-actions">
+                  <span></span>
+                  <button (click)="nextStep()" [disabled]="!a.complete" class="pz-btn pz-btn--primary" type="button">Suivant : Produit →</button>
+                </div>
+              </div>
+
+              <aside class="pz-card pz-summary">
+                <h3>Fiche assuré</h3>
+                <div class="pz-pcard">
+                  <div class="pz-pcard-av">{{ a.initials }}</div>
+                  <b>{{ a.fullName || 'Nouvel assuré' }}</b>
+                  <small>{{ a.typeLabel }} · {{ a.existing ? 'Client existant' : 'Nouveau client' }}</small>
+                  <div class="pz-pcard-rows">
+                    <span [class.pz-empty]="!a.phone">📞 {{ a.phone || 'Téléphone à renseigner' }}</span>
+                    @if (a.phone2) {
+                      <span>📞 {{ a.phone2 }} <small>(2e numéro)</small></span>
+                    }
+                    <span [class.pz-empty]="!a.email">✉ {{ a.email || "Pas d'email" }}</span>
+                    <span [class.pz-empty]="!a.city">📍 {{ a.city || 'Ville à renseigner' }}</span>
+                  </div>
+                </div>
+                <div class="pz-checklist">
+                  @for (check of a.checks; track check.label) {
+                    <div [class.pz-c-ok]="check.ok" [class.pz-c-ko]="!check.ok">{{ check.ok ? '✓' : '✕' }} {{ check.label }}</div>
+                  }
+                </div>
+              </aside>
+            </div>
+          </div>
+        }
+
+        <!-- Étape 2 : Produit (maquette validée le 2026-09-27) -->
+        @if (currentStep() === 1) {
+          <datalist id="compagnie-suggestions">
+            @for (compagnie of compagnies(); track compagnie.id) {
+              <option [value]="compagnie.nom"></option>
+            }
+          </datalist>
+
+          <div class="pz">
+            <div class="pz-layout">
+              <div>
+                <div formArrayName="contracts" class="pz-products">
+                  @for (group of contractsArray.controls; track group; let i = $index) {
+                    @let v = produitView(i);
+                    <div [formGroupName]="i" class="pz-card pz-product">
+                      <div class="pz-product-head">
+                        <div class="pz-product-title">
+                          <div class="pz-product-icon">{{ v.productInitial }}</div>
+                          <div>
+                            <b>Produit {{ i + 1 }} · {{ v.productName || 'à choisir' }}</b>
+                            <small>{{ v.compagnieName || 'Choisissez un produit et une compagnie' }}</small>
+                          </div>
+                        </div>
+                        <div class="pz-head-actions">
+                          @if (v.complete) {
+                            <span class="pz-badge pz-badge--ok">✓ Complet</span>
+                          } @else {
+                            <span class="pz-badge pz-badge--warn">● À compléter</span>
+                          }
+                          @if (contractsArray.length > 1) {
+                            <button (click)="removeContractRow(i)" class="pz-ibtn" title="Retirer ce produit" type="button">
+                              <svg cIcon name="cilTrash" size="sm"></svg>
+                            </button>
+                          }
+                        </div>
+                      </div>
+
+                      <!-- ① PRODUIT & COMPAGNIE -->
+                      <div class="pz-section pz-section--first">
+                        <div class="pz-section-title"><span class="pz-num">1</span>Produit &amp; compagnie</div>
+                        <div class="pz-picker">
+                          @for (produit of productTiles(i); track produit.id) {
+                            <button (click)="selectProduct(i, produit.id)" [class.on]="+group.controls.productId.value === produit.id" class="pz-pick" type="button">
+                              <span class="pz-pick-ico">{{ productInitialOf(produit.nomProduit) }}</span>
+                              <b>{{ produit.nomProduit }}</b>
+                              <small>{{ produit.productTypeNom || 'Produit' }}</small>
+                            </button>
+                          }
+                          @if (otherProducts(i).length) {
+                            <button (click)="toggleAllProducts(i)" class="pz-pick pz-pick--more" type="button">
+                              @if (isAllProductsOpen(i)) {
+                                − Masquer les autres
+                              } @else {
+                                ＋ {{ otherProducts(i).length }} autre{{ otherProducts(i).length > 1 ? 's' : '' }} produit{{ otherProducts(i).length > 1 ? 's' : '' }}
+                              }
+                            </button>
+                          }
+                        </div>
+                        @if (isAllProductsOpen(i)) {
+                          <div class="pz-picker pz-picker--all">
+                            @for (produit of otherProducts(i); track produit.id) {
+                              <button (click)="selectProduct(i, produit.id)" class="pz-pick" type="button">
+                                <span class="pz-pick-ico">{{ productInitialOf(produit.nomProduit) }}</span>
+                                <b>{{ produit.nomProduit }}</b>
+                                <small>{{ produit.productTypeNom || 'Produit' }}</small>
+                              </button>
+                            }
+                          </div>
+                        }
+                        <div class="pz-grid2 pz-mt">
+                          <div>
+                            <label class="pz-lbl" for="pz-cie-{{ i }}">Compagnie <em>*</em></label>
+                            <div class="pz-field">
+                              <span class="pz-ico">🏢</span>
+                              <input
+                                (input)="onCompagnieQueryChange(i)"
+                                autocomplete="off"
+                                formControlName="compagnieQuery"
+                                id="pz-cie-{{ i }}"
+                                list="compagnie-suggestions"
+                                placeholder="Rechercher une compagnie…"
+                                type="text"
+                              />
+                              <span class="pz-suffix">⌄</span>
+                            </div>
+                            @if (v.compagnieHabituelle) {
+                              <div class="pz-hint pz-hint--ok">✓ Compagnie habituelle pour ce produit</div>
+                            } @else if (group.controls.compagnieQuery.value.trim() && !+group.controls.compagnieId.value) {
+                              <div class="pz-hint pz-hint--err">Choisissez une compagnie de la liste</div>
+                            }
+                          </div>
+                          <div>
+                            <label class="pz-lbl" for="pz-police-{{ i }}">N° de police</label>
+                            <div class="pz-field">
+                              <span class="pz-ico">#</span>
+                              <input formControlName="policyNumber" id="pz-police-{{ i }}" placeholder="Généré automatiquement si vide" type="text" />
+                            </div>
+                            <div class="pz-hint">Optionnel</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- ② INTERMÉDIAIRES -->
+                      <div class="pz-section">
+                        <div class="pz-section-title"><span class="pz-num">2</span>Intermédiaires</div>
+                        <div class="pz-grid2">
+                          <div class="pz-person-wrap">
+                            <span class="pz-lbl">Partenaire</span>
+                            <button (click)="openPersonPicker(i, 'partner')" class="pz-person" type="button">
+                              <span [class.pz-person-av--none]="!v.partnerName" class="pz-person-av pz-person-av--partner">{{ v.partnerName ? v.partnerInitials : '—' }}</span>
+                              <span class="pz-person-info">
+                                <b>{{ v.partnerName || 'Aucun partenaire' }}</b>
+                                <small>{{ v.partnerName ? v.partnerDetail : 'Rechercher un partenaire…' }}</small>
+                              </span>
+                              <span class="pz-person-chg">{{ v.partnerName ? 'Changer' : 'Choisir' }}</span>
+                            </button>
+                            @if (isPersonPickerOpen(i, 'partner')) {
+                              <div (click)="personPicker.set(null)" class="pz-backdrop"></div>
+                              <div class="pz-drop">
+                                <div class="pz-drop-search">
+                                  <input (input)="personQuery.set($any($event.target).value)" autofocus placeholder="Rechercher un partenaire…" type="text" />
+                                </div>
+                                <button (click)="selectPerson(i, 'partner', '')" class="pz-drop-item" type="button">
+                                  <span class="pz-drop-av pz-drop-av--none">—</span>
+                                  <span class="pz-drop-info"><b>Aucun partenaire</b><small>Vente directe</small></span>
+                                </button>
+                                @for (option of personOptions('partner'); track option.id) {
+                                  <button (click)="selectPerson(i, 'partner', option.id)" [class.hl]="group.controls.partenaireId.value === option.id" class="pz-drop-item" type="button">
+                                    <span class="pz-drop-av">{{ option.initials }}</span>
+                                    <span class="pz-drop-info"><b>{{ option.name }}</b><small>{{ option.detail }}</small></span>
+                                  </button>
+                                } @empty {
+                                  <div class="pz-drop-empty">Aucun partenaire trouvé.</div>
+                                }
+                              </div>
+                            }
+                          </div>
+                          <div class="pz-person-wrap">
+                            <span class="pz-lbl">Commercial</span>
+                            <button (click)="openPersonPicker(i, 'commercial')" class="pz-person" type="button">
+                              <span [class.pz-person-av--none]="!v.commercialName" class="pz-person-av">{{ v.commercialName ? v.commercialInitials : '—' }}</span>
+                              <span class="pz-person-info">
+                                <b>{{ v.commercialName || 'Aucun commercial' }}</b>
+                                <small>{{ v.commercialName ? v.commercialDetail : 'Rechercher un commercial…' }}</small>
+                              </span>
+                              <span class="pz-person-chg">{{ v.commercialName ? 'Changer' : 'Choisir' }}</span>
+                            </button>
+                            @if (isPersonPickerOpen(i, 'commercial')) {
+                              <div (click)="personPicker.set(null)" class="pz-backdrop"></div>
+                              <div class="pz-drop">
+                                <div class="pz-drop-search">
+                                  <input (input)="personQuery.set($any($event.target).value)" autofocus placeholder="Rechercher un commercial…" type="text" />
+                                </div>
+                                <button (click)="selectPerson(i, 'commercial', '')" class="pz-drop-item" type="button">
+                                  <span class="pz-drop-av pz-drop-av--none">—</span>
+                                  <span class="pz-drop-info"><b>Aucun commercial</b><small>Non attribué</small></span>
+                                </button>
+                                @for (option of personOptions('commercial'); track option.id) {
+                                  <button (click)="selectPerson(i, 'commercial', option.id)" [class.hl]="group.controls.salesRepId.value === option.id" class="pz-drop-item" type="button">
+                                    <span class="pz-drop-av">{{ option.initials }}</span>
+                                    <span class="pz-drop-info"><b>{{ option.name }}</b><small>{{ option.detail }}</small></span>
+                                  </button>
+                                } @empty {
+                                  <div class="pz-drop-empty">Aucun commercial trouvé.</div>
+                                }
+                              </div>
+                            }
+                          </div>
+                        </div>
+                        @if (!group.controls.partenaireId.value) {
+                          <div class="pz-direct">
+                            <span>ⓘ</span>
+                            <div><b>Vente directe</b> — sans partenaire, la commission sera à saisir à l'étape Paiement.</div>
+                          </div>
+                        }
+                      </div>
+
+                      <!-- ③ CONTRAT -->
+                      <div class="pz-section">
+                        <div class="pz-section-title"><span class="pz-num">3</span>Contrat</div>
+                        <div class="pz-grid2 pz-grid2--status">
+                          <div>
+                            <span class="pz-lbl">Statut du contrat</span>
+                            <div class="pz-seg pz-seg--dots">
+                              <button (click)="setStatus(i, 'signed')" [class.on]="group.controls.status.value === 'signed'" type="button"><span class="pz-dot pz-dot--ok"></span>Signé</button>
+                              <button (click)="setStatus(i, 'pending')" [class.on]="group.controls.status.value === 'pending'" type="button"><span class="pz-dot pz-dot--warn"></span>En attente</button>
+                              <button (click)="setStatus(i, 'draft')" [class.on]="group.controls.status.value === 'draft'" type="button"><span class="pz-dot pz-dot--muted"></span>Brouillon</button>
+                              <button (click)="setStatus(i, 'cancelled')" [class.on]="group.controls.status.value === 'cancelled'" type="button"><span class="pz-dot pz-dot--danger"></span>Annulé</button>
+                            </div>
+                          </div>
+                          <div>
+                            <label class="pz-lbl" for="pz-signed-{{ i }}">Date de souscription</label>
+                            <div class="pz-field">
+                              <span class="pz-ico">📅</span>
+                              <input formControlName="signedAt" id="pz-signed-{{ i }}" type="date" />
+                            </div>
+                            <div class="pz-chips">
+                              <button (click)="setSignedAt(i, 'today')" [class.on]="isSignedAtPreset(i, 'today')" class="pz-chip" type="button">Aujourd'hui</button>
+                              <button (click)="setSignedAt(i, 'yesterday')" [class.on]="isSignedAtPreset(i, 'yesterday')" class="pz-chip" type="button">Hier</button>
+                            </div>
+                          </div>
+                        </div>
+                        <button (click)="toggleRenouvellement(i)" class="pz-tcard pz-mt" type="button">
+                          <span>
+                            <b>Renouvellement d'un contrat existant</b>
+                            <small>Relie ce contrat au précédent pour garder l'historique de l'assuré.</small>
+                          </span>
+                          <span [class.on]="group.controls.isRenouvellement.value" class="pz-switch"></span>
+                        </button>
+                        @if (group.controls.isRenouvellement.value) {
+                          <div class="pz-mt">
+                            <label class="pz-lbl" for="pz-prec-{{ i }}">Contrat précédent (renouvelé par celui-ci) <em>*</em></label>
+                            <div [class.pz-field--err]="!group.controls.contratPrecedentId.value" class="pz-field">
+                              <span class="pz-ico">↻</span>
+                              <select formControlName="contratPrecedentId" id="pz-prec-{{ i }}">
+                                <option value="" disabled>Sélectionner le contrat à renouveler…</option>
+                                @for (previous of renewableContracts(); track previous.id) {
+                                  <option [value]="previous.id">{{ contractLabel(previous) }}</option>
+                                }
+                              </select>
+                            </div>
+                          </div>
+                        }
+                        @if (isNotesOpen(i)) {
+                          <div class="pz-mt">
+                            <label class="pz-lbl" for="pz-notes-{{ i }}">Note interne</label>
+                            <textarea class="pz-textarea" formControlName="notes" id="pz-notes-{{ i }}" rows="2"></textarea>
+                          </div>
+                        } @else {
+                          <button (click)="openNotes(i)" class="pz-addlink" type="button">＋ Ajouter une note interne</button>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <button (click)="addContractRow()" class="pz-addprod" type="button"><span>＋</span>Ajouter un autre produit pour cet assuré</button>
+                </div>
+
+                <div class="pz-actions">
+                  <button (click)="prevStep()" class="pz-btn" type="button">← Précédent</button>
+                  <button (click)="nextStep()" class="pz-btn pz-btn--primary" type="button">Suivant : Couverture →</button>
+                </div>
+              </div>
+
+              <ng-container *ngTemplateOutlet="souscriptionAside" />
+            </div>
+          </div>
+        }
+
+        <!-- Étape 3 : Couverture (maquette validée le 2026-09-27) -->
+        @if (currentStep() === 2) {
+          <div class="pz">
+            <div class="pz-layout">
+              <div>
+                @if (contractsArray.length > 1) {
+                  <button (click)="toggleSamePeriod()" class="pz-same" type="button">
+                    <span [class.on]="samePeriod()" class="pz-switch"></span>
+                    <b>Même période pour tous les produits</b>
+                  </button>
+                }
+                <div formArrayName="contracts" class="pz-products">
+                  @for (group of contractsArray.controls; track group; let i = $index) {
+                    @if (!isSharedPeriod() || i === 0) {
+                      @let v = couvertureView(i);
+                      <div [formGroupName]="i" class="pz-card pz-product">
+                        <div class="pz-product-head">
+                          <div class="pz-product-title">
+                            @if (isSharedPeriod()) {
+                              <div class="pz-product-icon">{{ contractsArray.length }}</div>
+                              <div><b>Tous les produits · {{ contractsArray.length }}</b><small>{{ sharedProductNames() }}</small></div>
+                            } @else {
+                              <div class="pz-product-icon">{{ v.productInitial }}</div>
+                              <div><b>Produit {{ i + 1 }} · {{ v.productName }}</b><small>{{ v.compagnieName }}</small></div>
+                            }
+                          </div>
+                          @if (v.complete) {
+                            <span class="pz-badge pz-badge--ok">✓ Complet</span>
+                          } @else {
+                            <span class="pz-badge pz-badge--warn">● À compléter</span>
+                          }
+                        </div>
+
+                        <!-- ① DURÉE -->
+                        <div class="pz-section pz-section--first">
+                          <div class="pz-section-title"><span class="pz-num">1</span>Durée de la couverture</div>
+                          <div class="pz-durations">
+                            @for (months of dureeOptions; track months) {
+                              <button (click)="setDuree(i, months)" [class.on]="+group.controls.duree.value === months" class="pz-dur" type="button">
+                                <b>{{ months }}</b>
+                                <small>mois{{ months === 12 ? ' · 1 an' : '' }}</small>
+                              </button>
+                            }
+                          </div>
+                        </div>
+
+                        <!-- ② PÉRIODE -->
+                        <div class="pz-section">
+                          <div class="pz-section-title"><span class="pz-num">2</span>Période</div>
+                          <div class="pz-grid2">
+                            <div>
+                              <label class="pz-lbl" for="pz-effet-{{ i }}">Date d'effet <em>*</em></label>
+                              <div class="pz-field">
+                                <span class="pz-ico">▶</span>
+                                <input (change)="onDateEffetChange(i)" formControlName="dateEffet" id="pz-effet-{{ i }}" type="date" />
+                              </div>
+                              <div class="pz-chips">
+                                @for (preset of dateEffetPresets(); track preset.key) {
+                                  <button (click)="setDateEffet(i, preset.key)" [class.on]="isDateEffetPreset(i, preset.value)" class="pz-chip" type="button">{{ preset.label }}</button>
+                                }
+                              </div>
+                            </div>
+                            <div>
+                              <label class="pz-lbl" for="pz-echeance-{{ i }}">
+                                Date d'échéance <em>*</em>
+                                @if (v.echeanceComputed) {
+                                  <span class="pz-auto">Calculée</span>
+                                }
+                              </label>
+                              <div class="pz-field">
+                                <span class="pz-ico">■</span>
+                                <input (change)="syncPeriod(i)" formControlName="dateEcheance" id="pz-echeance-{{ i }}" type="date" />
+                              </div>
+                              <div class="pz-hint">Recalculée à partir de la durée · modifiable</div>
+                            </div>
+                          </div>
+
+                          <div class="pz-period">
+                            <div class="pz-period-top">
+                              <div>Début<b>{{ v.startLabel }}</b></div>
+                              <div class="pz-center">Durée<b>{{ v.days }} jour{{ v.days > 1 ? 's' : '' }}</b></div>
+                              <div class="pz-right">Fin<b>{{ v.endLabel }}</b></div>
+                            </div>
+                            <div class="pz-bar">
+                              <div class="pz-bar-ticks">
+                                @for (tick of v.ticks; track tick) {
+                                  <i></i>
+                                }
+                              </div>
+                              @if (v.effetState !== 'future' && v.effetState !== 'none') {
+                                <span [style.left.%]="v.todayPercent" class="pz-bar-today"></span>
+                              }
+                            </div>
+                            <div class="pz-period-bottom">
+                              @switch (v.effetState) {
+                                @case ('today') {
+                                  <span class="pz-today">▲ Aujourd'hui — couvert dès la signature</span>
+                                }
+                                @case ('future') {
+                                  <span class="pz-today">Début de la couverture dans {{ v.daysUntilStart }} jour{{ v.daysUntilStart > 1 ? 's' : '' }}</span>
+                                }
+                                @case ('past') {
+                                  <span class="pz-today">▲ Aujourd'hui</span>
+                                }
+                              }
+                            </div>
+                          </div>
+                          @if (v.effetState === 'past') {
+                            <div class="pz-info pz-mt"><span>⚠</span><div>La date d'effet est dans le passé.</div></div>
+                          }
+                          @if (!v.complete && v.effetState !== 'none') {
+                            <div class="pz-hint pz-hint--err">La date d'échéance doit être postérieure à la date d'effet.</div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  }
+                </div>
+
+                <div class="pz-actions">
+                  <button (click)="prevStep()" class="pz-btn" type="button">← Produit</button>
+                  <button (click)="nextStep()" class="pz-btn pz-btn--primary" type="button">Suivant : Paiement →</button>
+                </div>
+              </div>
+
+              <ng-container *ngTemplateOutlet="souscriptionAside" />
+            </div>
+          </div>
+        }
+
+        <!-- Étape 4 : Paiement (maquette validée le 2026-09-25) -->
+        @if (currentStep() === 3) {
+          @let summary = paiementSummary();
+          <div class="pz">
+            <div class="pz-layout">
+              <div>
+                <div formArrayName="contracts" class="pz-products">
+                  @for (group of contractsArray.controls; track group; let i = $index) {
+                    @let v = paiementView(i);
+                    <div [formGroupName]="i" class="pz-card pz-product">
+                      <div class="pz-product-head">
+                        <div class="pz-product-title">
+                          <div class="pz-product-icon">{{ v.productInitial }}</div>
+                          <div><b>Produit {{ i + 1 }} · {{ v.productName }}</b><small>{{ v.subtitle }}</small></div>
+                        </div>
+                        @if (v.complete) {
+                          <span class="pz-badge pz-badge--ok">✓ Complet</span>
+                        } @else {
+                          <span class="pz-badge pz-badge--warn">● À compléter</span>
+                        }
+                      </div>
+
+                      <!-- ① PRIME -->
+                      <div class="pz-section pz-section--first">
+                        <div class="pz-section-title"><span class="pz-num">1</span>Prime</div>
+                        <div class="pz-row">
+                          <div>
+                            <label class="pz-lbl" for="pz-prime-{{ i }}">Montant de la prime</label>
+                            <div class="pz-money pz-money--hero">
+                              <input formControlName="premium" id="pz-prime-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                              <span class="pz-unit">FCFA</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span class="pz-lbl">Règlement</span>
+                            <div class="pz-seg">
+                              <button (click)="setModePaiement(i, 'COMPTANT')" [class.on]="group.controls.modePaiement.value === 'COMPTANT'" type="button">Comptant</button>
+                              <button (click)="setModePaiement(i, 'FRACTIONNE')" [class.on]="group.controls.modePaiement.value === 'FRACTIONNE'" type="button">Fractionné</button>
+                            </div>
+                          </div>
+                        </div>
+                        @if (group.controls.modePaiement.value === 'FRACTIONNE') {
+                          <div class="pz-fract">
+                            <div class="pz-fract-controls">
+                              <div>
+                                <label class="pz-lbl" for="pz-nb-{{ i }}">Échéances</label>
+                                <select formControlName="nombreEcheances" id="pz-nb-{{ i }}">
+                                  @for (n of nombreEcheancesOptions; track n) {
+                                    <option [ngValue]="n">{{ n }}</option>
+                                  }
+                                </select>
+                              </div>
+                              <div>
+                                <label class="pz-lbl" for="pz-perio-{{ i }}">Périodicité</label>
+                                <select formControlName="periodiciteEcheances" id="pz-perio-{{ i }}">
+                                  <option value="MENSUELLE">Mensuelle</option>
+                                  <option value="TRIMESTRIELLE">Trimestrielle</option>
+                                  <option value="SEMESTRIELLE">Semestrielle</option>
+                                  <option value="ANNUELLE">Annuelle</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label class="pz-lbl" for="pz-deja-{{ i }}">Déjà versé</label>
+                                <div class="pz-money">
+                                  <input formControlName="montantDejaVerse" id="pz-deja-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                                  <span class="pz-unit">FCFA</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="pz-timeline">
+                              @if (+group.controls.montantDejaVerse.value > 0) {
+                                <div class="pz-tl-item pz-tl-item--paid"><small>Déjà versé</small><b>{{ formatNumber(+group.controls.montantDejaVerse.value) }}</b></div>
+                              }
+                              @for (echeance of echeancesPreview(i); track echeance.numero) {
+                                <div class="pz-tl-item">
+                                  <small>Échéance {{ echeance.numero }} · {{ formatShortDate(echeance.date) }}</small>
+                                  <b>{{ formatNumber(echeance.montant) }}</b>
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
+                      </div>
+
+                      <!-- ② RÉPARTITION -->
+                      <div class="pz-section">
+                        <div class="pz-section-title"><span class="pz-num">2</span>Répartition de la prime</div>
+
+                        <div [class.pz-split--bad]="v.shareBad" class="pz-split">
+                          <div [style.width.%]="v.widthCompagnie" class="pz-s-cie"></div>
+                          <div [style.width.%]="v.widthShare" class="pz-s-partner"></div>
+                          <div [style.width.%]="v.widthCabinet" class="pz-s-cabinet"></div>
+                        </div>
+                        <div class="pz-legend">
+                          <span><i class="pz-dot-cie"></i>Compagnie <b>{{ formatNumber(v.compagnieNet) }}</b></span>
+                          <span><i class="pz-dot-partner"></i>{{ v.legendLabel }} <b>{{ formatNumber(v.share) }}</b></span>
+                          <span><i class="pz-dot-cabinet"></i>Cabinet <b>{{ formatNumber(v.cabinet) }}</b></span>
+                        </div>
+
+                        @if (v.noConfig) {
+                          <div class="pz-info">
+                            <span>ⓘ</span>
+                            <div>
+                              Aucune commission configurée pour <b>{{ v.productName }}</b> × <b>{{ v.noConfigType }}</b>. Saisissez-la ci-dessous, ou
+                              <a routerLink="/configuration/taux-de-commission" target="_blank">configurez-la</a> pour les prochaines souscriptions.
+                            </div>
+                          </div>
+                        }
+
+                        <div class="pz-field-grid">
+                          <div>
+                            <label class="pz-lbl" for="pz-comm-{{ i }}">Commission</label>
+                            <div class="pz-with-toggle">
+                              @if (commissionUnitAt(i) === 'fcfa') {
+                                <div [class.pz-money--invalid]="v.commissionBad" class="pz-money">
+                                  <input formControlName="commissionAmount" id="pz-comm-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                                  <span class="pz-unit">FCFA</span>
+                                </div>
+                              } @else {
+                                <div [class.pz-money--invalid]="v.commissionBad" class="pz-money">
+                                  <input (input)="onCommissionPercentInput(i, $any($event.target).value)" [value]="commissionPercentInputValue(i)" id="pz-comm-{{ i }}" inputmode="decimal" type="text" />
+                                  <span class="pz-unit">%</span>
+                                </div>
+                              }
+                              <div class="pz-seg pz-seg--small">
+                                <button (click)="setCommissionUnit(i, 'fcfa')" [class.on]="commissionUnitAt(i) === 'fcfa'" type="button">FCFA</button>
+                                <button (click)="setCommissionUnit(i, 'pct')" [class.on]="commissionUnitAt(i) === 'pct'" type="button">%</button>
+                              </div>
+                            </div>
+                            @if (v.commissionBad) {
+                              <div class="pz-hint pz-hint--err">La commission dépasse la prime.</div>
+                            } @else {
+                              <div class="pz-hint">
+                                @if (commissionUnitAt(i) === 'fcfa') {
+                                  = <b>{{ formatPercent(v.commissionPercent) }}</b> de la prime
+                                } @else {
+                                  = <b>{{ formatAmount(v.commission) }}</b>
+                                }
+                                <span class="pz-pill">Configurée : {{ formatAmount(v.configuredCommission) }}</span>
+                                @if (v.commissionModified) {
+                                  <span class="pz-manual">modifiée à la main</span>
+                                  <button (click)="recomputeCommission(i, true)" class="pz-link" type="button">↺ Réappliquer</button>
+                                }
+                              </div>
+                            }
+                          </div>
+                          @if (v.shareKind) {
+                            <div>
+                              <label class="pz-lbl" for="pz-share-{{ i }}">{{ v.shareLabel }}</label>
+                              <div [class.pz-money--invalid]="v.shareBad || v.shareMissing" class="pz-money">
+                                @if (v.shareKind === 'partner') {
+                                  <input formControlName="partnerShare" id="pz-share-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                                } @else {
+                                  <input formControlName="commercialCommissionAmount" id="pz-share-{{ i }}" inputmode="numeric" type="text" wzThousandSeparator />
+                                }
+                                <span class="pz-unit">FCFA</span>
+                              </div>
+                              @if (v.shareMissing) {
+                                <div class="pz-hint pz-hint--err">Aucune commission partenaire configurée — saisie obligatoire</div>
+                              } @else if (v.shareBad) {
+                                <div class="pz-hint pz-hint--err">
+                                  @if (v.shareKind === 'partner') {
+                                    Dépasse la commission de {{ formatAmount(v.share - v.commission) }}
+                                  } @else {
+                                    Dépasse la prime de {{ formatAmount(v.share - v.premium) }}
+                                  }
+                                </div>
+                              } @else if (v.shareOverCommission) {
+                                <div class="pz-hint">Au-delà de la commission de {{ formatAmount(v.share - v.commission) }}</div>
+                              } @else {
+                                <div class="pz-hint pz-hint--ok">✓ Dans la commission (reste {{ formatAmount(v.cabinet) }} au cabinet)</div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      </div>
+
+                      <!-- ③ SUIVI -->
+                      <div class="pz-section">
+                        <div class="pz-section-title"><span class="pz-num">3</span>Suivi des paiements</div>
+                        <div class="pz-status-grid">
+                          <div class="pz-status-card">
+                            <div class="pz-status-top">
+                              <b>Commission</b>
+                              <div class="pz-seg pz-seg--small pz-seg--status">
+                                <button (click)="setCommissionStatus(i, 'pending')" [class.on]="group.controls.commissionStatus.value === 'pending'" class="pz-warn" type="button">En attente</button>
+                                <button (click)="setCommissionStatus(i, 'paid')" [class.on]="group.controls.commissionStatus.value === 'paid'" class="pz-ok" type="button">Payée</button>
+                              </div>
+                            </div>
+                            <div class="pz-who">Versée par la compagnie au cabinet</div>
+                          </div>
+                          @if (v.primeVerseeVisible) {
+                            <div class="pz-status-card">
+                              <div class="pz-status-top">
+                                <b>Prime versée à la compagnie ?</b>
+                                <div class="pz-seg pz-seg--small pz-seg--status">
+                                  <button (click)="setPrimeReversementStatus(i, 'non_reverse')" [class.on]="group.controls.primeReversementStatus.value === 'non_reverse'" class="pz-warn" type="button">Pas encore</button>
+                                  <button (click)="setPrimeReversementStatus(i, 'reverse')" [class.on]="group.controls.primeReversementStatus.value === 'reverse'" class="pz-ok" type="button">Déjà versée</button>
+                                </div>
+                              </div>
+                              <div class="pz-who">
+                                <span class="pz-avatar">{{ v.initials }}</span>
+                                <span>Encaissée par <b>{{ v.intermediaireName }}</b> ({{ v.intermediaireKind }})</span>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <div class="pz-actions">
+                  <button (click)="prevStep()" class="pz-btn" type="button">← Précédent</button>
+                  <button (click)="nextStep()" [disabled]="!summary.complete" class="pz-btn pz-btn--primary" type="button">Suivant →</button>
+                </div>
+              </div>
+
+              <aside class="pz-card pz-summary">
+                <h3>Total de la souscription</h3>
+                <div class="pz-sum-line"><span>Prime</span><b>{{ formatAmount(summary.premium) }}</b></div>
+                <div class="pz-sum-line"><span>Commission</span><b>{{ formatAmount(summary.commission) }}</b></div>
+                <div class="pz-sum-line"><span>{{ summary.shareLabel }}</span><b>{{ summary.share === null ? '—' : formatAmount(summary.share) }}</b></div>
+                <div class="pz-sum-line"><span>Règlement</span><b>{{ summary.mode }}</b></div>
+                <div class="pz-sum-total"><small>Net compagnie</small><b>{{ formatAmount(summary.net) }}</b></div>
+                <div class="pz-checklist">
+                  @for (check of summary.checks; track check.label) {
+                    <div [class.pz-c-ok]="check.ok" [class.pz-c-ko]="!check.ok">{{ check.ok ? '✓' : '✕' }} {{ check.label }}</div>
+                  }
+                </div>
+              </aside>
+            </div>
+          </div>
+        }
+
+        <!-- Étape 5 : Récapitulatif (maquette validée le 2026-09-27) -->
+        @if (currentStep() === 4) {
+          @let a = assureView();
+          @let totals = recapTotals();
+          <div class="pz">
+            <div class="pz-layout">
+              <div class="pz-products">
+                <div class="pz-card pz-hero">
+                  <div>
+                    <div class="pz-idn">
+                      <span class="pz-idn-av">{{ a.initials }}</span>
+                      <div>
+                        <h3>{{ a.fullName }}</h3>
+                        <div class="pz-tags">
+                          <span class="pz-tag pz-tag--primary">{{ a.typeLabel }}</span>
+                          <span class="pz-tag">📞 {{ a.phone || '—' }}</span>
+                          <span class="pz-tag">📍 {{ a.city || '—' }}</span>
+                          <span class="pz-tag">✉ {{ a.email || '—' }}</span>
+                          @if (form.controls.insured.controls.clientPhone2.value) {
+                            <span class="pz-tag">📞 {{ form.controls.insured.controls.clientPhone2.value }}</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                    <button (click)="goToStep(0)" class="pz-edit pz-mt" type="button">✎ Modifier l'assuré</button>
+                  </div>
+                  <div class="pz-totals">
+                    <div class="pz-tot pz-tot--main"><small>Prime totale</small><b>{{ formatNumber(totals.premium) }}</b> <small class="pz-inline">FCFA</small></div>
+                    <div class="pz-tot"><small>Commission</small><b>{{ formatNumber(totals.commission) }}</b></div>
+                    <div class="pz-tot"><small>Net compagnie</small><b>{{ formatNumber(totals.net) }}</b></div>
+                  </div>
+                </div>
+
+                @for (recap of recapContracts(); track recap.index) {
+                  <div class="pz-card pz-rp">
+                    <div class="pz-product-head pz-rp-head">
+                      <div class="pz-product-title">
+                        <div class="pz-product-icon">{{ recap.productInitial }}</div>
+                        <div>
+                          <b>Produit {{ recap.index + 1 }} · {{ recap.productName }}</b>
+                          <small>{{ recap.compagnieName }} · {{ recap.policyNumber === 'Auto-généré' ? 'Police auto-générée' : 'Police ' + recap.policyNumber }}</small>
+                        </div>
+                      </div>
+                      <span [class]="'pz-badge pz-badge--' + recapStatusClass(recap.status)">● {{ recap.statusLabel }}</span>
+                    </div>
+                    <div class="pz-cols">
+                      <div class="pz-col">
+                        <div class="pz-col-head"><span>Produit</span><button (click)="goToStep(1)" class="pz-edit" type="button">✎ Modifier</button></div>
+                        <div class="pz-kv"><span>Partenaire</span><b>{{ recap.canalLabel }}</b></div>
+                        <div class="pz-kv"><span>Commercial</span><b>{{ recap.commercialName }}</b></div>
+                        <div class="pz-kv"><span>Souscrit le</span><b>{{ formatDate(recap.signedAt) }}</b></div>
+                        <div class="pz-kv"><span>Renouvellement</span><b>{{ recap.renouvellementLabel || 'Non' }}</b></div>
+                      </div>
+                      <div class="pz-col">
+                        <div class="pz-col-head"><span>Couverture</span><button (click)="goToStep(2)" class="pz-edit" type="button">✎ Modifier</button></div>
+                        <div class="pz-kv"><span>Durée</span><b>{{ recap.duree }}</b></div>
+                        <div class="pz-kv"><span>Date d'effet</span><b>{{ formatDate(recap.dateEffet) }}</b></div>
+                        <div class="pz-kv"><span>Échéance</span><b>{{ formatDate(recap.dateEcheance) }}</b></div>
+                        <div class="pz-mini pz-mini--soft"><i class="pz-mini-period"></i></div>
+                      </div>
+                      <div class="pz-col">
+                        <div class="pz-col-head"><span>Paiement</span><button (click)="goToStep(3)" class="pz-edit" type="button">✎ Modifier</button></div>
+                        <div class="pz-kv">
+                          <span>Règlement</span>
+                          <b>{{ recap.modePaiementLabel }}@if (recap.echeancesInfo) {<small class="pz-kv-sub">{{ recap.echeancesInfo }}</small>}</b>
+                        </div>
+                        <div class="pz-kv"><span>Prime</span><b>{{ formatAmount(recap.premium) }}</b></div>
+                        <div class="pz-kv"><span>Commission</span><b>{{ formatAmount(recap.commissionAmount) }} · {{ formatPercent(recap.commissionPercent) }}</b></div>
+                        <div class="pz-mini">
+                          <i [style.width.%]="recap.compagnieNetPercent" class="pz-mini-cie"></i>
+                          <i [style.width.%]="100 - recap.compagnieNetPercent" class="pz-mini-cabinet"></i>
+                        </div>
+                        @if (recap.partenaireName !== '—') {
+                          <div class="pz-kv"><span>Part partenaire</span><b>{{ formatAmount(recap.partnerShare) }}</b></div>
+                        }
+                        @if (recap.primeVerseeLabel) {
+                          <div class="pz-kv"><span>Reversement de la prime</span><b>{{ recap.primeVerseeLabel }}</b></div>
+                        }
+                        <div class="pz-kv">
+                          <span>Statut commission</span>
+                          <b><span [class]="'pz-st ' + (recap.commissionPaid ? 'pz-st--ok' : 'pz-st--warn')">{{ recap.commissionStatusLabel }}</span></b>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="pz-note">📝 {{ recap.notes || 'Aucune note interne.' }}</div>
+                  </div>
+                }
+              </div>
+
+              <aside class="pz-card pz-summary pz-final">
+                <h4>Prêt à enregistrer</h4>
+                <p>Vérifiez les informations puis validez. Le contrat sera créé immédiatement.</p>
+                <div class="pz-sum-line"><span>Produits</span><b>{{ totals.count }}</b></div>
+                <div class="pz-sum-line"><span>Prime totale</span><b>{{ formatAmount(totals.premium) }}</b></div>
+                <div class="pz-sum-line"><span>Commission</span><b>{{ formatAmount(totals.commission) }}</b></div>
+                <div class="pz-checklist pz-checklist--final">
+                  <div class="pz-c-ok">✓ Assuré</div>
+                  <div class="pz-c-ok">✓ Produit</div>
+                  <div class="pz-c-ok">✓ Couverture</div>
+                  <div class="pz-c-ok">✓ Paiement</div>
+                </div>
+                <button [disabled]="saving()" class="pz-btn pz-btn--primary pz-btn--big pz-btn--block" type="submit">
+                  @if (saving()) {
+                    <c-spinner size="sm" />
+                  }
+                  Enregistrer la souscription
+                </button>
+                <button (click)="goToStep(3)" class="pz-btn pz-btn--block pz-mt-sm" type="button">← Revenir au paiement</button>
+                <div class="pz-sms">
+                  <span>💬</span>
+                  <div>L'assuré recevra un SMS de confirmation sur le <b>{{ a.phone }}</b>.</div>
+                </div>
+              </aside>
+            </div>
+          </div>
+        }
+
+        <!-- Colonne de droite des étapes Produit et Couverture. -->
+        <ng-template #souscriptionAside>
+          @let a = assureView();
+          <aside class="pz-card pz-summary">
+            <h3>Votre souscription</h3>
+            <div class="pz-aside-who">
+              <span class="pz-aside-av">{{ a.initials }}</span>
+              <div><b>{{ a.fullName }}</b><small>{{ a.typeLabel }} · {{ a.city }}</small></div>
+            </div>
+            @if (currentStep() === 1) {
+              <div class="pz-sum-line"><span>Produits</span><b>{{ contractsArray.length }}</b></div>
+              @for (group of contractsArray.controls; track group; let i = $index) {
+                <div class="pz-sum-line"><span>Produit {{ i + 1 }}</span><b>{{ productNameAt(i) || '—' }}</b></div>
+              }
+              <div class="pz-sum-line"><span>Canal</span><b>{{ canalLabel() }}</b></div>
+            } @else {
+              @for (group of contractsArray.controls; track group; let i = $index) {
+                <div class="pz-sum-line"><span>{{ productNameAt(i) || 'Produit ' + (i + 1) }}</span><b>{{ group.controls.duree.value }} mois</b></div>
+              }
+              @if (contractsArray.length === 1 || isSharedPeriod()) {
+                <div class="pz-sum-line"><span>Couvert du</span><b>{{ formatDate(contractsArray.at(0).controls.dateEffet.value) }}</b></div>
+                <div class="pz-sum-line"><span>au</span><b>{{ formatDate(contractsArray.at(0).controls.dateEcheance.value) }}</b></div>
+              }
+            }
+            <div class="pz-checklist">
+              @for (check of stepChecks(); track check.label) {
+                <div [class]="'pz-c-' + check.state">{{ check.state === 'ok' ? '✓' : check.state === 'ko' ? '✕' : '○' }} {{ check.label }}</div>
+              }
+            </div>
+          </aside>
+        </ng-template>
+      </form>
+    }
+  </div>
+</section>

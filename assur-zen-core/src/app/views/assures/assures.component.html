@@ -1,0 +1,547 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Assurés</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        placeholder="Rechercher un assuré…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="toggleAdvancedFilters()" [attr.data-active]="advancedFiltersOpen()" class="dl-btn dl-btn-toggle" type="button">
+        <svg cIcon name="sliders" size="sm"></svg>
+        Recherche avancée
+        @if (activeFilterChips().length > 0) {
+          <span class="dl-pill-count">{{ activeFilterChips().length }}</span>
+        }
+      </button>
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="exportList()" [disabled]="exporting()" cButton class="dl-btn" type="button">
+        @if (exporting()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="cilCloudDownload" size="sm"></svg>
+        }
+        Exporter
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+        <svg cIcon name="cilPlus"></svg>Nouvel assuré
+      </button>
+    </div>
+  </div>
+
+  @if (exportError(); as message) {
+    <app-alert-message class="d-block m-3" [message]="message" />
+  }
+
+  @if (activeFilterChips().length > 0) {
+    <div class="dl-chiprow">
+      @for (chip of activeFilterChips(); track chip.key) {
+        <span class="dl-filter-chip">
+          {{ chip.label }}
+          <button (click)="removeFilterChip(chip.key)" [attr.aria-label]="'Retirer le filtre ' + chip.label" type="button">×</button>
+        </span>
+      }
+      <button (click)="resetFilters()" cButton class="dl-btn" size="sm" type="button">Réinitialiser</button>
+    </div>
+  }
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des assurés…</p>
+  } @else if (items().length === 0) {
+    <p class="dl-empty">Aucun assuré ne correspond à cette recherche.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Assuré</th>
+            <th scope="col">Téléphone</th>
+            <th scope="col">Ville</th>
+            <th scope="col">Type</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td>
+                <div class="dl-insured">
+                  <span class="dl-avatar">{{ initials(item.nom, item.prenoms) }}</span>
+                  <div>
+                    <div class="dl-insured-name">{{ item.nom }} {{ item.prenoms }}</div>
+                    @if (item.clientEmail) {
+                      <div class="dl-insured-meta">{{ item.clientEmail }}</div>
+                    }
+                  </div>
+                </div>
+              </td>
+              <td class="dl-timestamp">{{ item.clientPhone || '—' }}</td>
+              <td>{{ item.clientCity || '—' }}</td>
+              <td>
+                <span [class]="'dl-chip ' + (item.typeClient === 'ENTREPRISE' ? 'dl-chip--info' : 'dl-chip--neutral')">
+                  {{ typeClientLabel(item.typeClient) }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openDetail(item)" cButton class="dl-btn" size="sm" type="button">
+                    Voir les contrats
+                  </button>
+                  <button (click)="openEdit(item)" cButton class="dl-btn" size="sm" type="button">
+                    Modifier
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span>
+      <strong>{{ items().length }}</strong> sur {{ totalElements() }} assurés
+      (page {{ pageIndex() + 1 }} sur {{ totalPages() || 1 }})
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">
+        Précédent
+      </button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">
+        Suivant
+      </button>
+    </div>
+  </div>
+</section>
+
+<app-modal
+  [visible]="detailVisible()"
+  size="xl"
+  title="{{ selectedInsured()?.nom }} {{ selectedInsured()?.prenoms }}"
+  (closed)="detailVisible.set(false)"
+>
+  @if (selectedInsured(); as insured) {
+    <div class="d-flex align-items-center gap-3 mb-3 pb-3" style="border-bottom: 1px solid var(--cui-border-color);">
+      <span class="dl-avatar dl-avatar--lg">{{ initials(insured.nom, insured.prenoms) }}</span>
+      <div class="flex-grow-1">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="fw-semibold fs-5">{{ insured.nom }} {{ insured.prenoms }}</span>
+          <span [class]="'dl-chip ' + (insured.typeClient === 'ENTREPRISE' ? 'dl-chip--info' : 'dl-chip--neutral')">
+            {{ typeClientLabel(insured.typeClient) }}
+          </span>
+        </div>
+        <div class="d-flex flex-wrap gap-3">
+          <span class="dl-identity-info">
+            <svg cIcon name="cilPhone" size="sm"></svg>
+            {{ insured.clientPhone || '—' }}
+          </span>
+          @if (insured.clientPhone2) {
+            <span class="dl-identity-info">
+              <svg cIcon name="cilPhone" size="sm"></svg>
+              {{ insured.clientPhone2 }}
+            </span>
+          }
+          <span class="dl-identity-info">
+            <svg cIcon name="cilLocationPin" size="sm"></svg>
+            {{ insured.clientCity || '—' }}
+          </span>
+          @if (insured.clientEmail) {
+            <span class="dl-identity-info">
+              <svg cIcon name="cilEnvelopeClosed" size="sm"></svg>
+              {{ insured.clientEmail }}
+            </span>
+          }
+        </div>
+      </div>
+      <button (click)="openEdit(insured)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+    </div>
+  }
+
+  @if (!contractsLoading() && !contractsError() && insuredContracts().length > 0) {
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-4">
+        <div class="mc-kpi-card mc-kpi-card--primary">
+          <span class="mc-kpi-icon"><svg cIcon name="cilLayers" size="lg"></svg></span>
+          <div class="mc-kpi-body">
+            <div class="mc-kpi-value">{{ insuredContracts().length }}</div>
+            <div class="mc-kpi-label">Contrat{{ insuredContracts().length > 1 ? 's' : '' }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="mc-kpi-card mc-kpi-card--info">
+          <span class="mc-kpi-icon"><svg cIcon name="cilCreditCard" size="lg"></svg></span>
+          <div class="mc-kpi-body">
+            <div class="mc-kpi-value">{{ formatAmount(contractsPremiumTotal()) }}</div>
+            <div class="mc-kpi-label">Prime totale</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="mc-kpi-card mc-kpi-card--success">
+          <span class="mc-kpi-icon"><svg cIcon name="cilTags" size="lg"></svg></span>
+          <div class="mc-kpi-body">
+            <div class="mc-kpi-value">{{ formatAmount(contractsCommissionTotal()) }}</div>
+            <div class="mc-kpi-label">Commission totale</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <h6 class="fw-semibold mb-2">Contrats</h6>
+
+  @if (contractsError()) {
+    <p class="dl-empty">{{ contractsError() }}</p>
+  } @else if (contractsLoading()) {
+    <p class="dl-empty">Chargement des contrats…</p>
+  } @else if (insuredContracts().length === 0) {
+    <p class="dl-empty">Aucun contrat pour cet assuré.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table dl-table--modal">
+        <thead>
+          <tr>
+            <th scope="col">N° police</th>
+            <th scope="col">Produit</th>
+            <th scope="col">Prime</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Échéance</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (contract of insuredContracts(); track contract.id) {
+            <tr>
+              <td><span class="dl-tag">{{ contract.policyNumber }}</span></td>
+              <td>
+                <div class="dl-insured-name">{{ contract.productName }}</div>
+                <div class="dl-insured-meta">{{ contract.compagnieName }}</div>
+              </td>
+              <td class="dl-timestamp">{{ formatAmount(contract.premium) }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statusVariant(contract.status)">
+                  <span class="dl-chip-dot"></span>{{ statusLabel(contract.status) }}
+                </span>
+              </td>
+              <td class="dl-timestamp">{{ formatDate(contract.dateEcheance) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (selectedInsured(); as insured) {
+    <div class="fs-section mt-4">
+      <app-entity-documents [entityId]="insured.id" entityType="CLIENT" />
+    </div>
+  }
+
+  <div class="fs-section mt-4">
+    <div class="fs-section-head d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <svg cIcon name="cilChartPie" size="lg"></svg>
+        <h3>Fiche de sinistralité</h3>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="dl-cell-detail mb-0" for="as-fiche-exercice">Exercice comptable</label>
+        <select
+          (change)="onFicheExerciceChange($any($event.target).value)"
+          [value]="ficheExerciceFilter()"
+          cSelect
+          id="as-fiche-exercice"
+          style="max-width: 220px;"
+        >
+          <option value="">Tous les exercices</option>
+          @for (exercice of exercicesComptables(); track exercice.id) {
+            <option [value]="exercice.id">{{ exercice.libelle }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (ficheError()) {
+      <p class="dl-empty">{{ ficheError() }}</p>
+    } @else if (ficheLoading()) {
+      <p class="dl-empty">Chargement de la fiche de sinistralité…</p>
+    } @else if (fiche(); as f) {
+      <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+          <div class="mc-kpi-card mc-kpi-card--primary">
+            <span class="mc-kpi-icon"><svg cIcon name="cilLayers" size="lg"></svg></span>
+            <div class="mc-kpi-body">
+              <div class="mc-kpi-value">{{ f.stats.totalContrats }}</div>
+              <div class="mc-kpi-label">Contrats ({{ f.stats.contratsSignes }} signés)</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="mc-kpi-card mc-kpi-card--warning">
+            <span class="mc-kpi-icon"><svg cIcon name="cilNotes" size="lg"></svg></span>
+            <div class="mc-kpi-body">
+              <div class="mc-kpi-value">{{ f.stats.totalSinistres }}</div>
+              <div class="mc-kpi-label">Sinistres ({{ f.stats.sinistresEnCours }} en cours)</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="mc-kpi-card mc-kpi-card--danger">
+            <span class="mc-kpi-icon"><svg cIcon name="cilTags" size="lg"></svg></span>
+            <div class="mc-kpi-body">
+              <div class="mc-kpi-value">{{ f.stats.tauxSinistralite.toFixed(1) }} %</div>
+              <div class="mc-kpi-label">Taux de sinistralité</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="mc-kpi-card mc-kpi-card--success">
+            <span class="mc-kpi-icon"><svg cIcon name="cilCreditCard" size="lg"></svg></span>
+            <div class="mc-kpi-body">
+              <div class="mc-kpi-value">{{ formatAmount(f.stats.totalMontantIndemnise) }}</div>
+              <div class="mc-kpi-label">Total indemnisé</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dl-detail-grid mb-4">
+        <div>
+          <div class="dl-cell-detail">Sinistres clôturés</div>
+          <div>{{ f.stats.sinistresClotures }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Total primes</div>
+          <div>{{ formatAmount(f.stats.totalPrimes) }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Total montant estimé</div>
+          <div>{{ formatAmount(f.stats.totalMontantEstime) }}</div>
+        </div>
+        @if (f.exerciceComptableLibelle) {
+          <div>
+            <div class="dl-cell-detail">Exercice appliqué</div>
+            <div>{{ f.exerciceComptableLibelle }}</div>
+          </div>
+        }
+      </div>
+
+      <h6 class="fw-semibold mb-2">Historique des contrats</h6>
+      @if (f.historiqueContrats.length === 0) {
+        <p class="dl-empty">Aucun contrat sur ce périmètre.</p>
+      } @else {
+        <div class="dl-table-scroll mb-3">
+          <table class="dl-table dl-table--modal">
+            <thead>
+              <tr>
+                <th scope="col">N° police</th>
+                <th scope="col">Produit</th>
+                <th scope="col">Prime</th>
+                <th scope="col">Statut</th>
+                <th scope="col">Échéance</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (contract of f.historiqueContrats; track contract.id) {
+                <tr>
+                  <td><span class="dl-tag">{{ contract.policyNumber }}</span></td>
+                  <td>
+                    <div class="dl-insured-name">{{ contract.productName }}</div>
+                    <div class="dl-insured-meta">{{ contract.compagnieName }}</div>
+                  </td>
+                  <td class="dl-timestamp">{{ formatAmount(contract.premium) }}</td>
+                  <td>
+                    <span [class]="'dl-chip dl-chip--' + statusVariant(contract.status)">
+                      <span class="dl-chip-dot"></span>{{ statusLabel(contract.status) }}
+                    </span>
+                  </td>
+                  <td class="dl-timestamp">{{ formatDate(contract.dateEcheance) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <h6 class="fw-semibold mb-2">Sinistres</h6>
+      @if (f.sinistres.length === 0) {
+        <p class="dl-empty">Aucun sinistre pour cet assuré.</p>
+      } @else {
+        <div class="dl-table-scroll">
+          <table class="dl-table dl-table--modal">
+            <thead>
+              <tr>
+                <th scope="col">Numéro</th>
+                <th scope="col">Contrat</th>
+                <th scope="col">Nature</th>
+                <th scope="col">Survenance</th>
+                <th scope="col">Statut</th>
+                <th scope="col">Estimé</th>
+                <th scope="col">Indemnisé</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (sinistre of f.sinistres; track sinistre.id) {
+                <tr>
+                  <td><span class="dl-tag">{{ sinistre.numero }}</span></td>
+                  <td class="dl-timestamp">{{ sinistre.contractPolicyNumber }}</td>
+                  <td>{{ sinistre.nature }}</td>
+                  <td class="dl-timestamp">{{ formatDate(sinistre.dateSurvenance) }}</td>
+                  <td>
+                    <span [class]="'dl-chip dl-chip--' + sinistreStatusVariant[sinistre.status]">
+                      <span class="dl-chip-dot"></span>{{ sinistreStatusLabel[sinistre.status] }}
+                    </span>
+                  </td>
+                  <td class="dl-timestamp">{{ sinistreMontant(sinistre.montantEstime) }}</td>
+                  <td class="dl-timestamp">{{ sinistreMontant(sinistre.montantIndemnise) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </div>
+</app-modal>
+
+<app-modal [visible]="advancedFiltersOpen()" size="lg" title="Recherche avancée" (closed)="advancedFiltersOpen.set(false)">
+  <div class="dl-filters dl-filters--modal">
+    <div class="dl-filter-field">
+      <label for="as-filter-phone">Téléphone</label>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        id="as-filter-phone"
+        placeholder="Rechercher par téléphone…"
+        type="tel"
+      />
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="as-filter-ville">Ville</label>
+      <select (change)="onVilleFilterChange($any($event.target).value)" [value]="villeFilter()" cSelect id="as-filter-ville">
+        <option value="">Toutes les villes</option>
+        @for (ville of villes(); track ville.id) {
+          <option [value]="ville.nomVille">{{ ville.nomVille }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="dl-filter-field">
+      <label for="as-filter-type-client">Type de client</label>
+      <select (change)="onTypeClientFilterChange($any($event.target).value)" [value]="typeClientFilter()" cSelect id="as-filter-type-client">
+        <option value="">Tous les types</option>
+        <option value="PARTICULIER">Particulier</option>
+        <option value="ENTREPRISE">Entreprise</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="dl-filters-modal-actions">
+    <button (click)="resetFilters()" cButton class="dl-btn" type="button">Réinitialiser</button>
+    <button (click)="advancedFiltersOpen.set(false)" cButton class="dl-btn dl-btn-primary" type="button">Appliquer</button>
+  </div>
+</app-modal>
+
+<app-modal [visible]="formVisible()" size="lg" title="{{ editingId() ? 'Modifier l’assuré' : 'Nouvel assuré' }}" (closed)="formVisible.set(false)">
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="save()">
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Identité</div>
+      <div class="dl-avatar-row">
+        <span class="dl-avatar dl-avatar--lg">{{ initials(form.controls.nom.value, form.controls.prenoms.value) || '—' }}</span>
+        <span class="dl-avatar-info">
+          <strong>{{ (form.controls.nom.value + ' ' + form.controls.prenoms.value).trim() || 'Nouvel assuré' }}</strong>
+          <span>Aperçu de la fiche</span>
+        </span>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <label cLabel for="as-edit-nom">Nom</label>
+          <input cFormControl formControlName="nom" id="as-edit-nom" type="text" />
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="as-edit-prenoms">Prénoms</label>
+          <input cFormControl formControlName="prenoms" id="as-edit-prenoms" type="text" />
+        </div>
+      </div>
+      <label>Type de client</label>
+      <div class="dl-pillgroup dl-pillgroup--stretch" role="group" aria-label="Type de client">
+        <button (click)="form.controls.typeClient.setValue('PARTICULIER')" [attr.data-active]="form.controls.typeClient.value === 'PARTICULIER'" class="dl-pill dl-pill--solid" type="button">Particulier</button>
+        <button (click)="form.controls.typeClient.setValue('ENTREPRISE')" [attr.data-active]="form.controls.typeClient.value === 'ENTREPRISE'" class="dl-pill dl-pill--solid" type="button">Entreprise</button>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Contact</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="as-edit-phone">Téléphone</label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilPhone" size="sm"></svg>
+            <input cFormControl formControlName="clientPhone" id="as-edit-phone" type="text" />
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="as-edit-phone2">2e téléphone (optionnel)</label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilPhone" size="sm"></svg>
+            <input cFormControl formControlName="clientPhone2" id="as-edit-phone2" type="text" />
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="as-edit-ville">Ville</label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilLocationPin" size="sm"></svg>
+            <input cFormControl formControlName="clientCity" id="as-edit-ville" list="as-edit-ville-suggestions" autocomplete="off" type="text" />
+          </div>
+          <datalist id="as-edit-ville-suggestions">
+            @for (ville of villes(); track ville.id) {
+              <option [value]="ville.nomVille"></option>
+            }
+          </datalist>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="as-edit-email">Email (optionnel)</label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilEnvelopeClosed" size="sm"></svg>
+            <input cFormControl formControlName="clientEmail" id="as-edit-email" type="email" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>

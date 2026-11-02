@@ -1,0 +1,571 @@
+<section class="dl-panel mb-3">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Assistant d'import des réponses</h2>
+    </div>
+  </div>
+
+  <div class="mc-body">
+  <nav class="wz-stepper" aria-label="Étapes de l'import">
+    @for (label of steps; track label; let i = $index; let last = $last) {
+      <button
+        (click)="goToStep(i)"
+        [disabled]="i > furthestStep()"
+        [class]="'wz-step' + (i === currentStep() ? ' wz-step--active' : '') + (i < currentStep() ? ' wz-step--done' : '')"
+        type="button"
+      >
+        <span class="wz-step-circle">
+          @if (i < currentStep()) {
+            <svg cIcon name="cilCheck" size="sm"></svg>
+          } @else {
+            {{ i + 1 }}
+          }
+        </span>
+        <span class="wz-step-label">{{ label }}</span>
+      </button>
+      @if (!last) {
+        <span [class]="'wz-step-connector' + (i < currentStep() ? ' wz-step-connector--done' : '')"></span>
+      }
+    }
+  </nav>
+
+  <!-- Étape 1 : Source -->
+  @if (currentStep() === 0) {
+    <h6 class="fw-semibold mb-2">Choix de la source</h6>
+    <div class="dl-pillgroup mb-3" role="tablist" aria-label="Choix de la source">
+      @for (preset of sourcePresets; track preset) {
+        <button
+          (click)="selectSourcePreset(preset)"
+          [attr.data-active]="sourceForm.controls.sourceLabel.value === preset"
+          class="dl-pill"
+          type="button"
+        >
+          {{ preset }}
+        </button>
+      }
+    </div>
+    <p class="dl-cell-detail mb-3">
+      Quel que soit le choix ci-dessus, le fichier téléversé à l'étape suivante doit être au format CSV (un export
+      Google Forms ou un fichier Excel enregistré/converti en CSV, par exemple).
+    </p>
+
+    <div class="wz-subsection">
+      <div class="wz-subsection-title">Profil de mapping</div>
+      <div class="dl-pillgroup mb-3" role="tablist" aria-label="Profil de mapping">
+        <button (click)="setProfileMode('existing')" [attr.data-active]="profileMode() === 'existing'" class="dl-pill" type="button">
+          Profil existant
+        </button>
+        <button (click)="setProfileMode('new')" [attr.data-active]="profileMode() === 'new'" class="dl-pill" type="button">
+          Nouveau profil
+        </button>
+      </div>
+
+      @if (sourceStepError()) {
+        <app-alert-message class="d-block mb-3" [message]="sourceStepError()!" />
+      }
+
+      <form [formGroup]="sourceForm" cForm>
+        @if (profileMode() === 'existing') {
+          <div class="row g-3 mb-1">
+            <div class="col-sm-6">
+              <label cLabel for="wiz-profile">Profil de mapping</label>
+              <select
+                cSelect
+                id="wiz-profile"
+                [value]="sourceForm.controls.profileId.value"
+                (change)="onProfileSelected($any($event.target).value)"
+              >
+                <option value="">Sélectionner un profil…</option>
+                @for (profile of profiles(); track profile.id) {
+                  <option [value]="profile.id">{{ profile.nom }} ({{ profile.nbMappings }} correspondance(s))</option>
+                }
+              </select>
+              @if (!profilesLoading() && profiles().length === 0) {
+                <span class="dl-cell-detail">Aucun profil existant — choisissez « Nouveau profil ».</span>
+              }
+            </div>
+            <div class="col-sm-6">
+              <label cLabel for="wiz-survey">Identifiant de l'enquête source (optionnel)</label>
+              <input cFormControl formControlName="surveyId" id="wiz-survey" type="text" />
+            </div>
+          </div>
+        } @else {
+          <div class="row g-3 mb-1">
+            <div class="col-sm-4">
+              <label cLabel for="wiz-new-code">Code du profil</label>
+              <input cFormControl formControlName="newProfileCode" id="wiz-new-code" placeholder="GFORMS_NPS" type="text" />
+            </div>
+            <div class="col-sm-4">
+              <label cLabel for="wiz-new-nom">Nom du profil</label>
+              <input cFormControl formControlName="newProfileNom" id="wiz-new-nom" placeholder="Export Google Forms NPS" type="text" />
+            </div>
+            <div class="col-sm-4">
+              <label cLabel for="wiz-survey2">Identifiant de l'enquête source (optionnel)</label>
+              <input cFormControl formControlName="surveyId" id="wiz-survey2" type="text" />
+            </div>
+            <div class="col-12">
+              <label cLabel for="wiz-new-desc">Description (optionnelle)</label>
+              <input cFormControl formControlName="newProfileDescription" id="wiz-new-desc" type="text" />
+            </div>
+          </div>
+        }
+
+        <div class="wz-subsection">
+          <div class="wz-subsection-title">Options du fichier CSV</div>
+          <div class="row g-3">
+            <div class="col-sm-3">
+              <label cLabel for="wiz-delimiter">Délimiteur</label>
+              <select cSelect formControlName="delimiter" id="wiz-delimiter">
+                <option value=";">Point-virgule ( ; )</option>
+                <option value=",">Virgule ( , )</option>
+                <option value="&#9;">Tabulation</option>
+              </select>
+            </div>
+            <div class="col-sm-3">
+              <label cLabel for="wiz-encoding">Encodage</label>
+              <select cSelect formControlName="encoding" id="wiz-encoding">
+                <option value="UTF-8">UTF-8</option>
+                <option value="ISO-8859-1">ISO-8859-1</option>
+              </select>
+            </div>
+            <div class="col-sm-3">
+              <label cLabel for="wiz-duplicate">Doublons</label>
+              <select cSelect formControlName="duplicateStrategy" id="wiz-duplicate">
+                <option value="IGNORER">Ignorer</option>
+                <option value="ERREUR">Signaler en erreur</option>
+                <option value="ECRASER">Écraser l'existant</option>
+              </select>
+            </div>
+            <div class="col-sm-3 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" formControlName="hasHeader" id="wiz-header" type="checkbox" />
+                <label class="form-check-label" for="wiz-header">Le fichier a une ligne d'en-tête</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- Étape 2 : Fichier -->
+  @if (currentStep() === 1) {
+    <h6 class="fw-semibold mb-2">Téléversement du fichier</h6>
+
+    @if (fileError()) {
+      <app-alert-message class="d-block mb-3" [message]="fileError()!" />
+    }
+
+    <label cButton class="dl-btn dl-btn-primary" [class.disabled]="fileReading()">
+      @if (fileReading()) {
+        <c-spinner size="sm" />
+      }
+      Choisir un fichier CSV
+      <input (change)="onFileSelected($event)" [disabled]="fileReading()" accept=".csv,text/csv" class="d-none" type="file" />
+    </label>
+
+    @if (selectedFile(); as file) {
+      <div class="mt-3">
+        <span class="dl-tag">{{ file.name }}</span>
+        <span class="dl-cell-detail ms-2">{{ (file.size / 1024).toFixed(1) }} Ko — {{ csvColumns().length }} colonne(s) détectée(s)</span>
+      </div>
+    }
+
+    @if (csvColumns().length > 0) {
+      <div class="wz-subsection">
+        <div class="wz-subsection-title">Aperçu</div>
+        <div class="dl-table-scroll">
+          <table class="dl-table">
+            <thead>
+              <tr>
+                @for (col of csvColumns(); track col) {
+                  <th scope="col">{{ col }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of csvPreviewRows(); track $index) {
+                <tr>
+                  @for (cell of row; track $index) {
+                    <td class="dl-timestamp">{{ cell }}</td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Étape 3 : Correspondance des colonnes -->
+  @if (currentStep() === 2) {
+    <h6 class="fw-semibold mb-2">Correspondance des colonnes</h6>
+    @if (mappingStepError()) {
+      <app-alert-message class="d-block mb-3" [message]="mappingStepError()!" />
+    }
+
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <colgroup>
+          <col style="width: 220px;" />
+          <col />
+          <col style="width: 110px;" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Colonne CSV</th>
+            <th scope="col">Champ Assur Zen</th>
+            <th scope="col" class="text-center">Obligatoire</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of mappingRows(); track row.csvColumnName; let i = $index) {
+            <tr>
+              <td><span class="dl-tag">{{ row.csvColumnName }}</span></td>
+              <td>
+                <select cSelect (change)="setRowTargetField(i, $any($event.target).value)" style="max-width: 320px;">
+                  <option value="" [selected]="row.targetField === ''">— Ignorer cette colonne —</option>
+                  @for (field of targetFieldOrder; track field) {
+                    <option [value]="field" [selected]="row.targetField === field">{{ targetFieldLabelMap[field] }}</option>
+                  }
+                </select>
+                @if (row.targetField === 'SCORE') {
+                  <div class="mt-2 ps-2" style="border-left: 2px solid var(--cui-border-color);">
+                    <div class="dl-cell-detail mb-1">
+                      Correspondance de valeurs (utile si la colonne contient du texte, ex. « Oui, certainement » → 9)
+                    </div>
+                    @for (vm of row.valueMappings; track $index; let vi = $index) {
+                      <div class="d-flex align-items-center gap-2 mb-1">
+                        <input
+                          [disabled]="vm.existing"
+                          [value]="vm.valeurSource"
+                          (input)="setValueMappingField(i, vi, 'valeurSource', $any($event.target).value)"
+                          class="form-control form-control-sm"
+                          placeholder="Texte source"
+                          style="max-width: 180px;"
+                          type="text"
+                        />
+                        <span>→</span>
+                        <input
+                          [disabled]="vm.existing"
+                          [value]="vm.valeurCible"
+                          (input)="setValueMappingField(i, vi, 'valeurCible', $any($event.target).value)"
+                          class="form-control form-control-sm"
+                          placeholder="Score (0-10)"
+                          style="max-width: 120px;"
+                          type="text"
+                        />
+                        @if (!vm.existing) {
+                          <button (click)="removeValueMapping(i, vi)" cButton class="dl-btn" size="sm" type="button">✕</button>
+                        }
+                      </div>
+                    }
+                    <button (click)="addValueMapping(i)" cButton class="dl-btn" size="sm" type="button">+ Ajouter une correspondance</button>
+                  </div>
+                }
+              </td>
+              <td class="text-center">
+                <div class="form-check d-inline-flex m-0">
+                  <input
+                    [checked]="row.obligatoire"
+                    (change)="toggleRowObligatoire(i, $any($event.target).checked)"
+                    class="form-check-input"
+                    type="checkbox"
+                  />
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Étape 4 : Validation -->
+  @if (currentStep() === 3) {
+    <h6 class="fw-semibold mb-2">Validation</h6>
+
+    @if (processError()) {
+      <app-alert-message class="d-block mb-3" [message]="processError()!" />
+    }
+
+    @if (!importResult()) {
+      <p class="dl-cell-detail mb-3">
+        {{ mappedRowsCount() }} colonne(s) associée(s) sur {{ csvColumns().length }}. Vérifiez le récapitulatif ci-dessous, puis lancez
+        l'import — le fichier sera envoyé et traité immédiatement.
+      </p>
+      <div class="dl-detail-grid mb-3">
+        <div>
+          <div class="dl-cell-detail">Fichier</div>
+          <div>{{ selectedFile()?.name }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Profil de mapping</div>
+          <div>{{ selectedProfileLabel() }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Gestion des doublons</div>
+          <div>{{ sourceForm.controls.duplicateStrategy.value }}</div>
+        </div>
+      </div>
+
+      <button (click)="runImport()" [disabled]="processing()" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (processing()) {
+          <c-spinner size="sm" />
+          {{ processingStatusText() }}
+        } @else {
+          Lancer l'import
+        }
+      </button>
+    } @else if (isResultProcessing()) {
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <c-spinner size="sm" />
+        <span>Le fichier a été envoyé et est en cours de traitement côté serveur ({{ statutLabel(importResult()!.statut) }}).</span>
+      </div>
+      <div class="d-flex gap-2">
+        <button (click)="refreshImportStatus()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="refresh" size="sm"></svg>
+          Actualiser le statut
+        </button>
+        <button (click)="resetWizard()" cButton class="dl-btn" type="button">Nouvel import</button>
+      </div>
+    } @else {
+      <div class="d-flex flex-wrap gap-3 mb-3">
+        <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>✔ {{ importResult()!.lignesReussies }} ligne(s) valide(s)</span>
+        <span class="dl-chip dl-chip--danger"><span class="dl-chip-dot"></span>✖ {{ importResult()!.lignesEnErreur }} ligne(s) en erreur</span>
+        <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>⚠ {{ importResult()!.lignesIgnorees }} ligne(s) ignorée(s)</span>
+        <span [class]="'dl-chip dl-chip--' + statutVariant(importResult()!.statut)">
+          <span class="dl-chip-dot"></span>{{ statutLabel(importResult()!.statut) }}
+        </span>
+      </div>
+
+      @if (importReport(); as report) {
+        <div class="dl-detail-grid mb-3">
+          <div>
+            <div class="dl-cell-detail">Taux de réussite</div>
+            <div>{{ formatPercent(report.tauxReussite) }}</div>
+          </div>
+          <div>
+            <div class="dl-cell-detail">Score NPS moyen</div>
+            <div>{{ report.scoreNpsMoyen != null ? report.scoreNpsMoyen.toFixed(1) : '—' }}</div>
+          </div>
+          <div>
+            <div class="dl-cell-detail">Promoteurs / Passifs / Détracteurs</div>
+            <div>{{ report.promoteurs }} / {{ report.passifs }} / {{ report.detracteurs }}</div>
+          </div>
+        </div>
+      }
+
+      @if (errorsLoading()) {
+        <p class="dl-empty">Chargement du détail des erreurs…</p>
+      } @else if (importErrors().length > 0) {
+        <div class="wz-subsection">
+          <div class="wz-subsection-title">Lignes en erreur</div>
+          <div class="dl-table-scroll">
+            <table class="dl-table">
+              <thead>
+                <tr>
+                  <th scope="col">Ligne</th>
+                  <th scope="col">Colonne</th>
+                  <th scope="col">Valeur</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (err of importErrors(); track err.id) {
+                  <tr>
+                    <td class="dl-timestamp">{{ err.ligneNumero }}</td>
+                    <td>{{ err.colonneEnErreur ?? '—' }}</td>
+                    <td>{{ err.valeurBrute ?? '—' }}</td>
+                    <td><span class="dl-chip dl-chip--danger"><span class="dl-chip-dot"></span>{{ errorTypeLabel(err.typeErreur) }}</span></td>
+                    <td>{{ err.message }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <div class="d-flex gap-2 mt-3">
+        @if (canRetryResult()) {
+          <button (click)="retryCurrentResult()" [disabled]="processing()" cButton class="dl-btn dl-btn-primary" type="button">
+            @if (processing()) {
+              <c-spinner size="sm" />
+            }
+            Relancer le traitement
+          </button>
+        }
+        <button (click)="resetWizard()" cButton class="dl-btn" type="button">Nouvel import</button>
+      </div>
+    }
+  }
+
+  @if (!importResult()) {
+    <div class="d-flex justify-content-between pt-3" style="border-top: 1px solid var(--cui-border-color);">
+      <button (click)="prevStep()" [disabled]="currentStep() === 0" cButton class="dl-btn" type="button">← Précédent</button>
+      @if (currentStep() < steps.length - 1) {
+        <button (click)="nextStep()" cButton color="primary" type="button">Suivant →</button>
+      }
+    </div>
+  }
+  </div>
+</section>
+
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Historique des imports</h2>
+    </div>
+    <div class="dl-actions">
+      <button (click)="fetchHistory()" [disabled]="historyLoading()" cButton class="dl-btn" type="button">
+        @if (historyLoading()) {
+          <c-spinner size="sm" />
+        } @else {
+          <svg cIcon name="refresh" size="sm"></svg>
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (historyError()) {
+    <p class="dl-empty">{{ historyError() }}</p>
+  } @else if (historyLoading()) {
+    <p class="dl-empty">Chargement de l'historique…</p>
+  } @else if (history().length === 0) {
+    <p class="dl-empty">Aucun import pour le moment.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Import</th>
+            <th scope="col">Profil</th>
+            <th scope="col">Source</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Lignes</th>
+            <th scope="col">Date</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (imp of history(); track imp.id) {
+            <tr>
+              <td><span class="dl-tag">{{ imp.code }}</span><div class="dl-cell-detail">{{ imp.fileName }}</div></td>
+              <td>{{ imp.mappingProfileNom }}</td>
+              <td>{{ imp.source ?? '—' }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statutVariant(imp.statut)">
+                  <span class="dl-chip-dot"></span>{{ statutLabel(imp.statut) }}
+                </span>
+              </td>
+              <td class="dl-timestamp">
+                @if (isProcessingStatut(imp.statut)) {
+                  en cours…
+                } @else {
+                  ✔ {{ imp.lignesReussies }} · ✖ {{ imp.lignesEnErreur }} · ⚠ {{ imp.lignesIgnorees }}
+                }
+              </td>
+              <td class="dl-timestamp">{{ formatDateTime(imp.createdAt) }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openHistoryDetail(imp)" cButton class="dl-btn" size="sm" type="button">Voir</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<app-modal [visible]="historyDetailVisible()" size="lg" title="Import {{ selectedHistoryImport()?.code }}" (closed)="historyDetailVisible.set(false)">
+  @if (selectedHistoryImport(); as imp) {
+    <span [class]="'dl-chip dl-chip--' + statutVariant(imp.statut) + ' mb-3 d-inline-flex'">
+      <span class="dl-chip-dot"></span>{{ statutLabel(imp.statut) }}
+    </span>
+
+    <div class="dl-detail-grid mb-3">
+      <div><div class="dl-cell-detail">Fichier</div><div>{{ imp.fileName }}</div></div>
+      <div><div class="dl-cell-detail">Profil de mapping</div><div>{{ imp.mappingProfileNom }}</div></div>
+      <div><div class="dl-cell-detail">Source</div><div>{{ imp.source ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Importé par</div><div>{{ imp.executePar ?? '—' }}</div></div>
+      <div><div class="dl-cell-detail">Créé le</div><div>{{ formatDateTime(imp.createdAt) }}</div></div>
+      <div><div class="dl-cell-detail">Traitement</div><div>{{ formatDateTime(imp.dateDebutTraitement) }} → {{ formatDateTime(imp.dateFinTraitement) }}</div></div>
+    </div>
+
+    @if (isProcessingStatut(imp.statut)) {
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <c-spinner size="sm" />
+        <span>Traitement en cours côté serveur…</span>
+      </div>
+      <button (click)="refreshHistoryStatus()" [disabled]="historyDetailLoading()" cButton class="dl-btn dl-btn-primary mb-3" type="button">
+        <svg cIcon name="refresh" size="sm"></svg>
+        Actualiser le statut
+      </button>
+    } @else {
+      <div class="d-flex flex-wrap gap-3 mb-3">
+        <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>✔ {{ imp.lignesReussies }}</span>
+        <span class="dl-chip dl-chip--danger"><span class="dl-chip-dot"></span>✖ {{ imp.lignesEnErreur }}</span>
+        <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>⚠ {{ imp.lignesIgnorees }}</span>
+      </div>
+    }
+
+    @if (historyDetailLoading()) {
+      <p class="dl-empty">Chargement du rapport…</p>
+    } @else if (!isProcessingStatut(imp.statut)) {
+      @if (historyReport(); as report) {
+        <div class="dl-detail-grid mb-3">
+          <div><div class="dl-cell-detail">Taux de réussite</div><div>{{ formatPercent(report.tauxReussite) }}</div></div>
+          <div><div class="dl-cell-detail">Score NPS moyen</div><div>{{ report.scoreNpsMoyen != null ? report.scoreNpsMoyen.toFixed(1) : '—' }}</div></div>
+          <div><div class="dl-cell-detail">Promoteurs / Passifs / Détracteurs</div><div>{{ report.promoteurs }} / {{ report.passifs }} / {{ report.detracteurs }}</div></div>
+        </div>
+      }
+
+      @if (historyErrors().length > 0) {
+        <div class="dl-table-scroll mb-3">
+          <table class="dl-table">
+            <thead>
+              <tr><th scope="col">Ligne</th><th scope="col">Colonne</th><th scope="col">Valeur</th><th scope="col">Type</th><th scope="col">Message</th></tr>
+            </thead>
+            <tbody>
+              @for (err of historyErrors(); track err.id) {
+                <tr>
+                  <td class="dl-timestamp">{{ err.ligneNumero }}</td>
+                  <td>{{ err.colonneEnErreur ?? '—' }}</td>
+                  <td>{{ err.valeurBrute ?? '—' }}</td>
+                  <td><span class="dl-chip dl-chip--danger"><span class="dl-chip-dot"></span>{{ errorTypeLabel(err.typeErreur) }}</span></td>
+                  <td>{{ err.message }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+
+    <div class="d-flex gap-2">
+      @if (canRetry(imp)) {
+        <button (click)="retryHistoryImport()" [disabled]="historyDetailLoading()" cButton class="dl-btn dl-btn-primary" size="sm" type="button">
+          Relancer le traitement
+        </button>
+      }
+      <button (click)="askDeleteHistory(imp)" cButton class="dl-btn" color="danger" size="sm" type="button">Supprimer</button>
+    </div>
+  }
+</app-modal>
+
+<app-confirm-dialog
+  cancelLabel="Annuler"
+  confirmLabel="Supprimer"
+  icon="cilWarning"
+  [message]="'Voulez-vous vraiment supprimer l\'import « ' + (deleteTarget()?.code ?? '') + ' » ?'"
+  title="Supprimer l'import"
+  [visible]="deleteTarget() !== null"
+  (cancelled)="cancelDeleteHistory()"
+  (confirmed)="confirmDeleteHistory()"
+/>

@@ -1,0 +1,328 @@
+@if (isNpsMode) {
+  <c-row class="g-3 mb-3">
+    <c-col sm="6" xl="3">
+      <div class="mc-kpi-card mc-kpi-card--primary">
+        <span class="mc-kpi-icon"><svg cIcon name="trendUp" size="lg"></svg></span>
+        <div class="mc-kpi-body">
+          <div class="mc-kpi-value">{{ npsScore() }}</div>
+          <div class="mc-kpi-label">Score NPS</div>
+        </div>
+      </div>
+    </c-col>
+    <c-col sm="6" xl="3">
+      <div class="mc-kpi-card mc-kpi-card--success">
+        <span class="mc-kpi-icon"><svg cIcon name="targetCheck" size="lg"></svg></span>
+        <div class="mc-kpi-body">
+          <div class="mc-kpi-value">{{ npsCounts().promoteur }}</div>
+          <div class="mc-kpi-label">Promoteurs</div>
+        </div>
+      </div>
+    </c-col>
+    <c-col sm="6" xl="3">
+      <div class="mc-kpi-card mc-kpi-card--warning">
+        <span class="mc-kpi-icon"><svg cIcon name="clock" size="lg"></svg></span>
+        <div class="mc-kpi-body">
+          <div class="mc-kpi-value">{{ npsCounts().passif }}</div>
+          <div class="mc-kpi-label">Passifs</div>
+        </div>
+      </div>
+    </c-col>
+    <c-col sm="6" xl="3">
+      <div class="mc-kpi-card mc-kpi-card--flag">
+        <span class="mc-kpi-icon"><svg cIcon name="triangleAlert" size="lg"></svg></span>
+        <div class="mc-kpi-body">
+          <div class="mc-kpi-value">{{ npsCounts().detracteur }}</div>
+          <div class="mc-kpi-label">Détracteurs</div>
+        </div>
+      </div>
+    </c-col>
+  </c-row>
+
+  <section class="dl-panel">
+    <div class="dl-toolbar">
+      <div class="dl-toolbar-title">
+        <h2>{{ title }}</h2>
+        <small>Basé sur {{ reponduesCount() }} réponse(s) — score moyen {{ npsScoreMoyen() ?? '—' }} / 10</small>
+      </div>
+      <div class="dl-actions">
+        <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+          @if (loading()) {
+            <c-spinner size="sm" />
+          } @else {
+            <svg cIcon name="refresh" size="sm"></svg>
+          }
+          Actualiser
+        </button>
+      </div>
+    </div>
+
+    @if (loading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (breakdownByContexte().length === 0) {
+      <p class="dl-empty">Aucune enquête pour le moment.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Contexte</th>
+              <th scope="col">Enquêtes envoyées</th>
+              <th scope="col">Répondues</th>
+              <th scope="col">Score moyen</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of breakdownByContexte(); track row.label) {
+              <tr>
+                <td>{{ row.label }}</td>
+                <td class="dl-timestamp">{{ row.total }}</td>
+                <td class="dl-timestamp">{{ row.repondues }}</td>
+                <td class="dl-timestamp">{{ row.scoreMoyen ?? '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+} @else {
+  <c-row class="g-3 mb-3">
+    <c-col sm="6" xl="3">
+      <div class="mc-kpi-card mc-kpi-card--primary">
+        <span class="mc-kpi-icon"><svg cIcon name="targetCheck" size="lg"></svg></span>
+        <div class="mc-kpi-body">
+          <div class="mc-kpi-value">{{ filteredEnquetes().length }}</div>
+          <div class="mc-kpi-label">{{ title }}</div>
+        </div>
+      </div>
+    </c-col>
+    @if (isEnquetesMode) {
+      <c-col sm="6" xl="3">
+        <div class="mc-kpi-card mc-kpi-card--success">
+          <span class="mc-kpi-icon"><svg cIcon name="cilCheckCircle" size="lg"></svg></span>
+          <div class="mc-kpi-body">
+            <div class="mc-kpi-value">{{ answeredCount() }}</div>
+            <div class="mc-kpi-label">Répondues</div>
+          </div>
+        </div>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <div class="mc-kpi-card mc-kpi-card--flag">
+          <span class="mc-kpi-icon"><svg cIcon name="clock" size="lg"></svg></span>
+          <div class="mc-kpi-body">
+            <div class="mc-kpi-value">{{ filteredEnquetes().length - answeredCount() }}</div>
+            <div class="mc-kpi-label">En attente</div>
+          </div>
+        </div>
+      </c-col>
+    }
+    @if (isReponsesMode) {
+      <c-col sm="6" xl="3">
+        <div class="mc-kpi-card mc-kpi-card--primary">
+          <span class="mc-kpi-icon"><svg cIcon name="trendUp" size="lg"></svg></span>
+          <div class="mc-kpi-body">
+            <div class="mc-kpi-value">{{ npsScoreMoyen() ?? '—' }}</div>
+            <div class="mc-kpi-label">Score moyen / 10</div>
+          </div>
+        </div>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <div class="mc-kpi-card mc-kpi-card--flag">
+          <span class="mc-kpi-icon"><svg cIcon name="triangleAlert" size="lg"></svg></span>
+          <div class="mc-kpi-body">
+            <div class="mc-kpi-value">{{ npsCounts().detracteur }}</div>
+            <div class="mc-kpi-label">Détracteurs</div>
+          </div>
+        </div>
+      </c-col>
+    }
+  </c-row>
+
+  <section class="dl-panel">
+    <div class="dl-toolbar">
+      <div class="dl-toolbar-title">
+        <h2>{{ title }}</h2>
+      </div>
+
+      <div class="dl-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input
+          (input)="onSearchInput($any($event.target).value)"
+          [value]="searchQuery()"
+          autocomplete="off"
+          placeholder="Rechercher un assuré, un contrat…"
+          type="search"
+        />
+      </div>
+
+      <div class="dl-actions">
+        <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+          @if (loading()) {
+            <c-spinner size="sm" />
+          } @else {
+            <svg cIcon name="refresh" size="sm"></svg>
+          }
+          Actualiser
+        </button>
+        @if (isEnquetesMode) {
+          <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+            <svg cIcon name="cilPlus" size="sm"></svg>
+            Nouvelle enquête
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (error()) {
+      <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (loading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (pagedEnquetes().length === 0) {
+      <p class="dl-empty">Aucune enquête ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Code</th>
+              <th scope="col">Assuré</th>
+              <th scope="col">Contexte</th>
+              <th scope="col">Envoyée le</th>
+              @if (isEnquetesMode) {
+                <th scope="col">Statut</th>
+              }
+              <th scope="col">Score NPS</th>
+              <th scope="col">Commentaire</th>
+              @if (isEnquetesMode) {
+                <th scope="col"></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (enquete of pagedEnquetes(); track enquete.id) {
+              <tr>
+                <td><span class="dl-tag">{{ enquete.code }}</span></td>
+                <td>
+                  {{ enquete.insuredName }}
+                  @if (enquete.contratPolicyNumber) {
+                    <div class="dl-cell-detail">{{ enquete.contratPolicyNumber }}</div>
+                  }
+                </td>
+                <td>{{ contexteLabel(enquete.contexte) }}</td>
+                <td class="dl-timestamp">{{ formatDate(enquete.dateEnvoi) }}</td>
+                @if (isEnquetesMode) {
+                  <td>
+                    <span [class]="'dl-chip dl-chip--' + statutVariant(enquete.statut)">
+                      <span class="dl-chip-dot"></span>{{ enquete.statut }}
+                    </span>
+                  </td>
+                }
+                <td>
+                  @if (enquete.scoreNps != null) {
+                    <span [class]="'dl-chip dl-chip--' + scoreVariant(enquete.scoreNps)">
+                      <span class="dl-chip-dot"></span>{{ enquete.scoreNps }} / 10
+                    </span>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="dl-cell">{{ enquete.commentaire || '—' }}</td>
+                @if (isEnquetesMode) {
+                  <td>
+                    @if (enquete.statut === 'ENVOYEE') {
+                      <button (click)="openReponse(enquete)" cButton class="dl-btn" size="sm" type="button">Répondre</button>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div class="dl-footnote">
+      <span>
+        <strong>{{ pagedEnquetes().length }}</strong> sur {{ filteredEnquetes().length }}
+        (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
+      </span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">
+          Précédent
+        </button>
+        <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">
+          Suivant
+        </button>
+      </div>
+    </div>
+  </section>
+}
+
+<app-modal [visible]="createVisible()" title="Envoyer une enquête de satisfaction" (closed)="closeCreate()">
+  @if (createError()) {
+    <app-alert-message class="d-block mb-3" [message]="createError()!" />
+  }
+  <form [formGroup]="createForm" cForm (ngSubmit)="submitCreate()">
+    <div class="row g-3 mb-1">
+      <div class="col-12">
+        <label cLabel for="enq-assure">Assuré</label>
+        <select cSelect formControlName="insuredId" id="enq-assure">
+          <option [value]="0">Sélectionner un assuré…</option>
+          @for (insured of insureds(); track insured.id) {
+            <option [value]="insured.id">{{ insured.nom }} {{ insured.prenoms }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12">
+        <label cLabel for="enq-contexte">Contexte</label>
+        <select cSelect formControlName="contexte" id="enq-contexte">
+          <option value="POST_SOUSCRIPTION">Post-souscription</option>
+          <option value="POST_SINISTRE">Post-sinistre</option>
+          <option value="PERIODIQUE">Périodique</option>
+          <option value="POST_RESILIATION">Post-résiliation</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-2">
+      <button (click)="closeCreate()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="createSaving()" cButton color="primary" type="submit">
+        @if (createSaving()) {
+          <c-spinner size="sm" />
+        }
+        Envoyer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-modal [visible]="reponseVisible()" title="Enregistrer la réponse — {{ reponseTarget()?.code }}" (closed)="closeReponse()">
+  @if (reponseError()) {
+    <app-alert-message class="d-block mb-3" [message]="reponseError()!" />
+  }
+  <form [formGroup]="reponseForm" cForm (ngSubmit)="submitReponse()">
+    <div class="row g-3 mb-1">
+      <div class="col-12">
+        <label cLabel for="rep-score">Score NPS (0 à 10)</label>
+        <input cFormControl formControlName="scoreNps" id="rep-score" max="10" min="0" type="number" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="rep-commentaire">Commentaire (optionnel)</label>
+        <textarea cFormControl formControlName="commentaire" id="rep-commentaire" rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-2">
+      <button (click)="closeReponse()" cButton class="dl-btn" type="button">Annuler</button>
+      <button [disabled]="reponseSaving()" cButton color="primary" type="submit">
+        @if (reponseSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>

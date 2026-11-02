@@ -1,0 +1,181 @@
+:host {
+  --panel-ink: #16142b;
+  --accent-bright: #6d6bea;
+
+  display: contents;
+}
+
+:host-context([data-coreui-theme='dark']) {
+  --panel-ink: #0a0916;
+  --accent-bright: #8f8df0;
+}
+
+.ab-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--panel-ink);
+  color: #fff;
+  padding: clamp(2rem, 4vw, 4rem);
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .ab-panel {
+    padding: 2rem 1.5rem 2.5rem;
+  }
+}
+
+.ab-pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ab-glow {
+  position: absolute;
+  top: -20%;
+  right: -15%;
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(122, 120, 232, 0.35), transparent 70%);
+  filter: blur(10px);
+  animation: ab-drift 26s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-glow {
+    animation: none;
+  }
+}
+
+@keyframes ab-drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(-6%, 8%) scale(1.08);
+  }
+}
+
+.ab-watermark {
+  position: absolute;
+  right: -8%;
+  bottom: -12%;
+  width: 60%;
+  height: auto;
+  color: rgba(255, 255, 255, 0.05);
+}
+
+.ab-content {
+  position: relative;
+  z-index: 1;
+}
+
+.ab-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ab-hex {
+  width: 34px;
+  height: 34px;
+  color: var(--accent-bright);
+  flex-shrink: 0;
+}
+
+.ab-word {
+  font-family: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+.ab-headline {
+  position: relative;
+  z-index: 1;
+  margin: clamp(2.5rem, 6vw, 4.5rem) 0 0;
+  font-family: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.7rem, 2.6vw, 2.5rem);
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  max-width: 22ch;
+
+  ::ng-deep em {
+    font-style: normal;
+    color: var(--accent-bright);
+  }
+}
+
+.ab-sub {
+  position: relative;
+  z-index: 1;
+  margin: 1rem 0 0;
+  max-width: 40ch;
+  color: rgba(236, 233, 251, 0.66);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.ab-features {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: clamp(2rem, 4vw, 3rem) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .ab-features,
+  .ab-sub {
+    display: none;
+  }
+}
+
+.ab-features ::ng-deep li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  font-size: 0.88rem;
+  color: rgba(236, 233, 251, 0.86);
+
+  svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    color: var(--accent-bright);
+  }
+}
+
+.ab-foot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  color: rgba(236, 233, 251, 0.4);
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (max-width: 900px) {
+  .ab-foot {
+    display: none;
+  }
+}

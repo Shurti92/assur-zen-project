@@ -1,0 +1,678 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Vente croisée</h2>
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Vue">
+      <button (click)="setView('opportunites')" [attr.data-active]="view() === 'opportunites'" class="dl-pill" type="button">Opportunités</button>
+      <button (click)="setView('regles')" [attr.data-active]="view() === 'regles'" class="dl-pill" type="button">Règles</button>
+      <button (click)="setView('parametres')" [attr.data-active]="view() === 'parametres'" class="dl-pill" type="button">Paramètres</button>
+    </div>
+
+    @if (view() === 'opportunites') {
+      <div class="dl-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input (input)="onSearchInput($any($event.target).value)" autocomplete="off" placeholder="Rechercher un code, un assuré, un produit…" type="search" />
+      </div>
+      <select (change)="setStatutFilter($any($event.target).value)" cSelect style="max-width: 200px;">
+        <option value="all">Tous les statuts</option>
+        @for (statut of statutOrder; track statut) {
+          <option [value]="statut">{{ statutLabel[statut] }}</option>
+        }
+      </select>
+      <div class="dl-actions">
+        <button (click)="genererOpportunites()" [disabled]="generating()" cButton class="dl-btn" type="button">
+          @if (generating()) {
+            <c-spinner size="sm" />
+          } @else {
+            <svg cIcon name="refresh" size="sm"></svg>
+          }
+          Générer
+        </button>
+        <button (click)="fetchOpportunites()" [disabled]="opportunitesLoading()" cButton class="dl-btn" type="button">
+          @if (opportunitesLoading()) {
+            <c-spinner size="sm" />
+          }
+          Actualiser
+        </button>
+        <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouvelle opportunité
+        </button>
+      </div>
+    }
+    @if (view() === 'regles') {
+      <div class="dl-actions">
+        <button (click)="fetchRegles()" [disabled]="reglesLoading()" cButton class="dl-btn" type="button">
+          @if (reglesLoading()) {
+            <c-spinner size="sm" />
+          }
+          Actualiser
+        </button>
+        <button (click)="openCreateRegle()" cButton class="dl-btn dl-btn-primary" type="button">
+          <svg cIcon name="cilPlus"></svg>Nouvelle règle
+        </button>
+      </div>
+    }
+    @if (view() === 'parametres') {
+      <div class="dl-actions">
+        <button (click)="fetchParametres()" [disabled]="parametresLoading()" cButton class="dl-btn" type="button">
+          @if (parametresLoading()) {
+            <c-spinner size="sm" />
+          }
+          Actualiser
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (view() === 'opportunites') {
+    <div class="dl-cell-detail px-3 pt-3">
+      <strong>{{ statTotal() }}</strong> opportunité(s) — {{ statOuvertes() }} en cours, {{ statConverties() }} convertie(s), score moyen {{ statScoreMoyen() }}
+    </div>
+
+    @if (opportunitesError()) {
+      <p class="dl-empty">{{ opportunitesError() }} <button (click)="fetchOpportunites()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (opportunitesLoading()) {
+      <p class="dl-empty">Chargement des opportunités…</p>
+    } @else if (pagedOpportunites().length === 0) {
+      <p class="dl-empty">Aucune opportunité ne correspond à ces filtres.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Code</th>
+              <th scope="col">Assuré</th>
+              <th scope="col">Produit recommandé</th>
+              <th scope="col">Score</th>
+              <th scope="col">Priorité</th>
+              <th scope="col">Commercial</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (o of pagedOpportunites(); track o.id) {
+              <tr>
+                <td><span class="dl-tag">{{ o.code }}</span></td>
+                <td>{{ o.insuredName }}</td>
+                <td>{{ o.produitRecommandeNom }}</td>
+                <td>{{ o.score }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + prioriteVariant(o.priorite)">
+                    <span class="dl-chip-dot"></span>{{ prioriteLabel[o.priorite] }}
+                  </span>
+                </td>
+                <td>{{ o.commercialNom ?? '—' }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + statutVariant(o.statut)">
+                    <span class="dl-chip-dot"></span>{{ statutLabel[o.statut] }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openDetail(o)" cButton class="dl-btn" size="sm" type="button">Suivre</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div class="dl-footnote">
+      <span>
+        <strong>{{ pagedOpportunites().length }}</strong> sur {{ filteredOpportunites().length }} opportunités
+        (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
+      </span>
+      <div class="d-flex align-items-center gap-2">
+        <button (click)="goToPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+        <button (click)="goToPage(pageIndex() + 1)" [disabled]="pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+      </div>
+    </div>
+  }
+
+  @if (view() === 'regles') {
+    @if (reglesError()) {
+      <p class="dl-empty">{{ reglesError() }} <button (click)="fetchRegles()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (reglesLoading()) {
+      <p class="dl-empty">Chargement des règles…</p>
+    } @else if (regles().length === 0) {
+      <p class="dl-empty">Aucune règle définie pour le moment.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Règle</th>
+              <th scope="col">Déclencheur → Recommandé</th>
+              <th scope="col">Priorité</th>
+              <th scope="col">Poids</th>
+              <th scope="col">Période</th>
+              <th scope="col">Statut</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (regle of regles(); track regle.id) {
+              <tr>
+                <td>
+                  <div>{{ regle.nom }}</div>
+                  <div class="dl-cell-detail">{{ regle.code }}</div>
+                </td>
+                <td>{{ regle.produitDeclencheurNom ?? 'Tout produit' }} → {{ regle.produitRecommandeNom }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + prioriteVariant(regle.priorite)">
+                    <span class="dl-chip-dot"></span>{{ prioriteLabel[regle.priorite] }}
+                  </span>
+                </td>
+                <td>{{ regle.poidsScore }}</td>
+                <td class="dl-cell-detail">{{ formatDate(regle.dateDebut) }} — {{ formatDate(regle.dateFin) }}</td>
+                <td>
+                  <span [class]="'dl-chip dl-chip--' + (regle.actif ? 'success' : 'neutral')">
+                    <span class="dl-chip-dot"></span>{{ regle.actif ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="dl-row-actions">
+                    <c-dropdown alignment="end" [popperOptions]="{ strategy: 'fixed' }">
+                      <button [caret]="false" cDropdownToggle class="dl-icon-btn" title="Actions" type="button">
+                        <svg cIcon name="cilOptions" size="sm"></svg>
+                      </button>
+                      <div cDropdownMenu>
+                        <button (click)="openConditions(regle)" cDropdownItem class="hdr-user-menu-item" type="button">
+                          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                            <svg cIcon name="cilList" size="lg"></svg>
+                          </span>
+                          Conditions
+                        </button>
+                        <button (click)="dupliquerRegle(regle)" [disabled]="duplicatingId() === regle.id" cDropdownItem class="hdr-user-menu-item" type="button">
+                          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                            <svg cIcon name="cilShareAll" size="lg"></svg>
+                          </span>
+                          Dupliquer
+                        </button>
+                        <button (click)="openEditRegle(regle)" cDropdownItem class="hdr-user-menu-item" type="button">
+                          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--primary">
+                            <svg cIcon name="cilPencil" size="lg"></svg>
+                          </span>
+                          Modifier
+                        </button>
+                        <hr class="dropdown-divider" />
+                        <button (click)="confirmDeleteRegle(regle)" cDropdownItem class="hdr-user-menu-item hdr-user-menu-item--danger" type="button">
+                          <span class="hdr-user-menu-item-icon hdr-user-menu-item-icon--danger">
+                            <svg cIcon name="cilTrash" size="lg"></svg>
+                          </span>
+                          Supprimer
+                        </button>
+                      </div>
+                    </c-dropdown>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <div class="dl-footnote">
+      <span><strong>{{ regles().length }}</strong> règle(s)</span>
+    </div>
+  }
+
+  @if (view() === 'parametres') {
+    @if (parametresError()) {
+      <p class="dl-empty">{{ parametresError() }} <button (click)="fetchParametres()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (parametresLoading()) {
+      <p class="dl-empty">Chargement des paramètres…</p>
+    } @else if (parametres().length === 0) {
+      <p class="dl-empty">Aucun paramètre défini.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Clé</th>
+              <th scope="col">Valeur</th>
+              <th scope="col">Description</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (param of parametres(); track param.cle) {
+              <tr>
+                <td><span class="dl-tag">{{ param.cle }}</span></td>
+                <td>{{ param.valeur }}</td>
+                <td class="dl-cell-detail">{{ param.description ?? '—' }}</td>
+                <td>
+                  <div class="dl-row-actions">
+                    <button (click)="openEditParametre(param)" class="dl-icon-btn" title="Modifier" type="button">
+                      <svg cIcon name="cilPencil" size="sm"></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
+
+<!-- ===== Modale : création d'opportunité ===== -->
+<app-modal [visible]="createVisible()" size="lg" title="Nouvelle opportunité" (closed)="createVisible.set(false)">
+  @if (createError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="createForm" cForm (ngSubmit)="submitCreate()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-6">
+        <label cLabel for="cs-insured">Assuré</label>
+        <select (change)="onCreateInsuredChange($any($event.target).value)" cSelect formControlName="insuredId" id="cs-insured">
+          <option [value]="0">Sélectionner…</option>
+          @for (insured of insureds(); track insured.id) {
+            <option [value]="insured.id">{{ insured.nom }} {{ insured.prenoms }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cs-contrat">Contrat (optionnel)</label>
+        <select cSelect formControlName="contratId" id="cs-contrat">
+          <option [value]="0">Aucun</option>
+          @for (contrat of contractsForInsured(); track contrat.id) {
+            <option [value]="contrat.id">{{ contrat.policyNumber }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cs-produit-actuel">Produit actuel (optionnel)</label>
+        <select cSelect formControlName="produitActuelId" id="cs-produit-actuel">
+          <option [value]="0">Aucun</option>
+          @for (produit of produits(); track produit.id) {
+            <option [value]="produit.id">{{ produit.nomProduit }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="cs-produit-recommande">Produit recommandé</label>
+        <select cSelect formControlName="produitRecommandeId" id="cs-produit-recommande">
+          <option [value]="0">Sélectionner…</option>
+          @for (produit of produits(); track produit.id) {
+            <option [value]="produit.id">{{ produit.nomProduit }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="cs-score">Score (0-100)</label>
+        <input cFormControl formControlName="score" id="cs-score" max="100" min="0" type="number" />
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="cs-priorite">Priorité</label>
+        <select cSelect formControlName="priorite" id="cs-priorite">
+          @for (p of prioriteOptions; track p) {
+            <option [value]="p">{{ prioriteLabel[p] }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12">
+        <label cLabel for="cs-commentaire">Commentaire (optionnel)</label>
+        <textarea cFormControl formControlName="commentaire" id="cs-commentaire" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="createVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="createSaving()" cButton color="primary" type="submit">
+        @if (createSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : détail opportunité ===== -->
+<app-modal [visible]="detailVisible()" size="lg" title="Opportunité {{ selectedOpportunite()?.code }}" (closed)="detailVisible.set(false)">
+  @if (selectedOpportunite(); as o) {
+    <div class="fs-section">
+      <div class="dl-detail-grid">
+        <div>
+          <div class="dl-cell-detail">Assuré</div>
+          <div>{{ o.insuredName }}</div>
+        </div>
+        @if (o.contratPolicyNumber) {
+          <div>
+            <div class="dl-cell-detail">Contrat</div>
+            <div>{{ o.contratPolicyNumber }}</div>
+          </div>
+        }
+        @if (o.produitActuelNom) {
+          <div>
+            <div class="dl-cell-detail">Produit actuel</div>
+            <div>{{ o.produitActuelNom }}</div>
+          </div>
+        }
+        <div>
+          <div class="dl-cell-detail">Produit recommandé</div>
+          <div>{{ o.produitRecommandeNom }}</div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Score</div>
+          <div>{{ o.score }}</div>
+        </div>
+        @if (o.regleNom) {
+          <div>
+            <div class="dl-cell-detail">Règle d'origine</div>
+            <div>{{ o.regleNom }}</div>
+          </div>
+        }
+        <div>
+          <div class="dl-cell-detail">Priorité</div>
+          <div>
+            <span [class]="'dl-chip dl-chip--' + prioriteVariant(o.priorite)">
+              <span class="dl-chip-dot"></span>{{ prioriteLabel[o.priorite] }}
+            </span>
+          </div>
+        </div>
+        <div>
+          <div class="dl-cell-detail">Statut actuel</div>
+          <div>
+            <span [class]="'dl-chip dl-chip--' + statutVariant(o.statut)">
+              <span class="dl-chip-dot"></span>{{ statutLabel[o.statut] }}
+            </span>
+          </div>
+        </div>
+        @if (o.commercialNom) {
+          <div>
+            <div class="dl-cell-detail">Commercial</div>
+            <div>{{ o.commercialNom }}</div>
+          </div>
+        }
+        <div>
+          <div class="dl-cell-detail">Créée le</div>
+          <div>{{ formatDateTime(o.createdAt) }}</div>
+        </div>
+      </div>
+      @if (o.commentaire) {
+        <div class="mt-3">
+          <div class="dl-cell-detail mb-1">Commentaire</div>
+          <div>{{ o.commentaire }}</div>
+        </div>
+      }
+      @if (o.motif) {
+        <div class="mt-3">
+          <div class="dl-cell-detail mb-1">Motif</div>
+          <div>{{ o.motif }}</div>
+        </div>
+      }
+    </div>
+
+    @if (!isTerminal()) {
+      <div class="fs-section">
+        <div class="fs-section-head">
+          <svg cIcon name="person" size="lg"></svg>
+          <h3>Affectation</h3>
+        </div>
+        @if (affectationError(); as message) {
+          <app-alert-message class="d-block mb-3" [message]="message" />
+        }
+        <form [formGroup]="affectationForm" cForm (ngSubmit)="submitAffectation()">
+          <div class="row g-3 mb-1 align-items-end">
+            <div class="col-sm-8">
+              <label cLabel for="cs-affect-commercial">Commercial</label>
+              <select cSelect formControlName="commercialId" id="cs-affect-commercial">
+                <option [value]="0">Sélectionner…</option>
+                @for (g of commerciaux(); track g.id) {
+                  <option [value]="g.userId">{{ commercialName(g) }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-sm-4">
+              <button [disabled]="affectationSaving()" cButton color="primary" type="submit">
+                @if (affectationSaving()) {
+                  <c-spinner size="sm" />
+                }
+                Affecter
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="fs-section">
+        <div class="fs-section-head">
+          <svg cIcon name="cilPencil" size="lg"></svg>
+          <h3>Faire avancer le dossier</h3>
+        </div>
+        @if (statutError(); as message) {
+          <app-alert-message class="d-block mb-3" [message]="message" />
+        }
+        <form [formGroup]="statutForm" cForm (ngSubmit)="submitStatut()">
+          <div class="row g-3 mb-1">
+            <div class="col-sm-6">
+              <label cLabel for="cs-statut">Nouveau statut</label>
+              <select cSelect formControlName="statut" id="cs-statut">
+                @for (statut of statutOrder; track statut) {
+                  <option [value]="statut">{{ statutLabel[statut] }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label cLabel for="cs-statut-motif">Motif (optionnel)</label>
+              <input cFormControl formControlName="motif" id="cs-statut-motif" type="text" />
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mt-2">
+            <button [disabled]="statutSaving()" cButton color="primary" type="submit">
+              @if (statutSaving()) {
+                <c-spinner size="sm" />
+              }
+              Mettre à jour le statut
+            </button>
+          </div>
+        </form>
+      </div>
+    }
+
+    <div class="fs-section">
+      <div class="fs-section-head">
+        <svg cIcon name="cilList" size="lg"></svg>
+        <h3>Historique</h3>
+      </div>
+      @if (historiqueError()) {
+        <p class="dl-empty">{{ historiqueError() }}</p>
+      } @else if (historiqueLoading()) {
+        <p class="dl-empty">Chargement de l'historique…</p>
+      } @else if (historique().length === 0) {
+        <p class="dl-empty">Aucun évènement enregistré.</p>
+      } @else {
+        <ul class="list-unstyled d-flex flex-column gap-2 m-0">
+          @for (h of historique(); track h.id) {
+            <li class="d-flex align-items-start gap-2 pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+              <span class="dl-chip dl-chip--info"><span class="dl-chip-dot"></span>{{ h.typeEvenement }}</span>
+              <div class="flex-grow-1">
+                @if (h.description) {
+                  <div>{{ h.description }}</div>
+                }
+                <div class="dl-cell-detail">{{ formatDateTime(h.createdAt) }}@if (h.auteurNom) { — {{ h.auteurNom }} }</div>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</app-modal>
+
+<!-- ===== Modale : formulaire de règle ===== -->
+<app-modal [visible]="regleFormVisible()" size="lg" title="{{ editingRegleId() ? 'Modifier la règle' : 'Nouvelle règle' }}" (closed)="regleFormVisible.set(false)">
+  @if (regleFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="regleForm" cForm (ngSubmit)="saveRegle()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-4">
+        <label cLabel for="rg-code">Code</label>
+        <input cFormControl formControlName="code" id="rg-code" type="text" />
+      </div>
+      <div class="col-sm-8">
+        <label cLabel for="rg-nom">Nom</label>
+        <input cFormControl formControlName="nom" id="rg-nom" type="text" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="rg-declencheur">Produit déclencheur (optionnel)</label>
+        <select cSelect formControlName="produitDeclencheurId" id="rg-declencheur">
+          <option [value]="0">Tout produit</option>
+          @for (produit of produits(); track produit.id) {
+            <option [value]="produit.id">{{ produit.nomProduit }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="rg-recommande">Produit recommandé</label>
+        <select cSelect formControlName="produitRecommandeId" id="rg-recommande">
+          <option [value]="0">Sélectionner…</option>
+          @for (produit of produits(); track produit.id) {
+            <option [value]="produit.id">{{ produit.nomProduit }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="rg-priorite">Priorité</label>
+        <select cSelect formControlName="priorite" id="rg-priorite">
+          @for (p of prioriteOptions; track p) {
+            <option [value]="p">{{ prioriteLabel[p] }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="rg-poids">Poids du score</label>
+        <input cFormControl formControlName="poidsScore" id="rg-poids" type="number" />
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="rg-ordre">Ordre</label>
+        <input cFormControl formControlName="ordre" id="rg-ordre" type="number" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="rg-debut">Date de début (optionnel)</label>
+        <input cFormControl formControlName="dateDebut" id="rg-debut" type="date" />
+      </div>
+      <div class="col-sm-6">
+        <label cLabel for="rg-fin">Date de fin (optionnel)</label>
+        <input cFormControl formControlName="dateFin" id="rg-fin" type="date" />
+      </div>
+      <div class="col-12">
+        <label cLabel for="rg-description">Description</label>
+        <textarea cFormControl formControlName="description" id="rg-description" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="form-check form-switch mb-1 mt-2">
+      <input cFormCheckInput formControlName="actif" id="rg-actif" switch type="checkbox" />
+      <label cLabel for="rg-actif">Règle active</label>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="regleFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="regleFormSaving()" cButton color="primary" type="submit">
+        @if (regleFormSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : conditions d'une règle ===== -->
+<app-modal [visible]="conditionsVisible()" size="lg" title="Conditions — {{ conditionsRegle()?.nom }}" (closed)="conditionsVisible.set(false)">
+  @if (conditionsError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  @if (conditionsLoading()) {
+    <p class="dl-empty">Chargement des conditions…</p>
+  } @else if (conditions().length === 0) {
+    <p class="dl-empty">Aucune condition définie — la règle s'applique sans restriction.</p>
+  } @else {
+    <ul class="list-unstyled d-flex flex-column gap-2 m-0 mb-3">
+      @for (c of conditions(); track c.id) {
+        <li class="pb-2" style="border-bottom: 1px solid var(--cui-border-color);">
+          <span class="dl-tag">{{ c.champ }}</span> {{ c.operateur }} <strong>{{ c.valeur }}</strong>
+        </li>
+      }
+    </ul>
+  }
+
+  <form [formGroup]="conditionForm" cForm (ngSubmit)="addCondition()">
+    <div class="row g-3 mb-1">
+      <div class="col-sm-4">
+        <label cLabel for="cd-champ">Champ</label>
+        <select cSelect formControlName="champ" id="cd-champ">
+          @for (champ of conditionChamps; track champ) {
+            <option [value]="champ">{{ champ }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="cd-operateur">Opérateur</label>
+        <select cSelect formControlName="operateur" id="cd-operateur">
+          @for (op of conditionOperateurs; track op) {
+            <option [value]="op">{{ op }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label cLabel for="cd-valeur">Valeur</label>
+        <input cFormControl formControlName="valeur" id="cd-valeur" type="text" />
+      </div>
+    </div>
+    <div class="d-flex justify-content-end mt-2">
+      <button [disabled]="conditionSaving()" cButton color="primary" type="submit">
+        @if (conditionSaving()) {
+          <c-spinner size="sm" />
+        }
+        Ajouter la condition
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ===== Modale : paramètre ===== -->
+<app-modal [visible]="parametreFormVisible()" title="Modifier « {{ editingParametre()?.cle }} »" (closed)="parametreFormVisible.set(false)">
+  @if (parametreFormError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="parametreForm" cForm (ngSubmit)="saveParametre()">
+    <div class="mb-3">
+      <label cLabel for="pm-valeur">Valeur</label>
+      <input cFormControl formControlName="valeur" id="pm-valeur" type="text" />
+    </div>
+    <div class="mb-3">
+      <label cLabel for="pm-description">Description</label>
+      <textarea cFormControl formControlName="description" id="pm-description" rows="2"></textarea>
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="parametreFormVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="parametreFormSaving()" cButton color="primary" type="submit">
+        @if (parametreFormSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!deleteRegleTarget()"
+  title="Supprimer cette règle ?"
+  [message]="'La règle « ' + (deleteRegleTarget()?.nom ?? '') + ' » sera supprimée (ou désactivée selon le comportement du serveur).'"
+  confirmLabel="Supprimer"
+  icon="cilTrash"
+  (cancelled)="deleteRegleTarget.set(null)"
+  (confirmed)="performDeleteRegle()"
+/>

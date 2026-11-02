@@ -1,0 +1,193 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Tableau de bord — Comptabilité générale</h2>
+    </div>
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error() && !loading()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  }
+
+  @if (loading()) {
+    <p class="dl-empty">Chargement du tableau de bord…</p>
+  } @else {
+    <div class="mc-body">
+      <!-- KPIs -->
+      <div>
+        <div class="mc-section-head">
+          <h3>Indicateurs clés</h3>
+        </div>
+        <c-row class="g-3">
+          @for (kpi of kpis(); track kpi.key) {
+            <c-col sm="6" xl="3">
+              <div [class]="'ldb-kpi-card ldb-kpi-card--' + kpi.color">
+                <div class="ldb-kpi-head">
+                  <span class="ldb-kpi-label">{{ kpi.label }}</span>
+                  <span class="ldb-kpi-icon">
+                    <svg cIcon [name]="kpi.icon" size="lg"></svg>
+                  </span>
+                </div>
+                <div class="ldb-kpi-value">{{ kpi.value }}</div>
+                <div [class]="'ldb-kpi-sub' + (kpi.subVariant === 'ok' ? ' dl-stat--success' : kpi.subVariant === 'warning' ? ' dl-stat--danger' : '')">
+                  {{ kpi.sub }}
+                </div>
+              </div>
+            </c-col>
+          }
+        </c-row>
+      </div>
+
+      <!-- Charts -->
+      <div>
+        <div class="mc-section-head">
+          <h3>Analyses</h3>
+        </div>
+        <c-row class="g-3">
+          <c-col xs="12">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Évolution journalière</h3>
+                <span class="ldb-panel-sub">Débit / crédit, {{ evolutionData?.labels?.length || 0 }} derniers jours</span>
+              </div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box ldb-chart-box--tall">
+                  @if (evolutionData) {
+                    <c-chart type="line" [data]="evolutionData" [options]="evolutionOptions" />
+                  }
+                </div>
+              </div>
+            </div>
+          </c-col>
+
+          <c-col lg="6">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Répartition par type d'opération</h3>
+                <span class="ldb-panel-sub">Volume débit</span>
+              </div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box">
+                  @if (typeOperationData) {
+                    <c-chart type="doughnut" [data]="typeOperationData" [options]="typeOperationOptions" />
+                  }
+                </div>
+                <div class="ldb-legend">
+                  @for (row of typeOperationLegend(); track row.label) {
+                    <div class="ldb-legend-row">
+                      <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                      <span class="ldb-legend-label">{{ row.label }}</span>
+                      <span class="ldb-legend-value">{{ row.value }}</span>
+                    </div>
+                  }
+                  @if (typeOperationLegend().length === 0) {
+                    <p class="dl-empty p-0">Aucune écriture.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </c-col>
+
+          <c-col lg="6">
+            <div class="ldb-panel">
+              <div class="ldb-panel-head">
+                <h3>Répartition par type de compte</h3>
+                <span class="ldb-panel-sub">Solde absolu</span>
+              </div>
+              <div class="ldb-panel-body">
+                <div class="ldb-chart-box">
+                  @if (typeCompteData) {
+                    <c-chart type="doughnut" [data]="typeCompteData" [options]="typeCompteOptions" />
+                  }
+                </div>
+                <div class="ldb-legend">
+                  @for (row of typeCompteLegend(); track row.label) {
+                    <div class="ldb-legend-row">
+                      <span class="ldb-legend-dot" [style.--ldb-dot]="row.color"></span>
+                      <span class="ldb-legend-label">{{ row.label }}</span>
+                      <span class="ldb-legend-value">{{ row.value }}</span>
+                    </div>
+                  }
+                  @if (typeCompteLegend().length === 0) {
+                    <p class="dl-empty p-0">Aucun compte.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </c-col>
+        </c-row>
+      </div>
+
+      <!-- Alerts -->
+      <div>
+        <div class="mc-section-head">
+          <h3>Alertes</h3>
+        </div>
+        <c-row class="g-3">
+          <c-col lg="6">
+            <div [class]="'ldb-alert-card ' + (ecrituresContrepassees().length ? 'ldb-alert-card--warning' : 'ldb-alert-card--ok')">
+              <div class="ldb-alert-head">
+                <span class="ldb-alert-icon">
+                  <svg cIcon name="cilReportSlash" size="lg"></svg>
+                </span>
+                <div>
+                  <div class="ldb-alert-count">{{ ecrituresContrepassees().length }}</div>
+                  <div class="ldb-alert-label">Écritures contre-passées</div>
+                </div>
+              </div>
+              @if (ecrituresContrepassees().length) {
+                <ul class="ldb-alert-list">
+                  @for (e of ecrituresContrepassees(); track e.id) {
+                    <li class="ldb-alert-item">
+                      <span>{{ e.reference }} — {{ e.libelle }}</span>
+                      <span class="ldb-alert-item-meta">{{ formatDate(e.dateEcriture) }}</span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="ldb-alert-empty">Aucune écriture contre-passée.</p>
+              }
+            </div>
+          </c-col>
+
+          <c-col lg="6">
+            <div [class]="'ldb-alert-card ' + (periodesExpirees().length ? 'ldb-alert-card--danger' : 'ldb-alert-card--ok')">
+              <div class="ldb-alert-head">
+                <span class="ldb-alert-icon">
+                  <svg cIcon name="cilWarning" size="lg"></svg>
+                </span>
+                <div>
+                  <div class="ldb-alert-count">{{ periodesExpirees().length }}</div>
+                  <div class="ldb-alert-label">Périodes expirées</div>
+                </div>
+              </div>
+              @if (periodesExpirees().length) {
+                <ul class="ldb-alert-list">
+                  @for (ex of periodesExpirees(); track ex.id) {
+                    <li class="ldb-alert-item">
+                      <span>{{ ex.libelle }}</span>
+                      <span class="ldb-alert-item-meta">{{ formatDate(ex.dateFin) }}</span>
+                    </li>
+                  }
+                </ul>
+                <button (click)="goToExercices()" cButton class="dl-btn ldb-alert-link" color="link" type="button">
+                  Gérer les exercices comptables →
+                </button>
+              } @else {
+                <p class="ldb-alert-empty">Aucune période expirée encore active.</p>
+              }
+            </div>
+          </c-col>
+        </c-row>
+      </div>
+    </div>
+  }
+</section>

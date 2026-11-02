@@ -1,0 +1,125 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Plan comptable</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        autocomplete="off"
+        placeholder="Rechercher un compte…"
+        type="search"
+      />
+    </div>
+
+    <div class="dl-pillgroup" role="tablist" aria-label="Filtrer par type de compte">
+      <button (click)="setTypeFilter('all')" [attr.data-active]="typeFilter() === 'all'" class="dl-pill" type="button">Tous</button>
+      <button (click)="setTypeFilter('ACTIF')" [attr.data-active]="typeFilter() === 'ACTIF'" class="dl-pill dl-pill--info" type="button">Actif</button>
+      <button (click)="setTypeFilter('PASSIF')" [attr.data-active]="typeFilter() === 'PASSIF'" class="dl-pill dl-pill--warning" type="button">Passif</button>
+      <button (click)="setTypeFilter('CHARGE')" [attr.data-active]="typeFilter() === 'CHARGE'" class="dl-pill dl-pill--danger" type="button">Charge</button>
+      <button (click)="setTypeFilter('PRODUIT')" [attr.data-active]="typeFilter() === 'PRODUIT'" class="dl-pill dl-pill--success" type="button">Produit</button>
+    </div>
+
+    <div class="dl-actions">
+      <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement du plan comptable…</p>
+  } @else if (filteredItems().length === 0) {
+    <p class="dl-empty">Aucun compte ne correspond à ces filtres.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Code</th>
+            <th scope="col">Libellé</th>
+            <th scope="col">Type</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.id) {
+            <tr>
+              <td class="dl-timestamp">{{ item.code }}</td>
+              <td>{{ item.libelle }}</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + typeVariant(item.type)">
+                  <span class="dl-chip-dot"></span>{{ typeLabel(item.type) }}
+                </span>
+              </td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + (item.active ? 'success' : 'neutral')">
+                  <span class="dl-chip-dot"></span>{{ item.active ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openGrandLivre(item)" class="dl-icon-btn" title="Voir le grand livre" type="button">
+                    <svg cIcon name="cilNotes" size="sm"></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ filteredItems().length }}</strong> sur {{ items().length }} comptes</span>
+  </div>
+</section>
+
+<app-modal [visible]="!!selectedCompte()" size="lg" title="Grand livre — {{ selectedCompte()?.code }} {{ selectedCompte()?.libelle }}" (closed)="closeGrandLivre()">
+  @if (grandLivreError()) {
+    <p class="dl-empty">{{ grandLivreError() }}</p>
+  } @else if (grandLivreLoading()) {
+    <p class="dl-empty">Chargement du grand livre…</p>
+  } @else if (grandLivreLines().length === 0) {
+    <p class="dl-empty">Aucun mouvement pour ce compte.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Référence</th>
+            <th scope="col">Libellé</th>
+            <th scope="col">Débit</th>
+            <th scope="col">Crédit</th>
+            <th scope="col">Solde progressif</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of grandLivreLines(); track $index) {
+            <tr>
+              <td class="dl-timestamp">{{ formatDate(line.dateEcriture) }}</td>
+              <td><span class="dl-tag">{{ line.ecritureReference }}</span></td>
+              <td>{{ line.libelle }}</td>
+              <td class="dl-timestamp">{{ line.montantDebit ? formatAmount(line.montantDebit) : '—' }}</td>
+              <td class="dl-timestamp">{{ line.montantCredit ? formatAmount(line.montantCredit) : '—' }}</td>
+              <td class="dl-timestamp">{{ formatAmount(line.soldeProgressif) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-modal>

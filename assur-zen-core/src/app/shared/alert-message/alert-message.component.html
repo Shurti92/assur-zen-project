@@ -1,0 +1,11 @@
+<c-alert
+  class="alert-message"
+  [color]="variant()"
+  [dismissible]="dismissible()"
+  fade
+  role="alert"
+  (visibleChange)="!$event && dismissed.emit()"
+>
+  <svg cIcon class="alert-message-icon" [name]="iconName()"></svg>
+  <span class="alert-message-text">{{ message() }}</span>
+</c-alert>

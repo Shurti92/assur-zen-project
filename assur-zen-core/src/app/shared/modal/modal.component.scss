@@ -1,0 +1,213 @@
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+  overflow-y: auto;
+}
+
+.modal-card-custom {
+  // Fluid between a floor and a cap, rather than jumping between fixed
+  // breakpoints, so the popup scales smoothly from phone to desktop.
+  width: min(94vw, 520px);
+  max-height: calc(100vh - 3rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--cui-body-bg);
+  border-radius: 1rem;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+
+  &--lg {
+    width: min(94vw, 760px);
+  }
+
+  &--xl {
+    width: min(96vw, 940px);
+  }
+
+  &--xxl {
+    width: min(98vw, 1280px);
+  }
+
+  &--full {
+    width: min(98vw, 1440px);
+  }
+}
+
+.modal-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid var(--cui-border-color);
+  flex-shrink: 0;
+
+  h5 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+}
+
+.modal-card-body {
+  padding: 1.4rem;
+  overflow-y: auto;
+}
+
+// Variante 'brand' (parcours guidés) : en-tête dégradé + corps sans marge, en colonne flex pour que
+// le contenu puisse ancrer son pied de page en bas et ne faire défiler que sa zone centrale.
+.modal-card-custom--brand {
+  border-radius: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 30px 60px -20px rgba(20, 38, 92, 0.45);
+}
+
+.modal-brand-header {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 1.35rem 2rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--cui-primary, #1b3b8f), color-mix(in srgb, var(--cui-primary, #1b3b8f) 62%, #000));
+
+  // Contenu projeté sous la rangée principale (ex. stepper de statut) : espacé du titre.
+  > * + * {
+    margin-top: 1.1rem;
+  }
+
+  h5 {
+    margin: 0;
+    font-family: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
+    font-size: 1.2rem;
+    font-weight: 800;
+  }
+}
+
+.modal-brand-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+// Actions projetées (boutons) + bouton de fermeture, alignés à droite ; passent à la ligne sur mobile.
+.modal-brand-header-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modal-brand-header-main {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.modal-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.modal-brand-subtitle {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.modal-brand-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(255, 255, 255, 0.28);
+  }
+}
+
+// Petit écran : titre en haut, actions en dessous (sinon elles chevauchent la référence), croix de
+// fermeture ancrée en haut à droite.
+@media (max-width: 720px) {
+  .modal-brand-header {
+    position: relative;
+    padding: 1rem 1.1rem;
+  }
+
+  .modal-brand-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .modal-brand-header-main {
+    padding-right: 2.75rem;
+  }
+
+  .modal-brand-header-side {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .modal-brand-close {
+    position: absolute;
+    top: 1rem;
+    right: 1.1rem;
+  }
+}
+
+.modal-card-body--flush {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+// Variante 'custom' : en-tête fourni par la page ([modalHeader]), bouton Fermer conservé.
+.modal-card-header--custom {
+  align-items: flex-start;
+  gap: 16px;
+  padding: 22px 24px 18px;
+}
+
+.modal-card-header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-custom-close {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 10px;
+  background: var(--cui-body-bg);
+  color: var(--cui-body-color);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--cui-tertiary-bg);
+  }
+}

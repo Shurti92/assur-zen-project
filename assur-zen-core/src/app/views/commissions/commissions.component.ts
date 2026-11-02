@@ -1,0 +1,623 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { catchError, forkJoin, of } from 'rxjs';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { CommissionService } from '../../core/commissions/commission.service';
+import {
+  CommissionPaymentResponse,
+  ContractCommission,
+  PartialPaymentRequestResponse,
+  PartialPaymentRequestStatus,
+  PaymentRequestValidationItem,
+  PartialPaymentStatusResponse,
+  PartnerCommissionSummary,
+  TypePartenaire,
+} from '../../core/commissions/models/commission.model';
+import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
+import { sycapayErrorMessage } from '../../core/sycapay/sycapay-errors';
+import { SycaPayStatus } from '../../core/commercial/models/commercial-commission.model';
+import { SycaPayService } from '../../core/sycapay/sycapay.service';
+import { SycaPayTransaction, SycaPayTransactionStatus } from '../../core/sycapay/models/sycapay.model';
+
+/** Statuts qui bloquent un paiement manuel (409) tant que le virement n'est pas tranché. */
+const OPEN_TRANSACTION_STATUSES = new Set<SycaPayTransactionStatus>(['PENDING', 'PROCESSING', 'UNKNOWN']);
+
+interface BlockedTransaction {
+  transactionId: number;
+  policyNumber: string;
+  status: SycaPayTransactionStatus;
+  /** PROCESSING/UNKNOWN : réconciliable ; PENDING : il faut attendre. */
+  reconcilable: boolean;
+}
+
+const SYCAPAY_STATUS_LABEL: Record<SycaPayStatus, string> = {
+  SUCCESS: 'réussi',
+  PROCESSING: 'en cours',
+  FAILED: 'échoué',
+  UNKNOWN: 'indéterminé',
+  REJECTED: 'rejeté',
+};
+
+const SYCAPAY_STATUS_VARIANT: Record<SycaPayStatus, string> = {
+  SUCCESS: 'success',
+  PROCESSING: 'info',
+  FAILED: 'danger',
+  UNKNOWN: 'warning',
+  REJECTED: 'danger',
+};
+
+const PARTIAL_STATUS_LABEL: Record<PartialPaymentRequestStatus, string> = {
+  pending: 'En attente',
+  processing: 'Virement en cours',
+  failed: 'Virement échoué',
+  paid: 'Payée',
+};
+
+const PARTIAL_STATUS_VARIANT: Record<PartialPaymentRequestStatus, string> = {
+  pending: 'warning',
+  processing: 'info',
+  failed: 'danger',
+  paid: 'success',
+};
+
+type ValidationFilter = 'todo' | 'paid' | 'all';
+
+type ContractStatusFilter = 'all' | 'pending' | 'paid';
+type ContractsModalTab = 'contrats' | 'demandes';
+type MainTab = 'demandes' | 'partenaires' | 'historique';
+type PartnerFilter = 'all' | 'todo' | 'done';
+
+@Component({
+  selector: 'app-commissions',
+  templateUrl: './commissions.component.html',
+  imports: [FormsModule, AlertMessageComponent, RouterLink],
+  host: { '(document:keydown.escape)': 'closeContractsModal()' },
+})
+export class CommissionsComponent {
+  private readonly commissionService = inject(CommissionService);
+  private readonly sycapayService = inject(SycaPayService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+
+  // Onglets de la page -------------------------------------------------
+  readonly activeTab = signal<MainTab>('demandes');
+  /** Tant que l'utilisateur n'a pas choisi d'onglet, la page s'ouvre sur « Demandes » s'il y en a
+   * à traiter, sinon sur « Partenaires ». */
+  private tabChosen = false;
+
+  // Demandes à valider (partenaires + commerciaux) ---------------------
+  readonly validationRequests = signal<PaymentRequestValidationItem[]>([]);
+  readonly validationLoading = signal(true);
+  readonly validationError = signal<string | null>(null);
+  readonly validationFilter = signal<ValidationFilter>('todo');
+  readonly validatingListRequestId = signal<number | null>(null);
+  /** Résultat de la dernière validation depuis la liste commune. */
+  readonly validationResult = signal<{ nom: string; result: PartialPaymentRequestResponse } | null>(null);
+
+  /** « À traiter » = tout ce qui n'est pas payé : en attente, virement en cours ou échoué. */
+  readonly validationTodoCount = computed(() => this.validationRequests().filter((r) => r.status !== 'paid').length);
+
+  readonly validationTodoAmount = computed(() =>
+    this.validationRequests()
+      .filter((r) => r.status !== 'paid')
+      .reduce((sum, r) => sum + r.requestedAmount, 0),
+  );
+  readonly validationReconcileCount = computed(
+    () => this.validationRequests().filter((r) => r.status === 'processing').length,
+  );
+
+  readonly filteredValidationRequests = computed(() => {
+    const filter = this.validationFilter();
+    return this.validationRequests().filter((r) =>
+      filter === 'all' ? true : filter === 'paid' ? r.status === 'paid' : r.status !== 'paid'
+    );
+  });
+
+  // Partners summary --------------------------------------------------
+  readonly partners = signal<PartnerCommissionSummary[]>([]);
+  readonly partnersLoading = signal(true);
+  readonly partnersError = signal<string | null>(null);
+  readonly partnersSearch = signal('');
+
+  readonly partnerFilter = signal<PartnerFilter>('all');
+  readonly partnersToPayCount = computed(() => this.partners().filter((p) => p.pendingContractsCount > 0).length);
+
+  /** Partenaires à payer en tête (montant en attente décroissant), puis filtre et recherche. */
+  readonly filteredPartners = computed(() => {
+    const query = this.partnersSearch().trim().toLowerCase();
+    const filter = this.partnerFilter();
+    return [...this.partners()]
+      .sort((a, b) => b.totalPending - a.totalPending)
+      .filter(
+        (p) =>
+          (filter === 'all' || (filter === 'todo') === p.pendingContractsCount > 0) &&
+          (!query || `${p.nom} ${p.prenoms} ${p.codePartenaire}`.toLowerCase().includes(query)),
+      );
+  });
+
+  // Indicateurs de tête, calculés sur le résumé des partenaires ----------
+  readonly totalPending = computed(() => this.partners().reduce((sum, p) => sum + p.totalPending, 0));
+  readonly totalPaid = computed(() => this.partners().reduce((sum, p) => sum + p.totalPaid, 0));
+  readonly pendingContractsTotal = computed(() => this.partners().reduce((sum, p) => sum + p.pendingContractsCount, 0));
+  readonly paidContractsTotal = computed(() => this.partners().reduce((sum, p) => sum + p.paidContractsCount, 0));
+
+  // Contracts drill-down modal -----------------------------------------
+  readonly contractsModalVisible = signal(false);
+  readonly contractsModalTab = signal<ContractsModalTab>('contrats');
+  readonly selectedPartner = signal<PartnerCommissionSummary | null>(null);
+  readonly contracts = signal<ContractCommission[]>([]);
+  readonly contractsLoading = signal(true);
+  readonly contractsError = signal<string | null>(null);
+  readonly contractsStatusFilter = signal<ContractStatusFilter>('pending');
+  readonly selectedContractIds = signal<Set<number>>(new Set());
+  readonly paymentReference = signal('');
+  readonly paying = signal(false);
+  readonly payError = signal<string | null>(null);
+  /** Après un 409 SYCAPAY_DUPLICATE_PAYMENT : virements encore ouverts des contrats sélectionnés. */
+  readonly payBlockedTransactions = signal<BlockedTransaction[]>([]);
+  /** Résultat par contrat du dernier « Payer la sélection » (virement SycaPay ou enregistrement). */
+  readonly payResult = signal<CommissionPaymentResponse[] | null>(null);
+
+  readonly payResultNeedsReconcile = computed(() => (this.payResult() ?? []).some((r) => this.needsReconcile(r)));
+
+  // Demandes de versement anticipé (partial payment requests) --------
+  readonly partialPaymentStatus = signal<PartialPaymentStatusResponse | null>(null);
+  readonly partialPaymentLoading = signal(false);
+  readonly partialPaymentError = signal<string | null>(null);
+  readonly validatingRequestId = signal<number | null>(null);
+  /** Résultat de la dernière validation (virement SycaPay ou enregistrement hors application). */
+  readonly partialPaymentResult = signal<PartialPaymentRequestResponse | null>(null);
+
+  readonly filteredContracts = computed(() => {
+    const filter = this.contractsStatusFilter();
+    return this.contracts().filter((c) => filter === 'all' || c.commissionStatus === filter);
+  });
+
+  readonly pendingContractsCount = computed(() => this.contracts().filter((c) => c.commissionStatus === 'pending').length);
+  readonly paidContractsCount = computed(() => this.contracts().filter((c) => c.commissionStatus === 'paid').length);
+
+  readonly selectedTotal = computed(() => {
+    const ids = this.selectedContractIds();
+    return this.contracts()
+      .filter((c) => ids.has(c.contractId))
+      .reduce((sum, c) => sum + c.partnerShare, 0);
+  });
+
+  readonly pendingPartialPaymentCount = computed(
+    () => this.partialPaymentStatus()?.history.filter((r) => r.status !== 'paid').length ?? 0
+  );
+
+  /** Scopé à ce qui est actuellement affiché (filteredContracts), pas à tous les contrats du
+   * partenaire — sinon "tout sélectionner" ou le total payable pouvait référencer des contrats
+   * en attente invisibles pendant qu'on regarde l'onglet "Payés". */
+  readonly visiblePendingIds = computed(() =>
+    this.filteredContracts()
+      .filter((c) => c.commissionStatus === 'pending')
+      .map((c) => c.contractId)
+  );
+
+  readonly allPendingSelected = computed(() => {
+    const pendingIds = this.visiblePendingIds();
+    return pendingIds.length > 0 && pendingIds.every((id) => this.selectedContractIds().has(id));
+  });
+
+  // Payment history ------------------------------------------------------
+  readonly payments = signal<CommissionPaymentResponse[]>([]);
+  readonly paymentsPageIndex = signal(0);
+  readonly paymentsTotalElements = signal(0);
+  readonly paymentsTotalPages = signal(0);
+  readonly paymentsLoading = signal(true);
+  readonly paymentsError = signal<string | null>(null);
+  readonly paymentsPageSize = 15;
+
+  readonly refreshing = computed(() => this.validationLoading() || this.partnersLoading() || this.paymentsLoading());
+
+  constructor() {
+    this.refreshAll();
+  }
+
+  refreshAll(): void {
+    this.fetchValidationRequests();
+    this.fetchPartners();
+    this.fetchPayments();
+  }
+
+  setActiveTab(tab: MainTab): void {
+    this.tabChosen = true;
+    this.activeTab.set(tab);
+  }
+
+  // Partners ---------------------------------------------------------
+
+  fetchPartners(): void {
+    this.partnersLoading.set(true);
+    this.partnersError.set(null);
+    this.commissionService.getPartnersSummary().subscribe({
+      next: (partners) => {
+        this.partners.set(partners);
+        this.partnersLoading.set(false);
+        this.openFromDeepLink();
+      },
+      error: () => {
+        this.partnersError.set('Impossible de charger les partenaires.');
+        this.partnersLoading.set(false);
+      },
+    });
+  }
+
+  onPartnersSearch(value: string): void {
+    this.partnersSearch.set(value);
+  }
+
+  /** Supports "Voir les commissions" links from the Partenaire d'affaire page:
+   * /commissions?partenaireId=X opens that partner's contracts modal directly. */
+  private openFromDeepLink(): void {
+    const raw = this.route.snapshot.queryParamMap.get('partenaireId');
+    if (!raw) return;
+    const id = Number(raw);
+    const partner = this.partners().find((p) => p.partenaireId === id);
+    if (partner) {
+      this.setActiveTab('partenaires');
+      this.openContracts(partner);
+    }
+    this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+  }
+
+  // Demandes à valider ---------------------------------------------------
+
+  fetchValidationRequests(): void {
+    this.validationLoading.set(true);
+    this.validationError.set(null);
+    this.commissionService.getPaymentRequestsForValidation().subscribe({
+      next: (requests) => {
+        this.validationRequests.set(requests);
+        this.validationLoading.set(false);
+        if (!this.tabChosen && this.validationTodoCount() === 0) this.activeTab.set('partenaires');
+      },
+      error: () => {
+        this.validationError.set('Impossible de charger les demandes de paiement.');
+        this.validationLoading.set(false);
+      },
+    });
+  }
+
+  setValidationFilter(filter: ValidationFilter): void {
+    this.validationFilter.set(filter);
+  }
+
+  validateListRequest(item: PaymentRequestValidationItem): void {
+    this.validatingListRequestId.set(item.id);
+    this.validationError.set(null);
+    this.validationResult.set(null);
+    this.commissionService.validatePartialPaymentRequest(item.id).subscribe({
+      next: (result) => {
+        this.validatingListRequestId.set(null);
+        this.validationResult.set({ nom: item.beneficiaireNom ?? `Demande n° ${item.id}`, result });
+        this.fetchValidationRequests();
+        this.fetchPartners();
+        this.fetchPayments();
+      },
+      // 409 : demande déjà payée, ou SYCAPAY_DUPLICATE_PAYMENT (virement encore en cours → réconcilier).
+      error: (err: unknown) => {
+        this.validatingListRequestId.set(null);
+        this.validationError.set(sycapayErrorMessage(err, 'Impossible de valider cette demande.', 'pay'));
+        this.fetchValidationRequests();
+      },
+    });
+  }
+
+  beneficiaryTypeLabel(item: PaymentRequestValidationItem): string {
+    if (item.beneficiaryType === 'PARTENAIRE') return 'Partenaire';
+    return item.type === 'TOTAL' ? 'Commercial · solde total' : item.type === 'PARTIAL' ? 'Commercial · partiel' : 'Commercial';
+  }
+
+  // Contracts modal ----------------------------------------------------
+
+  openContracts(partner: PartnerCommissionSummary): void {
+    this.selectedPartner.set(partner);
+    this.selectedContractIds.set(new Set());
+    this.paymentReference.set('');
+    this.payError.set(null);
+    this.payBlockedTransactions.set([]);
+    this.payResult.set(null);
+    this.partialPaymentResult.set(null);
+    this.contractsStatusFilter.set('pending');
+    this.contractsModalTab.set('contrats');
+    this.contractsModalVisible.set(true);
+    this.fetchContracts();
+    this.fetchPartialPaymentStatus();
+  }
+
+  setContractsModalTab(tab: ContractsModalTab): void {
+    this.contractsModalTab.set(tab);
+  }
+
+  fetchPartialPaymentStatus(): void {
+    const partner = this.selectedPartner();
+    if (!partner) return;
+    this.partialPaymentLoading.set(true);
+    this.partialPaymentError.set(null);
+    this.commissionService.getPartialPaymentStatus(partner.partenaireId).subscribe({
+      next: (status) => {
+        this.partialPaymentStatus.set(status);
+        this.partialPaymentLoading.set(false);
+      },
+      error: () => {
+        this.partialPaymentError.set('Impossible de charger les demandes de versement anticipé.');
+        this.partialPaymentLoading.set(false);
+      },
+    });
+  }
+
+  validatePartialPayment(id: number): void {
+    this.validatingRequestId.set(id);
+    this.partialPaymentError.set(null);
+    this.partialPaymentResult.set(null);
+    this.commissionService.validatePartialPaymentRequest(id).subscribe({
+      next: (result) => {
+        this.validatingRequestId.set(null);
+        this.partialPaymentResult.set(result);
+        this.fetchPartialPaymentStatus();
+        this.fetchPartners();
+        this.fetchPayments();
+      },
+      // 409 : demande déjà payée, ou SYCAPAY_DUPLICATE_PAYMENT (virement encore en cours → réconcilier).
+      error: (err: unknown) => {
+        this.validatingRequestId.set(null);
+        this.partialPaymentError.set(sycapayErrorMessage(err, 'Impossible de valider cette demande.', 'pay'));
+        this.fetchPartialPaymentStatus();
+      },
+    });
+  }
+
+  closeContractsModal(): void {
+    this.contractsModalVisible.set(false);
+  }
+
+  fetchContracts(): void {
+    const partner = this.selectedPartner();
+    if (!partner) return;
+    this.contractsLoading.set(true);
+    this.contractsError.set(null);
+    this.commissionService.getPartnerContracts(partner.partenaireId).subscribe({
+      next: (contracts) => {
+        this.contracts.set(contracts);
+        this.contractsLoading.set(false);
+      },
+      error: () => {
+        this.contractsError.set('Impossible de charger les contrats de ce partenaire.');
+        this.contractsLoading.set(false);
+      },
+    });
+  }
+
+  setContractsStatusFilter(filter: ContractStatusFilter): void {
+    this.contractsStatusFilter.set(filter);
+    // Évite qu'une sélection faite sous "En attente" reste active (et payable) une fois
+    // basculé sur "Payés"/"Tous" — seuls les contrats en attente sont payables.
+    this.selectedContractIds.set(new Set());
+  }
+
+  isSelected(contractId: number): boolean {
+    return this.selectedContractIds().has(contractId);
+  }
+
+  toggleContract(contractId: number): void {
+    const set = new Set(this.selectedContractIds());
+    if (set.has(contractId)) {
+      set.delete(contractId);
+    } else {
+      set.add(contractId);
+    }
+    this.selectedContractIds.set(set);
+  }
+
+  toggleSelectAllPending(): void {
+    this.selectedContractIds.set(this.allPendingSelected() ? new Set() : new Set(this.visiblePendingIds()));
+  }
+
+  onReferenceInput(value: string): void {
+    this.paymentReference.set(value);
+  }
+
+  payCommission(): void {
+    const contractIds = Array.from(this.selectedContractIds());
+    if (contractIds.length === 0) return;
+    this.paying.set(true);
+    this.payError.set(null);
+    this.payBlockedTransactions.set([]);
+    this.payResult.set(null);
+    this.commissionService.pay({ contractIds, reference: this.paymentReference().trim() || undefined }).subscribe({
+      next: (results) => {
+        this.paying.set(false);
+        this.payResult.set(results);
+        // Seuls les FAILED restent sélectionnés (relance possible). UNKNOWN/PROCESSING ne doivent
+        // PAS être relancés (issue incertaine → réconcilier), REJECTED = aucune tentative.
+        const retryable = new Set(results.filter((r) => r.sycapayStatus === 'FAILED').map((r) => r.contractId));
+        this.selectedContractIds.set(retryable);
+        if (retryable.size === 0) this.paymentReference.set('');
+        this.fetchContracts();
+        this.fetchPartners();
+        this.fetchPayments();
+      },
+      // 409 depuis le 2026-09-23 si une transaction SycaPay est active/réussie pour ce contrat
+      // (garde anti double paiement manuel + automatique) : afficher le motif du backend.
+      error: (err: unknown) => {
+        this.paying.set(false);
+        this.payError.set(sycapayErrorMessage(err, 'Impossible de payer cette commission. Réessayez.', 'pay'));
+        if (err instanceof HttpErrorResponse && err.error?.code === 'SYCAPAY_DUPLICATE_PAYMENT') {
+          this.loadBlockedTransactions(contractIds);
+        }
+      },
+    });
+  }
+
+  /** Paiement enregistré : virement SycaPay SUCCESS, ou enregistrement hors application (SycaPay désactivé). */
+  isRecorded(result: CommissionPaymentResponse): boolean {
+    return result.modePaiement !== 'VIREMENT_SYCAPAY' || result.sycapayStatus === 'SUCCESS';
+  }
+
+  needsReconcile(result: CommissionPaymentResponse): boolean {
+    return result.sycapayStatus === 'PROCESSING' || result.sycapayStatus === 'UNKNOWN';
+  }
+
+  reconcileQueryParams(result: CommissionPaymentResponse): Record<string, string | number> {
+    return result.sycapayTransactionPk != null
+      ? { transaction: result.sycapayTransactionPk }
+      : { reference: result.sycapayTransactionReference ?? '' };
+  }
+
+  payResultLabel(result: CommissionPaymentResponse): string {
+    if (result.modePaiement === 'ENREGISTREMENT_MANUEL') return 'Enregistré';
+    if (result.modePaiement === 'AVANCE_IMPUTEE') return 'Couvert par avance';
+    return result.sycapayStatus ? `Virement ${SYCAPAY_STATUS_LABEL[result.sycapayStatus]}` : '—';
+  }
+
+  payResultVariant(result: CommissionPaymentResponse): string {
+    if (result.modePaiement !== 'VIREMENT_SYCAPAY') return 'success';
+    return result.sycapayStatus ? SYCAPAY_STATUS_VARIANT[result.sycapayStatus] : 'neutral';
+  }
+
+  partialStatusLabel(status: PartialPaymentRequestStatus): string {
+    return PARTIAL_STATUS_LABEL[status];
+  }
+
+  partialStatusVariant(status: PartialPaymentRequestStatus): string {
+    return PARTIAL_STATUS_VARIANT[status];
+  }
+
+  /** Message du résultat de validation : tout statut SycaPay possible, y compris REJECTED (aucune tentative). */
+  partialPaymentResultMessage(result: PartialPaymentRequestResponse): { variant: string; text: string } {
+    const amount = this.formatAmount(result.requestedAmount);
+    if (result.status === 'paid') {
+      return {
+        variant: 'success',
+        text: result.modePaiement === 'VIREMENT_SYCAPAY'
+          ? `Virement Wave de ${amount} effectué.`
+          : `Demande de ${amount} marquée payée (virement effectué hors application).`,
+      };
+    }
+    if (result.sycapayStatus === 'REJECTED') {
+      return { variant: 'danger', text: `Aucun virement n'est parti. ${result.sycapayMessage ?? ''}`.trim() };
+    }
+    if (result.status === 'processing') {
+      return { variant: 'warning', text: `Virement de ${amount} en cours ou d'issue incertaine : ne le relancez pas, utilisez « Réconcilier ».` };
+    }
+    return { variant: 'danger', text: `Virement de ${amount} échoué${result.sycapayMessage ? ' : ' + result.sycapayMessage : ''}. Vous pouvez le relancer.` };
+  }
+
+  /** « Part : X – déjà avancé : Y = versé : Z » quand une avance a été imputée, sinon null. */
+  advanceBreakdown(payment: CommissionPaymentResponse): string | null {
+    if (!payment.avanceImputee) return null;
+    const verse = payment.montantVerse ?? payment.amount - payment.avanceImputee;
+    return `Part : ${this.formatAmount(payment.amount)} – déjà avancé : ${this.formatAmount(payment.avanceImputee)} = versé : ${this.formatAmount(verse)}`;
+  }
+
+  /** Le 409 ne dit ni quel contrat ni quel statut : on retrouve la transaction de chaque contrat
+   * sélectionné (filtre contractId, au plus une par contrat) pour proposer la bonne action. */
+  private loadBlockedTransactions(contractIds: number[]): void {
+    const policyById = new Map(this.contracts().map((c) => [c.contractId, c.policyNumber]));
+    forkJoin(
+      contractIds.map((id) => this.sycapayService.getContractTransaction(id).pipe(catchError(() => of(null)))),
+    ).subscribe((transactions) => {
+      this.payBlockedTransactions.set(
+        transactions
+          .filter((t): t is SycaPayTransaction => !!t && OPEN_TRANSACTION_STATUSES.has(t.status))
+          .map((t) => ({
+            transactionId: t.id,
+            policyNumber: (t.contractId !== null && policyById.get(t.contractId)) || `#${t.contractId}`,
+            status: t.status,
+            reconcilable: t.status === 'PROCESSING' || t.status === 'UNKNOWN',
+          })),
+      );
+    });
+  }
+
+  // Payment history ----------------------------------------------------
+
+  fetchPayments(): void {
+    this.paymentsLoading.set(true);
+    this.paymentsError.set(null);
+    this.commissionService.getPayments(this.paymentsPageIndex(), this.paymentsPageSize).subscribe({
+      next: (result) => {
+        this.payments.set(result.content);
+        this.paymentsTotalElements.set(result.totalElements);
+        this.paymentsTotalPages.set(result.totalPages);
+        this.paymentsLoading.set(false);
+      },
+      error: () => {
+        this.paymentsError.set("Impossible de charger l'historique des paiements.");
+        this.paymentsLoading.set(false);
+      },
+    });
+  }
+
+  goToPaymentsPage(index: number): void {
+    if (index < 0 || index >= this.paymentsTotalPages()) return;
+    this.paymentsPageIndex.set(index);
+    this.fetchPayments();
+  }
+
+  // Formatting -----------------------------------------------------------
+
+  plural(count: number, word: string): string {
+    return `${count} ${word}${count > 1 ? 's' : ''}`;
+  }
+
+  /** Initiales d'un nom complet (« Kone Awa » → « KA »). */
+  initials(name: string | null | undefined): string {
+    return (name ?? '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join('')
+      .toUpperCase();
+  }
+
+  /** Part (en %) des contrats en attente ou payés d'un partenaire, pour la barre de répartition. */
+  contractsShare(partner: PartnerCommissionSummary, kind: 'pending' | 'paid'): number {
+    const total = partner.pendingContractsCount + partner.paidContractsCount;
+    if (total === 0) return 0;
+    return ((kind === 'pending' ? partner.pendingContractsCount : partner.paidContractsCount) / total) * 100;
+  }
+
+  typeLabel(type: TypePartenaire): string {
+    if (type === 'DIRECT') return 'Direct';
+    if (type === 'AGENT') return 'Agent';
+    return 'Apporteur';
+  }
+
+  typeVariant(type: TypePartenaire): string {
+    if (type === 'DIRECT') return 'info';
+    if (type === 'AGENT') return 'neutral';
+    return 'warning';
+  }
+
+  formatNumber(value: number): string {
+    return new Intl.NumberFormat('fr-FR').format(value);
+  }
+
+  formatAmount(value: number): string {
+    return `${new Intl.NumberFormat('fr-FR').format(value)} FCFA`;
+  }
+
+  /** Statut du virement SycaPay d'un paiement automatique — affiché seulement hors SUCCESS,
+   * pour qu'un virement échoué ou indéterminé ne passe pas pour un paiement réglé. */
+  sycapayStatusLabel(status: SycaPayStatus): string {
+    return SYCAPAY_STATUS_LABEL[status];
+  }
+
+  sycapayStatusVariant(status: SycaPayStatus): string {
+    return SYCAPAY_STATUS_VARIANT[status];
+  }
+
+  formatDate(value: string): string {
+    return value ? new Date(value).toLocaleDateString('fr-FR') : '—';
+  }
+
+  formatDateTime(value: string | null): string {
+    return value ? new Date(value).toLocaleString('fr-FR') : '—';
+  }
+}

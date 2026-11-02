@@ -1,0 +1,1588 @@
+<!-- Refonte de l'écran Force de vente (maquette validée le 2026-10-06) : en-tête, onglets, onglets
+     Commerciaux, Tableau de bord & classement et Commissions. Styles dans scss/_force-de-vente.scss,
+     briques communes im-* (_import-masse.scss), cm-* (_commissions.scss) et pf-* (_partenaire-affaire.scss).
+     L'onglet Paie, la fiche « Objectifs & performance » et les fenêtres gardent leur présentation. -->
+<svg class="im-sprite" aria-hidden="true">
+  <symbol id="fv-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" /></symbol>
+  <symbol id="fv-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+  <symbol id="fv-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></symbol>
+  <symbol id="fv-redo" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3L20 9m0-5v5h-5M20 12a8 8 0 0 1-14 5.3L4 15m0 5v-5h5" /></symbol>
+  <symbol id="fv-down" viewBox="0 0 24 24"><path d="M12 4v12m0 0-4-4m4 4 4-4M4 20h16" /></symbol>
+  <symbol id="fv-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+  <symbol id="fv-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="19" cy="12" r="1.3" /></symbol>
+  <symbol id="fv-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></symbol>
+  <symbol id="fv-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" /></symbol>
+  <symbol id="fv-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></symbol>
+  <symbol id="fv-users" viewBox="0 0 24 24"><path d="M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 20v-1a4 4 0 0 0-3-3.9M15.5 4.1a3.5 3.5 0 0 1 0 6.8" /></symbol>
+  <symbol id="fv-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3" /></symbol>
+  <symbol id="fv-gauge" viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0M12 16l4-5" /></symbol>
+  <symbol id="fv-wallet" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h11a1 1 0 0 1 1 1v2M4 7v10a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H6a2 2 0 0 1-2-1zM16 13.5h.01" /></symbol>
+  <symbol id="fv-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9 6.6 19.8l1.1-6.1L3.2 9.4l6.1-.8z" /></symbol>
+  <symbol id="fv-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></symbol>
+  <symbol id="fv-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></symbol>
+  <symbol id="fv-send" viewBox="0 0 24 24"><path d="M4 12 20 5l-6 15-2.5-6.5z" /></symbol>
+</svg>
+
+<!-- Carte du podium : le premier est mis en avant. -->
+<ng-template #podiumCard let-item let-rank="rank">
+  <div class="fv-pod" [class.fv-pod--gold]="rank === 1">
+    <span class="fv-rank">
+      @if (rank === 1) {
+        <svg class="im-i"><use href="#fv-star" /></svg>
+      } @else {
+        {{ rank }}
+      }
+    </span>
+    <span class="im-av">{{ initials(item.nomComplet) }}</span>
+    <b>{{ item.nomComplet }}</b>
+    <small class="cm-mono">{{ item.employeeCode }}</small>
+    <span class="fv-rate">{{ formatTaux(item.achievementRate) }}</span>
+    <div class="fv-ptrack"><i [class]="rank === 1 ? 'fv-ptrack--accent' : 'fv-ptrack--primary'" [style.width.%]="tauxWidth(item.achievementRate)"></i></div>
+  </div>
+</ng-template>
+
+<div class="pz-scope im cm pf fv fv-shell">
+  <div class="im-head">
+    <div>
+      <h1>Force de vente</h1>
+      <p>Gérez vos commerciaux, suivez leurs résultats et réglez leur rémunération.</p>
+    </div>
+    <div class="pf-head-actions">
+      <button (click)="refreshTab()" [disabled]="refreshing()" class="im-btn" type="button">
+        @if (refreshing()) {
+          <span class="im-spin"></span>
+        } @else {
+          <svg class="im-i"><use href="#fv-redo" /></svg>
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" class="im-btn im-btn--primary" type="button">
+        <svg class="im-i"><use href="#fv-plus" /></svg>Nouveau commercial
+      </button>
+    </div>
+  </div>
+
+  <div class="fv-tabs" role="tablist" aria-label="Section du module Commercial">
+    <button (click)="setTab('commerciaux')" [attr.aria-selected]="activeTab() === 'commerciaux'" [class.cm-on]="activeTab() === 'commerciaux'" class="cm-tab" role="tab" type="button">Commerciaux</button>
+    <button (click)="setTab('dashboard')" [attr.aria-selected]="activeTab() === 'dashboard'" [class.cm-on]="activeTab() === 'dashboard'" class="cm-tab" role="tab" type="button">Tableau de bord &amp; classement</button>
+    <button (click)="setTab('paie')" [attr.aria-selected]="activeTab() === 'paie'" [class.cm-on]="activeTab() === 'paie'" class="cm-tab" role="tab" type="button">Paie</button>
+    <button (click)="setTab('commissions')" [attr.aria-selected]="activeTab() === 'commissions'" [class.cm-on]="activeTab() === 'commissions'" class="cm-tab" role="tab" type="button">
+      Commissions
+      @if (commissionsToPayCount() > 0) {
+        <span class="cm-count cm-count--hot" title="Commerciaux à payer">{{ commissionsToPayCount() }}</span>
+      }
+    </button>
+  </div>
+</div>
+
+<!-- ================= Onglet Commerciaux ================= -->
+@if (activeTab() === 'commerciaux') {
+  <div class="pz-scope im cm pf fv">
+    <div class="im-card cm-panel">
+      <div class="cm-bar">
+        <div class="im-seg" role="tablist" aria-label="Filtrer par statut">
+          <button (click)="setStatutFilter('all')" [class.im-on]="statutFilter() === 'all'" type="button">Tous</button>
+          <button (click)="setStatutFilter('ACTIVE')" [class.im-on]="statutFilter() === 'ACTIVE'" type="button">Actifs</button>
+          <button (click)="setStatutFilter('INACTIVE')" [class.im-on]="statutFilter() === 'INACTIVE'" type="button">Inactifs</button>
+          <button (click)="setStatutFilter('SUSPENDED')" [class.im-on]="statutFilter() === 'SUSPENDED'" type="button">Suspendus</button>
+          <button (click)="setStatutFilter('TERMINATED')" [class.im-on]="statutFilter() === 'TERMINATED'" type="button">Sortis</button>
+        </div>
+        <select (change)="setVilleFilter($any($event.target).value)" [value]="villeFilter()" aria-label="Ville" class="pf-select">
+          <option value="">Toutes les villes</option>
+          @for (ville of villes(); track ville.id) {
+            <option [value]="ville.id">{{ ville.nomVille }}</option>
+          }
+        </select>
+      </div>
+
+      @if (error()) {
+        <p class="cm-empty">{{ error() }} <button (click)="fetch()" class="cm-link" type="button">Réessayer</button></p>
+      } @else if (loading() && items().length === 0) {
+        <p class="cm-empty">Chargement des commerciaux…</p>
+      } @else if (items().length === 0) {
+        <p class="cm-empty">Aucun commercial ne correspond à ces filtres.</p>
+      } @else {
+        <div class="cm-rows-head fv-g-co">
+          <span>Commercial</span><span>Localité</span><span class="cm-right">Salaire de base</span><span>Statut</span><span>Embauché le</span><span></span>
+        </div>
+        @for (item of items(); track item.id) {
+          <div (click)="openDetail(item)" class="cm-row fv-g-co pf-click">
+            <div class="cm-who">
+              <span class="im-av">{{ initials(fullName(item)) }}</span>
+              <div>
+                <button class="pf-name" title="Objectifs &amp; performance" type="button">{{ fullName(item) }}</button>
+                <small><span class="cm-mono">{{ item.employeeCode || '—' }}</span> · {{ item.phone || '—' }} · {{ item.email || '—' }}</small>
+              </div>
+            </div>
+            <span>{{ item.villePartenaireNom || '—' }}</span>
+            <span class="cm-num cm-right">{{ formatAmount(item.baseSalary) }}</span>
+            <span><span [class]="'im-badge cm-badge--' + commercialStatutVariant(item.statut)">{{ commercialStatutLabel(item.statut) }}</span></span>
+            <span class="cm-mu">{{ formatDate(item.hireDate) }}</span>
+            <div (click)="$event.stopPropagation()" class="pf-menu-cell">
+              <c-dropdown alignment="end" [popperOptions]="{ strategy: 'fixed' }">
+                <button [caret]="false" aria-label="Actions" cDropdownToggle class="pf-dots" title="Actions" type="button">
+                  <svg class="im-i"><use href="#fv-dots" /></svg>
+                </button>
+                <div cDropdownMenu class="pf-menu">
+                  <button (click)="openDetail(item)" cDropdownItem type="button"><svg class="im-i"><use href="#fv-target" /></svg>Objectifs &amp; performance</button>
+                  <button (click)="openEdit(item)" cDropdownItem type="button"><svg class="im-i"><use href="#fv-pen" /></svg>Modifier</button>
+                  <button (click)="openStatusChange(item)" cDropdownItem type="button"><svg class="im-i"><use href="#fv-lock" /></svg>Changer le statut</button>
+                </div>
+              </c-dropdown>
+            </div>
+          </div>
+        }
+      }
+
+      <div class="cm-foot">
+        <span><b>{{ items().length }}</b> sur {{ totalElements() }} commerciaux · page {{ pageIndex() + 1 }} sur {{ totalPages() || 1 }}</span>
+        <div class="cm-pager">
+          <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" class="im-btn cm-btn-sm" type="button">Précédent</button>
+          <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" class="im-btn cm-btn-sm" type="button">Suivant</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ================= Onglet Tableau de bord & classement ================= -->
+@if (activeTab() === 'dashboard') {
+  <div class="pz-scope im cm pf fv">
+    <div class="fv-filters">
+      <select [ngModel]="dashboardExerciceId()" (ngModelChange)="setDashboardExercice($event)" aria-label="Exercice comptable" class="pf-select">
+        <option value="">— Exercice comptable —</option>
+        @for (exercice of exercices(); track exercice.id) {
+          <option [value]="exercice.id">{{ exercice.libelle }}</option>
+        }
+      </select>
+      <select [ngModel]="dashboardMoisId()" (ngModelChange)="setDashboardMois($event)" [disabled]="!dashboardExerciceId()" aria-label="Mois" class="pf-select">
+        <option value="">Tous les mois de l'exercice</option>
+        @for (mois of moisOptions(dashboardExerciceId()); track mois.id) {
+          <option [value]="mois.id">{{ mois.libelle }}</option>
+        }
+      </select>
+      <span class="im-sp"></span>
+      <button (click)="exportDashboard()" [disabled]="exporting()" class="im-btn" type="button">
+        @if (exporting()) {
+          <span class="im-spin"></span>
+        } @else {
+          <svg class="im-i"><use href="#fv-down" /></svg>
+        }
+        Exporter
+      </button>
+    </div>
+
+    @if (exportError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    @if (dashboardError()) {
+      <p class="cm-empty">{{ dashboardError() }}</p>
+    } @else if (dashboardLoading() && !dashboard()) {
+      <p class="cm-empty">Chargement du tableau de bord…</p>
+    } @else if (dashboard(); as kpi) {
+      <div class="cm-kpis fv-kpis">
+        <div class="im-card cm-kpi">
+          <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#fv-users" /></svg></span>Commerciaux actifs</div>
+          <b>{{ kpi.activeCommercials }} <small>/ {{ kpi.totalCommercials }}</small></b>
+          <span>actifs sur le total</span>
+        </div>
+        <div class="im-card cm-kpi">
+          <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#fv-chart" /></svg></span>Production</div>
+          <b>{{ formatNumber(kpi.monthlyProduction) }}<small>FCFA</small></b>
+          <span>objectif {{ formatAmount(kpi.monthlyObjective) }}</span>
+        </div>
+        <div class="im-card cm-kpi cm-kpi--ac">
+          <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#fv-gauge" /></svg></span>Taux de l'équipe</div>
+          <b>{{ kpi.monthlyAchievementRate.toFixed(1).replace('.', ',') }} <small>%</small></b>
+          <div class="fv-ptrack fv-ptrack--kpi"><i [class]="'fv-ptrack--' + tauxVariant(kpi.monthlyAchievementRate)" [style.width.%]="tauxWidth(kpi.monthlyAchievementRate)"></i></div>
+        </div>
+        <div class="im-card cm-kpi cm-kpi--ok">
+          <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#fv-check" /></svg></span>Éligibles au bonus</div>
+          <b>{{ kpi.eligibleCommercials }}</b>
+          <span>{{ kpi.nonEligibleCommercials }} non éligible{{ kpi.nonEligibleCommercials > 1 ? 's' : '' }}</span>
+        </div>
+        <div class="im-card cm-kpi cm-kpi--in">
+          <div class="cm-kpi-top"><span class="cm-ic"><svg class="im-i"><use href="#fv-wallet" /></svg></span>Bonus total</div>
+          <b>{{ formatNumber(kpi.totalBonus) }}<small>FCFA</small></b>
+          <span>{{ kpi.moisLibelle }}</span>
+        </div>
+      </div>
+    }
+
+    <div class="im-card cm-panel">
+      <div class="fv-board-head">
+        <h2>Classement par taux d'atteinte</h2>
+        @if (dashboard(); as kpi) {
+          <small>{{ kpi.moisLibelle }} · {{ rankingItems().length }} commercia{{ rankingItems().length > 1 ? 'ux' : 'l' }}</small>
+        }
+      </div>
+
+      @if (rankingError()) {
+        <p class="cm-empty">{{ rankingError() }}</p>
+      } @else if (rankingLoading() && rankingItems().length === 0) {
+        <p class="cm-empty">Chargement du classement…</p>
+      } @else if (rankingItems().length === 0) {
+        <p class="cm-empty">Aucun classement pour ce filtre.</p>
+      } @else {
+        <div class="fv-podium" [class.fv-podium--solo]="rankingItems().length === 1">
+          @if (rankingItems()[1]; as second) {
+            <ng-container *ngTemplateOutlet="podiumCard; context: { $implicit: second, rank: 2 }" />
+          }
+          <ng-container *ngTemplateOutlet="podiumCard; context: { $implicit: rankingItems()[0], rank: 1 }" />
+          @if (rankingItems()[2]; as third) {
+            <ng-container *ngTemplateOutlet="podiumCard; context: { $implicit: third, rank: 3 }" />
+          }
+        </div>
+
+        @for (item of rankingItems().slice(3); track item.commercialId; let i = $index) {
+          <div class="cm-row fv-g-rk fv-rk-row">
+            <span class="fv-rk">{{ i + 4 }}</span>
+            <div class="cm-who">
+              <span class="im-av">{{ initials(item.nomComplet) }}</span>
+              <div><b>{{ item.nomComplet }}</b><small class="cm-mono">{{ item.employeeCode }}</small></div>
+            </div>
+            <div class="fv-ptrack"><i [class]="'fv-ptrack--' + tauxVariant(item.achievementRate)" [style.width.%]="tauxWidth(item.achievementRate)"></i></div>
+            <span class="cm-num cm-right">{{ formatTaux(item.achievementRate) }}</span>
+          </div>
+        }
+      }
+    </div>
+  </div>
+}
+
+  <!-- ================= Onglet Paie (refonte validée le 2026-10-02) ================= -->
+  @if (activeTab() === 'paie') {
+  <section class="dl-panel">
+  <div class="cm-tab-body cm-tab-body--solo pz-scope cpz">
+    <!-- Période -->
+    <div class="cpz-period">
+      <div class="cpz-period-nav">
+        <button (click)="shiftPayrollMois(-1)" [disabled]="!payrollHasPrev()" class="cpz-icon-btn" title="Mois précédent" aria-label="Mois précédent" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+        </button>
+        <div class="cpz-period-label">
+          @if (payrollMois(); as mois) {
+            <strong>{{ mois.libelle }}</strong>
+            <span>{{ payrollMoisPeriode(mois) }} · {{ mois.exerciceLibelle }}</span>
+          } @else {
+            <strong>Choisissez un mois</strong>
+          }
+        </div>
+        <button (click)="shiftPayrollMois(1)" [disabled]="!payrollHasNext()" class="cpz-icon-btn" title="Mois suivant" aria-label="Mois suivant" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+        </button>
+        @if (payrollMois()) {
+          @let badge = payrollPeriodBadge();
+          <span [class]="'cpz-badge cpz-b-' + badge.variant"><i></i>{{ badge.label }}</span>
+        }
+      </div>
+      <div class="cpz-period-actions">
+        <select [ngModel]="payrollExerciceId()" (ngModelChange)="setPayrollExerciceAndMois($event)" class="cpz-select" aria-label="Exercice">
+          @for (exercice of exercices(); track exercice.id) {
+            <option [value]="exercice.id">{{ exercice.libelle }}</option>
+          }
+        </select>
+        <button (click)="exportPayroll()" [disabled]="payrollExporting() || !payrollMoisId()" class="cpz-btn cpz-btn-outline" type="button">
+          @if (payrollExporting()) {
+            <c-spinner size="sm" />
+          } @else {
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" /></svg>
+          }
+          Exporter
+        </button>
+      </div>
+    </div>
+
+    @if (!payrollMoisId()) {
+      <p class="dl-empty">Choisissez un exercice pour afficher les éléments de paie.</p>
+    } @else if (payrollError()) {
+      <p class="dl-empty">{{ payrollError() }} <button (click)="fetchPayroll()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    } @else if (payrollLoading() && payrollItems().length === 0) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (payrollItems().length === 0) {
+      <p class="dl-empty">Aucun commercial actif pour ce mois.</p>
+    } @else {
+      @let kpis = payrollKpis();
+      <!-- Indicateurs -->
+      <div class="cpz-kpis" [class.cpz-kpis--five]="hasBenefits()">
+        <div class="cpz-kpi">
+          <div class="cpz-kpi-k">Rémunération fixe du mois</div>
+          <div class="cpz-kpi-v cpz-num">{{ formatAmount(kpis.fixe) }}</div>
+          <div class="cpz-kpi-s">Salaires + avantages · {{ kpis.count }} commercia{{ kpis.count > 1 ? 'ux' : 'l' }}</div>
+        </div>
+        <div class="cpz-kpi">
+          <div class="cpz-kpi-k">Objectif atteint</div>
+          <div class="cpz-kpi-v cpz-num">{{ kpis.atteints }} / {{ kpis.count }}</div>
+          <div class="cpz-kpi-s">Seuil d'éligibilité : {{ kpis.seuil }} % de l'objectif</div>
+        </div>
+        <div class="cpz-kpi cpz-kpi--accent">
+          <div class="cpz-kpi-k">Bonus à payer</div>
+          <div class="cpz-kpi-v cpz-num">{{ formatAmount(kpis.aPayer) }}</div>
+          <div class="cpz-kpi-s">{{ kpis.aPayerCount }} bonus prêt{{ kpis.aPayerCount > 1 ? 's' : '' }} au paiement</div>
+        </div>
+        <div class="cpz-kpi">
+          <div class="cpz-kpi-k">Bonus déjà payés</div>
+          <div class="cpz-kpi-v cpz-num">{{ formatAmount(kpis.payes) }}</div>
+          <div class="cpz-kpi-s">{{ kpis.payesCount }} paiement{{ kpis.payesCount > 1 ? 's' : '' }} confirmé{{ kpis.payesCount > 1 ? 's' : '' }}</div>
+        </div>
+        @if (hasBenefits()) {
+          @let bk = benefitKpis();
+          <div class="cpz-kpi cpz-kpi--accent">
+            <div class="cpz-kpi-k">Transport à payer</div>
+            <div class="cpz-kpi-v cpz-num">{{ formatAmount(bk.transport.amount) }}</div>
+            <div class="cpz-kpi-s">{{ bk.transport.count }} paiement{{ bk.transport.count > 1 ? 's' : '' }} prêt{{ bk.transport.count > 1 ? 's' : '' }}</div>
+          </div>
+          <div class="cpz-kpi cpz-kpi--accent">
+            <div class="cpz-kpi-k">Communication à payer</div>
+            <div class="cpz-kpi-v cpz-num">{{ formatAmount(bk.communication.amount) }}</div>
+            <div class="cpz-kpi-s">{{ bk.communication.count }} paiement{{ bk.communication.count > 1 ? 's' : '' }} prêt{{ bk.communication.count > 1 ? 's' : '' }}</div>
+          </div>
+        }
+      </div>
+
+      <div class="cpz-notice">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v4h1" /></svg>
+        <div>
+          Le bonus vaut <strong>{{ kpis.taux ?? 5 }} % de l'objectif mensuel</strong> dès que l'objectif est atteint ({{ kpis.seuil }} %). Tant que le mois n'est pas validé, les montants sont recalculés en direct ; au paiement, ils sont figés définitivement.
+        </div>
+      </div>
+
+      <!-- Liste -->
+      <div class="cpz-toolbar">
+        <h3>Commerciaux</h3>
+        @let counts = payrollFilterCounts();
+        <div class="cpz-filters" role="tablist" aria-label="Filtrer les commerciaux">
+          <button (click)="payrollFilter.set('all')" [class.active]="payrollFilter() === 'all'" class="cpz-chip" type="button">Tous <b>{{ counts.all }}</b></button>
+          <button (click)="payrollFilter.set('aPayer')" [class.active]="payrollFilter() === 'aPayer'" class="cpz-chip" type="button">À payer <b>{{ counts.aPayer }}</b></button>
+          <button (click)="payrollFilter.set('enCours')" [class.active]="payrollFilter() === 'enCours'" class="cpz-chip" type="button">En cours <b>{{ counts.enCours }}</b></button>
+          <button (click)="payrollFilter.set('payes')" [class.active]="payrollFilter() === 'payes'" class="cpz-chip" type="button">Payés <b>{{ counts.payes }}</b></button>
+          <button (click)="payrollFilter.set('nonAtteint')" [class.active]="payrollFilter() === 'nonAtteint'" class="cpz-chip" type="button">Non atteint <b>{{ counts.nonAtteint }}</b></button>
+        </div>
+      </div>
+
+      <div class="cpz-rows">
+        <div class="cpz-row-head" [class.cpz-row-head--benefits]="hasBenefits()">
+          <div>Commercial</div>
+          <div>Atteinte de l'objectif</div>
+          <div>Rémunération fixe</div>
+          <div>Bonus du mois</div>
+          @if (hasBenefits()) {
+            <div>Transport · Communication</div>
+          }
+          <div class="cpz-right">Action</div>
+        </div>
+
+        @for (item of filteredPayrollItems(); track item.commercialId) {
+          @let expanded = expandedPayrollIds().has(item.commercialId);
+          <div class="cpz-row" [class.cpz-row--open]="expanded" [class.cpz-row--benefits]="hasBenefits()">
+            <button (click)="togglePayrollRow(item.commercialId)" class="cpz-who" [attr.aria-expanded]="expanded" type="button" title="Voir le détail">
+              <span class="cpz-avatar">{{ initials(item.commercialNom) }}</span>
+              <span class="cpz-who-text">
+                <span class="cpz-who-name">{{ item.commercialNom }}</span>
+                <span class="cpz-who-code">{{ item.employeeCode || '—' }}{{ item.villeNom ? ' · ' + item.villeNom : '' }}</span>
+              </span>
+            </button>
+            <div>
+              <div class="cpz-progress-top">
+                <strong class="cpz-num">{{ item.achievementRate.toFixed(0) }} %</strong>
+                <span class="cpz-muted cpz-num">{{ formatNumber(item.realizedAmount) }} / {{ formatAmount(item.objectiveAmount) }}</span>
+              </div>
+              <div class="cpz-bar">
+                <span [class]="'cpz-fill-' + progressClass(item)" [style.width.%]="progressFill(item)"></span>
+                <i class="cpz-goal" [style.left.%]="progressGoal(item)"></i>
+              </div>
+            </div>
+            <div>
+              <div class="cpz-amount cpz-num">{{ formatAmount(fixeOf(item)) }}</div>
+              <div class="cpz-sub cpz-num">{{ formatNumber(item.baseSalary) }} + {{ formatNumber(item.transportBenefitAmount ?? 0) }} + {{ formatNumber(item.phoneAllowanceAmount ?? 0) }}</div>
+            </div>
+            <div>
+              <div class="cpz-amount cpz-num" [class.cpz-muted]="!item.bonusAmount">{{ formatAmount(item.bonusAmount ?? 0) }}</div>
+              @if (payrollBonusBadge(item); as badge) {
+                <span [class]="'cpz-badge cpz-b-' + badge.variant + ' cpz-mt'"><i></i>{{ badge.label }}</span>
+              } @else if (remainingHint(item); as hint) {
+                <span class="cpz-sub">{{ hint }}</span>
+              }
+            </div>
+            @if (hasBenefits()) {
+              <div class="cpz-chips">
+                @for (b of benefitsOf(item); track b.kind) {
+                  @let badge = benefitBadge(b.payment);
+                  <div class="cpz-chip-line">
+                    <span>{{ b.shortLabel }} @if (b.payment?.amount) { <b class="cpz-num">{{ formatAmount(b.payment?.amount ?? 0) }}</b> }</span>
+                    <span [class]="'cpz-badge cpz-b-' + badge.variant"><i></i>{{ badge.label }}</span>
+                  </div>
+                }
+              </div>
+            }
+            <div class="cpz-act">
+              @if (item.bonusPayable) {
+                <button (click)="openBonusPayFromPayroll(item)" class="cpz-btn cpz-btn-primary" type="button">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg>
+                  {{ item.sycapayStatus === 'FAILED' ? 'Relancer' : 'Payer' }} {{ formatAmount(item.bonusAmount) }}
+                </button>
+              } @else if (isBonusInProgress(item)) {
+                <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(item.sycapayTransactionId, item.sycapayTransactionReference)" class="cpz-btn cpz-btn-warn">Réconcilier</a>
+              } @else if (item.paidAt && item.sycapayTransactionId) {
+                <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: item.sycapayTransactionId }" class="cpz-btn cpz-btn-ghost">Voir le virement</a>
+              } @else if (item.paidAt) {
+                <span class="cpz-sub">Payé hors application</span>
+              } @else if (!item.eligible) {
+                <span class="cpz-badge cpz-b-neutral"><i></i>Non atteint</span>
+              }
+            </div>
+            @if (expanded && hasBenefits()) {
+              <div class="cpz-benefits">
+                @for (b of benefitsOf(item); track b.kind) {
+                  @let badge = benefitBadge(b.payment);
+                  <div class="cpz-benefit">
+                    <h4>{{ b.label }}</h4>
+                    <div class="cpz-benefit-line">
+                      <span class="cpz-benefit-amount cpz-num" [class.cpz-muted]="!b.payment?.amount">{{ b.payment?.amount ? formatAmount(b.payment?.amount ?? 0) : '—' }}</span>
+                      <span [class]="'cpz-badge cpz-b-' + badge.variant"><i></i>{{ badge.label }}</span>
+                    </div>
+                    @if (b.payment?.sycapayMessage) {
+                      <div class="cpz-sub">{{ b.payment?.sycapayMessage }}</div>
+                    } @else if (b.payment?.statut === 'NON_APPLICABLE') {
+                      <div class="cpz-sub">Aucun montant configuré pour ce commercial</div>
+                    }
+                    @if (b.payment?.payable || b.payment?.sycapayTransactionId) {
+                      <div class="cpz-benefit-line">
+                        @if (b.payment?.statut === 'EN_COURS') {
+                          <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(b.payment?.sycapayTransactionId ?? null, b.payment?.sycapayTransactionReference ?? null)" class="cpz-btn cpz-btn-warn">Réconcilier</a>
+                        } @else if (b.payment?.sycapayTransactionId; as txId) {
+                          <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: txId }" class="cpz-btn cpz-btn-ghost">Voir le virement</a>
+                        } @else {
+                          <span></span>
+                        }
+                        @if (b.payment?.payable) {
+                          <button (click)="openBenefitPay(item, b.kind)" class="cpz-btn cpz-btn-primary" type="button">
+                            {{ b.payment?.statut === 'ECHEC' ? 'Relancer le paiement' : 'Payer ' + (b.kind === 'TRANSPORT' ? 'le transport' : 'la communication') }}
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (expanded) {
+              <div class="cpz-detail">
+                <div><span>Salaire de base</span><b class="cpz-num">{{ formatAmount(item.baseSalary) }}</b></div>
+                <div><span>Transport</span><b class="cpz-num">{{ formatAmount(item.transportBenefitAmount ?? 0) }}</b></div>
+                <div><span>Téléphone</span><b class="cpz-num">{{ formatAmount(item.phoneAllowanceAmount ?? 0) }}</b></div>
+                <div><span>Total du mois</span><b class="cpz-num">{{ formatAmount(item.totalVariable) }}</b></div>
+                <div class="cpz-formula">
+                  @if (!item.objectiveAmount) {
+                    Aucun objectif mensuel défini ce mois-ci : pas de bonus possible.
+                  } @else if (item.eligible) {
+                    Calcul du bonus : <code>{{ formatAmount(item.objectiveAmount) }} × {{ item.bonusRate }} %</code> = <code>{{ formatAmount(item.bonusAmount) }}</code> · objectif atteint à {{ item.achievementRate.toFixed(0) }} % (seuil {{ item.seuilEligibilite }} %)
+                  } @else {
+                    Bonus possible : <code>{{ formatAmount(item.objectiveAmount) }} × {{ item.bonusRate }} %</code> dès {{ item.seuilEligibilite }} % d'atteinte · atteint aujourd'hui : {{ item.achievementRate.toFixed(1) }} %
+                  }
+                  @if (item.estime) {
+                    <span class="cpz-badge cpz-b-neutral"><i></i>Estimé</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        } @empty {
+          <p class="dl-empty mb-0">Aucun commercial pour ce filtre.</p>
+        }
+      </div>
+    }
+
+    <!-- Historique -->
+    <div class="cpz-history">
+      <div class="cpz-toolbar">
+        <h3>Historique des paiements de bonus</h3>
+        <button (click)="fetchBonusHistory()" [disabled]="bonusHistoryLoading()" class="cpz-btn cpz-btn-ghost" type="button">Actualiser</button>
+      </div>
+      @if (bonusHistoryError()) {
+        <p class="dl-empty">{{ bonusHistoryError() }} <button (click)="fetchBonusHistory()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+      } @else if (bonusHistoryLoading() && bonusHistory().length === 0) {
+        <p class="dl-empty">Chargement…</p>
+      } @else if (bonusHistory().length === 0) {
+        <p class="dl-empty">Aucun paiement de bonus pour le moment.</p>
+      } @else {
+        <ul class="cpz-tl">
+          @for (item of bonusHistory(); track item.id) {
+            @let state = historyState(item);
+            <li>
+              <div [class]="'cpz-tl-icon ' + state">
+                @switch (state) {
+                  @case ('ok') {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+                  }
+                  @case ('danger') {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                  }
+                  @default {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  }
+                }
+              </div>
+              <div class="cpz-tl-main">
+                <b>{{ item.commercialNom || '—' }}</b> · <span class="cpz-muted">{{ item.moisLibelle }}</span>
+                <div class="cpz-sub">
+                  {{ historyDetail(item) }}
+                  @if (bonusNeedsReconcile(item.sycapayStatus) && !item.paidAt) {
+                    · <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(item.sycapayTransactionId, item.sycapayTransactionReference)">Réconcilier</a>
+                  }
+                </div>
+              </div>
+              <div class="cpz-hide-sm"><span [class]="'cpz-badge cpz-b-' + state"><i></i>{{ historyLabel(item) }}</span></div>
+              <div class="cpz-hide-sm cpz-sub cpz-num">{{ formatHistoryDate(item.paidAt ?? item.sycapayRequestDate) }}</div>
+              <div class="cpz-tl-amount cpz-num" [class.cpz-muted]="state === 'danger'">{{ formatAmount(item.bonusAmount) }}</div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <!-- Historique transport et communication -->
+    <div class="cpz-history">
+      <div class="cpz-toolbar">
+        <h3>Historique du transport et de la communication</h3>
+        <button (click)="fetchBenefitHistory()" class="cpz-btn cpz-btn-ghost" type="button">Actualiser</button>
+      </div>
+      @if (benefitHistoryError()) {
+        <p class="dl-empty">{{ benefitHistoryError() }} <button (click)="fetchBenefitHistory()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+      } @else if (benefitHistory().length === 0) {
+        <p class="dl-empty">Aucun paiement de transport ou de communication pour le moment.</p>
+      } @else {
+        <ul class="cpz-tl">
+          @for (entry of benefitHistory(); track entry.type + entry.paymentId) {
+            @let state = benefitHistoryState(entry);
+            <li>
+              <div [class]="'cpz-tl-icon ' + state">
+                @if (state === 'ok') {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+                } @else if (state === 'danger') {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                } @else {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                }
+              </div>
+              <div class="cpz-tl-main">
+                <b>{{ entry.commercialNom || '—' }}</b> · <span class="cpz-muted">{{ entry.moisLibelle }}</span>
+                <div class="cpz-sub">
+                  {{ entry.type === 'TRANSPORT' ? 'Transport' : 'Communication' }}{{ entry.modePaiement === 'ENREGISTREMENT_MANUEL' ? ' · enregistré hors application' : entry.sycapayTransactionReference ? ' · réf. ' + entry.sycapayTransactionReference : '' }}
+                </div>
+              </div>
+              <div class="cpz-hide-sm"><span [class]="'cpz-badge cpz-b-' + state"><i></i>{{ benefitHistoryLabel(entry) }}</span></div>
+              <div class="cpz-hide-sm cpz-sub cpz-num">{{ formatHistoryDate(entry.paidAt) }}</div>
+              <div class="cpz-tl-amount cpz-num" [class.cpz-muted]="state === 'danger'">{{ formatAmount(entry.amount ?? 0) }}</div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+  </section>
+  }
+
+<!-- ================= Onglet Commissions ================= -->
+@if (activeTab() === 'commissions') {
+  <div class="pz-scope im cm pf fv">
+    <div class="im-card cm-panel">
+      <div class="cm-bar">
+        <div class="im-seg" role="tablist" aria-label="Vue des commissions">
+          <button (click)="commissionsView.set('aPayer')" [class.im-on]="commissionsView() === 'aPayer'" type="button">Commissions à payer</button>
+          <button (click)="commissionsView.set('historique')" [class.im-on]="commissionsView() === 'historique'" type="button">Historique des paiements</button>
+        </div>
+        <span class="im-sp"></span>
+        @if (commissionsView() === 'aPayer') {
+          <label class="im-search cm-search">
+            <svg class="im-i"><use href="#fv-search" /></svg>
+            <input
+              (input)="onCommissionsSearch($any($event.target).value)"
+              [value]="commissionsSearch()"
+              aria-label="Rechercher un commercial"
+              autocomplete="off"
+              placeholder="Rechercher un commercial…"
+              type="search"
+            />
+          </label>
+        }
+      </div>
+
+      @if (commissionsView() === 'aPayer') {
+        @if (commissionsError()) {
+          <p class="cm-empty">{{ commissionsError() }} <button (click)="fetchCommissionSummaries()" class="cm-link" type="button">Réessayer</button></p>
+        } @else if (commissionsLoading() && commissionSummaries().length === 0) {
+          <p class="cm-empty">Chargement des commissions…</p>
+        } @else if (filteredCommissionSummaries().length === 0) {
+          <p class="cm-empty">Aucun commercial ne correspond à cette recherche.</p>
+        } @else {
+          <div class="cm-rows-head fv-g-cm">
+            <span>Commercial</span><span>Contrats</span><span class="cm-right">En attente</span><span class="cm-right">Payé</span><span></span>
+          </div>
+          @for (item of filteredCommissionSummaries(); track item.commercialId) {
+            <button (click)="openCommissionContracts(item)" class="cm-row fv-g-cm" type="button">
+              <div class="cm-who">
+                <span class="im-av">{{ initials(item.nomComplet) }}</span>
+                <div><b>{{ item.nomComplet }}</b><small class="cm-mono">{{ item.employeeCode }}</small></div>
+              </div>
+              <div>
+                <div class="cm-split">
+                  <i class="cm-split-p" [style.width.%]="contractsShare(item, 'pending')"></i>
+                  <i class="cm-split-d" [style.width.%]="contractsShare(item, 'paid')"></i>
+                </div>
+                <small>
+                  @if (item.pendingContractsCount > 0) {
+                    {{ item.pendingContractsCount }} contrat{{ item.pendingContractsCount > 1 ? 's' : '' }} en attente ·
+                  }
+                  {{ item.paidContractsCount }} payé{{ item.paidContractsCount > 1 ? 's' : '' }}
+                </small>
+              </div>
+              <span class="cm-num cm-num--big cm-right" [class.cm-num--hot]="item.totalPending > 0" [class.cm-num--zero]="item.totalPending === 0">{{ formatAmount(item.totalPending) }}</span>
+              <span class="cm-num cm-right" [class.cm-num--zero]="item.totalPaid === 0">{{ formatAmount(item.totalPaid) }}</span>
+              <span class="cm-chev"><svg class="im-i"><use href="#fv-chev" /></svg></span>
+            </button>
+          }
+        }
+        <div class="cm-foot">
+          <span><b>{{ filteredCommissionSummaries().length }}</b> sur {{ commissionSummaries().length }} commerciaux · les commissions à payer sont en tête</span>
+        </div>
+      }
+
+      @if (commissionsView() === 'historique') {
+        @if (commissionPaymentsError()) {
+          <p class="cm-empty">{{ commissionPaymentsError() }} <button (click)="fetchCommissionPayments()" class="cm-link" type="button">Réessayer</button></p>
+        } @else if (commissionPaymentsLoading() && commissionPayments().length === 0) {
+          <p class="cm-empty">Chargement de l'historique…</p>
+        } @else if (commissionPayments().length === 0) {
+          <p class="cm-empty">Aucun paiement enregistré pour le moment.</p>
+        } @else {
+          <div class="cm-rows-head cm-g-his">
+            <span>Date</span><span>Commercial</span><span>Contrat</span><span>Montant</span><span>Référence</span><span>Payé par</span><span>SMS</span>
+          </div>
+          @for (payment of commissionPayments(); track payment.id ?? payment.contractId) {
+            <div class="cm-row cm-g-his">
+              <span class="cm-mu">{{ formatDateTime(payment.paidAt) }}</span>
+              <b>{{ payment.commercialNom }}</b>
+              <span><span class="im-chip">{{ payment.policyNumber }}</span></span>
+              <span class="cm-num">{{ formatAmount(payment.amount) }}</span>
+              <span>{{ payment.reference || '—' }}</span>
+              <div>
+                {{ payment.paidByUsername || '—' }}
+                @if (payment.sycapayTransactionPk) {
+                  <small class="cm-detail"><a [routerLink]="['/sycapay']" [queryParams]="{ transaction: payment.sycapayTransactionPk }">Voir le virement</a></small>
+                }
+              </div>
+              <span>
+                @if (payment.notificationEnvoyee === true) {
+                  <span class="im-badge cm-badge--success">Envoyé</span>
+                } @else if (payment.notificationEnvoyee === false) {
+                  <span class="im-badge cm-badge--danger">Échec</span>
+                } @else {
+                  <span class="cm-mu" title="Aucune trace d'envoi (paiement antérieur au 24/09/2026)">—</span>
+                }
+              </span>
+            </div>
+          }
+        }
+        <div class="cm-foot">
+          <span>
+            <b>{{ commissionPayments().length }}</b> sur {{ commissionPaymentsTotalElements() }} paiements · page
+            {{ commissionPaymentsPageIndex() + 1 }} sur {{ commissionPaymentsTotalPages() || 1 }}
+          </span>
+          <div class="cm-pager">
+            <button (click)="goToCommissionPaymentsPage(commissionPaymentsPageIndex() - 1)" [disabled]="commissionPaymentsLoading() || commissionPaymentsPageIndex() === 0" class="im-btn cm-btn-sm" type="button">Précédent</button>
+            <button (click)="goToCommissionPaymentsPage(commissionPaymentsPageIndex() + 1)" [disabled]="commissionPaymentsLoading() || commissionPaymentsPageIndex() + 1 >= commissionPaymentsTotalPages()" class="im-btn cm-btn-sm" type="button">Suivant</button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- Panneau latéral : contrats à commission d'un commercial -->
+@if (commissionContractsModalVisible()) {
+  @if (selectedCommissionCommercial(); as commercial) {
+    <div class="pz-scope im cm pf fv fv-shell">
+      <div (click)="closeCommissionContractsModal()" class="cm-backdrop"></div>
+      <aside class="cm-drawer" role="dialog" aria-modal="true" aria-labelledby="fv-drawer-title">
+        <div class="cm-d-head">
+          <div class="cm-d-top">
+            <span class="im-av">{{ initials(commercial.nomComplet) }}</span>
+            <div>
+              <h2 id="fv-drawer-title">{{ commercial.nomComplet }}</h2>
+              <small class="cm-mono">{{ commercial.employeeCode }}</small>
+            </div>
+            <span class="im-sp"></span>
+            <button (click)="closeCommissionContractsModal()" aria-label="Fermer" class="cm-ibtn" type="button">
+              <svg class="im-i"><use href="#fv-x" /></svg>
+            </button>
+          </div>
+          <div class="cm-d-stats fv-d-stats">
+            <div class="cm-d-stat cm-d-stat--hot">
+              <span>En attente · {{ commercial.pendingContractsCount }} contrat{{ commercial.pendingContractsCount > 1 ? 's' : '' }}</span>
+              <b>{{ formatAmount(commercial.totalPending) }}</b>
+            </div>
+            <div class="cm-d-stat">
+              <span>Déjà payé · {{ commercial.paidContractsCount }} contrat{{ commercial.paidContractsCount > 1 ? 's' : '' }}</span>
+              <b>{{ formatAmount(commercial.totalPaid) }}</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="cm-d-body fv-d-body">
+          @if (commissionPayError(); as message) {
+            <app-alert-message class="d-block mb-3" [message]="message" />
+          }
+
+          @if (commissionPayResult(); as payResults) {
+            @let summary = commissionPaySummary();
+            <section [class]="'sp-payresult sp-payresult--' + summary.variant" aria-labelledby="cm-payresult-title">
+              <header class="sp-payresult-head">
+                <span [class]="'sp-payresult-icon sp-soft--' + summary.variant">
+                  @if (summary.variant === 'success') {
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+                  } @else {
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+                  }
+                </span>
+                <div class="sp-payresult-title">
+                  <h3 id="cm-payresult-title">{{ summary.title }}</h3>
+                  <p>{{ summary.detail }}</p>
+                </div>
+                <button (click)="closeCommissionPayResult()" aria-label="Fermer le résultat du paiement" class="sp-icon-btn" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                </button>
+              </header>
+
+              <ul class="sp-payresult-list">
+                @for (result of payResults; track result.contractId) {
+                  <li class="sp-payresult-row">
+                    <span class="sp-payresult-policy sp-mono">{{ result.policyNumber || '—' }}</span>
+                    <span [class]="'sp-chip sp-chip--' + payResultVariant(result)"><i></i>{{ payResultLabel(result) }}</span>
+                    <span class="sp-payresult-message">{{ payResultMessage(result) }}</span>
+                    <span class="sp-payresult-amount sp-mono">{{ formatAmount(result.amount) }}</span>
+                    @if (needsReconcile(result)) {
+                      <a [routerLink]="['/sycapay']" [queryParams]="reconcileQueryParams(result)" class="sp-btn sp-btn--sm sp-btn--warning">Réconcilier</a>
+                    } @else if (result.sycapayTransactionPk) {
+                      <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: result.sycapayTransactionPk }" class="sp-payresult-link">Voir le virement</a>
+                    }
+                  </li>
+                }
+              </ul>
+
+              @if (commissionPayHasFailures()) {
+                <p class="sp-payresult-note sp-text--danger">
+                  Les paiements échoués restent sélectionnés et payables — vérifiez le motif avant de relancer.
+                </p>
+              }
+              @if (commissionPayHasPending()) {
+                <p class="sp-payresult-note sp-text--warning">
+                  Paiement en cours ou d'issue incertaine : <strong>ne le relancez pas</strong>, un double virement est possible. Utilisez « Réconcilier » pour vérifier son statut auprès de SycaPay.
+                </p>
+              }
+            </section>
+          }
+
+          <div class="cm-d-bar">
+            @if (visiblePendingCommissionContractIds().length > 0) {
+              <button (click)="toggleSelectAllPendingCommissionContracts()" [attr.aria-pressed]="allPendingCommissionContractsSelected()" class="cm-all" type="button">
+                <span class="cm-check" [class.cm-check--on]="allPendingCommissionContractsSelected()"><svg class="im-i"><use href="#fv-check" /></svg></span>
+                Tout sélectionner
+              </button>
+            } @else {
+              <span></span>
+            }
+            <div class="im-seg" role="tablist" aria-label="Filtrer par statut de commission">
+              <button (click)="setCommissionContractsStatusFilter('pending')" [class.im-on]="commissionContractsStatusFilter() === 'pending'" type="button">
+                En attente<small>{{ commissionContractsCounts().pending }}</small>
+              </button>
+              <button (click)="setCommissionContractsStatusFilter('paid')" [class.im-on]="commissionContractsStatusFilter() === 'paid'" type="button">
+                Payés<small>{{ commissionContractsCounts().paid }}</small>
+              </button>
+              <button (click)="setCommissionContractsStatusFilter('all')" [class.im-on]="commissionContractsStatusFilter() === 'all'" type="button">Tous</button>
+            </div>
+          </div>
+
+          @if (commissionContractsError()) {
+            <p class="cm-empty">{{ commissionContractsError() }} <button (click)="fetchCommissionContracts()" class="cm-link" type="button">Réessayer</button></p>
+          } @else if (commissionContractsLoading()) {
+            <p class="cm-empty">Chargement des contrats…</p>
+          } @else if (filteredCommissionContracts().length === 0) {
+            <p class="cm-empty">Aucun contrat pour ce filtre.</p>
+          } @else {
+            @for (contract of filteredCommissionContracts(); track contract.contractId) {
+              @if (contract.commercialCommissionStatus === 'pending') {
+                <button
+                  (click)="toggleCommissionContract(contract.contractId)"
+                  [attr.aria-pressed]="isCommissionContractSelected(contract.contractId)"
+                  [class.cm-citem--sel]="isCommissionContractSelected(contract.contractId)"
+                  class="cm-citem"
+                  type="button"
+                >
+                  <span class="cm-check" [class.cm-check--on]="isCommissionContractSelected(contract.contractId)"><svg class="im-i"><use href="#fv-check" /></svg></span>
+                  <div><b>{{ contract.policyNumber }}</b><small>Souscrit le {{ formatDate(contract.signedAt) }}</small></div>
+                  <span class="cm-num">{{ formatAmount(contract.commercialCommissionAmount) }}</span>
+                  <span class="im-badge cm-badge--warning">En attente</span>
+                </button>
+              } @else {
+                <div class="cm-citem cm-citem--paid">
+                  <span></span>
+                  <div><b>{{ contract.policyNumber }}</b><small>Souscrit le {{ formatDate(contract.signedAt) }}</small></div>
+                  <span class="cm-num">{{ formatAmount(contract.commercialCommissionAmount) }}</span>
+                  <span class="im-badge cm-badge--success">Payé</span>
+                </div>
+              }
+            }
+          }
+
+          @if (commissionContractsStatusFilter() !== 'paid') {
+            <div class="cm-note">
+              <svg class="im-i"><use href="#fv-info" /></svg>
+              <span>
+                Si SycaPay est activé, le virement Wave est déclenché contrat par contrat : la confirmation peut être
+                immédiate ou différée (voir le résultat détaillé après paiement), et l'écriture comptable n'est créée
+                qu'une fois le virement confirmé. Sinon, le paiement est seulement enregistré (virement fait hors application).
+              </span>
+            </div>
+          }
+        </div>
+
+        @if (commissionContractsStatusFilter() !== 'paid') {
+          <div class="cm-d-foot">
+            <div class="cm-d-sum">
+              <span>{{ selectedCommissionContractIds().size }} contrat{{ selectedCommissionContractIds().size > 1 ? 's' : '' }} sélectionné{{ selectedCommissionContractIds().size > 1 ? 's' : '' }}</span>
+              <b>{{ formatAmount(selectedCommissionTotal()) }}</b>
+            </div>
+            <div class="cm-d-pay">
+              <input
+                (input)="onCommissionReferenceInput($any($event.target).value)"
+                [value]="commissionPaymentReference()"
+                aria-label="Référence du paiement (optionnel)"
+                class="cm-field"
+                id="cc-payment-reference"
+                placeholder="Référence du paiement (optionnel)"
+                type="text"
+              />
+              <button (click)="payCommercialCommission()" [disabled]="commissionPaying() || selectedCommissionContractIds().size === 0" class="im-btn im-btn--primary im-btn--big" type="button">
+                @if (commissionPaying()) {
+                  <span class="im-spin"></span>
+                } @else {
+                  <svg class="im-i"><use href="#fv-send" /></svg>
+                }
+                Payer la sélection
+              </button>
+            </div>
+          </div>
+        }
+      </aside>
+    </div>
+  }
+}
+
+<!-- ================= Modale détail : objectifs & performance ================= -->
+<app-modal
+  [visible]="detailVisible()"
+  size="xxl"
+  variant="custom"
+  title="{{ selectedCommercial() ? fullName(selectedCommercial()!) : '' }}"
+  (closed)="detailVisible.set(false)"
+>
+  @if (selectedCommercial(); as commercial) {
+    <div modalHeader class="pz-scope cpz cpz-head">
+      <span class="cpz-head-avatar">{{ initials(fullName(commercial)) }}</span>
+      <div class="cpz-head-main">
+        <div class="cpz-head-title">
+          <h2>{{ fullName(commercial) }}</h2>
+          <span [class]="'cpz-badge cpz-b-' + statutBadgeVariant(commercial.statut)"><i></i>{{ commercialStatutLabel(commercial.statut) }}</span>
+        </div>
+        <div class="cpz-facts">
+          <span>Matricule <b>{{ commercial.employeeCode || '—' }}</b></span>
+          <span>Localité <b>{{ commercial.villePartenaireNom || '—' }}</b></span>
+          <span>Salaire de base <b class="cpz-num">{{ formatAmount(commercial.baseSalary) }}</b></span>
+          @if (commercial.hireDate) {
+            <span>Embauche le <b>{{ formatDate(commercial.hireDate) }}</b></span>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="dl-pillgroup mb-3" role="tablist" aria-label="Onglet du détail commercial">
+    <button (click)="setDetailView('objectifsAnnuels')" [attr.data-active]="detailView() === 'objectifsAnnuels'" class="dl-pill dl-pill--solid" type="button">Objectifs annuels</button>
+    <button (click)="setDetailView('objectifsMensuels')" [attr.data-active]="detailView() === 'objectifsMensuels'" class="dl-pill dl-pill--solid" type="button">Objectifs mensuels</button>
+    <button (click)="setDetailView('performance')" [attr.data-active]="detailView() === 'performance'" class="dl-pill dl-pill--solid" type="button">Performance</button>
+  </div>
+
+  <!-- Objectifs annuels -->
+  @if (detailView() === 'objectifsAnnuels') {
+    <div class="cm-inline-form mb-3">
+      <select [ngModel]="annualObjectiveExerciceId()" (ngModelChange)="annualObjectiveExerciceId.set($event)" [disabled]="!!annualObjectiveEditId()" cSelect style="max-width: 220px;">
+        <option value="">— Exercice comptable —</option>
+        @for (exercice of exercices(); track exercice.id) {
+          <option [value]="exercice.id">{{ exercice.libelle }}</option>
+        }
+      </select>
+      <input
+        [ngModel]="annualObjectiveMontant()"
+        (ngModelChange)="annualObjectiveMontant.set($event)"
+        cFormControl
+        inputmode="numeric"
+        placeholder="Objectif annuel (FCFA)"
+        style="max-width: 220px;"
+        type="text"
+        wzThousandSeparator
+      />
+      <button (click)="saveAnnualObjective()" [disabled]="annualObjectiveSaving()" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (annualObjectiveSaving()) {
+          <c-spinner size="sm" />
+        }
+        {{ annualObjectiveEditId() ? 'Enregistrer' : 'Ajouter' }}
+      </button>
+      @if (annualObjectiveEditId()) {
+        <button (click)="cancelAnnualObjectiveEdit()" cButton class="dl-btn" type="button">Annuler</button>
+      }
+    </div>
+
+    @if (annualObjectivesError()) {
+      <app-alert-message class="d-block mb-3" [message]="annualObjectivesError()!" />
+    }
+
+    @if (annualObjectivesLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (annualObjectives().length === 0) {
+      <p class="dl-empty">Aucun objectif annuel défini pour ce commercial.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table dl-table--modal">
+          <thead>
+            <tr>
+              <th scope="col">Exercice</th>
+              <th scope="col">Objectif annuel</th>
+              <th scope="col">Mis à jour le</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (objective of annualObjectives(); track objective.id) {
+              <tr>
+                <td>{{ objective.exerciceLibelle }}</td>
+                <td class="dl-timestamp">{{ formatAmount(objective.targetAmount) }}</td>
+                <td class="dl-timestamp">{{ formatDateTime(objective.updatedAt) }}</td>
+                <td>
+                  <button (click)="editAnnualObjective(objective)" class="dl-icon-btn" title="Modifier" type="button">
+                    <svg cIcon name="cilPencil" size="sm"></svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- Objectifs mensuels -->
+  @if (detailView() === 'objectifsMensuels') {
+    <div class="cm-inline-form mb-3">
+      @if (monthlyObjectiveEditId()) {
+        <input [ngModel]="monthlyObjectiveMontant()" (ngModelChange)="monthlyObjectiveMontant.set($event)" cFormControl inputmode="numeric" placeholder="Objectif mensuel (FCFA)" style="max-width: 200px;" type="text" wzThousandSeparator />
+        <input [ngModel]="monthlyObjectiveMotif()" (ngModelChange)="monthlyObjectiveMotif.set($event)" cFormControl placeholder="Motif de la révision (obligatoire)" style="max-width: 260px;" type="text" />
+        <button (click)="saveMonthlyObjective()" [disabled]="monthlyObjectiveSaving()" cButton class="dl-btn dl-btn-primary" type="button">
+          @if (monthlyObjectiveSaving()) {
+            <c-spinner size="sm" />
+          }
+          Réviser
+        </button>
+        <button (click)="cancelMonthlyObjectiveEdit()" cButton class="dl-btn" type="button">Annuler</button>
+      } @else {
+        <select [ngModel]="monthlyObjectiveExerciceId()" (ngModelChange)="monthlyObjectiveExerciceId.set($event); monthlyObjectiveMoisId.set('')" cSelect style="max-width: 200px;">
+          <option value="">— Exercice —</option>
+          @for (exercice of exercices(); track exercice.id) {
+            <option [value]="exercice.id">{{ exercice.libelle }}</option>
+          }
+        </select>
+        <select [ngModel]="monthlyObjectiveMoisId()" (ngModelChange)="monthlyObjectiveMoisId.set($event)" [disabled]="!monthlyObjectiveExerciceId()" cSelect style="max-width: 180px;">
+          <option value="">— Mois —</option>
+          @for (mois of moisOptions(monthlyObjectiveExerciceId()); track mois.id) {
+            <option [value]="mois.id">{{ mois.libelle }}</option>
+          }
+        </select>
+        <input
+          [ngModel]="monthlyObjectiveMontant()"
+          (ngModelChange)="monthlyObjectiveMontant.set($event)"
+          cFormControl
+          inputmode="numeric"
+          placeholder="Objectif mensuel (FCFA)"
+          style="max-width: 200px;"
+          type="text"
+          wzThousandSeparator
+        />
+        <button (click)="saveMonthlyObjective()" [disabled]="monthlyObjectiveSaving()" cButton class="dl-btn dl-btn-primary" type="button">
+          @if (monthlyObjectiveSaving()) {
+            <c-spinner size="sm" />
+          }
+          Ajouter
+        </button>
+      }
+    </div>
+
+    @if (monthlyObjectivesError()) {
+      <app-alert-message class="d-block mb-3" [message]="monthlyObjectivesError()!" />
+    }
+
+    @if (monthlyObjectivesLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (monthlyObjectives().length === 0) {
+      <p class="dl-empty">Aucun objectif mensuel défini pour ce commercial.</p>
+    } @else {
+      <div class="dl-table-scroll">
+        <table class="dl-table dl-table--modal">
+          <thead>
+            <tr>
+              <th scope="col">Mois</th>
+              <th scope="col">Objectif mensuel</th>
+              <th scope="col">Mis à jour le</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (objective of monthlyObjectives(); track objective.id) {
+              <tr>
+                <td>{{ objective.moisLibelle }}</td>
+                <td class="dl-timestamp">{{ formatAmount(objective.targetAmount) }}</td>
+                <td class="dl-timestamp">{{ formatDateTime(objective.updatedAt) }}</td>
+                <td>
+                  <button (click)="editMonthlyObjective(objective)" class="dl-icon-btn" title="Réviser" type="button">
+                    <svg cIcon name="cilPencil" size="sm"></svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- Performance (refonte validée le 2026-10-02) -->
+  @if (detailView() === 'performance') {
+    <div class="pz-scope cpz">
+      @if (detailPerformanceError()) {
+        <app-alert-message class="d-block mb-3" [message]="detailPerformanceError()!" />
+      }
+      @if (detailPerformanceLoading() && detailPerformance().length === 0) {
+        <p class="dl-empty">Chargement…</p>
+      } @else if (detailPerformance().length === 0) {
+        <p class="dl-empty">Aucun historique de performance : définissez un objectif mensuel pour ce commercial (onglet « Objectifs mensuels »).</p>
+      } @else {
+        @let synth = perfSummary();
+        <!-- Synthèse -->
+        <div class="cpz-summary">
+          <div class="cpz-kpi">
+            <div class="cpz-kpi-k">Atteinte moyenne</div>
+            <div class="cpz-kpi-v cpz-num">{{ synth.moyenne === null ? '—' : synth.moyenne.toFixed(0) + ' %' }}</div>
+            <div class="cpz-sub">sur les {{ synth.nbMois }} dernier{{ synth.nbMois > 1 ? 's' : '' }} mois</div>
+          </div>
+          <div class="cpz-kpi">
+            <div class="cpz-kpi-k">Bonus payés</div>
+            <div class="cpz-kpi-v cpz-num">{{ formatAmount(synth.payes) }}</div>
+            <div class="cpz-sub">{{ synth.payesCount }} mois sur {{ synth.nbMois }}</div>
+          </div>
+          <div class="cpz-kpi cpz-kpi--accent">
+            <div class="cpz-kpi-k">Bonus à payer</div>
+            <div class="cpz-kpi-v cpz-num">{{ formatAmount(synth.aPayer) }}</div>
+            <div class="cpz-sub cpz-primary">{{ synth.aPayerMois || 'Aucun bonus en attente' }}</div>
+          </div>
+          <div class="cpz-chart">
+            <div class="cpz-chart-k"><span>Atteinte de l'objectif</span><span>{{ synth.periode }}</span></div>
+            <div class="cpz-bars">
+              <div class="cpz-bars-line" [style.top.px]="perfChartGoalTop"><span>100 %</span></div>
+              @for (m of synth.chart; track m.moisComptableId) {
+                <div class="cpz-bar-col" [title]="m.moisLibelle + ' : ' + m.achievementRate.toFixed(1) + ' %'">
+                  <div class="cpz-bar-area">
+                    <div [class]="'cpz-bar-v cpz-c-' + rateClass(m.achievementRate, m.seuilEligibilite)" [class.cpz-c-current]="m.estime && isMoisCourant(m.moisComptableId)" [style.height.%]="perfChartHeight(m.achievementRate)"></div>
+                  </div>
+                  <small [class.cpz-strong]="isMoisCourant(m.moisComptableId)">{{ moisCourt(m.moisLibelle) }}</small>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="cpz-toolbar">
+          <h3>Historique mois par mois</h3>
+          <span class="cpz-sub">Le bonus vaut {{ synth.taux ?? 5 }} % de l'objectif dès {{ synth.seuil }} % d'atteinte</span>
+        </div>
+
+        <div class="cpz-months">
+          @for (item of detailPerformance(); track item.moisComptableId) {
+            @let courant = isMoisCourant(item.moisComptableId);
+            @let etat = perfMonthBadge(item);
+            <div class="cpz-month" [class.cpz-month--current]="courant">
+              <div class="cpz-m-top">
+                <div class="cpz-m-title">
+                  <strong>{{ item.moisLibelle }}</strong>
+                  @if (item.estime) {
+                    <span [class]="'cpz-badge ' + (courant ? 'cpz-b-info' : 'cpz-b-warn')"><i></i>{{ courant ? 'Mois en cours · estimé' : 'Non validé · estimé' }}</span>
+                  } @else {
+                    <span class="cpz-badge cpz-b-neutral"><i></i>Définitif</span>
+                  }
+                </div>
+                <span [class]="'cpz-badge cpz-b-' + etat.variant"><i></i>{{ etat.label }}</span>
+              </div>
+
+              <div class="cpz-m-grid">
+                <div>
+                  <div class="cpz-progress-top">
+                    <strong class="cpz-num">{{ item.achievementRate.toFixed(0) }} %</strong>
+                    <span class="cpz-muted cpz-num">{{ formatNumber(item.realizedAmount) }} / {{ formatAmount(item.objectiveAmount) }}</span>
+                  </div>
+                  <div class="cpz-bar">
+                    <span [class]="'cpz-fill-' + rateClass(item.achievementRate, item.seuilEligibilite)" [style.width.%]="progressFill(item)"></span>
+                    <i class="cpz-goal" [style.left.%]="progressGoal(item)"></i>
+                  </div>
+                </div>
+                <div>
+                  <div class="cpz-lbl">Bonus</div>
+                  <div class="cpz-val cpz-num" [class.cpz-primary]="item.payable" [class.cpz-muted]="!item.bonusAmount">{{ formatAmount(item.bonusAmount ?? 0) }}</div>
+                </div>
+                <div>
+                  <div class="cpz-lbl">Rémunération totale</div>
+                  <div class="cpz-val cpz-num">{{ formatAmount(item.totalRemuneration) }}</div>
+                </div>
+              </div>
+
+              @if (item.eligible && item.objectiveAmount) {
+                <div class="cpz-formula">Calcul : <code>{{ formatAmount(item.objectiveAmount) }} × {{ item.bonusRateSnapshot }} %</code> = <code>{{ formatAmount(item.bonusAmount) }}</code></div>
+              }
+
+              <div class="cpz-m-foot">
+                @if (item.eligible) {
+                  @let steps = perfSteps(item);
+                  <div class="cpz-track">
+                    @for (step of steps; track $index; let last = $last) {
+                      <div [class]="'cpz-step cpz-step--' + step.state">
+                        <span class="cpz-dot">
+                          @if (step.state === 'done') {
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+                          } @else if (step.state === 'fail') {
+                            !
+                          } @else {
+                            {{ $index + 1 }}
+                          }
+                        </span>
+                        {{ step.label }}
+                      </div>
+                      @if (!last) {
+                        <div class="cpz-sep" [class.cpz-sep--done]="step.state === 'done' && steps[$index + 1].state === 'done'"></div>
+                      }
+                    }
+                  </div>
+                } @else {
+                  <span class="cpz-sub">{{ perfMissingHint(item, courant) }}</span>
+                }
+
+                <div class="cpz-actions">
+                  @if (canRecalculate(item.statut)) {
+                    <button (click)="recalculatePerformance(item)" [disabled]="recalculatingMoisId() === item.moisComptableId" class="cpz-btn cpz-btn-outline" type="button">
+                      @if (recalculatingMoisId() === item.moisComptableId) {
+                        <c-spinner size="sm" />
+                      } @else {
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
+                      }
+                      Recalculer
+                    </button>
+                  }
+                  @if (canValidate(item) && (item.eligible || !courant)) {
+                    <button (click)="confirmValider(item)" class="cpz-btn cpz-btn-outline" type="button">{{ item.eligible ? 'Valider seulement' : 'Valider' }}</button>
+                  }
+                  @if (item.payable) {
+                    <button (click)="openBonusPayFromPerformance(item)" class="cpz-btn cpz-btn-primary" type="button">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg>
+                      {{ item.sycapayStatus === 'FAILED' ? 'Relancer le paiement' : 'Payer ' + formatAmount(item.bonusAmount) }}
+                    </button>
+                  }
+                  @if (bonusNeedsReconcile(item.sycapayStatus) && !item.paidAt) {
+                    <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(item.sycapayTransactionId, item.sycapayTransactionReference)" class="cpz-btn cpz-btn-warn">Réconcilier</a>
+                  }
+                  @if (item.paidAt && item.sycapayTransactionId) {
+                    <a [routerLink]="['/sycapay']" [queryParams]="{ transaction: item.sycapayTransactionId }" class="cpz-btn cpz-btn-ghost">Voir le virement</a>
+                  }
+                  @if (canClose(item)) {
+                    <button (click)="confirmCloturer(item)" class="cpz-btn cpz-btn-outline" type="button">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                      {{ item.eligible ? 'Clôturer' : 'Clôturer sans bonus' }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</app-modal>
+
+<!-- ================= Modale création / édition ================= -->
+<app-modal [visible]="formVisible()" size="xl" title="{{ editingId() ? 'Modifier le commercial' : 'Nouveau commercial' }}" (closed)="formVisible.set(false)">
+  <p class="dl-cell-detail mb-2"><span class="wz-required">*</span> Champ obligatoire</p>
+  @if (formError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <form [formGroup]="form" cForm (ngSubmit)="save()">
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Identité</div>
+      <div class="dl-avatar-row">
+        <span class="dl-avatar dl-avatar--lg">{{ initials((form.controls.firstname.value + ' ' + form.controls.lastname.value).trim()) || '—' }}</span>
+        <span class="dl-avatar-info">
+          <strong>{{ (form.controls.firstname.value + ' ' + form.controls.lastname.value).trim() || 'Nouveau commercial' }}</strong>
+          <span>Aperçu de la fiche</span>
+        </span>
+      </div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="commercial-firstname">Prénom<span class="wz-required">*</span></label>
+          <input cFormControl formControlName="firstname" id="commercial-firstname" type="text" />
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="commercial-lastname">Nom<span class="wz-required">*</span></label>
+          <input cFormControl formControlName="lastname" id="commercial-lastname" type="text" />
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Accès</div>
+      <div class="row g-3 mb-1">
+        <div class="col-sm-6">
+          <label cLabel for="commercial-email">Email<span class="wz-required">*</span></label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilEnvelopeClosed" size="sm"></svg>
+            <input cFormControl formControlName="email" id="commercial-email" type="email" />
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="commercial-phone">Téléphone<span class="wz-required">*</span></label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilPhone" size="sm"></svg>
+            <input cFormControl formControlName="phone" id="commercial-phone" placeholder="Ex. 0700000000" type="text" />
+          </div>
+        </div>
+      </div>
+      @if (!editingId()) {
+        <div class="row g-3">
+          <div class="col-sm-4">
+            <label cLabel for="commercial-employeeCode">Matricule</label>
+            <input cFormControl formControlName="employeeCode" id="commercial-employeeCode" placeholder="Généré si vide" type="text" />
+          </div>
+          <div class="col-sm-4">
+            <label cLabel for="commercial-username">Identifiant de connexion<span class="wz-required">*</span></label>
+            <input cFormControl formControlName="username" id="commercial-username" type="text" />
+          </div>
+          <div class="col-sm-4">
+            <label cLabel for="commercial-password">Mot de passe</label>
+            <input cFormControl formControlName="password" id="commercial-password" placeholder="Généré si vide" type="text" />
+          </div>
+        </div>
+      } @else {
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label cLabel for="commercial-employeeCode-ro">Matricule</label>
+            <input [value]="form.controls.employeeCode.value" cFormControl disabled id="commercial-employeeCode-ro" type="text" />
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Affectation</div>
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label cLabel for="commercial-ville">Localité<span class="wz-required">*</span></label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilLocationPin" size="sm"></svg>
+            <select cSelect formControlName="villePartenaireId" id="commercial-ville">
+              <option value="">— Aucune —</option>
+              @for (ville of villes(); track ville.id) {
+                <option [value]="ville.id">{{ ville.nomVille }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="commercial-baseSalary">Salaire de base<span class="wz-required">*</span></label>
+          <div class="dl-field-suffix">
+            <input cFormControl formControlName="baseSalary" id="commercial-baseSalary" inputmode="numeric" type="text" wzThousandSeparator />
+            <span>FCFA</span>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label cLabel for="commercial-hireDate">Date d'embauche<span class="wz-required">*</span></label>
+          <div class="dl-field-icon">
+            <svg cIcon name="cilCalendar" size="sm"></svg>
+            <input cFormControl formControlName="hireDate" id="commercial-hireDate" type="date" />
+          </div>
+        </div>
+        @if (editingId()) {
+          <div class="col-sm-6">
+            <label cLabel for="commercial-endDate">Date de sortie</label>
+            <div class="dl-field-icon">
+              <svg cIcon name="cilCalendar" size="sm"></svg>
+              <input cFormControl formControlName="endDate" id="commercial-endDate" type="date" />
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="dl-form-section">
+      <div class="dl-form-section-label">Avantages</div>
+      <div class="dl-benefit-card">
+        <span class="dl-benefit-icon">
+          <svg cIcon name="cilCarAlt" size="lg"></svg>
+        </span>
+        <span class="dl-benefit-body">
+          <strong>Prime de transport</strong>
+          <span class="dl-cell-detail">Montant fixe versé chaque mois</span>
+          @if (form.controls.transportBenefitEnabled.value) {
+            <input cFormControl formControlName="transportBenefitAmount" id="commercial-transport-amount" inputmode="numeric" placeholder="Montant (FCFA)" type="text" wzThousandSeparator />
+          }
+        </span>
+        <span class="dl-benefit-switch form-check form-switch">
+          <input cFormCheckInput formControlName="transportBenefitEnabled" id="commercial-transport-enabled" switch type="checkbox" />
+        </span>
+      </div>
+      <div class="dl-benefit-card">
+        <span class="dl-benefit-icon">
+          <svg cIcon name="cilPhone" size="lg"></svg>
+        </span>
+        <span class="dl-benefit-body">
+          <strong>Prime de téléphone</strong>
+          <span class="dl-cell-detail">Montant fixe versé chaque mois</span>
+          @if (form.controls.phoneAllowanceEnabled.value) {
+            <input cFormControl formControlName="phoneAllowanceAmount" id="commercial-phone-allowance-amount" inputmode="numeric" placeholder="Montant (FCFA)" type="text" wzThousandSeparator />
+          }
+        </span>
+        <span class="dl-benefit-switch form-check form-switch">
+          <input cFormCheckInput formControlName="phoneAllowanceEnabled" id="commercial-phone-allowance-enabled" switch type="checkbox" />
+        </span>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+      <button (click)="formVisible.set(false)" cButton color="secondary" type="button" variant="outline">Annuler</button>
+      <button [disabled]="formSaving()" cButton color="primary" type="submit">
+        @if (formSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<app-modal [visible]="accountResult() !== null" title="Compte de connexion créé" (closed)="accountResult.set(null)">
+  @if (accountResult(); as result) {
+    <p>Identifiant : <code>{{ result.username }}</code></p>
+    @if (result.temporaryPassword) {
+      <p>Mot de passe temporaire : <code>{{ result.temporaryPassword }}</code></p>
+    }
+    @if (result.notifie) {
+      <p>Un SMS de bienvenue a été envoyé au commercial avec ses accès.</p>
+    } @else {
+      <p>L'envoi du SMS de bienvenue a échoué — transmettez ces accès par un autre canal.</p>
+    }
+    <div class="d-flex justify-content-end">
+      <button (click)="accountResult.set(null)" cButton color="primary" type="button">Fermer</button>
+    </div>
+  }
+</app-modal>
+
+<!-- ================= Modale paiement du bonus mensuel ================= -->
+<app-modal
+  [visible]="!!bonusPayTarget()"
+  title="Payer le bonus"
+  (closed)="closeBonusPay()"
+>
+  @if (bonusPayTarget(); as target) {
+    @if (bonusPayError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    @if (bonusPayResult(); as result) {
+      <section [class]="'sp-payresult sp-payresult--' + bonusPayResultVariant(result)" aria-labelledby="cm-bonus-payresult-title">
+        <header class="sp-payresult-head">
+          <span [class]="'sp-payresult-icon sp-soft--' + bonusPayResultVariant(result)">
+            @if (bonusPayResultVariant(result) === 'success') {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+            }
+          </span>
+          <div class="sp-payresult-title">
+            <h3 id="cm-bonus-payresult-title">{{ bonusPayResultTitle(result) }}</h3>
+            <p>{{ bonusPayResultDetail(result) }}</p>
+          </div>
+        </header>
+        @if (bonusNeedsReconcile(result.sycapayStatus)) {
+          <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(result.performance.sycapayTransactionId, result.sycapayTransactionReference)" class="sp-btn sp-btn--sm sp-btn--warning">Réconcilier</a>
+        }
+      </section>
+      <div class="d-flex justify-content-end mt-3">
+        <button (click)="closeBonusPay()" cButton color="secondary" type="button" variant="outline">Fermer</button>
+      </div>
+    } @else {
+      <div class="pz-scope cpz">
+        <div class="cpz-pay-hero">
+          <div class="cpz-pay-lbl">Bonus {{ moisDe(target.moisLibelle) }}</div>
+          <div class="cpz-pay-big cpz-num">{{ formatAmount(target.bonusAmount) }}</div>
+          <div class="cpz-pay-sub">{{ target.commercialNom }}{{ target.telephoneMasque ? ' · Wave ' + target.telephoneMasque : '' }}</div>
+        </div>
+        @if (target.relance) {
+          <p class="cpz-warn-text">Le virement précédent a échoué sans qu'aucun montant ne parte : une nouvelle tentative va être lancée.</p>
+        }
+        <ol class="cpz-steps">
+          <li>
+            <b>1</b>
+            @if (target.aValider) {
+              La performance est recalculée avec les chiffres du jour puis validée : le montant est figé.
+            } @else {
+              Le montant du bonus est déjà validé et figé.
+            }
+          </li>
+          <li><b>2</b>Le virement Wave est envoyé après vérification du solde SycaPay.</li>
+          <li><b>3</b>Une fois confirmé : bonus payé, écriture comptable créée, SMS au commercial.</li>
+        </ol>
+        <div class="cpz-field">
+          <label for="bonus-payment-reference">Référence (facultatif)</label>
+          <input [ngModel]="bonusPayReference()" (ngModelChange)="bonusPayReference.set($event)" id="bonus-payment-reference" maxlength="100" [placeholder]="'Ex. paie ' + moisDe(target.moisLibelle)" type="text" />
+        </div>
+        <div class="cpz-modal-foot">
+          <button (click)="closeBonusPay()" [disabled]="bonusPaying()" class="cpz-btn cpz-btn-outline" type="button">Annuler</button>
+          <button (click)="payBonus()" [disabled]="bonusPaying()" class="cpz-btn cpz-btn-primary" type="button">
+            @if (bonusPaying()) {
+              <c-spinner size="sm" />
+            }
+            Confirmer le paiement
+          </button>
+        </div>
+      </div>
+    }
+  }
+</app-modal>
+
+<!-- ================= Modale paiement du transport / de la communication ================= -->
+<app-modal
+  [visible]="!!benefitPayTarget()"
+  [title]="benefitPayTarget()?.kind === 'TRANSPORT' ? 'Payer la prime de transport' : 'Payer l\'indemnité de communication'"
+  (closed)="closeBenefitPay()"
+>
+  @if (benefitPayTarget(); as target) {
+    @if (benefitPayError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    @if (benefitPayResult(); as result) {
+      <section [class]="'sp-payresult sp-payresult--' + benefitPayResultVariant(result)" aria-labelledby="cm-benefit-payresult-title">
+        <header class="sp-payresult-head">
+          <span [class]="'sp-payresult-icon sp-soft--' + benefitPayResultVariant(result)">
+            @if (benefitPayResultVariant(result) === 'success') {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>
+            } @else {
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+            }
+          </span>
+          <div class="sp-payresult-title">
+            <h3 id="cm-benefit-payresult-title">{{ benefitPayResultTitle(result) }}</h3>
+            <p>{{ benefitPayResultDetail(result) }}</p>
+          </div>
+        </header>
+        @if (bonusNeedsReconcile(result.sycapayStatus)) {
+          <a [routerLink]="['/sycapay']" [queryParams]="bonusReconcileQueryParams(result.avantage.sycapayTransactionId, result.sycapayTransactionReference)" class="sp-btn sp-btn--sm sp-btn--warning">Réconcilier</a>
+        }
+      </section>
+      <div class="d-flex justify-content-end mt-3">
+        <button (click)="closeBenefitPay()" cButton color="secondary" type="button" variant="outline">Fermer</button>
+      </div>
+    } @else {
+      <div class="pz-scope cpz">
+        <div class="cpz-pay-hero">
+          <div class="cpz-pay-lbl">{{ target.kind === 'TRANSPORT' ? 'Transport' : 'Communication' }} {{ moisDe(target.moisLibelle) }}</div>
+          <div class="cpz-pay-big cpz-num">{{ formatAmount(target.amount ?? 0) }}</div>
+          <div class="cpz-pay-sub">{{ target.commercialNom }}{{ target.telephoneMasque ? ' · Wave ' + target.telephoneMasque : '' }}</div>
+        </div>
+        @if (target.relance) {
+          <p class="cpz-warn-text">Le virement précédent a échoué sans qu'aucun montant ne parte : une nouvelle tentative va être lancée.</p>
+        }
+        <ol class="cpz-steps">
+          <li><b>1</b>Le montant est celui de la fiche du commercial : il est figé au paiement. Le bonus n'est pas concerné.</li>
+          <li><b>2</b>Le virement Wave est envoyé après vérification du solde SycaPay (ou enregistré tel quel si SycaPay est désactivé).</li>
+          <li><b>3</b>Une fois confirmé : avantage payé et écriture comptable créée.</li>
+        </ol>
+        <div class="cpz-field">
+          <label for="benefit-payment-reference">Référence (facultatif)</label>
+          <input [ngModel]="benefitPayReference()" (ngModelChange)="benefitPayReference.set($event)" id="benefit-payment-reference" maxlength="100" [placeholder]="'Ex. ' + (target.kind === 'TRANSPORT' ? 'transport ' : 'communication ') + moisDe(target.moisLibelle)" type="text" />
+        </div>
+        <div class="cpz-modal-foot">
+          <button (click)="closeBenefitPay()" [disabled]="benefitPaying()" class="cpz-btn cpz-btn-outline" type="button">Annuler</button>
+          <button (click)="payBenefit()" [disabled]="benefitPaying()" class="cpz-btn cpz-btn-primary" type="button">
+            @if (benefitPaying()) {
+              <c-spinner size="sm" />
+            }
+            Confirmer le paiement
+          </button>
+        </div>
+      </div>
+    }
+  }
+</app-modal>
+
+<!-- ================= Modale changement de statut ================= -->
+<app-modal
+  [visible]="!!statusChangeTarget()"
+  title="{{ 'Changer le statut — ' + (statusChangeTarget() ? fullName(statusChangeTarget()!) : '') }}"
+  (closed)="closeStatusChange()"
+>
+  @if (statusChangeError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <div class="mb-3">
+    <label cLabel for="commercial-statut-select">Nouveau statut</label>
+    <select [ngModel]="statusChangeValue()" (ngModelChange)="statusChangeValue.set($event)" cSelect id="commercial-statut-select">
+      <option value="ACTIVE">Actif</option>
+      <option value="INACTIVE">Inactif</option>
+      <option value="SUSPENDED">Suspendu</option>
+      <option value="TERMINATED">Sorti</option>
+    </select>
+  </div>
+  <div class="mb-3">
+    <label cLabel for="commercial-statut-motif">Motif (optionnel)</label>
+    <input [ngModel]="statusChangeMotif()" (ngModelChange)="statusChangeMotif.set($event)" cFormControl id="commercial-statut-motif" type="text" />
+  </div>
+  <div class="d-flex align-items-center justify-content-end gap-2">
+    <button (click)="closeStatusChange()" cButton color="secondary" type="button" variant="outline">Annuler</button>
+    <button (click)="confirmStatusChange()" [disabled]="statusChangeSaving()" cButton color="primary" type="button">
+      @if (statusChangeSaving()) {
+        <c-spinner size="sm" />
+      }
+      Confirmer
+    </button>
+  </div>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="!!statutTarget()"
+  [title]="statutAction() === 'CLOSED' ? 'Clôturer cette période ?' : 'Valider cette performance ?'"
+  [message]="
+    statutAction() === 'CLOSED'
+      ? 'La période ' + (statutTarget()?.moisLibelle ?? '') + ' sera clôturée définitivement — plus aucune action possible sur ce bonus.'
+      : 'Le montant du bonus du mois ' + (statutTarget()?.moisLibelle ?? '') + ' (' + formatAmount(statutTarget()?.bonusAmount ?? 0) + ') sera figé définitivement. Il pourra ensuite être payé.'
+  "
+  [confirmLabel]="statutAction() === 'CLOSED' ? 'Clôturer' : 'Valider'"
+  icon="cilCheckCircle"
+  (cancelled)="cancelStatutAction()"
+  (confirmed)="performStatutAction()"
+/>

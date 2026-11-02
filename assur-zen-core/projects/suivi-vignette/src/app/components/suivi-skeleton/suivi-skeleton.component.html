@@ -1,0 +1,24 @@
+<div role="status" aria-live="polite" aria-label="Chargement de votre suivi">
+  <div class="sk-bar sk-bar--title"></div>
+
+  <div class="sk-card">
+    <div class="sk-bar" style="width: 45%; height: 11px;"></div>
+    <div class="sk-bar" style="width: 70%; height: 22px; margin-top: 10px;"></div>
+    <div class="sk-divider"></div>
+    <div class="sk-bar" style="width: 55%; height: 24px; border-radius: 999px;"></div>
+  </div>
+
+  <div class="sk-bar" style="width: 40%; height: 12px; margin: 1.5rem 0 1.1rem;"></div>
+
+  @for (row of [1, 2, 3]; track row) {
+    <div class="sk-row">
+      <div class="sk-bar sk-bar--dot"></div>
+      <div class="sk-row-lines">
+        <div class="sk-bar" style="width: 70%; height: 13px;"></div>
+        <div class="sk-bar" style="width: 35%; height: 10px; margin-top: 6px;"></div>
+      </div>
+    </div>
+  }
+
+  <p class="sk-caption">Chargement de votre suivi…</p>
+</div>

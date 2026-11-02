@@ -1,0 +1,24 @@
+<h2 class="stl-title">Évolution de la demande</h2>
+
+<ol class="stl-list">
+  @for (row of rows(); track $index) {
+    <li [class]="'stl-item stl-item--' + row.state">
+      <span class="stl-dot">
+        @if (row.state === 'done') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+        } @else if (row.state === 'current') {
+          <span class="stl-dot-fill"></span>
+        }
+      </span>
+      <span class="stl-body">
+        <span class="stl-label-row">
+          <strong class="stl-label">{{ row.libelle }}</strong>
+          @if (row.state === 'current') {
+            <span class="stl-current-badge">EN COURS</span>
+          }
+        </span>
+        <span class="stl-date">{{ row.date ? formatDate(row.date) : 'À venir' }}</span>
+      </span>
+    </li>
+  }
+</ol>

@@ -1,0 +1,12 @@
+<app-log-table
+  title="Logs Serveur"
+  [entries]="entries()"
+  [error]="error()"
+  [footerNote]="footerNote()"
+  emptyMessage="Aucun log serveur pour le moment."
+  filenamePrefix="assurzen-logs-serveur"
+  sourceLabel="Logger"
+  [refreshing]="loading()"
+  [showRefresh]="true"
+  (refresh)="refresh()"
+/>

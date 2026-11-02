@@ -1,0 +1,95 @@
+/* You can add global styles to this file, and also import other style files */
+
+@use "sass:string";
+
+// Import styles with default layout.
+// $sidebar-width must match the --cui-sidebar-width override in _theme.scss (.app-sidebar),
+// otherwise the content offset (--cui-sidebar-occupy-start) falls back to CoreUI's default
+// 16rem and the page content ends up clipped behind the wider sidebar.
+//
+// $primary and its subtle/emphasis shades are the brand royal blue (from the CIP AssurZen
+// logo — see _theme.scss for the full palette). Every custom partial (data-list, wizard,
+// metric-cards, confirm-dialog, error-pages…) reads var(--cui-primary) rather than a
+// hardcoded color, so this single override re-themes the whole app consistently.
+//
+// $gray-base/$gray-300 are re-tuned so the neutral text/border palette carries the same
+// cool navy-slate cast as the redesign mockup ($body-color, $border-color, $secondary-color
+// all derive from these) instead of CoreUI's default neutral gray. $border-radius matches
+// the mockup's rounder 9px rhythm (buttons, inputs, dropdowns all inherit from this single
+// token) rather than Bootstrap's default 6px.
+@use "@coreui/coreui/scss/coreui" as * with (
+  $enable-deprecation-messages: false,
+  $sidebar-width: 18rem,
+  $primary: #1b3b8f,
+  $primary-text-emphasis: #14265c,
+  $primary-bg-subtle: #dde5f8,
+  $primary-border-subtle: #aebeea,
+  $gray-base: #1e2a4c,
+  $gray-300: #e2e7f2,
+  $border-radius: 0.5625rem,
+  $border-radius-sm: 0.5rem,
+  $border-radius-lg: 0.875rem,
+  $font-family-sans-serif: string.unquote('"Corbel", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif'),
+  $font-family-monospace: string.unquote('"Consolas", SFMono-Regular, Menlo, Monaco, "Liberation Mono", "Courier New", monospace'),
+  $headings-font-family: string.unquote('"Bahnschrift", "Segoe UI Semibold", system-ui, sans-serif')
+);
+
+// Import Chart.js custom tooltips styles
+@use "@coreui/chartjs/scss/coreui-chartjs";
+
+// Custom styles for this theme
+@use "theme";
+
+// Some temp fixes
+//@use "fixes";
+
+// Self-hosted display/body typefaces (login page brand panel)
+@use "fonts";
+
+// Shared styles for the public auth pages (login, otp, change-password, register)
+@use "auth";
+
+// Shared confirmation popup (logout / lock session, etc.)
+@use "confirm-dialog";
+
+// Shared chrome for filterable/searchable list pages (logs, audit, entity lists…)
+@use "data-list";
+@use "vignette-wizard";
+@use "sycapay";
+
+// Shared KPI/health tiles for supervision pages (Prometheus, monitoring…)
+@use "metric-cards";
+
+// Shared visual language for the standalone error pages (404 / 500)
+@use "error-pages";
+
+// Generic embedded "not built yet" empty state (ComingSoonComponent)
+@use "empty-state";
+
+// Comptabilité générale dashboard: KPI tiles, chart panels, alert cards
+@use "ledger-dashboard";
+
+// Multi-step form wizard: stepper header + récapitulatif cards (Souscription…)
+@use "wizard";
+
+// Assistant de souscription (préfixe pz-), après "wizard" dont il surcharge le stepper.
+@use "souscription-wizard";
+@use "import-masse";
+@use "commissions";
+@use "partenaire-affaire";
+@use "primes-objectif";
+@use "force-de-vente";
+@use "paiements-sycapay";
+@use "commercial-paie";
+
+// Sectioned single-page forms: icon+title headers, sticky récapitulatif card,
+// textarea character counter (Déclarer un sinistre, suivi de sinistre…)
+@use "form-sections";
+
+// If you want to add custom CSS you can put it here.
+@use "custom";
+
+// Examples
+// We use those styles to show code examples, you should remove them in your application.
+@use "examples";
+

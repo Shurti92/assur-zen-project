@@ -1,0 +1,151 @@
+// Lifecycle stepper (Brouillon → En attente → Signé) — compact dots for table
+// rows, labeled version for the detail modal. 'cancelled' is shown separately
+// as a plain chip rather than a 4th step.
+
+.ct-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ct-step {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--cui-border-color);
+  flex-shrink: 0;
+
+  &--done {
+    background: var(--cui-success);
+  }
+
+  &--current {
+    background: var(--cui-primary);
+    box-shadow: 0 0 0 3px rgba(var(--cui-primary-rgb), 0.2);
+  }
+
+  &--upcoming {
+    background: var(--cui-border-color);
+  }
+}
+
+.ct-stepper--lg {
+  gap: 0;
+
+  .ct-step-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 1;
+    position: relative;
+
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 0.4rem;
+      left: 55%;
+      width: 90%;
+      height: 2px;
+      background: var(--cui-border-color);
+      z-index: 0;
+    }
+  }
+
+  .ct-step {
+    width: 0.8rem;
+    height: 0.8rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .ct-step-label {
+    font-size: 0.76rem;
+    color: var(--cui-secondary-color);
+    font-weight: 600;
+  }
+}
+
+// Contract detail modal — identity header (avatar + assuré + prime) and
+// grouped sections instead of one flat key/value grid. Reuses the dl-*
+// tokens (avatar, chip, tag, cell-detail) so it stays visually native.
+.ct-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--cui-border-color);
+}
+
+.ct-detail-header-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ct-detail-header-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.ct-detail-header-phone {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--cui-secondary-color);
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.ct-detail-header-prime {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.ct-detail-header-prime-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--cui-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ct-detail-header-prime-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cui-secondary-color);
+}
+
+.ct-detail-section {
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.85rem;
+  background: var(--cui-tertiary-bg);
+  border-radius: 0.6rem;
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+}
+
+.ct-detail-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cui-secondary-color);
+
+  svg {
+    flex-shrink: 0;
+    color: var(--brand-orange);
+  }
+}
+

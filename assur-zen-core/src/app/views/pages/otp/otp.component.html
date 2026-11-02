@@ -1,0 +1,113 @@
+<div class="auth-shell">
+  <app-auth-brand-panel>
+    <ng-container abHeadline>Une couche de sécurité en plus, <em>pensée pour votre activité</em>.</ng-container>
+    <ng-container abSub>
+      L'accès à vos contrats, sinistres et données d'assurés mérite une vérification
+      supplémentaire — c'est pour ça que chaque connexion passe par un code à usage unique.
+    </ng-container>
+    <li abFeatures>
+      <svg cIcon name="cilPaperPlane"></svg>
+      Code à usage unique envoyé par SMS
+    </li>
+    <li abFeatures>
+      <svg cIcon name="cilLockLocked"></svg>
+      Données chiffrées de bout en bout
+    </li>
+    <li abFeatures>
+      <svg cIcon name="cilUser"></svg>
+      Appareils de confiance mémorisés en sécurité
+    </li>
+  </app-auth-brand-panel>
+
+  <main class="auth-formside">
+    <div class="auth-formwrap">
+      <div class="auth-mobile-lockup">
+        <svg cIcon name="signet"></svg>
+        <span>CIP AssurZen</span>
+      </div>
+
+      <h1>Vérification en deux étapes</h1>
+      <p class="otp-lede">Nous avons envoyé un code de vérification à votre mobile. Saisissez-le ci-dessous.</p>
+
+      @if (maskedPhone()) {
+        <span class="otp-phone-chip">
+          <svg cIcon name="cilCommentSquare"></svg>
+          {{ maskedPhone() }}
+        </span>
+      }
+
+      <div class="otp-timer-block">
+        <div class="otp-timer-row">
+          @if (!codeExpired()) {
+            <span>Le code expire dans</span>
+            <span class="otp-timer-value" [class.is-urgent]="isUrgent()">{{ formattedRemaining() }}</span>
+          } @else {
+            <span class="otp-timer-value is-urgent">Le code a expiré</span>
+          }
+        </div>
+        <div class="otp-timer-track">
+          <div class="otp-timer-fill" [class.is-urgent]="isUrgent()" [style.width.%]="timerProgressPercent()"></div>
+        </div>
+      </div>
+
+      @if (errorMessage(); as message) {
+        <app-alert-message class="d-block mb-3" [message]="message" />
+        @if (resendFailed()) {
+          <div class="d-flex gap-2 mb-3">
+            <button (click)="resend()" [disabled]="resending() || resendCooldown() > 0" class="otp-retry" type="button">
+              @if (resending()) {
+                <c-spinner size="sm" />
+              }
+              @if (resendCooldown() > 0) {
+                Réessayer ({{ resendCooldown() }}s)
+              } @else {
+                Réessayer
+              }
+            </button>
+            <button (click)="backToLogin()" class="otp-retry otp-retry--ghost" type="button">Se reconnecter</button>
+          </div>
+        }
+      }
+
+      <form [formGroup]="form" cForm (ngSubmit)="verify()">
+        <label class="otp-label" cLabel>Code de sécurité à 6 chiffres</label>
+        <div class="otp-row" (paste)="onPaste($event)">
+          @for (digit of digits(); track $index) {
+            <input
+              #digitInput
+              autoComplete="one-time-code"
+              cFormControl
+              class="otp-digit"
+              inputmode="numeric"
+              maxlength="1"
+              type="text"
+              [value]="digit"
+              (input)="onDigitInput($index, $any($event.target).value)"
+              (keydown)="onDigitKeydown($index, $event)"
+            />
+          }
+        </div>
+
+        @if (!codeExpired()) {
+          <button [disabled]="loading()" class="otp-submit" type="submit">
+            @if (loading()) {
+              <c-spinner size="sm" />
+            }
+            Vérifier mon compte
+          </button>
+        }
+      </form>
+
+      <p class="otp-resend">
+        Vous n'avez pas reçu le code ?
+        @if (resendCooldown() > 0) {
+          <span>Renvoyer ({{ resendCooldown() }}s)</span>
+        } @else {
+          <button type="button" (click)="resend()">Renvoyer</button>
+        }
+      </p>
+
+      <button class="otp-back" type="button" (click)="backToLogin()">← Retour à la connexion</button>
+    </div>
+  </main>
+</div>

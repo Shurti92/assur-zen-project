@@ -1,0 +1,55 @@
+<div class="ep-stage">
+  <div class="ep-panel">
+    @if (isInvalidUrl) {
+      <div class="ep-badge ep-badge--warn">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 28a6 6 0 0 1 0-8.5l4-4a6 6 0 0 1 8.5 8.5l-2 2"></path>
+          <path d="M28 20a6 6 0 0 1 0 8.5l-4 4a6 6 0 0 1-8.5-8.5l2-2"></path>
+        </svg>
+      </div>
+      <p class="ep-code ep-code--warn">Accès</p>
+      <h1 class="ep-title">Connexion requise</h1>
+      <p class="ep-lede">
+        L'adresse demandée n'est pas accessible dans cet état. Connectez-vous ou reconnectez-vous pour continuer.
+      </p>
+      <div class="ep-actions">
+        <button (click)="goToLogin()" class="ep-btn ep-btn--warn" type="button">Se connecter</button>
+      </div>
+    } @else if (isBrokenLink) {
+      <div class="ep-badge ep-badge--warn">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 28a6 6 0 0 1 0-8.5l4-4a6 6 0 0 1 8.5 8.5l-2 2"></path>
+          <path d="M28 20a6 6 0 0 1 0 8.5l-4 4a6 6 0 0 1-8.5-8.5l2-2"></path>
+        </svg>
+      </div>
+      <p class="ep-code ep-code--warn">404</p>
+      <h1 class="ep-title">Page introuvable</h1>
+      <p class="ep-lede">
+        L'adresse demandée n'existe pas ou plus. Votre session reste active — revenez au tableau de bord.
+      </p>
+      <div class="ep-actions">
+        <button (click)="goToDashboard()" class="ep-btn ep-btn--warn" type="button">Retour au tableau de bord</button>
+      </div>
+    } @else {
+      <div class="ep-badge">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 30c0-7 4.5-12 10-12s10 5 10 12"></path>
+          <path d="M10 30h28"></path>
+          <path d="M24 12v2M32 15l-1.4 1.4M16 15l1.4 1.4"></path>
+          <circle cx="20" cy="35" r="1.6" fill="currentColor" stroke="none"></circle>
+          <circle cx="24" cy="35" r="1.6" fill="currentColor" stroke="none"></circle>
+          <circle cx="28" cy="35" r="1.6" fill="currentColor" stroke="none"></circle>
+        </svg>
+      </div>
+      <p class="ep-code">500</p>
+      <h1 class="ep-title">Service momentanément indisponible</h1>
+      <p class="ep-lede">
+        Une erreur technique est survenue. Réessayez dans un instant — si le problème persiste, contactez votre administrateur.
+      </p>
+      <div class="ep-actions">
+        <button (click)="retry()" class="ep-btn" type="button">Réessayer</button>
+        <button (click)="goToDashboard()" class="ep-link" type="button">Retour au tableau de bord</button>
+      </div>
+    }
+  </div>
+</div>

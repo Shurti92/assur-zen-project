@@ -1,0 +1,206 @@
+// Shared chrome + cards for supervision/monitoring pages (Prometheus, État
+// technique, Indicateurs métier): panel body, section headers, a compact KPI
+// tile and a per-component health tile. Semantic colors are generic so each
+// page maps its own domain onto them.
+
+.mc-updated {
+  font-size: 0.78rem;
+  color: var(--cui-secondary-color);
+  white-space: nowrap;
+}
+
+.mc-body {
+  padding: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.mc-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+
+  h3 {
+    font-size: 0.92rem;
+    font-weight: 700;
+    margin: 0;
+  }
+}
+
+.mc-overall {
+  margin-bottom: 0.3rem;
+}
+
+@media (max-width: 720px) {
+  .mc-updated {
+    order: 3;
+  }
+}
+
+.mc-kpi-card {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.05rem 1.15rem;
+  border-radius: 0.875rem;
+  border: 1px solid var(--cui-border-color);
+  background: var(--cui-body-bg);
+
+  &--primary { --mc-kpi-color: var(--cui-primary); }
+  &--success { --mc-kpi-color: var(--cui-success); }
+  &--warning { --mc-kpi-color: var(--cui-warning); }
+  &--info { --mc-kpi-color: var(--cui-info); }
+  &--danger { --mc-kpi-color: var(--cui-danger); }
+  // Brand-orange accent for a tile that needs to stand out from the rest of the
+  // strip (e.g. "échéance proche") — distinct from the semantic --warning amber.
+  &--flag {
+    --mc-kpi-color: var(--brand-orange);
+    border-color: color-mix(in srgb, var(--brand-orange) 45%, var(--cui-border-color));
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      border-radius: 0.875rem 0.875rem 0 0;
+      background: var(--brand-orange);
+    }
+  }
+
+  position: relative;
+  overflow: hidden;
+
+  &--clickable {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--mc-kpi-color, var(--cui-primary));
+      transform: translateY(-2px);
+      color: inherit;
+      text-decoration: none;
+    }
+
+    &[aria-pressed='true'] {
+      border-color: var(--mc-kpi-color, var(--cui-primary));
+      background: color-mix(in srgb, var(--mc-kpi-color, var(--cui-primary)) 10%, var(--cui-body-bg));
+    }
+  }
+}
+
+// <button> carries UA form-control chrome (appearance, font, alignment) that a
+// plain <div>/<a> tile doesn't — neutralize it so the KPI tile looks identical
+// whichever element renders it.
+button.mc-kpi-card--clickable {
+  appearance: none;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+}
+
+.mc-kpi-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.4375rem;
+  background: color-mix(in srgb, var(--mc-kpi-color, var(--cui-primary)) 14%, transparent);
+  color: var(--mc-kpi-color, var(--cui-primary));
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.mc-kpi-body {
+  min-width: 0;
+}
+
+.mc-kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.mc-kpi-label {
+  font-size: 0.78rem;
+  color: var(--cui-secondary-color);
+  margin-top: 0.15rem;
+}
+
+// Per-component health tile (Gateway, Auth, Paiement, Sinistre…) --------------
+
+.mc-health-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--cui-border-color);
+  background: var(--cui-tertiary-bg);
+  box-shadow: inset 3px 0 0 0 var(--mc-accent, transparent);
+
+  &--success { --mc-accent: var(--cui-success); }
+  &--danger { --mc-accent: var(--cui-danger); }
+  &--neutral { --mc-accent: var(--cui-secondary-color); }
+}
+
+.mc-health-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mc-health-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.6rem;
+  background: var(--cui-body-bg);
+  color: var(--mc-accent, var(--cui-secondary-color));
+}
+
+.mc-health-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  text-transform: capitalize;
+}
+
+.mc-health-details {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    font-size: 0.76rem;
+  }
+
+  dt {
+    color: var(--cui-secondary-color);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+}
