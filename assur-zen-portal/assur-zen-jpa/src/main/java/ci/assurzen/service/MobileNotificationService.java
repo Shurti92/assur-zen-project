@@ -43,6 +43,7 @@ public class MobileNotificationService {
     private final ClientAccountInsuredRepository clientAccountInsuredRepository;
     private final ContractRepository contractRepository;
     private final DynamicConfigurationService dynamicConfigurationService;
+    private final FcmPushService pushService;
 
     // ------------------------------------------------------------------ creation (cote serveur)
 
@@ -63,7 +64,8 @@ public class MobileNotificationService {
             n.setContractId(contractId);
             n.setClaimId(claimId);
             n.setDedupeKey(StringUtils.hasText(dedupeKey) ? dedupeKey : null);
-            repository.save(n);
+            n = repository.save(n);
+            pushService.diffuser(userId, categorie, n.getTitle(), n.getBody(), n.getId(), contractId, claimId);
         } catch (DataIntegrityViolationException e) {
             // doublon concurrent : deja notifie
         } catch (RuntimeException e) {

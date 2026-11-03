@@ -51,7 +51,7 @@ class MobileNotificationSupportTest {
         notifRepo = mock(MobileNotificationRepository.class);
         liens = mock(ClientAccountInsuredRepository.class);
         config = mock(DynamicConfigurationService.class);
-        notifications = new MobileNotificationService(notifRepo, liens, mock(ContractRepository.class), config);
+        notifications = new MobileNotificationService(notifRepo, liens, mock(ContractRepository.class), config, mock(FcmPushService.class));
         when(notifRepo.save(any(MobileNotification.class))).thenAnswer(inv -> inv.getArgument(0));
         when(config.getLong(anyString(), anyLong())).thenAnswer(inv -> inv.getArgument(1));
         when(config.getString(eq("SUPPORT_TOPICS"), any())).thenReturn("CONTRACT:Contrat;PAYMENT:Paiement;OTHER:Autre");

@@ -30,6 +30,7 @@ public class MobileMeController {
     private final MobileProfileService profileService;
     private final MobileNotificationService notificationService;
     private final MobileSupportService supportService;
+    private final ci.assurzen.service.MobileDeviceService deviceService;
 
     @GetMapping("/me")
     @Operation(operationId = "mobileGetMe", summary = "Mon profil (id, nom, telephone, e-mail)")
@@ -94,6 +95,33 @@ public class MobileMeController {
     @Operation(operationId = "mobileGetSupportRequest", summary = "Detail d'une de mes demandes d'aide (404 REQUEST_NOT_FOUND)")
     public ResponseEntity<MobileExtraDtos.SupportItem> demande(Authentication a, @PathVariable Long id) {
         return ResponseEntity.ok(supportService.detail(userId(a), id));
+    }
+
+    // ----- appareils et preferences push
+
+    @PostMapping("/devices")
+    @Operation(operationId = "mobileRegisterDevice", summary = "Enregistrer l'appareil pour les notifications push (jeton FCM, plateforme ANDROID ou IOS, version de l'application) ; idempotent par jeton")
+    public ResponseEntity<MobileExtraDtos.DeviceView> enregistrerAppareil(Authentication a, @Valid @RequestBody MobileExtraDtos.DeviceRequest request) {
+        return ResponseEntity.status(201).body(deviceService.enregistrer(userId(a), request));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/devices/{id}")
+    @Operation(operationId = "mobileUnregisterDevice", summary = "Supprimer l'appareil a la deconnexion (204, idempotent)")
+    public ResponseEntity<Void> supprimerAppareil(Authentication a, @PathVariable Long id) {
+        deviceService.supprimer(userId(a), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/notification-preferences")
+    @Operation(operationId = "mobileGetNotificationPreferences", summary = "Preferences de notification push par categorie (EXPIRY, SUBSCRIPTION, PAYMENT, CLAIM, DOCUMENT, SERVICE) ; activee par defaut")
+    public ResponseEntity<MobileExtraDtos.PreferenceList> preferences(Authentication a) {
+        return ResponseEntity.ok(deviceService.preferences(userId(a)));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/notification-preferences")
+    @Operation(operationId = "mobileSetNotificationPreferences", summary = "Activer ou desactiver le push par categorie (la notification reste listee dans l'application)")
+    public ResponseEntity<MobileExtraDtos.PreferenceList> modifierPreferences(Authentication a, @Valid @RequestBody MobileExtraDtos.PreferenceUpdate request) {
+        return ResponseEntity.ok(deviceService.modifierPreferences(userId(a), request));
     }
 
     private Long userId(Authentication a) {

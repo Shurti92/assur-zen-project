@@ -275,6 +275,11 @@ mailer:
 
 # Paiement mobile (2026-11-02) : SIMULATION uniquement (aucun fournisseur d'encaissement), activee en dev par
 # MOBILE_PAYMENTS_SIMULATED=true. Par defaut false : aucun moyen de paiement actif.
+# Notifications push Firebase (2026-11-03) : le fichier du compte de service reste HORS du depot.
+# L'envoi reel est pilote par la cle de configuration PUSH_ENABLED (false par defaut, sans redemarrage).
+firebase:
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+
 mobile:
   payments:
     simulated: ${MOBILE_PAYMENTS_SIMULATED:false}

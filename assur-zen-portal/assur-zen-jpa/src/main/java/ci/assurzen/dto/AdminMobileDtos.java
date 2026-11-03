@@ -79,6 +79,8 @@ public final class AdminMobileDtos {
             String insuredName,
             Long userId,
             String phone,
+            /** Nom du compte mobile a l'origine de la demande, sinon null. */
+            String fullName,
             String type,
             String message,
             String statut,
@@ -102,7 +104,11 @@ public final class AdminMobileDtos {
             String phone,
             String slot,
             String productId,
+            /** Nom du produit (titre du back-office) quand productId correspond a un produit, sinon null. */
+            String productName,
             Long userId,
+            /** Nom du compte mobile quand la demande est rattachee a un compte, sinon null. */
+            String fullName,
             String statut,
             Instant createdAt,
             Instant processedAt,

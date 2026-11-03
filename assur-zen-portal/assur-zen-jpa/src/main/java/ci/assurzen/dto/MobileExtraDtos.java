@@ -86,6 +86,33 @@ public final class MobileExtraDtos {
     public record FaqList(List<FaqItem> items) {
     }
 
+    // ---- appareils et preferences push
+    public record DeviceRequest(
+            @NotBlank(message = "Le jeton de l'appareil est obligatoire") @Size(max = 500) String token,
+            @NotBlank(message = "La plateforme est obligatoire") @Pattern(regexp = "ANDROID|IOS", message = "platform doit valoir ANDROID ou IOS") String platform,
+            @Size(max = 40) String appVersion
+    ) {
+    }
+
+    public record DeviceView(String id, String platform, String appVersion) {
+    }
+
+    public record PreferenceItem(
+            @NotBlank @Pattern(regexp = "EXPIRY|SUBSCRIPTION|PAYMENT|CLAIM|DOCUMENT|SERVICE", message = "category invalide") String category,
+            @NotNull(message = "enabled est obligatoire") Boolean enabled
+    ) {
+    }
+
+    public record PreferenceList(List<PreferenceItem> items) {
+    }
+
+    public record PreferenceUpdate(@NotNull @Size(min = 1, max = 6) List<@Valid PreferenceItem> items) {
+    }
+
+    /** Etat de la configuration push (administration). */
+    public record PushStatus(boolean configured, boolean enabled, String projectId, boolean authenticated, String message) {
+    }
+
     // ---- administration du support
     public record SupportAdminItem(Long id, String reference, Long userId, String phone, String topic, String message, String status,
                                    String response, Instant respondedAt, String respondedBy, Instant createdAt) {

@@ -79,6 +79,7 @@ public class AdminMobileService {
     private final FunctionalAuditRecorder auditRecorder;
     private final CommercialService commercialService;
     private final ci.assurzen.service.AuthService authService;
+    private final ci.assurzen.repositories.ProduitRepository produitRepository;
     private final MobileNotificationService notificationService;
 
     // ------------------------------------------------------------------ comptes
@@ -399,13 +400,31 @@ public class AdminMobileService {
         return new AdminMobileDtos.ContractRequestItem(d.getId(), d.getReference(), d.getContractId(),
                 c == null ? null : c.getPolicyNumber(),
                 assure == null ? null : (nonNull(assure.getPrenoms()) + " " + nonNull(assure.getNom())).trim(),
-                d.getUserId(), telephone, d.getType(), d.getMessage(), d.getStatut(), d.getCreatedAt(), d.getProcessedAt(),
+                d.getUserId(), telephone, nomCompte(d.getUserId()), d.getType(), d.getMessage(), d.getStatut(), d.getCreatedAt(), d.getProcessedAt(),
                 d.getProcessedBy(), d.getProcessComment());
     }
 
     private AdminMobileDtos.CallbackItem vueRappel(CallbackRequest d) {
-        return new AdminMobileDtos.CallbackItem(d.getId(), d.getReference(), d.getPhone(), d.getSlot(), d.getProductId(), d.getUserId(),
+        return new AdminMobileDtos.CallbackItem(d.getId(), d.getReference(), d.getPhone(), d.getSlot(), d.getProductId(), nomProduit(d.getProductId()), d.getUserId(), nomCompte(d.getUserId()),
                 d.getStatut(), d.getCreatedAt(), d.getProcessedAt(), d.getProcessedBy(), d.getProcessComment());
+    }
+
+    /** Titre du produit dont l'identifiant lisible (auto, moto...) est productId, sinon null. */
+    private String nomProduit(String productId) {
+        if (!StringUtils.hasText(productId)) {
+            return null;
+        }
+        return produitRepository.findAll().stream()
+                .filter(p -> productId.equalsIgnoreCase(MobileProductContentService.cle(p)))
+                .map(ci.assurzen.entities.Produit::getNomProduit).findFirst().orElse(null);
+    }
+
+    private String nomCompte(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return profileRepository.findByUserId(userId)
+                .map(p -> (nonNull(p.getFirstname()) + " " + nonNull(p.getLastname())).trim()).filter(StringUtils::hasText).orElse(null);
     }
 
     private Map<Long, String> telephonesDe(List<Long> userIds) {
