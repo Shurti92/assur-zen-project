@@ -1,9 +1,4 @@
 <div class="vp">
-  <header class="vp-header">
-    <h1>Paramétrage VTC</h1>
-    <p class="vp-sub">Réglages du devis automobile VTC : plafond de remise, marques de voitures et plateformes proposées.</p>
-  </header>
-
   @if (error()) {
     <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
   }
@@ -17,20 +12,20 @@
     <div class="vp-grid">
       <section [class.vp-card--changed]="discountChanged()" class="vp-card">
         <h3 class="vp-title">Plafond de remise</h3>
-        <div class="vp-discount">
+        <div class="vp-big">{{ discount() }} <span>%</span></div>
+        <div class="vp-range">
           <input
             (input)="setDiscount($any($event.target).value)"
-            [class.vp-invalid]="!discountValid()"
             [value]="discount()"
             aria-label="Plafond de remise en pourcentage"
-            inputmode="decimal"
+            max="100"
+            min="0"
+            step="0.5"
+            type="range"
           />
-          <span>%</span>
+          <b>{{ discount() }} %</b>
         </div>
-        @if (!discountValid()) {
-          <div class="vp-err">Entrez un nombre entre 0 et 100.</div>
-        }
-        <p class="vp-hint">0 = aucune remise. Plafond appliqué aux commerciaux, sur la prime nette.</p>
+        <p class="vp-hint">0 = aucune remise. Plafond appliqué aux commerciaux sur la prime nette.</p>
       </section>
 
       <div [class.vp-card--changed]="brandsChanged()" class="vp-wrap">
@@ -41,11 +36,11 @@
         <app-editable-list [(items)]="platforms" [max]="maxPlatforms" placeholder="Ajouter une plateforme" title="Plateformes" />
       </div>
     </div>
-    <p class="vp-hint">Même fonctionnement que « Marques moto » : glisser-déposer, doublons refusés, une seule barre « Enregistrer » pour les trois blocs.</p>
+    <p class="vp-hint">Même fonctionnement que l'écran « Marques moto » : glisser-déposer, doublons refusés, une seule barre « Enregistrer » pour les trois blocs.</p>
   }
 
   <div [class.vp-save--on]="changeCount() > 0" class="vp-save" role="status">
-    <span>{{ changeCount() }} bloc{{ changeCount() > 1 ? 's' : '' }} modifié{{ changeCount() > 1 ? 's' : '' }}, non enregistré{{ changeCount() > 1 ? 's' : '' }}</span>
+    <span>{{ changeCount() }} modification{{ changeCount() > 1 ? 's' : '' }} non enregistrée{{ changeCount() > 1 ? 's' : '' }}</span>
     <button (click)="cancel()" [disabled]="saving()" class="vp-btn vp-btn--ghost" type="button">Annuler</button>
     <button (click)="save()" [disabled]="!canSave()" class="vp-btn vp-btn--primary" type="button">
       @if (saving()) {
