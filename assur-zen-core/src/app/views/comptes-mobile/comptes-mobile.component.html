@@ -175,7 +175,7 @@
             <div class="fw-semibold">{{ li.name }}</div>
             <div class="dl-timestamp">{{ li.phone || '—' }}</div>
           </div>
-          <button (click)="unlink(li)" [disabled]="actionBusy()" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Détacher</button>
+          <button (click)="askUnlink(li)" [disabled]="actionBusy()" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Détacher</button>
         </div>
       }
     }
@@ -333,3 +333,14 @@
     </button>
   </div>
 </app-modal>
+
+<app-confirm-dialog
+  [visible]="unlinkTarget() !== null"
+  cancelLabel="Annuler"
+  confirmLabel="Détacher"
+  icon="cilWarning"
+  message="Le client ne verra plus les contrats ni les sinistres de cet assuré dans l'application."
+  title="Détacher {{ unlinkTarget()?.name }} ?"
+  (cancelled)="cancelUnlink()"
+  (confirmed)="confirmUnlink()"
+/>
