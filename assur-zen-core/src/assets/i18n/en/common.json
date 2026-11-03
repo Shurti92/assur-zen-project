@@ -60,6 +60,10 @@
   "nav.sinistres.liste": "Claims list",
 
   "nav.assures": "Insureds",
+  "nav.mobile.title": "AssurZen Mobile",
+  "nav.mobile.comptes": "Customer accounts",
+  "nav.mobile.catalogue": "Mobile catalogue",
+  "nav.mobile.demandes": "Mobile requests",
   "nav.gestionFlotte": "Fleet management",
   "nav.ged": "Document management",
   "nav.sortiesDeFonds": "Fund outflows",

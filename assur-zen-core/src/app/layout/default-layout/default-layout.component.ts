@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { NgScrollbar } from 'ngx-scrollbar';
@@ -17,6 +17,7 @@ import { TranslocoService } from '@jsverse/transloco';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { NavPermissionsService } from '../../core/auth/nav-permissions.service';
+import { MobileRequestService } from '../../core/mobile-admin/mobile-request.service';
 import { DefaultFooterComponent, DefaultHeaderComponent } from './';
 import { getNavItems } from './_nav';
 
@@ -49,6 +50,7 @@ export class DefaultLayoutComponent {
   private readonly authService = inject(AuthService);
   private readonly navPermissionsService = inject(NavPermissionsService);
   private readonly translocoService = inject(TranslocoService);
+  private readonly mobileRequests = inject(MobileRequestService);
 
   /** Read inside navItems() purely so it re-evaluates on language change AND
    * once the initial translation payload finishes loading — langChanges$
@@ -68,9 +70,36 @@ export class DefaultLayoutComponent {
     this.activeLang();
     this.translationLoaded();
     return this.translateNavItems(
-      getNavItems(this.navPermissionsService.canAccessAdminMenus(), this.authService.currentUser()?.role === 'ADMIN'),
+      this.withMobileBadges(
+        getNavItems(this.navPermissionsService.canAccessAdminMenus(), this.authService.currentUser()?.role === 'ADMIN'),
+      ),
     );
   });
+
+  constructor() {
+    // Pastilles « demandes mobile en attente » du menu : chargées une fois pour les administrateurs
+    // (l'écran Demandes mobile et chaque traitement les rafraîchissent ensuite).
+    effect(() => {
+      if (this.authService.currentUser()?.role === 'ADMIN') this.mobileRequests.refreshPending();
+    });
+  }
+
+  /** Ajoute la pastille rouge (demandes en attente) sur le groupe Mobile AssurZen et son entrée Demandes. */
+  private withMobileBadges(items: INavData[]): INavData[] {
+    const total = this.mobileRequests.pendingTotal();
+    if (total <= 0) return items;
+    const badge = { color: 'danger', text: String(total) };
+    return items.map((item) => {
+      if (item.name === 'nav.mobile.title') {
+        return {
+          ...item,
+          badge,
+          children: item.children?.map((c) => (c.name === 'nav.mobile.demandes' ? { ...c, badge } : c)),
+        };
+      }
+      return item;
+    });
+  }
   public sidebarVisible = true;
   public readonly currentUser = this.authService.currentUser;
 

@@ -1,0 +1,335 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Comptes mobile</h2>
+    </div>
+
+    <div class="dl-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        (input)="onSearchInput($any($event.target).value)"
+        [value]="searchQuery()"
+        autocomplete="off"
+        placeholder="Rechercher par numéro ou nom…"
+        type="search"
+      />
+    </div>
+
+    <select
+      (change)="onStatusFilterChange($any($event.target).value)"
+      [value]="statusFilter()"
+      aria-label="Filtrer par statut"
+      class="form-select form-select-sm w-auto"
+    >
+      <option value="">Tous les statuts</option>
+      <option value="true">Actifs</option>
+      <option value="false">Désactivés</option>
+    </select>
+
+    <div class="dl-actions">
+      <button (click)="refresh()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">+ Créer un compte mobile</button>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-4 px-4 py-3" style="border-bottom: 1px solid var(--cui-border-color)">
+    <div>
+      <div class="fs-5 fw-bold">{{ statTotal() ?? '—' }}</div>
+      <div class="small text-body-secondary">comptes</div>
+    </div>
+    <div>
+      <div class="fs-5 fw-bold">{{ statActive() ?? '—' }}</div>
+      <div class="small text-body-secondary">actifs</div>
+    </div>
+    <div>
+      <div class="fs-5 fw-bold">{{ statInactive() ?? '—' }}</div>
+      <div class="small text-body-secondary">désactivés</div>
+    </div>
+    <div>
+      <div class="fs-5 fw-bold" [class.text-warning]="(statPendingDeletions() ?? 0) > 0">{{ statPendingDeletions() ?? '—' }}</div>
+      <div class="small text-body-secondary">suppressions en attente</div>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des comptes…</p>
+  } @else if (items().length === 0) {
+    <p class="dl-empty">Aucun compte mobile ne correspond à cette recherche.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Client</th>
+            <th scope="col">Téléphone</th>
+            <th scope="col">Assurés rattachés</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Créé le</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.userId) {
+            <tr (click)="openDetail(item)" style="cursor: pointer">
+              <td>
+                <div class="dl-insured">
+                  <span class="dl-avatar">{{ initials(item.fullName) }}</span>
+                  <div>
+                    <div class="dl-insured-name">{{ displayName(item) }}</div>
+                    @if (item.pendingDeletionReference) {
+                      <div class="dl-insured-meta">Suppression demandée · {{ item.pendingDeletionReference }}</div>
+                    }
+                  </div>
+                </div>
+              </td>
+              <td class="dl-timestamp">{{ item.phone || '—' }}</td>
+              <td>{{ item.linkedInsuredCount }}</td>
+              <td>
+                @if (item.pendingDeletionReference) {
+                  <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>Suppression en attente</span>
+                } @else if (item.active) {
+                  <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Actif</span>
+                } @else {
+                  <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Désactivé</span>
+                }
+              </td>
+              <td class="dl-timestamp">{{ formatDate(item.createdAt) }}</td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openDetail(item); $event.stopPropagation()" cButton class="dl-btn" size="sm" type="button">Ouvrir</button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span>
+      <strong>{{ items().length }}</strong> sur {{ totalElements() }} comptes
+      (page {{ pageIndex() + 1 }} sur {{ totalPages() || 1 }})
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Fiche compte ===== -->
+<app-modal [visible]="detailVisible()" size="lg" title="Compte mobile" (closed)="closeDetail()">
+  @if (detail(); as d) {
+    <div class="d-flex align-items-center gap-3 mb-3 pb-3" style="border-bottom: 1px solid var(--cui-border-color)">
+      <span class="dl-avatar dl-avatar--lg">{{ initials(d.account.fullName) }}</span>
+      <div class="flex-grow-1">
+        <div class="fw-semibold fs-5">{{ displayName(d.account) }}</div>
+        <div class="dl-timestamp">{{ d.account.phone || '—' }}</div>
+      </div>
+      @if (d.account.active) {
+        <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Actif</span>
+      } @else {
+        <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Désactivé</span>
+      }
+    </div>
+
+    @if (detailError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    @if (actionError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    <h6 class="fw-semibold mb-2 text-uppercase small text-body-secondary">Informations</h6>
+    <div class="row g-3 mb-4">
+      <div class="col-6"><div class="small text-body-secondary">Identifiant du compte</div>#{{ d.account.userId }}</div>
+      <div class="col-6"><div class="small text-body-secondary">Créé le</div>{{ formatDate(d.account.createdAt) }}</div>
+      <div class="col-6"><div class="small text-body-secondary">Assurés rattachés</div>{{ d.linkedInsureds.length }}</div>
+      <div class="col-6">
+        <div class="small text-body-secondary">Suppression en attente</div>
+        {{ d.account.pendingDeletionReference || 'Aucune' }}
+      </div>
+    </div>
+
+    <h6 class="fw-semibold mb-2 text-uppercase small text-body-secondary">Assurés rattachés</h6>
+    @if (detailLoading()) {
+      <p class="dl-empty">Chargement…</p>
+    } @else if (d.linkedInsureds.length === 0) {
+      <p class="dl-empty">Aucun assuré rattaché : le client ne voit encore aucun contrat.</p>
+    } @else {
+      @for (li of d.linkedInsureds; track li.insuredId) {
+        <div class="d-flex align-items-center gap-3 p-2 mb-2" style="border: 1px solid var(--cui-border-color); border-radius: 0.6rem">
+          <span class="dl-avatar">{{ initials(li.name) }}</span>
+          <div class="flex-grow-1">
+            <div class="fw-semibold">{{ li.name }}</div>
+            <div class="dl-timestamp">{{ li.phone || '—' }}</div>
+          </div>
+          <button (click)="unlink(li)" [disabled]="actionBusy()" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Détacher</button>
+        </div>
+      }
+    }
+    <button (click)="openAttach()" cButton class="dl-btn" size="sm" type="button">+ Rattacher un assuré</button>
+    <div class="alert alert-info small mt-3 mb-0">
+      Le client voit les contrats et sinistres de chaque assuré rattaché. Détacher sert à corriger un rattachement erroné (numéro recyclé ou partagé).
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+      @if (d.account.active) {
+        <button (click)="openDeactivate()" [disabled]="actionBusy()" cButton color="danger" variant="outline" class="dl-btn" type="button">Désactiver le compte</button>
+      } @else {
+        <button (click)="reactivate()" [disabled]="actionBusy()" cButton color="success" variant="outline" class="dl-btn" type="button">
+          @if (actionBusy()) {
+            <c-spinner size="sm" />
+          }
+          Réactiver le compte
+        </button>
+      }
+      <button (click)="closeDetail()" cButton class="dl-btn" type="button">Fermer</button>
+    </div>
+  }
+</app-modal>
+
+<!-- ===== Création ===== -->
+<app-modal [visible]="createVisible()" size="md" title="Créer un compte mobile" (closed)="createVisible.set(false)">
+  <p class="text-body-secondary small">Pour un assuré déjà enregistré.</p>
+
+  @if (createError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+
+  <label class="form-label fw-semibold" for="cm-insured">Assuré *</label>
+  @if (createInsured(); as insured) {
+    <div class="d-flex align-items-center gap-2 p-2 mb-2" style="border: 1px solid var(--cui-border-color); border-radius: 0.6rem">
+      <span class="dl-avatar">{{ initials(insuredLabel(insured)) }}</span>
+      <div class="flex-grow-1">
+        <div class="fw-semibold">{{ insuredLabel(insured) }}</div>
+        <div class="dl-timestamp">{{ insured.clientPhone || 'Pas de téléphone' }}</div>
+      </div>
+      <button (click)="clearCreateInsured()" cButton class="dl-btn" size="sm" type="button">Changer</button>
+    </div>
+  } @else {
+    <input
+      (input)="onInsuredQueryInput($any($event.target).value)"
+      [value]="insuredQuery()"
+      autocomplete="off"
+      class="form-control"
+      id="cm-insured"
+      placeholder="Rechercher un assuré (nom ou téléphone)…"
+      type="search"
+    />
+    @if (insuredSearching()) {
+      <div class="small text-body-secondary mt-2">Recherche…</div>
+    }
+    @for (r of insuredResults(); track r.id) {
+      <button (click)="selectCreateInsured(r)" class="list-group-item list-group-item-action d-flex justify-content-between mt-1 border rounded" type="button">
+        <span>{{ insuredLabel(r) }}</span>
+        <span class="dl-timestamp">{{ r.clientPhone || '—' }}</span>
+      </button>
+    }
+  }
+
+  <label class="form-label fw-semibold mt-3" for="cm-phone">Téléphone du compte</label>
+  <input [ngModel]="createPhone()" (ngModelChange)="createPhone.set($event)" class="form-control" id="cm-phone" type="tel" />
+  <div class="form-text">Par défaut : le téléphone de l'assuré.</div>
+
+  <div class="form-check mt-3">
+    <input [ngModel]="createInvite()" (ngModelChange)="createInvite.set($event)" class="form-check-input" id="cm-invite" type="checkbox" />
+    <label class="form-check-label" for="cm-invite">Envoyer le SMS d'invitation</label>
+  </div>
+  <div class="alert alert-info small mt-3">
+    Aucun code PIN n'est défini : le client reçoit un SMS et choisit son PIN via « PIN oublié » dans l'application.
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+    <button (click)="createVisible.set(false)" cButton class="dl-btn" type="button">Annuler</button>
+    <button (click)="submitCreate()" [disabled]="createSaving() || !createInsured()" cButton class="dl-btn dl-btn-primary" type="button">
+      @if (createSaving()) {
+        <c-spinner size="sm" />
+      }
+      Créer le compte
+    </button>
+  </div>
+</app-modal>
+
+<!-- ===== Rattachement ===== -->
+<app-modal [visible]="attachVisible()" size="md" title="Rattacher un assuré" (closed)="attachVisible.set(false)">
+  @if (actionError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <label class="form-label fw-semibold" for="cm-attach">Assuré *</label>
+  @if (attachInsured(); as insured) {
+    <div class="d-flex align-items-center gap-2 p-2 mb-2" style="border: 1px solid var(--cui-border-color); border-radius: 0.6rem">
+      <span class="dl-avatar">{{ initials(insuredLabel(insured)) }}</span>
+      <div class="flex-grow-1">
+        <div class="fw-semibold">{{ insuredLabel(insured) }}</div>
+        <div class="dl-timestamp">{{ insured.clientPhone || '—' }}</div>
+      </div>
+      <button (click)="attachInsured.set(null)" cButton class="dl-btn" size="sm" type="button">Changer</button>
+    </div>
+  } @else {
+    <input
+      (input)="onInsuredQueryInput($any($event.target).value)"
+      [value]="insuredQuery()"
+      autocomplete="off"
+      class="form-control"
+      id="cm-attach"
+      placeholder="Rechercher un assuré…"
+      type="search"
+    />
+    @if (insuredSearching()) {
+      <div class="small text-body-secondary mt-2">Recherche…</div>
+    }
+    @for (r of insuredResults(); track r.id) {
+      <button (click)="selectAttachInsured(r)" class="list-group-item list-group-item-action d-flex justify-content-between mt-1 border rounded" type="button">
+        <span>{{ insuredLabel(r) }}</span>
+        <span class="dl-timestamp">{{ r.clientPhone || '—' }}</span>
+      </button>
+    }
+  }
+  <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+    <button (click)="attachVisible.set(false)" cButton class="dl-btn" type="button">Annuler</button>
+    <button (click)="confirmAttach()" [disabled]="actionBusy() || !attachInsured()" cButton class="dl-btn dl-btn-primary" type="button">
+      @if (actionBusy()) {
+        <c-spinner size="sm" />
+      }
+      Rattacher
+    </button>
+  </div>
+</app-modal>
+
+<!-- ===== Désactivation ===== -->
+<app-modal [visible]="deactivateVisible()" size="md" title="Désactiver le compte" (closed)="deactivateVisible.set(false)">
+  @if (actionError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <div class="alert alert-warning small">La désactivation coupe immédiatement toutes les sessions du client dans l'application.</div>
+  <label class="form-label fw-semibold" for="cm-comment">Motif (optionnel)</label>
+  <textarea
+    [ngModel]="deactivateComment()"
+    (ngModelChange)="deactivateComment.set($event)"
+    class="form-control"
+    id="cm-comment"
+    placeholder="Ex. demande du client, suspicion de fraude…"
+    rows="3"
+  ></textarea>
+  <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+    <button (click)="deactivateVisible.set(false)" cButton class="dl-btn" type="button">Annuler</button>
+    <button (click)="confirmDeactivate()" [disabled]="actionBusy()" cButton color="danger" class="dl-btn" type="button">
+      @if (actionBusy()) {
+        <c-spinner size="sm" />
+      }
+      Désactiver
+    </button>
+  </div>
+</app-modal>

@@ -60,6 +60,10 @@
   "nav.sinistres.liste": "Список страховых случаев",
 
   "nav.assures": "Страхователи",
+  "nav.mobile.title": "AssurZen Mobile",
+  "nav.mobile.comptes": "Аккаунты клиентов",
+  "nav.mobile.catalogue": "Мобильный каталог",
+  "nav.mobile.demandes": "Мобильные запросы",
   "nav.gestionFlotte": "Управление автопарком",
   "nav.ged": "Управление документами",
   "nav.sortiesDeFonds": "Исходящие платежи",

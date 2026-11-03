@@ -60,6 +60,10 @@
   "nav.sinistres.liste": "Liste des sinistres",
 
   "nav.assures": "Assurés",
+  "nav.mobile.title": "Mobile AssurZen",
+  "nav.mobile.comptes": "Comptes clients",
+  "nav.mobile.catalogue": "Catalogue mobile",
+  "nav.mobile.demandes": "Demandes mobile",
   "nav.gestionFlotte": "Gestion flotte",
   "nav.ged": "GED",
   "nav.sortiesDeFonds": "Sorties de fonds",

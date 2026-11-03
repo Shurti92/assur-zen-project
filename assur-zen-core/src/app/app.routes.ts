@@ -435,6 +435,36 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'mobile/comptes',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./views/comptes-mobile/comptes-mobile.component').then((m) => m.ComptesMobileComponent),
+        data: {
+          title: 'Comptes mobile',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
+        path: 'mobile/catalogue',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./views/catalogue-mobile/catalogue-mobile.component').then((m) => m.CatalogueMobileComponent),
+        data: {
+          title: 'Catalogue mobile',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
+        path: 'mobile/demandes',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./views/demandes-mobile/demandes-mobile.component').then((m) => m.DemandesMobileComponent),
+        data: {
+          title: 'Demandes mobile',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
         path: 'contrats/liste-des-contrats',
         loadComponent: () =>
           import('./views/contrats/contrats.component').then((m) => m.ContratsComponent),
