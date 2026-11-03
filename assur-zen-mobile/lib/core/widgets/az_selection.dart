@@ -72,12 +72,15 @@ class AzStatusBadge extends StatelessWidget {
 
 /// Puce sélectionnable (filtre, choix simple).
 class AzChoiceChip extends StatelessWidget {
-  const AzChoiceChip({super.key, required this.label, required this.selected, required this.onTap, this.squared = false});
+  const AzChoiceChip({super.key, required this.label, required this.selected, required this.onTap, this.squared = false, this.minHeight});
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final bool squared;
+
+  /// Hauteur minimale ; par défaut 40 (46 pour une puce carrée).
+  final double? minHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +97,7 @@ class AzChoiceChip extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: squared ? 46 : 40),
+            constraints: BoxConstraints(minHeight: minHeight ?? (squared ? 46 : 40)),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Center(
@@ -136,6 +139,74 @@ class AzChipWrap<T> extends StatelessWidget {
           AzChoiceChip(label: labelOf?.call(o) ?? '$o', selected: o == selected, onTap: () => onSelected(o)),
       ],
     );
+  }
+}
+
+/// Puces qui occupent toute la largeur disponible, quelle que soit la taille de l'écran.
+///
+/// Le nombre de colonnes s'adapte à la largeur : autant de puces par ligne que possible sans que
+/// chacune soit plus étroite que [minChipWidth], puis les lignes sont équilibrées (4 puces sur
+/// 3 colonnes possibles donnent 2 lignes de 2). Les puces d'une ligne ont la même largeur et la
+/// même hauteur, même si un libellé passe sur deux lignes (texte agrandi).
+class AzChipFill<T> extends StatelessWidget {
+  const AzChipFill({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onSelected,
+    this.labelOf,
+    this.minChipWidth = 96,
+    this.maxColumns = 6,
+  });
+
+  final List<T> options;
+  final T? selected;
+  final ValueChanged<T> onSelected;
+  final String Function(T)? labelOf;
+
+  /// Largeur en dessous de laquelle une puce n'est pas rétrécie : on passe alors à la ligne.
+  final double minChipWidth;
+  final int maxColumns;
+
+  static const double _gap = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final n = options.length;
+    if (n == 0) return const SizedBox.shrink();
+    return LayoutBuilder(builder: (context, c) {
+      final fit = ((c.maxWidth + _gap) / (minChipWidth + _gap)).floor();
+      final perRow = fit.clamp(1, maxColumns).clamp(1, n);
+      final rows = (n / perRow).ceil();
+      final cols = (n / rows).ceil(); // lignes équilibrées
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var start = 0; start < n; start += cols)
+            Padding(
+              padding: EdgeInsets.only(top: start == 0 ? 0 : _gap),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = start; i < start + cols && i < n; i++) ...[
+                      if (i > start) const SizedBox(width: _gap),
+                      Expanded(
+                        child: AzChoiceChip(
+                          label: labelOf?.call(options[i]) ?? '${options[i]}',
+                          selected: options[i] == selected,
+                          minHeight: 46,
+                          onTap: () => onSelected(options[i]),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
+      );
+    });
   }
 }
 

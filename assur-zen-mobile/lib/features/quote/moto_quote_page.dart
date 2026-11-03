@@ -28,9 +28,11 @@ class MotoQuotePage extends StatelessWidget {
       backgroundColor: AzColors.background,
       appBar: const AzTopBar(title: 'Devis moto'),
       body: SafeArea(
-        child: AsyncView<MotoQuoteForm>(
-          load: () => context.repos.motoQuotes.getForm(),
-          builder: (context, form, reload) => _MotoQuoteBody(form: form, title: title),
+        child: AzContentWidth(
+          child: AsyncView<MotoQuoteForm>(
+            load: () => context.repos.motoQuotes.getForm(),
+            builder: (context, form, reload) => _MotoQuoteBody(form: form, title: title),
+          ),
         ),
       ),
     );
@@ -201,8 +203,9 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
               QuoteFieldSection(
                 label: 'Type de Moto',
                 error: _errors['vehicleType'],
-                child: AzChipWrap<String>(
+                child: AzChipFill<String>(
                   options: form.vehicleTypes,
+                  minChipWidth: 120,
                   selected: _type,
                   labelOf: _typeLabel,
                   onSelected: (v) {
@@ -213,6 +216,7 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
               ),
             AzTextField(
               label: 'Cylindrée (cm³)',
+              hint: 'Ex. : 125',
               controller: _cc,
               error: _errors['cylinderCc'],
               keyboardType: TextInputType.number,
@@ -223,7 +227,7 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
             // Marques proposées par le serveur : auto-complétion (saisie libre possible).
             AzAutocompleteField(
               label: 'Marque',
-              hint: form.brands.isEmpty ? null : 'Tapez pour chercher une marque',
+              hint: form.brands.isEmpty ? 'Saisissez la marque' : 'Tapez pour chercher une marque',
               controller: _brand,
               options: form.brands,
               error: _errors['brand'],
@@ -231,6 +235,7 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
             ),
             AzTextField(
               label: 'Modèle',
+              hint: 'Saisissez le modèle',
               controller: _model,
               error: _errors['model'],
               capitalization: TextCapitalization.words,
@@ -238,6 +243,7 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
             ),
             AzTextField(
               label: 'Immatriculation',
+              hint: 'Ex. : 1234 AB 01',
               controller: _plate,
               error: _errors['registrationNumber'],
               capitalization: TextCapitalization.characters,
@@ -245,6 +251,7 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
             ),
             AzTextField(
               label: 'Numéro de châssis (si pas d’immatriculation)',
+              hint: 'Saisissez le numéro de châssis',
               controller: _chassis,
               capitalization: TextCapitalization.characters,
               onChanged: (_) => _changed(),
@@ -253,8 +260,9 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
               QuoteFieldSection(
                 label: 'Durée de la garantie',
                 error: _errors['durationMonths'],
-                child: AzChipWrap<int>(
+                child: AzChipFill<int>(
                   options: [for (final d in form.durations) d.months],
+                  minChipWidth: 120,
                   selected: _months,
                   // Les durées viennent du serveur ; le prix s'affiche dans le résultat.
                   labelOf: (m) => '$m mois',

@@ -132,6 +132,23 @@ class AzProgressHeader extends StatelessWidget {
   }
 }
 
+/// Borne la largeur du contenu et le centre : sur téléphone il occupe tout l'écran, sur tablette ou en
+/// paysage il reste lisible au lieu de s'étirer sur toute la largeur.
+class AzContentWidth extends StatelessWidget {
+  const AzContentWidth({super.key, required this.child, this.maxWidth = 640});
+
+  final Widget child;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(constraints: BoxConstraints(maxWidth: maxWidth), child: child),
+    );
+  }
+}
+
 /// Barre d’actions fixée en bas d’écran (respecte la barre de navigation Android).
 class AzBottomBar extends StatelessWidget {
   const AzBottomBar({super.key, required this.children});

@@ -17,7 +17,8 @@ class MyQuotesPage extends StatelessWidget {
       backgroundColor: AzColors.background,
       appBar: const AzTopBar(title: 'Mes devis'),
       body: SafeArea(
-        child: AsyncView<List<MotoQuote>>(
+        child: AzContentWidth(
+          child: AsyncView<List<MotoQuote>>(
           load: () => context.repos.motoQuotes.list(),
           isEmpty: (quotes) => quotes.isEmpty,
           empty: AzEmptyState(
@@ -43,6 +44,7 @@ class MyQuotesPage extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
@@ -130,7 +132,8 @@ class _MotoQuoteDetailPageState extends State<MotoQuoteDetailPage> {
       backgroundColor: AzColors.background,
       appBar: AzTopBar(title: 'Devis ${_quote.reference}'),
       body: SafeArea(
-        child: ListView(
+        child: AzContentWidth(
+          child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
             AzSummaryCard(rows: [
@@ -155,6 +158,7 @@ class _MotoQuoteDetailPageState extends State<MotoQuoteDetailPage> {
               onAccept: _accept,
             ),
           ],
+        ),
         ),
       ),
     );

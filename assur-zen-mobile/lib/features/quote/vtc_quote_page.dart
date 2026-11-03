@@ -38,9 +38,11 @@ class VtcQuotePage extends StatelessWidget {
       backgroundColor: AzColors.background,
       appBar: const AzTopBar(title: 'Devis VTC'),
       body: SafeArea(
-        child: AsyncView<VtcQuoteForm>(
-          load: () => context.repos.motoQuotes.getVtcForm(),
-          builder: (context, form, reload) => _VtcQuoteBody(form: form, title: title),
+        child: AzContentWidth(
+          child: AsyncView<VtcQuoteForm>(
+            load: () => context.repos.motoQuotes.getVtcForm(),
+            builder: (context, form, reload) => _VtcQuoteBody(form: form, title: title),
+          ),
         ),
       ),
     );
@@ -227,7 +229,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
             // Marques proposées par le serveur : auto-complétion (saisie libre possible).
             AzAutocompleteField(
               label: 'Marque',
-              hint: form.brands.isEmpty ? null : 'Tapez pour chercher une marque',
+              hint: form.brands.isEmpty ? 'Saisissez la marque' : 'Tapez pour chercher une marque',
               controller: _brand,
               options: form.brands,
               error: _errors['brand'],
@@ -235,6 +237,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
             ),
             AzTextField(
               label: 'Modèle',
+              hint: 'Saisissez le modèle',
               controller: _model,
               error: _errors['model'],
               capitalization: TextCapitalization.words,
@@ -244,8 +247,9 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
               QuoteFieldSection(
                 label: 'Énergie',
                 error: _errors['energy'],
-                child: AzChipWrap<String>(
+                child: AzChipFill<String>(
                   options: form.energies,
+                  minChipWidth: 110,
                   selected: _energy,
                   labelOf: vtcEnergyLabel,
                   onSelected: (v) {
@@ -256,6 +260,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
               ),
             AzTextField(
               label: 'Puissance fiscale (CV)',
+              hint: 'Ex. : 5',
               controller: _power,
               error: _errors['fiscalPower'],
               keyboardType: TextInputType.number,
@@ -267,8 +272,9 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
               QuoteFieldSection(
                 label: 'Nombre de places',
                 error: _errors['seats'],
-                child: AzChipWrap<int>(
+                child: AzChipFill<int>(
                   options: seatOptions,
+                  minChipWidth: 52,
                   selected: _seats,
                   onSelected: (v) {
                     _seats = v;
@@ -278,6 +284,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
               ),
             AzTextField(
               label: 'Année de première mise en circulation',
+              hint: 'AAAA',
               controller: _year,
               error: _errors['firstRegistrationYear'],
               keyboardType: TextInputType.number,
@@ -288,8 +295,9 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
             QuoteFieldSection(
               label: 'Le véhicule est-il déclaré VTC ?',
               error: _errors['vtcDeclared'],
-              child: AzChipWrap<String>(
+              child: AzChipFill<String>(
                 options: const ['oui', 'non'],
+                minChipWidth: 100,
                 selected: _declared,
                 labelOf: (v) => v == 'oui' ? 'Oui' : 'Non',
                 onSelected: (v) {
@@ -301,7 +309,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
             // Plateformes proposées par le serveur ; facultatif, saisie libre possible.
             AzAutocompleteField(
               label: 'Plateforme (facultatif)',
-              hint: form.platforms.isEmpty ? null : 'Tapez pour chercher une plateforme',
+              hint: form.platforms.isEmpty ? 'Saisissez la plateforme' : 'Tapez pour chercher une plateforme',
               controller: _platform,
               options: form.platforms,
               error: _errors['platform'],
@@ -309,6 +317,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
             ),
             AzTextField(
               label: 'Immatriculation',
+              hint: 'Ex. : 1234 AB 01',
               controller: _plate,
               error: _errors['registrationNumber'],
               capitalization: TextCapitalization.characters,
@@ -316,6 +325,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
             ),
             AzTextField(
               label: 'Numéro de châssis (si pas d’immatriculation)',
+              hint: 'Saisissez le numéro de châssis',
               controller: _chassis,
               capitalization: TextCapitalization.characters,
               onChanged: (_) => _changed(),
@@ -324,16 +334,12 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
               QuoteFieldSection(
                 label: 'Durée de la garantie',
                 error: _errors['durationMonths'],
-                child: AzChipWrap<int>(
+                child: AzChipFill<int>(
                   options: [for (final d in form.durations) d.months],
                   selected: _months,
-                  // Les durées viennent du serveur. Plusieurs tarifs : le prix de chacun aide à choisir
-                  // (une seule durée : « 12 mois », le prix s'affiche dans le résultat).
-                  labelOf: (m) {
-                    if (form.durations.length < 2) return '$m mois';
-                    final d = form.durations.firstWhere((d) => d.months == m);
-                    return '$m mois · ${formatFcfa(d.total)}';
-                  },
+                  minChipWidth: 120,
+                  // Les durées viennent du serveur ; le prix n'apparaît qu'au calcul.
+                  labelOf: (m) => '$m mois',
                   onSelected: (v) {
                     _months = v;
                     _changed();
