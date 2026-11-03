@@ -93,6 +93,11 @@ public class SecurityConfig {
                         .requestMatchers("/api-assur-zen/auth/accounts/**").hasRole("ADMIN")
                         // Blocage/deblocage IP (admin) : meme regle d'ordre que /auth/accounts/** juste au-dessus.
                         .requestMatchers("/api-assur-zen/auth/ips/**").hasRole("ADMIN")
+                        // Mobile lot 1 (2026-11-02) : verification du PIN et demande de suppression reservees au role CLIENT ;
+                        // DOIVENT preceder le permitAll de /auth/** (premier matcher retenu).
+                        .requestMatchers("/api-assur-zen/auth/mobile/pin/verify", "/api-assur-zen/auth/mobile/me/**").hasRole("CLIENT")
+                        // Espace mobile (2026-11-02) : reserve au role CLIENT.
+                        .requestMatchers("/api-assur-zen/mobile/**").hasRole("CLIENT")
                         .requestMatchers("/api-assur-zen/auth/**").permitAll()
                         .requestMatchers("/api-assur-zen/otp/**").permitAll()
                         // i18n : le dictionnaire de traductions doit etre accessible AVANT connexion (ecran de login
@@ -405,6 +410,8 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .addFilterBefore(bearerTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(auditLoggingFilter, BearerTokenAuthenticationFilter.class)
+                // Liste blanche du role CLIENT (compte mobile, 2026-11-02) : 403 hors /auth, /mobile, /i18n.
+                .addFilterAfter(new ClientRoleRestrictionFilter(), BearerTokenAuthenticationFilter.class)
                 .build();
     }
 }

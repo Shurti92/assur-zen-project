@@ -10,6 +10,11 @@ public record AccountLockedResponse(
         String message,
         Instant timestamp,
         Instant lockedUntil,
-        Long remainingSeconds
+        Long remainingSeconds,
+        /** Meme valeur que `error` : cle unifiee `code` (2026-11-02), `error` conservee pour compatibilite. */
+        String code
 ) {
+    public AccountLockedResponse(String error, String message, Instant timestamp, Instant lockedUntil, Long remainingSeconds) {
+        this(error, message, timestamp, lockedUntil, remainingSeconds, error);
+    }
 }

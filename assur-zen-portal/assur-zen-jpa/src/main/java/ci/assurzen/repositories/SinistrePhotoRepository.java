@@ -12,5 +12,7 @@ public interface SinistrePhotoRepository extends JpaRepository<SinistrePhoto, Lo
 
     List<SinistrePhoto> findBySinistreIdOrderByCreatedAtAsc(Long sinistreId);
 
+    long countBySinistreIdAndKind(Long sinistreId, String kind);
+
     Optional<SinistrePhoto> findByIdAndSinistreId(Long id, Long sinistreId);
 }

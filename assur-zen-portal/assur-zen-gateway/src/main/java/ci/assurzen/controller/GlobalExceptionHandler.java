@@ -178,8 +178,10 @@ public class GlobalExceptionHandler {
         String message = exception.getBindingResult().getFieldErrors().stream()
                 .map(erreur -> erreur.getField() + ": " + erreur.getDefaultMessage())
                 .collect(Collectors.joining("; "));
+        String champ = exception.getBindingResult().getFieldErrors().stream()
+                .map(erreur -> erreur.getField()).findFirst().orElse(null);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse("VALIDATION_FAILED", message.isEmpty() ? "Requete invalide" : message, Instant.now()));
+                .body(new ErrorResponse("VALIDATION_FAILED", message.isEmpty() ? "Requete invalide" : message, Instant.now(), champ));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)

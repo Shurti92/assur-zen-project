@@ -77,6 +77,48 @@ public class JwtTokenService {
         return generateToken(user, "otp_challenge", otpChallengeTtlSeconds, Map.of("phone", phone));
     }
 
+    /** Duree de validite du jeton de verification de numero (mobile, 2026-11-02). */
+    public static final long VERIFICATION_TTL_SECONDS = 600;
+
+    /**
+     * Jeton prouvant la possession d'un numero apres verification d'un code SMS (inscription mobile) :
+     * sub = 0 (aucun utilisateur), username = telephone, roles = objet (REGISTER ou RESET_PIN), usage unique
+     * (jti revoque a la consommation, cf. consommerJetonVerification).
+     */
+    public String generateVerificationToken(String phone, String purpose) {
+        long now = Instant.now().getEpochSecond();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("sub", "0");
+        payload.put("username", phone);
+        payload.put("roles", purpose);
+        payload.put("typ", "phone_verification");
+        payload.put("iat", now);
+        payload.put("exp", now + VERIFICATION_TTL_SECONDS);
+        payload.put("jti", UUID.randomUUID().toString());
+        payload.put("iss", ISSUER);
+        String header = base64Url(GSON.toJson(Map.of("alg", "HS256", "typ", "JWT")));
+        String body = base64Url(GSON.toJson(payload));
+        return header + "." + body + "." + sign(header + "." + body);
+    }
+
+    /**
+     * Valide le jeton (signature, expiration, type, numero, objet) puis le consomme : un second usage est
+     * refuse. Retourne false si le jeton est invalide, expire, deja utilise ou pour un autre numero/objet.
+     */
+    public boolean consommerJetonVerification(String token, String phone, String purpose) {
+        try {
+            JwtClaims claims = parseAndValidate(token);
+            if (!"phone_verification".equals(claims.type()) || !phone.equals(claims.username())
+                    || !purpose.equals(claims.roles()) || tokenRevocationService.estRevoque(claims.tokenId())) {
+                return false;
+            }
+            tokenRevocationService.revoquer(claims.tokenId(), claims.expiresAt());
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
     public long getOtpChallengeTtlSeconds() {
         return otpChallengeTtlSeconds;
     }

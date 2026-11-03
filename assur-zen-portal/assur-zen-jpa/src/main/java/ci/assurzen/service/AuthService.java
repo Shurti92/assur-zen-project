@@ -119,7 +119,14 @@ public class AuthService {
             // pas rouvrir des tentatives de mot de passe "gratuites" - la connexion n'a pas encore
             // "reussi" au sens du contrat de verrouillage (registerSuccess n'est appele qu'en fin de
             // flux, ici et dans completeLoginWithOtp).
-            otpService.sendOtp(phone);
+            if (otpService.delaiDeRenvoiEnCours(phone)) {
+                // Un code vient d'etre envoye (delai de renvoi en cours) : on delivre quand meme un nouveau jeton de
+                // defi, le code deja envoye reste valable (2026-11-02). Evite de bloquer 60 s un client qui se
+                // reconnecte juste apres un premier essai ; le renvoi explicite reste /auth/login/otp-resend.
+                log.info("[AUTH] connexion de {} : code OTP deja envoye, delai de renvoi en cours", user.getUsername());
+            } else {
+                otpService.sendOtp(phone, estCompteMobile(user));
+            }
             String challengeToken = jwtTokenService.generateOtpChallengeToken(user, phone);
             return new OtpChallengeResponse(true, challengeToken, maskPhone(phone), jwtTokenService.getOtpChallengeTtlSeconds());
         }
@@ -129,6 +136,33 @@ public class AuthService {
         recordLoginHistorySafely(user);
         AuthTokens tokens = issueTokens(user);
         return new LoginResponse(buildUserResponse(toPrincipal(user)), tokens);
+    }
+
+    /**
+     * Ouvre une session pour un compte qui vient d'etre cree (inscription mobile : la possession du numero a
+     * ete prouvee par code SMS). Pas de remise a zero des compteurs d'echec : LoginAttemptService s'execute dans
+     * sa propre transaction et ne verrait pas un utilisateur non encore valide ; un compte neuf n'a aucun echec.
+     */
+    @Transactional
+    public LoginResponse ouvrirSession(User user) {
+        recordLoginHistorySafely(user);
+        AuthTokens tokens = issueTokens(user);
+        return new LoginResponse(buildUserResponse(toPrincipal(user)), tokens);
+    }
+
+    /**
+     * Verifie le secret (mot de passe / PIN) d'un utilisateur connecte SANS creer de session ni envoyer d'OTP
+     * (mobile, 2026-11-02). Un echec compte dans le verrouillage de compte (401, puis 423), exactement comme
+     * au login.
+     */
+    @Transactional
+    public void verifierSecret(User user, String secret) {
+        enforceNotLocked(user);
+        if (!matches(secret, user.getPassword())) {
+            RuntimeException accountException = loginAttemptService.registerFailure(user.getId(), user.getUsername());
+            throw accountException;
+        }
+        loginAttemptService.registerSuccess(user.getId(), user.getUsername());
     }
 
     @Transactional
@@ -241,7 +275,7 @@ public class AuthService {
     @Transactional
     public void resendLoginOtp(String challengeToken) {
         JwtTokenService.JwtClaims claims = requireOtpChallenge(challengeToken);
-        otpService.sendOtp(claims.phone());
+        otpService.sendOtp(claims.phone(), userRepository.findById(claims.userId()).map(this::estCompteMobile).orElse(false));
     }
 
     private User resolveChallengeUser(String challengeToken, String code) {
@@ -263,6 +297,11 @@ public class AuthService {
                 .map(Profile::getPhone)
                 .filter(StringUtils::hasText)
                 .orElse(null);
+    }
+
+    /** Compte de l'application mobile (role CLIENT) : ses codes SMS portent le texte AssurZen Mobile. */
+    private boolean estCompteMobile(User user) {
+        return user.getRoles() != null && "CLIENT".equalsIgnoreCase(user.getRoles().trim());
     }
 
     private boolean resolveTwoFactorEnabled(User user) {
@@ -410,7 +449,7 @@ public class AuthService {
                     String phone = resolvePhone(user);
                     if (StringUtils.hasText(phone)) {
                         try {
-                            otpService.sendOtp(phone);
+                            otpService.sendOtp(phone, estCompteMobile(user));
                         } catch (OtpResendTooSoonException | SmsSendException ignored) {
                             // un code est deja en cours d'envoi, ou le SMS a echoue : rien a faire (voir javadoc)
                         }
@@ -638,7 +677,8 @@ public class AuthService {
                 twoFactorEnabled,
                 profile == null ? null : profile.getLangueCode(),
                 partenaireId,
-                typeProfileId);
+                typeProfileId,
+                profile == null ? null : profile.getPhone());
     }
 
     private AuthenticatedUserPrincipal toPrincipal(User user) {

@@ -100,7 +100,7 @@ UPDATE t_assur_zen_contracts SET commission_status = 'paid' WHERE id IN (9, 50);
 
 -- 3) Partenaire 7 (Kone Awa, aucun contrat) en frequence IMMEDIAT avec numero Wave
 UPDATE t_assur_zen_partenaire
-SET frequence_paiement_commission = 'IMMEDIAT', numero_wave_commission = '0757873487'
+SET frequence_paiement_commission = 'IMMEDIAT', numero_wave_commission = '0700000013'
 WHERE id = 7;
 
 -- 4) Notifications partenaire (lues et non lues) pour les partenaires 3 et 4

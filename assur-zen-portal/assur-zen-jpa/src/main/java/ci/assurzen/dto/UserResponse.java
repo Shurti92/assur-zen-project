@@ -31,6 +31,8 @@ public record UserResponse(
          * mais jamais relu jusqu'ici - permet au frontend de restreindre les menus Parametrage/Administration
          * selon le Type Profil (ex. CO-FOUNDER), sans appel reseau supplementaire (contrat "Exposer le Type
          * Profil de l'utilisateur connecte", 2026-08-18). Null si aucun Type Profil n'est assigne. */
-        Long typeProfileId
+        Long typeProfileId,
+        /** Telephone du profil (2026-11-02), utile au mobile. */
+        String phone
 ) {
 }

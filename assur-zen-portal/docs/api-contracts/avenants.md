@@ -93,7 +93,7 @@ Réservé aux administrateurs (403 sinon). 409 si le contrat n'est pas `signed`.
   "nouvelleCompagnieId": null,
   "nouvelleCompagnieNom": null,
   "createdById": 29,
-  "createdByUsername": "0757873487",
+  "createdByUsername": "0700000013",
   "createdAt": "2026-08-23T02:33:53Z"
 }
 ```
@@ -196,7 +196,7 @@ Accessible à l'admin ou au partenaire lui-même (pas de bypass commercial ici, 
       "champsModifies": null,
       "date": "2026-08-23T02:33:53Z",
       "auteurId": 29,
-      "auteur": "0757873487"
+      "auteur": "0700000013"
     },
     {
       "contractId": 46,

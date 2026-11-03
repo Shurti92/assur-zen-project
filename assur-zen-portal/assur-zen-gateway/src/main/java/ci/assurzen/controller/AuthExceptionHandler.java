@@ -123,6 +123,66 @@ public class AuthExceptionHandler {
                 .body(new ErrorResponse("INVALID_OTP_CODE", exception.getMessage(), Instant.now()));
     }
 
+    @ExceptionHandler(ci.assurzen.exception.OtpQuotaExceededException.class)
+    public ResponseEntity<ci.assurzen.dto.RetryAfterErrorResponse> otpQuota(ci.assurzen.exception.OtpQuotaExceededException exception) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(new ci.assurzen.dto.RetryAfterErrorResponse("OTP_QUOTA_EXCEEDED", exception.getMessage(), Instant.now(),
+                        exception.getRetryAfterSeconds()));
+    }
+
+    @ExceptionHandler(ci.assurzen.exception.PhoneAlreadyRegisteredException.class)
+    public ResponseEntity<ErrorResponse> phoneAlreadyRegistered(ci.assurzen.exception.PhoneAlreadyRegisteredException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("PHONE_ALREADY_REGISTERED", exception.getMessage(), Instant.now(), "phone"));
+    }
+
+    @ExceptionHandler(ci.assurzen.exception.InvalidVerificationTokenException.class)
+    public ResponseEntity<ErrorResponse> invalidVerificationToken(ci.assurzen.exception.InvalidVerificationTokenException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("INVALID_VERIFICATION_TOKEN", exception.getMessage(), Instant.now(), "verificationToken"));
+    }
+
+    @ExceptionHandler(ci.assurzen.exception.ContractNotFoundException.class)
+    public ResponseEntity<ErrorResponse> contractNotFound(ci.assurzen.exception.ContractNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("CONTRACT_NOT_FOUND", exception.getMessage(), Instant.now()));
+    }
+
+    @ExceptionHandler(ci.assurzen.exception.ContractNotActiveException.class)
+    public ResponseEntity<ErrorResponse> contractNotActive(ci.assurzen.exception.ContractNotActiveException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("CONTRACT_NOT_ACTIVE", exception.getMessage(), Instant.now()));
+    }
+
+    @ExceptionHandler(ci.assurzen.exception.MobilePaymentException.class)
+    public ResponseEntity<?> mobilePayment(ci.assurzen.exception.MobilePaymentException exception) {
+        if (exception.getRetryAfterSeconds() != null) {
+            return ResponseEntity.status(exception.getHttpStatus())
+                    .body(new ci.assurzen.dto.RetryAfterErrorResponse(exception.getCode(), exception.getMessage(), Instant.now(),
+                            exception.getRetryAfterSeconds()));
+        }
+        return ResponseEntity.status(exception.getHttpStatus())
+                .body(new ErrorResponse(exception.getCode(), exception.getMessage(), Instant.now(), exception.getField()));
+    }
+
+    @ExceptionHandler(ci.assurzen.exception.MobileApiException.class)
+    public ResponseEntity<ErrorResponse> mobileApi(ci.assurzen.exception.MobileApiException exception) {
+        return ResponseEntity.status(exception.getHttpStatus())
+                .body(new ErrorResponse(exception.getCode(), exception.getMessage(), Instant.now(), exception.getField()));
+    }
+
+    @ExceptionHandler(ci.assurzen.exception.PinTooWeakException.class)
+    public ResponseEntity<ErrorResponse> pinTooWeak(ci.assurzen.exception.PinTooWeakException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("PIN_TOO_WEAK", exception.getMessage(), Instant.now(), "pin"));
+    }
+
+    @ExceptionHandler(ci.assurzen.exception.PinReusedException.class)
+    public ResponseEntity<ErrorResponse> pinReused(ci.assurzen.exception.PinReusedException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("PIN_REUSED", exception.getMessage(), Instant.now(), "newPin"));
+    }
+
     @ExceptionHandler(OtpResendTooSoonException.class)
     public ResponseEntity<ci.assurzen.dto.OtpResendTooSoonResponse> otpResendTooSoon(OtpResendTooSoonException exception) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)

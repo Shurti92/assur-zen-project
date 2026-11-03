@@ -26,7 +26,7 @@ public final class PayloadRedactor {
     );
 
     private static final Pattern SENSITIVE_FIELD_PATTERN = Pattern.compile(
-            "(?i)\"([a-zA-Z]*(?:password|otp|token|secret)[a-zA-Z]*)\"\\s*:\\s*\"[^\"]*\"");
+            "(?i)\"([a-zA-Z]*(?:password|otp|token|secret)[a-zA-Z]*|pin|newPin)\"\\s*:\\s*\"[^\"]*\"");
     private static final Pattern OTP_CODE_FIELD_PATTERN = Pattern.compile("(?i)\"code\"\\s*:\\s*\"[^\"]*\"");
 
     private static final List<String> CONTRAT_KEY_CANDIDATES = List.of("numerocontrat", "numero_contrat", "policynumber");
@@ -91,6 +91,10 @@ public final class PayloadRedactor {
         if (otpRoute && lower.equals("code")) {
             return true;
         }
+        // PIN mobile (2026-11-02) : cle exacte (la sous-chaine "pin" matcherait "mapping", "shipping"...)
+        if (lower.equals("pin") || lower.equals("newpin")) {
+            return true;
+        }
         for (String substring : SENSITIVE_SUBSTRINGS) {
             if (lower.contains(substring)) {
                 return true;
@@ -134,14 +138,15 @@ public final class PayloadRedactor {
             return false;
         }
         String lower = fieldName.toLowerCase();
-        return SENSITIVE_SUBSTRINGS.stream().anyMatch(lower::contains);
+        return lower.equals("pin") || lower.equals("newpin") || SENSITIVE_SUBSTRINGS.stream().anyMatch(lower::contains);
     }
 
     public static boolean isOtpRoute(String path) {
         if (path == null) {
             return false;
         }
-        return path.contains("/otp/verify") || path.contains("/login/otp-verify") || path.contains("/auth/reset-password");
+        return path.contains("/otp/verify") || path.contains("/login/otp-verify") || path.contains("/auth/reset-password")
+                || path.contains("/auth/mobile/pin/reset");
     }
 
     public static String extractNumeroContrat(byte[] rawBodyBytes, String contentType, Map<String, String[]> queryParams) {

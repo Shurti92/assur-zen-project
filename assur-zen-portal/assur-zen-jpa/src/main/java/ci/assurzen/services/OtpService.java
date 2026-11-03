@@ -36,8 +36,54 @@ public class OtpService {
     private final DynamicConfigurationService dynamicConfigurationService;
     private final SecureRandom secureRandom = new SecureRandom();
 
+    /**
+     * Quota de demandes de code par numero et par heure (mobile, 2026-11-02) : OTP_MAX_REQUESTS_PER_HOUR
+     * (defaut 3). A appeler AVANT sendOtp() (appels separes : sendOtp a sa propre transaction). Les envois
+     * SMS echoues ne comptent pas (leur code est annule).
+     */
+    public void verifierQuota(String phone) {
+        int max = dynamicConfigurationService.getInteger("OTP_MAX_REQUESTS_PER_HOUR", 3);
+        Instant depuis = Instant.now().minus(Duration.ofHours(1));
+        java.util.List<OtpCode> recents = otpCodeRepository.findByPhoneAndMobileRequestTrueAndCreatedAtAfterOrderByCreatedAtAsc(phone, depuis);
+        if (recents.size() >= max) {
+            Instant debloque = recents.get(recents.size() - max).getCreatedAt().plus(Duration.ofHours(1));
+            long attente = Math.max(1, Duration.between(Instant.now(), debloque).getSeconds() + 1);
+            throw new ci.assurzen.exception.OtpQuotaExceededException(attente);
+        }
+    }
+
+    /** Vrai si un code vient d'etre envoye et que le delai de renvoi court encore (sans lever d'exception ni marquer de transaction). */
+    public boolean delaiDeRenvoiEnCours(String phone) {
+        try {
+            checkResendCooldown(phone);
+            return false;
+        } catch (ci.assurzen.exception.OtpResendTooSoonException e) {
+            return true;
+        }
+    }
+
     @Transactional
     public void sendOtp(String phone) {
+        envoyerCode(phone, false);
+    }
+
+    /** Envoi d'un code avec, pour l'application mobile (comptes CLIENT, /auth/mobile/*), le texte AssurZen Mobile (2026-11-02). */
+    @Transactional
+    public void sendOtp(String phone, boolean mobile) {
+        envoyerCode(phone, mobile);
+    }
+
+    /** Demande de code depuis /auth/mobile/otp/request : texte mobile et comptee dans le quota horaire. */
+    @Transactional
+    public void sendOtpDemande(String phone, String purpose) {
+        envoyerCode(phone, true, purpose);
+    }
+
+    private void envoyerCode(String phone, boolean mobile) {
+        envoyerCode(phone, mobile, null);
+    }
+
+    private void envoyerCode(String phone, boolean mobile, String purpose) {
         checkResendCooldown(phone);
         invalidatePendingCodes(phone);
 
@@ -49,10 +95,12 @@ public class OtpService {
                 .expiresAt(Instant.now().plus(Duration.ofMinutes(validityMinutes)))
                 .consumed(false)
                 .attempts(0)
+                .mobileRequest(purpose != null ? Boolean.TRUE : null)
+                .purpose(purpose)
                 .build();
         otpCodeRepository.save(otpCode);
 
-        boolean sent = smsNotificationService.sendOtpSms(phone, code, validityMinutes);
+        boolean sent = smsNotificationService.sendOtpSms(phone, code, validityMinutes, mobile);
         if (!sent) {
             // @Transactional: throwing here rolls back the OtpCode save above, so a failed send
             // never leaves a dangling code the user can't have received, and the resend cooldown
@@ -67,8 +115,20 @@ public class OtpService {
      * (une transaction englobante annulerait ces ecritures au rollback).
      */
     public void verifyOtp(String phone, String code) {
+        verifyOtp(phone, code, null);
+    }
+
+    /**
+     * Verifie le code en attente, qui doit avoir ete emis pour cet objet (null = connexion / portail ; REGISTER ou
+     * RESET_PIN = application mobile). Un code d'un autre objet est refuse sans etre consomme (2026-11-02).
+     */
+    public void verifyOtp(String phone, String code, String purpose) {
         OtpCode otpCode = otpCodeRepository.findTopByPhoneAndConsumedFalseOrderByCreatedAtDesc(phone)
                 .orElseThrow(OtpNotFoundException::new);
+
+        if (!java.util.Objects.equals(purpose, otpCode.getPurpose())) {
+            throw new InvalidOtpCodeException("Code invalide");
+        }
 
         if (Instant.now().isAfter(otpCode.getExpiresAt())) {
             otpCode.setConsumed(true);

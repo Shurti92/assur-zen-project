@@ -29,6 +29,13 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
     List<Contract> findByInsuredIdOrderByCreatedAtDesc(Long insuredId);
 
+    /** Contrats des assures donnes, avec produit, assure et vehicule (lecture mobile, 2026-11-02). */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"product", "insured", "vehicule"})
+    List<Contract> findByInsuredIdIn(java.util.Collection<Long> insuredIds);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"product", "insured", "vehicule"})
+    Optional<Contract> findByIdAndInsuredIdIn(Long id, java.util.Collection<Long> insuredIds);
+
     /** Garde-fou IDOR (audit securite 2026-09-12) : un assure n'est accessible a un non-admin que s'il
      * a au moins un contrat ou il est salesRep sur cet assure - meme principe que
      * ContractsService.getContractScoped(), applique a InsuredService. */

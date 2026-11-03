@@ -29,6 +29,10 @@ public class SinistrePhoto implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    /** PHOTO ou DOCUMENT pour les pieces envoyees depuis le mobile (2026-11-02) ; null = photo du back-office. */
+    @Column(name = "kind", length = 20)
+    private String kind;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

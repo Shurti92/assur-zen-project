@@ -38,7 +38,7 @@ class OtpServiceCooldownTest {
         when(configuration.getInteger(eq("OTP_MAX_ATTEMPTS"), anyInt())).thenReturn(5);
         when(configuration.getInteger(eq("OTP_CODE_LENGTH"), anyInt())).thenReturn(6);
         when(repository.findAllByPhoneAndConsumedFalse(TEL)).thenReturn(List.of());
-        when(sms.sendOtpSms(anyString(), anyString(), anyLong())).thenReturn(true);
+        when(sms.sendOtpSms(anyString(), anyString(), anyLong(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(true);
     }
 
     private void dernierCode(boolean consomme, int tentatives) {

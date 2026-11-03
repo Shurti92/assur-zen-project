@@ -27,7 +27,7 @@ SELECT
     SUM(n.contract_id IS NULL)                                                  AS sans_contrat_ignores,
     SUM(STR_TO_DATE(SUBSTRING(n.message, LOCATE(' le ', n.message) + 4, 10), '%Y-%m-%d') IS NULL)
                                                                                 AS date_illisible_ignores,
-    SUM(n.message LIKE '%0705206698%')                                          AS deja_au_nouveau_texte
+    SUM(n.message LIKE '%0700000011%')                                          AS deja_au_nouveau_texte
 FROM t_assur_zen_notificateur_sms n
 WHERE n.type_message = 'avis_echeance'
   AND n.statut_envoi = 'en_attente';
@@ -38,7 +38,7 @@ SELECT n.id, n.date_envoi, n.message AS ancien_texte,
               IF(c.policy_number LIKE 'CTR%', SUBSTRING(c.policy_number, 4), c.policy_number),
               ' arrivera a echeance le ',
               SUBSTRING(n.message, LOCATE(' le ', n.message) + 4, 10),
-              '. Contactez-nous au 0705206698 ou 0747304386 (whatsapp) pour le renouveler. AssurZen Assurance Votre sérénité, Notre engagement'
+              '. Contactez-nous au 0700000011 ou 0700000012 (whatsapp) pour le renouveler. AssurZen Assurance Votre sérénité, Notre engagement'
        ) AS nouveau_texte
 FROM t_assur_zen_notificateur_sms n
 JOIN t_assur_zen_contracts c ON c.id = n.contract_id
@@ -75,10 +75,10 @@ SET n.message = CONCAT('Cher(e) assure, votre contrat n ',
                        IF(c.policy_number LIKE 'CTR%', SUBSTRING(c.policy_number, 4), c.policy_number),
                        ' arrivera a echeance le ',
                        SUBSTRING(n.message, LOCATE(' le ', n.message) + 4, 10),
-                       '. Contactez-nous au 0705206698 ou 0747304386 (whatsapp) pour le renouveler. AssurZen Assurance Votre sérénité, Notre engagement')
+                       '. Contactez-nous au 0700000011 ou 0700000012 (whatsapp) pour le renouveler. AssurZen Assurance Votre sérénité, Notre engagement')
 WHERE n.type_message = 'avis_echeance'
   AND n.statut_envoi = 'en_attente'
-  AND n.message NOT LIKE '%0705206698%'
+  AND n.message NOT LIKE '%0700000011%'
   AND STR_TO_DATE(SUBSTRING(n.message, LOCATE(' le ', n.message) + 4, 10), '%Y-%m-%d') IS NOT NULL;
 
 -- -------------------------------------------------------------------------------------
@@ -108,8 +108,8 @@ WHERE code = 'RENVOI_ACCES_PARTENAIRE'
 --     egaler nouveau_texte (sinon la signature est arrivee en "?" : restaurer depuis la
 --     sauvegarde et relancer avec un client en UTF-8).
 SELECT
-    SUM(n.message LIKE '%0705206698%')              AS nouveau_texte,
-    SUM(n.message NOT LIKE '%0705206698%')          AS restant_ancien_texte,
+    SUM(n.message LIKE '%0700000011%')              AS nouveau_texte,
+    SUM(n.message NOT LIKE '%0700000011%')          AS restant_ancien_texte,
     SUM(n.message LIKE '%Votre sérénité, Notre engagement') AS accents_ok
 FROM t_assur_zen_notificateur_sms n
 WHERE n.type_message = 'avis_echeance'

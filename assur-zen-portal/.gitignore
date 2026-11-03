@@ -57,5 +57,3 @@ build/
 
 ### Mac OS ###
 .DS_Store
-# Config locale de Claude Code (peut contenir des secrets)
-.claude/

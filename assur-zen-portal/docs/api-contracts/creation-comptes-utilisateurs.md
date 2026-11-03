@@ -90,7 +90,7 @@ Déclenchée par le backend en side-effect de `POST /partenaires` et `PUT /parte
   "id": 42,
   "type": "AGENT",
   "typeProfileId": 3,
-  "telephone": "0757873487",
+  "telephone": "0700000013",
   "profileId": 118,
   "compteCree": true,
   "...": "...autres champs existants inchangés"

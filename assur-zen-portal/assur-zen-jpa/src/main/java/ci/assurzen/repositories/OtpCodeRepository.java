@@ -15,4 +15,7 @@ public interface OtpCodeRepository extends JpaRepository<OtpCode, Long> {
     Optional<OtpCode> findTopByPhoneAndConsumedFalseOrderByCreatedAtDesc(String phone);
 
     Optional<OtpCode> findTopByPhoneOrderByCreatedAtDesc(String phone);
+
+    /** Codes demandes pour ce numero depuis l'instant donne (quota horaire mobile, 2026-11-02). */
+    List<OtpCode> findByPhoneAndMobileRequestTrueAndCreatedAtAfterOrderByCreatedAtAsc(String phone, java.time.Instant since);
 }

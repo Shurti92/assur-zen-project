@@ -110,7 +110,7 @@ public class SmsNotificationService {
                     continue;
                 }
                 String message = String.format(
-                        "Cher(e) assure, votre contrat n %s arrivera a echeance le %s. Contactez-nous au 0705206698 ou 0747304386 (whatsapp) pour le renouveler. AssurZen Assurance Votre sérénité, Notre engagement",
+                        "Cher(e) assure, votre contrat n %s arrivera a echeance le %s. Contactez-nous au 0700000011 ou 0700000012 (whatsapp) pour le renouveler. AssurZen Assurance Votre sérénité, Notre engagement",
                         sansPrefixeContrat(policyNumber), dateEcheance);
                 scheduleRow(contract, destinataire, message, TypeMessageSms.avis_echeance, sendDate);
                 count++;
@@ -259,6 +259,28 @@ public class SmsNotificationService {
      * Envoie immediatement un SMS contenant un code de verification OTP.
      */
     public boolean sendOtpSms(String phone, String code, long validityMinutes) {
+        return sendOtpSms(phone, code, validityMinutes, false);
+    }
+
+    /**
+     * Variante mobile (2026-11-02) : texte propre a l'application AssurZen Mobile. Le portail back-office garde son
+     * texte historique. Le delai affiche suit OTP_CODE_VALIDITY_MINUTES.
+     */
+    public boolean sendOtpSms(String phone, String code, long validityMinutes, boolean mobile) {
+        if (mobile) {
+            if (!StringUtils.hasText(phone)) {
+                log.warn("Aucun numero de telephone fourni, SMS OTP mobile non envoye");
+                return false;
+            }
+            String texte = String.format(
+                    "Votre code de vérification AssurZen Mobile est %s. Il expire dans %d minutes. Ne le partagez avec personne.",
+                    code, validityMinutes);
+            return sendImmediate(phone, texte, TypeMessageSms.otp_verification);
+        }
+        return envoyerOtpPortail(phone, code, validityMinutes);
+    }
+
+    private boolean envoyerOtpPortail(String phone, String code, long validityMinutes) {
         if (!StringUtils.hasText(phone)) {
             log.warn("Aucun numero de telephone fourni, SMS OTP non envoye");
             return false;

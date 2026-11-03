@@ -51,7 +51,7 @@ import static org.mockito.Mockito.doReturn;
 class SycaPayLiveIT {
 
     private static final long MONTANT_TEST = 100L;
-    private static final String NUMERO_TEST = "0757873487";
+    private static final String NUMERO_TEST = "0700000013";
 
     /** Etat partage entre les etapes ordonnees (un seul virement par execution). */
     private static String transactionReference;

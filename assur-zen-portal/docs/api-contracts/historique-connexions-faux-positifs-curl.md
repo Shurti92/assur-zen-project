@@ -10,25 +10,25 @@ Base URL gateway : `https://localhost:9190` (les appels concernés visent `/v3/a
 
 ## 1. Constat
 
-Sur `GET /historique-connexions` (module livré le 2026-08-24), l'historique du compte admin `0757873487` sur les dernières 24h montre 13 entrées, dont **7 avec `navigateur: "curl 8"` / `os: "Other"`** :
+Sur `GET /historique-connexions` (module livré le 2026-08-24), l'historique du compte admin `0700000013` sur les dernières 24h montre 13 entrées, dont **7 avec `navigateur: "curl 8"` / `os: "Other"`** :
 
 | Date/heure | Utilisateur | Navigateur |
 |---|---|---|
-| 25/08/2026 08:48:01 | 0757873487 | curl 8 |
-| 25/08/2026 08:41:27 | 0757873487 | curl 8 |
-| 25/08/2026 05:35:10 | 0757873487 | curl 8 |
-| 25/08/2026 05:24:45 | **0705206698** | curl 8 |
-| 25/08/2026 05:23:21 | 0757873487 | curl 8 |
-| 25/08/2026 05:03:51 | 0757873487 | curl 8 |
-| 25/08/2026 05:02:33 | 0757873487 | curl 8 |
-| 24/08/2026 20:52:14 | 0757873487 | curl 8 |
+| 25/08/2026 08:48:01 | 0700000013 | curl 8 |
+| 25/08/2026 08:41:27 | 0700000013 | curl 8 |
+| 25/08/2026 05:35:10 | 0700000013 | curl 8 |
+| 25/08/2026 05:24:45 | **0700000011** | curl 8 |
+| 25/08/2026 05:23:21 | 0700000013 | curl 8 |
+| 25/08/2026 05:03:51 | 0700000013 | curl 8 |
+| 25/08/2026 05:02:33 | 0700000013 | curl 8 |
+| 24/08/2026 20:52:14 | 0700000013 | curl 8 |
 
 Ces horaires correspondent **exactement**, à la minute près, à des appels `curl -s -k https://localhost:9190/v3/api-docs` faits depuis la machine de développement pour inspecter le schéma OpenAPI — un usage courant et légitime pendant le développement du frontend. **Aucun de ces appels n'envoyait de identifiant, de mot de passe, ni de header `Authorization`** : c'est une simple requête `GET` anonyme vers un endpoint de documentation qui devrait être public.
 
 ## 2. Pourquoi c'est un bug
 
 1. `GET /v3/api-docs` n'est pas (et ne devrait pas être) un endpoint d'authentification — il ne devrait générer strictement aucune entrée dans un historique de connexions.
-2. Le compte auquel ces requêtes anonymes sont attribuées (`0757873487`, `0705206698`) semble correspondre au **dernier utilisateur authentifié sur le poste**, ce qui suggère un contexte de sécurité (session/utilisateur courant) partagé ou mal isolé entre les requêtes — un vrai souci d'isolation, indépendamment du symptôme visible dans l'historique.
+2. Le compte auquel ces requêtes anonymes sont attribuées (`0700000013`, `0700000011`) semble correspondre au **dernier utilisateur authentifié sur le poste**, ce qui suggère un contexte de sécurité (session/utilisateur courant) partagé ou mal isolé entre les requêtes — un vrai souci d'isolation, indépendamment du symptôme visible dans l'historique.
 3. **Effet de bord suspecté, à confirmer côté backend** : si le mécanisme qui enregistre une "connexion" est couplé à une émission/rotation de token ou à une politique de session unique par compte, alors chacun de ces faux positifs a pu **invalider la session légitime de l'administrateur dans son navigateur**. Symptôme rapporté côté utilisateur le même jour : *"malgré les accès bons la connexion échoue, je suis obligé de réinitialiser mon compte à chaque fois"* — cohérent avec des sessions invalidées de façon répétée et imprévisible, sans lien réel avec le mot de passe.
 
 ## 3. Reproduction

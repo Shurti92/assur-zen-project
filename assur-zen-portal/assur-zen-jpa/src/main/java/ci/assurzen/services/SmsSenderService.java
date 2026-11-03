@@ -36,6 +36,12 @@ public class SmsSenderService {
             return new SmsSendResult(true, 200, "mock");
         }
 
+        if (!smsProperties.isAllowed(sms.getNumero())) {
+            log.warn("SMS NON ENVOYE (numero hors liste SMS_ALLOWED_NUMBERS) - numero {} - message : {}",
+                    masquerNumero(sms.getNumero()), sms.getMessage());
+            return new SmsSendResult(true, 200, "hors-liste");
+        }
+
         HttpUrl url = construireUrl(sms);
 
         Request request = new Request.Builder()

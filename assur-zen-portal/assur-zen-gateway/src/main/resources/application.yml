@@ -271,11 +271,18 @@ mailer:
 # SMS
 # ==========================================================
 
+# Paiement mobile (2026-11-02) : SIMULATION uniquement (aucun fournisseur d'encaissement), activee en dev par
+# MOBILE_PAYMENTS_SIMULATED=true. Par defaut false : aucun moyen de paiement actif.
+mobile:
+  payments:
+    simulated: ${MOBILE_PAYMENTS_SIMULATED:false}
+
 credential:
   sms:
     bearer: ${SMS_BEARER:}
     sender: ASSUR ZEN
     mock: ${SMS_MOCK:false}
+    allowed-numbers: ${SMS_ALLOWED_NUMBERS:}
     base-url: ${SMS_BASE_URL:https://apis.letexto.com/v1/messages}
   telegram:
     enabled: ${TELEGRAM_ENABLED:true}

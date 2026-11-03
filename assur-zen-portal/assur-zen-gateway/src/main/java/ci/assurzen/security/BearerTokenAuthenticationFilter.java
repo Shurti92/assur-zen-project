@@ -23,6 +23,28 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
 
     private final ci.assurzen.security.JwtTokenService jwtTokenService;
 
+    /**
+     * Routes publiques d'authentification (2026-11-02) : un en-tete Authorization perime envoye par un client
+     * (ancien jeton) ne doit pas les faire echouer en 401 avant meme la lecture des identifiants. Le jeton est
+     * ignore sur ces routes (elles n'en ont pas besoin) ; /auth/logout, /auth/me, pin/verify... le gardent.
+     */
+    private static final java.util.Set<String> ROUTES_PUBLIQUES = java.util.Set.of(
+            "/api-assur-zen/auth/login",
+            "/api-assur-zen/auth/login/otp-verify",
+            "/api-assur-zen/auth/login/otp-resend",
+            "/api-assur-zen/auth/refresh",
+            "/api-assur-zen/auth/forgot-password",
+            "/api-assur-zen/auth/reset-password",
+            "/api-assur-zen/auth/mobile/otp/request",
+            "/api-assur-zen/auth/mobile/otp/verify",
+            "/api-assur-zen/auth/mobile/register",
+            "/api-assur-zen/auth/mobile/pin/reset");
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return "POST".equalsIgnoreCase(request.getMethod()) && ROUTES_PUBLIQUES.contains(request.getRequestURI());
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {

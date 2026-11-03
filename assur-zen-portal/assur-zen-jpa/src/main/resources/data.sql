@@ -6,7 +6,7 @@ INSERT INTO t_assur_zen_type_profile
 VALUES
     ('ADMIN', true);
 
--- Utilisateur de test (login: 0757873487 / mot de passe: 123456789)
+-- Utilisateur de test (utilisateur de developpement uniquement - changer le mot de passe)
 INSERT INTO t_assur_zen_users
 (username, password, roles, first_cnx, active)
 VALUES

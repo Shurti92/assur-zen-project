@@ -51,4 +51,14 @@ public class OtpCode implements Serializable {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /** Code demande via /auth/mobile/otp/request (REGISTER / RESET_PIN) : seul ce type compte dans le quota horaire
+     * (2026-11-02). Nullable : les anciennes lignes et les codes de connexion (2FA) n'y comptent pas. */
+    @Column(name = "mobile_request")
+    private Boolean mobileRequest;
+
+    /** Objet du code (2026-11-02) : REGISTER ou RESET_PIN pour les demandes mobile ; null = code de connexion / portail.
+     * Un code n'est accepte que pour son objet (un code de login ne reinitialise pas un PIN, et inversement). */
+    @Column(name = "purpose", length = 20)
+    private String purpose;
 }

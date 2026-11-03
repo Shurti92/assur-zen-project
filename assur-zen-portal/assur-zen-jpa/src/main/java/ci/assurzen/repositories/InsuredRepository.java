@@ -14,6 +14,14 @@ public interface InsuredRepository extends JpaRepository<Insured, Long> {
 
     Optional<Insured> findByClientPhone(String clientPhone);
 
+    /** Assures dont un des deux numeros se termine par ces 10 chiffres (formats +225..., 225..., 07..., avec espaces). */
+    @Query("""
+            SELECT i FROM Insured i
+            WHERE right(replace(replace(replace(coalesce(i.clientPhone, ''), ' ', ''), '+', ''), '-', ''), 10) = :phone
+               OR right(replace(replace(replace(coalesce(i.clientPhone2, ''), ' ', ''), '+', ''), '-', ''), 10) = :phone
+            """)
+    List<Insured> findByPhoneNormalise(@org.springframework.data.repository.query.Param("phone") String phone);
+
     // ---------------------------------------------------------------- Dashboard KPI (module "KPI Dashboard")
 
     @Query("SELECT i.clientCity AS libelle, COUNT(i) AS total FROM Insured i WHERE i.clientCity IS NOT NULL GROUP BY i.clientCity")

@@ -15,7 +15,7 @@ Base URL gateway : `https://localhost:9190/api-assur-zen` (via proxy `/api-assur
 ## 2. Scénario de test (reproductible)
 
 1. Sortie de fonds de type `LOAN` créée puis menée jusqu'au bout du workflow : `CREATE → SUBMIT → REVIEW → APPROVE → AUTHORIZE → DISBURSE` (id `3`, référence `DEC2026000504`).
-2. `GET /fund-outflows/3` juste après le décaissement → confirme `status: "DISBURSED"`, `disbursedAt: "2026-09-03T19:28:31Z"`, `disbursedBy: "0757873487"`, `loanId: 2` (le prêt a bien été auto-créé).
+2. `GET /fund-outflows/3` juste après le décaissement → confirme `status: "DISBURSED"`, `disbursedAt: "2026-09-03T19:28:31Z"`, `disbursedBy: "0700000013"`, `loanId: 2` (le prêt a bien été auto-créé).
 3. `GET /fund-outflows/3/history` → renvoie `totalElements: 5`, avec uniquement `AUTHORIZE` (19:28:05), `APPROVE` (19:27:51), `REVIEW` (19:27:40), `SUBMIT` (19:27:28), `CREATE` (19:26:58). Aucune entrée `DISBURSE`, alors qu'elle devrait apparaître après `AUTHORIZE` (le décaissement a eu lieu à 19:28:31, soit 26 secondes plus tard).
 4. Contre-exemple confirmant que les autres transitions fonctionnent bien : sur une autre sortie (id `4`), `CREATE` puis `CANCEL` apparaissent tous les deux correctement dans `/fund-outflows/4/history` (`totalElements: 2`).
 
