@@ -1,0 +1,37 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+.DS_Store
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/upload-keystore.jks
+*.keystore
+
+# Sauvegardes du script scripts/setup
+.assurzen-setup-backup/
+
+# Journaux d erreurs du compilateur Kotlin (chemins locaux)
+.kotlin/
+android/.kotlin/
+
+# Secrets et fichiers locaux a ne jamais publier
+.env
+*.env
+*.jks
+key.properties
+local.properties
+google-services.json
+
+# Comptes rendus de travail avec la Gateway : numeros d equipe et comptes de test, jamais publies
+docs/gateway/

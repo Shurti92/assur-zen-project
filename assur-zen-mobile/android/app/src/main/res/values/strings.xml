@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Canal des notifications push (Android 8+) : nom visible dans Paramètres > Notifications. -->
+    <string name="notification_channel_id" translatable="false">assurzen_notifications</string>
+    <string name="notification_channel_name">Notifications AssurZen</string>
+    <string name="notification_channel_description">Paiements, sinistres, échéances de vos contrats et réponses du service client.</string>
+</resources>

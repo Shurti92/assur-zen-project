@@ -1,0 +1,201 @@
+import '../models/models.dart';
+import '../models/moto_quote.dart';
+
+/// Contrats des dépôts de données.
+///
+/// L’interface ne change pas entre la démonstration ([MockRepositories]) et la
+/// production ([ApiRepositories]) : les écrans ne savent pas d’où viennent les
+/// données. Chaque méthode peut lever une `ApiException`.
+
+abstract interface class AuthRepository {
+  /// Connexion par numéro + code PIN (décisions 4.1 et 4.2). Peut demander une
+  /// double authentification par SMS ([LoginOtpChallenge]).
+  Future<LoginResult> login({required String phone, required String pin});
+
+  /// Seconde étape de la connexion : code SMS reçu après un [LoginOtpChallenge].
+  Future<Session> verifyLoginOtp({required String challengeToken, required String code, required String phone});
+
+  /// Renvoie le code SMS de la double authentification.
+  Future<void> resendLoginOtp(String challengeToken);
+
+  /// Reprise de session avec le jeton de renouvellement (après déverrouillage).
+  Future<Session> resumeSession(String refreshToken, {String? phone});
+
+  /// Vérifie le PIN de l’utilisateur déjà connecté (avant un paiement) sans
+  /// ouvrir de nouvelle session.
+  Future<void> verifyPin(String pin);
+
+  /// Envoi d’un code SMS : inscription ou PIN oublié. 3 envois par heure maximum.
+  Future<void> requestOtp(String phone, {required OtpPurpose purpose});
+
+  /// Vérifie le code SMS d’inscription et renvoie le jeton de vérification
+  /// (à usage unique, valable 10 min) à transmettre à [register].
+  Future<String> verifyOtp({required String phone, required String code});
+
+  Future<Session> register({
+    required String fullName,
+    required String phone,
+    required String pin,
+    required String verificationToken,
+  });
+
+  Future<void> resetPin({required String phone, required String code, required String newPin});
+
+  Future<void> logout();
+
+  /// Décision 8.5 : demande de suppression du compte (PIN re-saisi). Renvoie la
+  /// référence de la demande.
+  Future<String> requestAccountDeletion({required String pin});
+
+  /// Met à jour le profil (nom, e-mail). Le téléphone n'est pas modifiable.
+  /// Renvoie le profil enregistré par le serveur.
+  Future<AppUser> updateProfile({String? fullName, String? email});
+}
+
+enum OtpPurpose { register, resetPin }
+
+abstract interface class CatalogRepository {
+  Future<List<Product>> getProducts();
+
+  Future<Product> getProduct(String id);
+
+  Future<QuoteReferentials> getReferentials(String productId);
+}
+
+abstract interface class QuoteRepository {
+  /// Calcul du devis par le serveur. Le montant n’est jamais calculé localement.
+  Future<Quote> computeQuote(QuoteDraft draft);
+
+  Future<void> uploadDocument({required String quoteNumber, required RequiredDocument type, required String filePath});
+
+  /// Demande de rappel par un conseiller. [slot] : ASAP, MORNING, AFTERNOON ou
+  /// EVENING. Le délai de rappel n'est annoncé que s'il est fourni par le serveur.
+  Future<CallbackReceipt> requestCallback({required String phone, required String slot, String? productId});
+}
+
+/// Devis en ligne moto : simulation publique, puis devis enregistrés du client connecté.
+/// Le prix est toujours celui du serveur.
+abstract interface class MotoQuoteRepository {
+  Future<MotoQuoteForm> getForm();
+
+  Future<MotoQuoteSimulation> simulate(MotoQuoteRequest request);
+
+  Future<MotoQuote> create(MotoQuoteRequest request);
+
+  Future<List<MotoQuote>> list();
+
+  Future<MotoQuote> get(String reference);
+
+  Future<MotoQuote> accept(String reference);
+}
+
+abstract interface class PaymentRepository {
+  Future<List<PaymentMethod>> getMethods();
+
+  /// Lance une tentative de paiement ; renvoie sa référence unique.
+  Future<PaymentAttempt> initiate({
+    required String payableReference, // n° de devis ou de contrat
+    required int amount,
+    required String methodId,
+    String? phone,
+  });
+
+  /// Statut confirmé par le serveur (webhook de l’agrégateur côté backend).
+  Future<PaymentAttempt> status(String reference);
+}
+
+abstract interface class ContractRepository {
+  Future<List<Contract>> getContracts();
+
+  Future<Contract> getContract(String id);
+
+  /// Demande de modification ou de résiliation, traitée par un conseiller.
+  Future<ContractRequestReceipt> requestChange({
+    required String contractId,
+    required ContractRequestType type,
+    String? message,
+  });
+}
+
+abstract interface class ClaimRepository {
+  Future<List<Claim>> getClaims();
+
+  Future<Claim> getClaim(String id);
+
+  Future<List<ClaimType>> getClaimTypes(String productId);
+
+  Future<Claim> declare(ClaimDraft draft);
+}
+
+abstract interface class NotificationRepository {
+  /// Notifications du client, de la plus récente à la plus ancienne (textes du serveur).
+  Future<List<AppNotification>> getNotifications();
+
+  /// Nombre de notifications non lues (pastille de la cloche).
+  Future<int> getUnreadCount();
+
+  /// Préférences push par catégorie (tout est activé par défaut côté serveur).
+  Future<List<NotificationPreference>> getPreferences();
+
+  /// Active ou désactive le push d'une catégorie ; renvoie la liste à jour.
+  Future<List<NotificationPreference>> setPreference(NotificationCategory category, bool enabled);
+
+  /// Enregistre l'appareil (jeton FCM) pour les notifications push. Idempotent par
+  /// jeton ; renvoie l'identifiant de l'appareil à conserver pour la déconnexion.
+  Future<String> registerDevice({required String token, String? appVersion});
+
+  /// Retire l'appareil à la déconnexion (idempotent).
+  Future<void> unregisterDevice(String deviceId);
+
+  Future<void> markRead(String id);
+
+  Future<void> markAllRead();
+}
+
+abstract interface class SupportRepository {
+  /// Coordonnées et disponibilité fournies par le serveur (route publique).
+  Future<ContactInfo> getContactInfo();
+
+  /// Liens légaux (conditions, confidentialité) : un lien `null` est masqué.
+  Future<LegalLinks> getLegalLinks();
+
+  /// Sujets proposés, fournis par le serveur.
+  Future<List<SupportTopic>> getTopics();
+
+  /// Mes demandes au support, avec la réponse du conseiller.
+  Future<List<SupportRequestItem>> getRequests();
+
+  /// Avis après souscription (1 à 5). Renvoie la référence.
+  Future<String> sendFeedback({required int rating, String? comment, String? contractId});
+
+  Future<List<FaqItem>> getFaq();
+
+  /// Renvoie la référence de la demande et, si le serveur en annonce un, le délai
+  /// de réponse.
+  Future<SupportReceipt> sendRequest({required String topicId, required String message});
+}
+
+/// Ensemble des dépôts injectés dans l’application.
+class Repositories {
+  const Repositories({
+    required this.auth,
+    required this.catalog,
+    required this.quotes,
+    required this.motoQuotes,
+    required this.payments,
+    required this.contracts,
+    required this.claims,
+    required this.notifications,
+    required this.support,
+  });
+
+  final AuthRepository auth;
+  final CatalogRepository catalog;
+  final QuoteRepository quotes;
+  final MotoQuoteRepository motoQuotes;
+  final PaymentRepository payments;
+  final ContractRepository contracts;
+  final ClaimRepository claims;
+  final NotificationRepository notifications;
+  final SupportRepository support;
+}
