@@ -73,12 +73,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(AzSpace.screen, 0, AzSpace.screen, 12),
-            child: Row(
-              children: [
-                AzChoiceChip(label: 'Toutes', selected: !_unreadOnly, onTap: () => setState(() => _unreadOnly = false)),
-                const SizedBox(width: 8),
-                AzChoiceChip(label: 'Non lues ($unread)', selected: _unreadOnly, onTap: () => setState(() => _unreadOnly = true)),
-              ],
+            child: AzChipFill<bool>(
+              options: const [false, true],
+              selected: _unreadOnly,
+              minChipWidth: 120,
+              labelOf: (unreadOnly) => unreadOnly ? 'Non lues ($unread)' : 'Toutes',
+              onSelected: (v) => setState(() => _unreadOnly = v),
             ),
           ),
           Expanded(

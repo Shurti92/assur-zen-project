@@ -100,7 +100,7 @@ class _AdvisorFormState extends State<_AdvisorForm> {
           children: [
             const Text('Quand préférez-vous être rappelé ?', style: AzText.label),
             const SizedBox(height: 8),
-            AzChipWrap<String>(options: _slots, selected: _slot, onSelected: (v) => setState(() => _slot = v)),
+            AzChipFill<String>(options: _slots, selected: _slot, minChipWidth: 130, onSelected: (v) => setState(() => _slot = v)),
           ],
         ),
         AzPhoneField(controller: _phone, label: 'Numéro à rappeler', error: _error),

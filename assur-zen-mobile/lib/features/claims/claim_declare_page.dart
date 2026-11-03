@@ -235,9 +235,10 @@ class _ClaimDeclarePageState extends State<ClaimDeclarePage> {
           children: [
             const Text('Type de sinistre', style: AzText.label),
             const SizedBox(height: 8),
-            AzChipWrap<String>(
+            AzChipFill<String>(
               options: [for (final t in types) t.label],
               selected: _d.type,
+              minChipWidth: 140,
               onSelected: (v) => setState(() {
                 _d.type = v;
                 _d.typeId = types.firstWhere((t) => t.label == v).id;
@@ -278,8 +279,9 @@ class _ClaimDeclarePageState extends State<ClaimDeclarePage> {
           children: [
             const Text('Un tiers est-il impliqué ?', style: AzText.label),
             const SizedBox(height: 8),
-            AzChipGrid<bool>(
+            AzChipFill<bool>(
               options: const [true, false],
+              minChipWidth: 100,
               selected: _d.thirdPartyInvolved,
               labelOf: (v) => v ? 'Oui' : 'Non',
               onSelected: (v) => setState(() => _d.thirdPartyInvolved = v),
@@ -293,9 +295,9 @@ class _ClaimDeclarePageState extends State<ClaimDeclarePage> {
             child: AzGap(
               gap: 14,
               children: [
-                AzTextField(label: 'Nom du tiers', controller: _thirdName, capitalization: TextCapitalization.words),
+                AzTextField(label: 'Nom du tiers', controller: _thirdName, hint: 'Saisissez le nom du tiers', capitalization: TextCapitalization.words),
                 AzTextField(label: 'Immatriculation du tiers', controller: _thirdPlate, hint: 'Ex. 4567 CD 01', capitalization: TextCapitalization.characters),
-                AzTextField(label: 'Assureur du tiers (si connu)', controller: _thirdInsurer),
+                AzTextField(label: 'Assureur du tiers (si connu)', controller: _thirdInsurer, hint: 'Saisissez le nom de l’assureur', capitalization: TextCapitalization.words),
               ],
             ),
           ),

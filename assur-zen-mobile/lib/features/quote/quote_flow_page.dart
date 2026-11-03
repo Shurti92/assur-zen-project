@@ -317,16 +317,16 @@ class _QuoteFlowPageState extends State<QuoteFlowPage> {
       children: [
         _Labeled(
           ref.powerLabel,
-          AzChipGrid<String>(options: ref.powers, selected: _d.power, onSelected: (v) => setState(() => _d.power = v)),
+          AzChipFill<String>(options: ref.powers, selected: _d.power, minChipWidth: 110, onSelected: (v) => setState(() => _d.power = v)),
         ),
         _Labeled(
           'Usage du véhicule',
-          AzChipWrap<String>(options: ref.usages, selected: _d.usage, onSelected: (v) => setState(() => _d.usage = v)),
+          AzChipFill<String>(options: ref.usages, selected: _d.usage, minChipWidth: 120, onSelected: (v) => setState(() => _d.usage = v)),
         ),
         if (ref.platforms.isNotEmpty)
           _Labeled(
             'Plateforme',
-            AzChipWrap<String>(options: ref.platforms, selected: _d.platform, onSelected: (v) => setState(() => _d.platform = v)),
+            AzChipFill<String>(options: ref.platforms, selected: _d.platform, minChipWidth: 100, onSelected: (v) => setState(() => _d.platform = v)),
           ),
         AzTextField(
           label: 'Immatriculation',
@@ -359,6 +359,7 @@ class _QuoteFlowPageState extends State<QuoteFlowPage> {
               child: AzTextField(
                 label: 'Nombre de places',
                 controller: _seats,
+                hint: 'Ex. : 5',
                 error: _errors['seats'],
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -396,9 +397,10 @@ class _QuoteFlowPageState extends State<QuoteFlowPage> {
         ),
         _Labeled(
           'Durée de couverture',
-          AzChipGrid<int>(
+          AzChipFill<int>(
             options: ref.durations,
-            columns: 4,
+            minChipWidth: 76,
+            maxColumns: 4,
             selected: _d.durationMonths,
             labelOf: _durationLabel,
             onSelected: (v) => setState(() => _d.durationMonths = v),
@@ -420,7 +422,7 @@ class _QuoteFlowPageState extends State<QuoteFlowPage> {
     return AzGap(
       gap: 18,
       children: [
-        AzTextField(label: 'Nom et prénoms du souscripteur', controller: _name, error: _errors['name'], capitalization: TextCapitalization.words),
+        AzTextField(label: 'Nom et prénoms du souscripteur', controller: _name, hint: 'Ex. Koné Awa', error: _errors['name'], capitalization: TextCapitalization.words),
         AzPhoneField(controller: _phone, label: 'Téléphone', error: _errors['phone']),
         AzTextField(
           label: 'E-mail (facultatif)',

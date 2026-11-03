@@ -163,8 +163,10 @@ class _LoginPageState extends State<LoginPage> {
               AzButton.secondary('Se connecter avec l’empreinte', icon: Icons.fingerprint, onPressed: _loading ? null : _biometric),
             ],
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            // Wrap : avec le texte agrandi, le lien passe à la ligne au lieu de déborder.
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text('Pas encore de compte ?', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
                 AzTextLink('Créer un compte', onPressed: () => context.push(AppRoutes.register)),

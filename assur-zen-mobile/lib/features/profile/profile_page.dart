@@ -381,8 +381,8 @@ class _EditProfileState extends State<_EditProfile> {
   Widget build(BuildContext context) {
     return AzGap(
       children: [
-        AzTextField(label: 'Nom et prénoms', controller: _name, error: _nameError, capitalization: TextCapitalization.words),
-        AzTextField(label: 'E-mail (facultatif)', controller: _email, error: _emailError, keyboardType: TextInputType.emailAddress),
+        AzTextField(label: 'Nom et prénoms', controller: _name, hint: 'Ex. Koné Awa', error: _nameError, capitalization: TextCapitalization.words),
+        AzTextField(label: 'E-mail (facultatif)', controller: _email, hint: 'nom@exemple.ci', error: _emailError, keyboardType: TextInputType.emailAddress),
         AzBanner(
           kind: AzBannerKind.info,
           text: 'Le numéro +225 ${formatPhone(widget.user.phone)} sert d’identifiant. Pour le changer, contactez le service client.',

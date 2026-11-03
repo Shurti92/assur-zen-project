@@ -7,6 +7,7 @@ import 'package:assurzen_mobile/features/quote/moto_quote_page.dart';
 import 'package:assurzen_mobile/features/quote/vtc_quote_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Tailles d'écran (dp) : petit téléphone, téléphone courant, grand téléphone, tablette, paysage.
@@ -33,6 +34,8 @@ Widget _scaled(double textScale, Widget child) => MaterialApp(
     );
 
 void main() {
+  setUpAll(loadAppFonts);
+
   group('AzChipFill : les pastilles occupent toute la largeur', () {
     // Libellés réels des écrans de devis.
     final cases = <String, (List<Object>, double, String Function(Object)?)>{

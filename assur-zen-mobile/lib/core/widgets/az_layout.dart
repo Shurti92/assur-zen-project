@@ -149,6 +149,42 @@ class AzContentWidth extends StatelessWidget {
   }
 }
 
+/// Cadre de toute l'application : sur téléphone il ne change rien ; sur tablette ou en paysage, les
+/// pages occupent une colonne centrée de [maxWidth] au lieu de s'étirer, sur un fond neutre.
+///
+/// Les pages voient la largeur de la colonne (et non celle de l'écran) : leurs `MediaQuery` et leurs
+/// `SafeArea` restent donc cohérents. Les feuilles et boîtes de dialogue sont bornées de la même façon.
+class AzScreenFrame extends StatelessWidget {
+  const AzScreenFrame({super.key, required this.child, this.maxWidth = 640});
+
+  final Widget child;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    if (mq.size.width <= maxWidth) return child;
+    return ColoredBox(
+      color: AzColors.line,
+      child: Center(
+        child: SizedBox(
+          width: maxWidth,
+          child: MediaQuery(
+            data: mq.copyWith(
+              size: Size(maxWidth, mq.size.height),
+              // Les échancrures latérales (paysage) sont hors de la colonne centrée.
+              padding: mq.padding.copyWith(left: 0, right: 0),
+              viewPadding: mq.viewPadding.copyWith(left: 0, right: 0),
+              systemGestureInsets: mq.systemGestureInsets.copyWith(left: 0, right: 0),
+            ),
+            child: ClipRect(child: child),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Barre d’actions fixée en bas d’écran (respecte la barre de navigation Android).
 class AzBottomBar extends StatelessWidget {
   const AzBottomBar({super.key, required this.children});

@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../core/storage/local_store.dart';
 import '../core/theme/az_theme.dart';
+import '../core/widgets/az_layout.dart';
 import '../data/repositories/repositories.dart';
 import 'app_scope.dart';
 import 'navigation.dart';
@@ -89,7 +90,7 @@ class _AssurZenAppState extends State<AssurZenApp> with WidgetsBindingObserver {
             final mq = MediaQuery.of(context);
             return MediaQuery(
               data: mq.copyWith(textScaler: mq.textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.3)),
-              child: child ?? const SizedBox.shrink(),
+              child: AzScreenFrame(child: child ?? const SizedBox.shrink()),
             );
           },
         ),

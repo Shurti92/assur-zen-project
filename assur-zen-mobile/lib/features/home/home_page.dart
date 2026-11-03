@@ -264,7 +264,7 @@ class _Hero extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(cta, style: AzText.bodyMedium.copyWith(color: AzColors.blue700, fontWeight: FontWeight.w700)),
+                    Flexible(child: Text(cta, style: AzText.bodyMedium.copyWith(color: AzColors.blue700, fontWeight: FontWeight.w700))),
                     const SizedBox(width: 6),
                     const Icon(Icons.chevron_right_rounded, size: 18, color: AzColors.blue700),
                   ],

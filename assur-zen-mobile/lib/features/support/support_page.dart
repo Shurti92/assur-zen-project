@@ -128,7 +128,8 @@ class _SupportPageState extends State<SupportPage> {
                 AsyncView<List<SupportTopic>>(
                   load: () => context.repos.support.getTopics(),
                   loading: const AzSkeletonList(count: 1, padding: EdgeInsets.zero),
-                  builder: (context, topics, _) => AzChipWrap<String>(
+                  builder: (context, topics, _) => AzChipFill<String>(
+                    minChipWidth: 130,
                     options: [for (final t in topics) t.label],
                     selected: topics.where((t) => t.id == _topicId).map((t) => t.label).firstOrNull,
                     onSelected: (label) => setState(() => _topicId = topics.firstWhere((t) => t.label == label).id),

@@ -220,14 +220,14 @@ class _OtpPageState extends State<OtpPage> {
           onCompleted: (_) => _verify(),
         ),
         const SizedBox(height: 8),
-        Row(
+        // Wrap : avec le texte agrandi, le décompte ou le lien passe à la ligne au lieu de déborder.
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
           children: [
             Text('Code non reçu ?', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
             if (_countdown > 0)
-              Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: Text('Renvoyer dans 0:${_countdown.toString().padLeft(2, '0')}', style: AzText.bodyMedium),
-              )
+              Text('Renvoyer dans 0:${_countdown.toString().padLeft(2, '0')}', style: AzText.bodyMedium)
             else
               AzTextLink('Renvoyer le code', onPressed: _resend),
           ],

@@ -83,8 +83,8 @@ class _ProductPageState extends State<ProductPage> {
                             child: Row(
                               children: [
                                 Text('Tarif', style: AzText.label.copyWith(color: AzColors.muted)),
-                                const Spacer(),
-                                const Text('Calculé selon votre profil', style: AzText.titleSmall),
+                                const SizedBox(width: 12),
+                                const Expanded(child: Text('Calculé selon votre profil', textAlign: TextAlign.right, style: AzText.titleSmall)),
                               ],
                             ),
                           ),
