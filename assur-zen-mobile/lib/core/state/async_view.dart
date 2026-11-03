@@ -75,7 +75,14 @@ class _AsyncViewState<T> extends State<AsyncView<T>> {
 
 /// Message d’erreur lisible à partir de n’importe quelle exception.
 String errorMessage(Object error) {
-  if (error is ApiException) return error.message;
+  if (error is ApiException) {
+    // PIN faux : le nombre de tentatives restantes n'est annoncé que s'il vient du serveur.
+    final n = error.remainingAttempts;
+    if (n != null && n > 0) {
+      return '${error.message}. Il vous reste $n ${n == 1 ? 'tentative' : 'tentatives'}.';
+    }
+    return error.message;
+  }
   // Diagnostic : en développement, l’erreur réelle est écrite dans la console.
   assert(() {
     debugPrint('[AssurZen] Erreur inattendue : $error');

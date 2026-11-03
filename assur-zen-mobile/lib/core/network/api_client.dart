@@ -173,6 +173,7 @@ class ApiClient {
         }
       }
       final retry = map['retryAfterSeconds'] ?? map['remainingSeconds'];
+      final attempts = map['remainingAttempts'];
       throw ApiException(
         kind: status == 400 || status == 422 ? ApiErrorKind.validation : ApiErrorKind.business,
         statusCode: status,
@@ -180,6 +181,7 @@ class ApiClient {
         field: field,
         message: message,
         retryAfterSeconds: retry is num ? retry.toInt() : null,
+        remainingAttempts: attempts is num ? attempts.toInt() : null,
       );
     }
     throw ApiException.server(status);

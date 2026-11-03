@@ -327,8 +327,13 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
                 child: AzChipWrap<int>(
                   options: [for (final d in form.durations) d.months],
                   selected: _months,
-                  // Les durées viennent du serveur ; le prix s'affiche dans le résultat.
-                  labelOf: (m) => '$m mois',
+                  // Les durées viennent du serveur. Plusieurs tarifs : le prix de chacun aide à choisir
+                  // (une seule durée : « 12 mois », le prix s'affiche dans le résultat).
+                  labelOf: (m) {
+                    if (form.durations.length < 2) return '$m mois';
+                    final d = form.durations.firstWhere((d) => d.months == m);
+                    return '$m mois · ${formatFcfa(d.total)}';
+                  },
                   onSelected: (v) {
                     _months = v;
                     _changed();

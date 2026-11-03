@@ -4,13 +4,25 @@
 /// pour une erreur de saisie, le champ concerné. L’application affiche
 /// [message] tel quel, sous le champ [field] s’il est fourni.
 class ApiException implements Exception {
-  const ApiException({required this.kind, required this.message, this.code, this.field, this.statusCode, this.retryAfterSeconds});
+  const ApiException({
+    required this.kind,
+    required this.message,
+    this.code,
+    this.field,
+    this.statusCode,
+    this.retryAfterSeconds,
+    this.remainingAttempts,
+  });
 
   final ApiErrorKind kind;
   final String message;
   final String? code;
   final String? field;
   final int? statusCode;
+
+  /// Tentatives restantes avant le verrouillage du compte, fournies par le serveur sur un PIN faux
+  /// (`INVALID_CREDENTIALS`). Absent : rien n'est annoncé.
+  final int? remainingAttempts;
 
   /// Attente avant de pouvoir réessayer (renvoi de code SMS, compte verrouillé…).
   final int? retryAfterSeconds;

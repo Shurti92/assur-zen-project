@@ -68,14 +68,14 @@ Le bouton « Découvrir les offres sans compte » ouvre le catalogue et le devis
 
 Toutes les données passent par des **dépôts** (`lib/data/repositories/repositories.dart`). Les écrans ne savent pas si les données viennent de la démonstration ou du serveur.
 
-**Branché et utilisé** : authentification (PIN, SMS, inscription, PIN oublié, suppression de compte), contrats et demandes (modification, résiliation, renouvellement), paiement (simulé par le serveur en développement), sinistres avec photos, catalogue, demande de rappel, coordonnées et liens légaux, support, notifications push, et le **devis moto en ligne** (simulation, devis enregistré, acceptation, liste « Mes devis »).
+**Branché et utilisé** : authentification (PIN, SMS, inscription, PIN oublié, suppression de compte), contrats et demandes (modification, résiliation, renouvellement), paiement (simulé par le serveur en développement), sinistres avec photos, catalogue, demande de rappel, coordonnées et liens légaux, support, notifications push, et les **devis en ligne moto et VTC** (simulation, devis enregistré, acceptation, liste « Mes devis »). Énergies, durées, marques, plateformes, nombre de places et prix y viennent du serveur ; la marque et la plateforme se choisissent en auto-complétion, avec saisie libre possible.
 
-**Pas encore branché** : le parcours de devis générique, utilisé pour les autres produits. Ses routes (`quotes`, `referentials`, `quoteDocuments`) sont encore provisoires (`/TODO/...`) dans `lib/core/network/endpoints.dart`. Tant qu’elles ne sont pas livrées, seul le devis moto est servi.
+**Pas encore branché** : le parcours de devis générique, utilisé pour les autres produits. Ses routes (`quotes`, `referentials`, `quoteDocuments`) sont encore provisoires (`/TODO/...`) dans `lib/core/network/endpoints.dart`. Tant qu’elles ne sont pas livrées, seuls les devis moto et VTC sont servis.
 
 **Règles à respecter**
 1. **Rien en dur** : un texte qui promet quelque chose (horaire, délai, coordonnée, tarif) doit venir du serveur. Champ absent, `null` ou vide : la rubrique ou le bouton est masqué. Les données de démonstration restent dans `lib/data/mock/`.
 2. **Format d’erreur** : `ApiClient` attend `{ "code", "message", "field" }` sur une erreur 4xx. Le `message` est affiché tel quel, sous le champ `field` s’il est fourni.
-3. **Authentification** : le jeton est envoyé en `Authorization: Bearer …` et stocké chiffré (`flutter_secure_storage`). Sur une réponse **401**, l’application renouvelle le jeton (`auth/refresh`) et rejoue l’appel ; si le renouvellement échoue, elle verrouille et redemande le PIN.
+3. **Authentification** : le jeton est envoyé en `Authorization: Bearer …` et stocké chiffré (`flutter_secure_storage`). Sur une réponse **401**, l’application renouvelle le jeton (`auth/refresh`) et rejoue l’appel ; si le renouvellement échoue, elle verrouille et redemande le PIN. Un PIN faux n’est pas un 401 de session : l’erreur affiche le nombre de tentatives restantes quand le serveur le fournit (`remainingAttempts`).
 4. **Paiement** : l’application lance la transaction (`initiate`), puis interroge son statut (`status`) toutes les 3 s pendant 3 minutes au plus. La confirmation vient du serveur (webhook de l’agrégateur côté backend). L’application n’affiche jamais « payé » sans elle.
 5. **Montants** : jamais calculés dans l’application. Le prix d’un devis est celui du serveur.
 
@@ -144,7 +144,7 @@ lib/
    ├─ home/                   accueil
    ├─ notifications/
    ├─ catalog/                catalogue, fiche produit, « Trouver mon assurance », rappel
-   ├─ quote/                  devis moto en ligne, « Mes devis », devis générique (6 étapes)
+   ├─ quote/                  devis moto et VTC en ligne, « Mes devis », devis générique (6 étapes)
    ├─ payment/                paiement Mobile Money, carte, agence
    ├─ contracts/              contrats, attestation avec QR code
    ├─ claims/                 déclaration et suivi des sinistres
@@ -184,7 +184,7 @@ Les couleurs sont mesurées sur le logo fourni (JPG). Un logo vectoriel permettr
 
 - [ ] Logo vectoriel et icône de lancement définitive.
 - [ ] Brancher le devis générique pour les produits autres que la moto (routes `/TODO` dans `endpoints.dart`).
-- [ ] Garanties, formules, éligibilité et tarifs servis par l’API pour tous les produits (c’est le cas du devis moto).
+- [ ] Garanties, formules, éligibilité et tarifs servis par l’API pour tous les produits (c’est le cas des devis moto et VTC).
 - [ ] Agrégateur de paiement réel : le paiement est aujourd’hui simulé par le serveur en développement.
 - [ ] Liens officiels (CGU, politique de confidentialité, mentions légales) renseignés dans le back-office.
 - [ ] Déclaration du traitement auprès de l’ARTCI.
