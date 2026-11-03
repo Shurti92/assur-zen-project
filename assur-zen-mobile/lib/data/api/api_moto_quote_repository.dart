@@ -43,4 +43,16 @@ class ApiMotoQuoteRepository implements MotoQuoteRepository {
   @override
   Future<MotoQuote> accept(String reference) async =>
       MotoQuote.fromJson(_map(await _client.post(Endpoints.motoQuoteAccept(reference))));
+
+  @override
+  Future<VtcQuoteForm> getVtcForm() async => VtcQuoteForm.fromJson(_map(await _client.get(Endpoints.vtcQuoteForm)));
+
+  @override
+  Future<MotoQuoteSimulation> simulateVtc(VtcQuoteRequest request) async =>
+      MotoQuoteSimulation.fromJson(_map(await _client.post(Endpoints.vtcQuoteSimulate, body: request.toJson())));
+
+  /// Enregistre le devis VTC (prix figé, aucune remise côté client).
+  @override
+  Future<MotoQuote> createVtc(VtcQuoteRequest request) async =>
+      MotoQuote.fromJson(_map(await _client.post(Endpoints.vtcQuoteCreate, body: request.toJson())));
 }

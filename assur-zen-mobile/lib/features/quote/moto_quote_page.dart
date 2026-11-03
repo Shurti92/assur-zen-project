@@ -198,7 +198,7 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
           gap: 16,
           children: [
             if (form.vehicleTypes.length > 1)
-              _Section(
+              QuoteFieldSection(
                 label: 'Type de Moto',
                 error: _errors['vehicleType'],
                 child: AzChipWrap<String>(
@@ -250,7 +250,7 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
               onChanged: (_) => _changed(),
             ),
             if (form.durations.isNotEmpty)
-              _Section(
+              QuoteFieldSection(
                 label: 'Durée de la garantie',
                 error: _errors['durationMonths'],
                 child: AzChipWrap<int>(
@@ -299,8 +299,8 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.label, required this.child, this.error});
+class QuoteFieldSection extends StatelessWidget {
+  const QuoteFieldSection({super.key, required this.label, required this.child, this.error});
 
   final String label;
   final Widget child;
@@ -364,11 +364,15 @@ class MotoQuoteResult extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        // Une ligne à 0 n'est pas affichée (ex. taxes non communiquées, CEDEAO propre au VTC).
         AzSummaryCard(rows: [
           ('Prime nette', formatFcfa(p.netPremium)),
-          ('Taxes', formatFcfa(p.taxes)),
-          ('Accessoires', formatFcfa(p.accessories)),
-          ('FGA', formatFcfa(p.fga)),
+          if (p.discount > 0) ('Remise', '- ${formatFcfa(p.discount)}'),
+          if (p.taxes > 0) ('Taxes', formatFcfa(p.taxes)),
+          if (p.accessories > 0) ('Accessoires', formatFcfa(p.accessories)),
+          if (p.fga > 0) ('FGA', formatFcfa(p.fga)),
+          if (p.cedeao > 0) ('CEDEAO', formatFcfa(p.cedeao)),
+          if (p.attestation > 0) ('Attestation', formatFcfa(p.attestation)),
           ('Total', formatFcfa(p.total)),
         ]),
         if (simulation.guarantees.isNotEmpty) ...[

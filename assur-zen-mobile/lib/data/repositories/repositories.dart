@@ -87,6 +87,13 @@ abstract interface class MotoQuoteRepository {
   Future<MotoQuote> get(String reference);
 
   Future<MotoQuote> accept(String reference);
+
+  /// Devis VTC (assurance automobile) : même cycle que la moto.
+  Future<VtcQuoteForm> getVtcForm();
+
+  Future<MotoQuoteSimulation> simulateVtc(VtcQuoteRequest request);
+
+  Future<MotoQuote> createVtc(VtcQuoteRequest request);
 }
 
 abstract interface class PaymentRepository {

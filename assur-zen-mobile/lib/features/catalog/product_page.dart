@@ -108,10 +108,12 @@ class _ProductPageState extends State<ProductPage> {
                     flex: 6,
                     child: AzButton(
                       // Le devis en ligne moto est servi par la Gateway (prix et garanties du serveur).
-                      p.id == 'moto' || p.onlineSubscription ? 'Obtenir un devis' : 'Être rappelé',
+                      p.id == 'moto' || p.id == 'automobile-vtc' || p.onlineSubscription ? 'Obtenir un devis' : 'Être rappelé',
                       onPressed: () => p.id == 'moto'
                           ? context.push(AppRoutes.motoQuote, p.title)
-                          : p.onlineSubscription
+                          : p.id == 'automobile-vtc'
+                              ? context.push(AppRoutes.vtcQuote, p.title)
+                              : p.onlineSubscription
                               ? context.push(AppRoutes.quote, QuoteArgs(productId: p.id))
                               : showAdvisorSheet(context, product: p),
                     ),

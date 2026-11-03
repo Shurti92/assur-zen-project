@@ -99,6 +99,9 @@ class MotoPremium {
     required this.fga,
     required this.total,
     this.currency = 'XOF',
+    this.cedeao = 0,
+    this.attestation = 0,
+    this.discount = 0,
   });
 
   final int netPremium;
@@ -108,6 +111,12 @@ class MotoPremium {
   final int total;
   final String currency;
 
+  /// Lignes ajoutées pour le VTC (0 pour la moto) : total = prime nette - remise + taxes
+  /// + accessoires + FGA + CEDEAO + attestation.
+  final int cedeao;
+  final int attestation;
+  final int discount;
+
   factory MotoPremium.fromJson(Map<String, dynamic> j) => MotoPremium(
         netPremium: _int(j['netPremium']),
         taxes: _int(j['taxes']),
@@ -115,6 +124,9 @@ class MotoPremium {
         fga: _int(j['fga']),
         total: _int(j['total']),
         currency: (j['currency'] ?? 'XOF').toString(),
+        cedeao: _int(j['cedeao']),
+        attestation: _int(j['attestation']),
+        discount: _int(j['discount']),
       );
 }
 
@@ -204,6 +216,14 @@ class MotoQuote {
     this.validUntil,
     this.createdAt,
     this.acceptedAt,
+    this.productKey,
+    this.fiscalPower,
+    this.energy,
+    this.seats,
+    this.firstRegistrationYear,
+    this.vtcDeclared,
+    this.platform,
+    this.discountPercent,
   });
 
   final String reference; // DEV-AAAA-NNNNNN
@@ -219,6 +239,42 @@ class MotoQuote {
   final DateTime? createdAt;
   final DateTime? acceptedAt;
 
+  /// Champs propres au VTC : tous null pour un devis moto.
+  final String? productKey;
+  final int? fiscalPower;
+  final String? energy;
+  final int? seats;
+  final int? firstRegistrationYear;
+  final bool? vtcDeclared;
+  final String? platform;
+  final num? discountPercent;
+
+  bool get isVtc => productKey == 'automobile-vtc' || fiscalPower != null;
+
+  /// Le même devis une fois accepté (réponse du serveur, ou démonstration).
+  MotoQuote copyAccepted(DateTime at) => MotoQuote(
+        reference: reference,
+        status: MotoQuoteStatus.accepte,
+        canAccept: false,
+        simulation: simulation,
+        cylinderCc: cylinderCc,
+        brand: brand,
+        model: model,
+        registrationNumber: registrationNumber,
+        chassisNumber: chassisNumber,
+        validUntil: validUntil,
+        createdAt: createdAt,
+        acceptedAt: at,
+        productKey: productKey,
+        fiscalPower: fiscalPower,
+        energy: energy,
+        seats: seats,
+        firstRegistrationYear: firstRegistrationYear,
+        vtcDeclared: vtcDeclared,
+        platform: platform,
+        discountPercent: discountPercent,
+      );
+
   factory MotoQuote.fromJson(Map<String, dynamic> j) => MotoQuote(
         reference: (j['reference'] ?? '').toString(),
         status: _status(j['status']),
@@ -232,5 +288,116 @@ class MotoQuote {
         validUntil: _date(j['validUntil']),
         createdAt: _date(j['createdAt']),
         acceptedAt: _date(j['acceptedAt']),
+        productKey: _text(j['productKey']),
+        fiscalPower: (j['fiscalPower'] as num?)?.toInt(),
+        energy: _text(j['energy']),
+        seats: (j['seats'] as num?)?.toInt(),
+        firstRegistrationYear: (j['firstRegistrationYear'] as num?)?.toInt(),
+        vtcDeclared: j['vtcDeclared'] as bool?,
+        platform: _text(j['platform']),
+        discountPercent: j['discountPercent'] as num?,
       );
+}
+
+/// Paramètres du formulaire VTC, pilotés par le serveur (`GET /public/quotes/vtc/form`).
+class VtcQuoteForm {
+  const VtcQuoteForm({
+    required this.energies,
+    required this.durations,
+    required this.formulaId,
+    required this.formulaName,
+    this.brands = const [],
+    this.platforms = const [],
+    this.minFiscalPower = 0,
+    this.minSeats = 0,
+    this.maxSeats = 0,
+    this.minEffectiveDate,
+  });
+
+  final List<String> energies; // ESSENCE, DIESEL, HYBRIDE, ELECTRIQUE
+  final List<MotoQuoteDuration> durations;
+  final String formulaId;
+  final String formulaName;
+
+  /// Marques et plateformes proposées par le serveur. Vide = saisie libre.
+  final List<String> brands;
+  final List<String> platforms;
+  final int minFiscalPower;
+  final int minSeats;
+  final int maxSeats;
+  final DateTime? minEffectiveDate;
+
+  /// Nombres de places acceptés par la grille tarifaire.
+  List<int> get seatOptions => minSeats > 0 && maxSeats >= minSeats ? [for (var n = minSeats; n <= maxSeats; n++) n] : const [];
+
+  static List<String> _strings(Object? raw) => [
+        for (final b in (raw as List? ?? const []))
+          if (b.toString().trim().isNotEmpty) b.toString().trim(),
+      ];
+
+  factory VtcQuoteForm.fromJson(Map<String, dynamic> j) => VtcQuoteForm(
+        energies: _strings(j['energies']),
+        durations: [
+          for (final d in (j['durations'] as List? ?? const []))
+            MotoQuoteDuration(months: _int((d as Map)['months']), total: _int(d['total'])),
+        ],
+        formulaId: (j['formulaId'] ?? '').toString(),
+        formulaName: (j['formulaName'] ?? '').toString(),
+        brands: _strings(j['brands']),
+        platforms: _strings(j['platforms']),
+        minFiscalPower: _int(j['minFiscalPower']),
+        minSeats: _int(j['minSeats']),
+        maxSeats: _int(j['maxSeats']),
+        minEffectiveDate: _date(j['minEffectiveDate']),
+      );
+}
+
+/// Saisie du client pour une simulation ou un devis VTC. Aucune remise côté client.
+class VtcQuoteRequest {
+  const VtcQuoteRequest({
+    required this.fiscalPower,
+    required this.energy,
+    required this.brand,
+    required this.model,
+    required this.firstRegistrationYear,
+    required this.seats,
+    required this.vtcDeclared,
+    required this.durationMonths,
+    required this.effectiveDate,
+    this.platform,
+    this.registrationNumber,
+    this.chassisNumber,
+    this.formulaId,
+  });
+
+  final int fiscalPower;
+  final String energy;
+  final String brand;
+  final String model;
+  final int firstRegistrationYear;
+  final int seats;
+  final bool vtcDeclared;
+  final int durationMonths;
+  final DateTime effectiveDate;
+  final String? platform;
+  final String? registrationNumber;
+  final String? chassisNumber;
+  final String? formulaId;
+
+  Map<String, Object?> toJson() => {
+        'fiscalPower': fiscalPower,
+        'energy': energy,
+        'brand': brand,
+        'model': model,
+        'firstRegistrationYear': firstRegistrationYear,
+        'seats': seats,
+        'vtcDeclared': vtcDeclared,
+        'durationMonths': durationMonths,
+        'effectiveDate': MotoQuoteRequest._day(effectiveDate),
+        if (platform != null && platform!.trim().isNotEmpty) 'platform': platform!.trim(),
+        if (registrationNumber != null && registrationNumber!.trim().isNotEmpty)
+          'registrationNumber': registrationNumber!.trim(),
+        if (chassisNumber != null && chassisNumber!.trim().isNotEmpty) 'chassisNumber': chassisNumber!.trim(),
+        if (formulaId != null && formulaId!.isNotEmpty) 'formulaId': formulaId,
+      };
 }

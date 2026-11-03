@@ -91,6 +91,10 @@ abstract final class Endpoints {
   static const motoQuoteSimulate = '$prefix/public/quotes/moto/simulate';
   static const motoQuotes = '$prefix/mobile/quotes'; // GET : liste du client
   static const motoQuoteCreate = '$prefix/mobile/quotes/moto'; // POST
+  // Devis en ligne VTC (assurance automobile) : mêmes routes client que la moto pour la liste et l'acceptation.
+  static const vtcQuoteForm = '$prefix/public/quotes/vtc/form';
+  static const vtcQuoteSimulate = '$prefix/public/quotes/vtc/simulate';
+  static const vtcQuoteCreate = '$prefix/mobile/quotes/vtc'; // POST
   static String motoQuote(String reference) => '$prefix/mobile/quotes/$reference';
   static String motoQuoteAccept(String reference) => '$prefix/mobile/quotes/$reference/accept';
 }

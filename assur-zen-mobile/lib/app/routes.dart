@@ -22,6 +22,7 @@ import '../data/models/moto_quote.dart';
 import '../features/quote/moto_quote_page.dart';
 import '../features/quote/my_quotes_page.dart';
 import '../features/quote/quote_flow_page.dart';
+import '../features/quote/vtc_quote_page.dart';
 import '../features/shell/main_shell.dart';
 import '../features/support/support_page.dart';
 
@@ -41,6 +42,7 @@ abstract final class AppRoutes {
   static const finder = '/finder';
   static const quote = '/quote';
   static const motoQuote = '/moto-quote';
+  static const vtcQuote = '/vtc-quote';
   static const myQuotes = '/my-quotes';
   static const motoQuoteDetail = '/moto-quote-detail';
   static const payment = '/payment';
@@ -68,6 +70,7 @@ abstract final class AppRoutes {
       finder => const FinderPage(),
       quote => QuoteFlowPage(args: args as QuoteArgs),
       motoQuote => MotoQuotePage(title: args is String ? args : null),
+      vtcQuote => VtcQuotePage(title: args is String ? args : null),
       myQuotes => const MyQuotesPage(),
       motoQuoteDetail => MotoQuoteDetailPage(quote: args as MotoQuote),
       payment => PaymentPage(args: args as PaymentArgs),

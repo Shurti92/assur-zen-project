@@ -5,6 +5,7 @@ import '../../app/routes.dart';
 import '../../core/ui.dart';
 import '../../data/models/moto_quote.dart';
 import 'moto_quote_page.dart';
+import 'vtc_quote_page.dart' show vtcEnergyLabel;
 
 /// Liste des devis enregistrés du client connecté (`GET /mobile/quotes`).
 class MyQuotesPage extends StatelessWidget {
@@ -136,6 +137,12 @@ class _MotoQuoteDetailPageState extends State<MotoQuoteDetailPage> {
               if (_quote.simulation.formulaName.isNotEmpty) ('Formule', _quote.simulation.formulaName),
               if (vehicle.isNotEmpty) ('Véhicule', vehicle),
               if (_quote.cylinderCc > 0) ('Cylindrée', '${_quote.cylinderCc} cm³'),
+              if (_quote.fiscalPower != null) ('Puissance fiscale', '${_quote.fiscalPower} CV'),
+              if (_quote.energy != null) ('Énergie', vtcEnergyLabel(_quote.energy!)),
+              if (_quote.seats != null) ('Places', '${_quote.seats}'),
+              if (_quote.firstRegistrationYear != null) ('Première mise en circulation', '${_quote.firstRegistrationYear}'),
+              if (_quote.vtcDeclared != null) ('Déclaré VTC', _quote.vtcDeclared! ? 'Oui' : 'Non'),
+              if (_quote.platform != null) ('Plateforme', _quote.platform!),
               if (_quote.registrationNumber != null) ('Immatriculation', _quote.registrationNumber!),
               if (_quote.chassisNumber != null) ('Châssis', _quote.chassisNumber!),
             ]),

@@ -284,23 +284,83 @@ class _MockMotoQuotes implements MotoQuoteRepository {
   Future<MotoQuote> accept(String reference) async {
     await _latency(400);
     final i = _saved.indexWhere((q) => q.reference == reference);
-    final q = _saved[i];
-    final accepted = MotoQuote(
-      reference: q.reference,
-      status: MotoQuoteStatus.accepte,
-      canAccept: false,
-      simulation: q.simulation,
-      cylinderCc: q.cylinderCc,
-      brand: q.brand,
-      model: q.model,
-      registrationNumber: q.registrationNumber,
-      chassisNumber: q.chassisNumber,
-      validUntil: q.validUntil,
-      createdAt: q.createdAt,
-      acceptedAt: DateTime.now(),
-    );
+    final accepted = _saved[i].copyAccepted(DateTime.now());
     _saved[i] = accepted;
     return accepted;
+  }
+
+  // VTC : montants fictifs, jamais utilisés en mode réel.
+  static const _vtcPremium = MotoPremium(
+    netPremium: 181363,
+    taxes: 0,
+    accessories: 2024,
+    fga: 280,
+    cedeao: 1000,
+    attestation: 1000,
+    total: 185667,
+  );
+
+  MotoQuoteSimulation _vtcSimulation(VtcQuoteRequest r) => MotoQuoteSimulation(
+        formulaId: 'demo-vtc',
+        formulaName: 'Formule de démonstration',
+        vehicleType: 'VTC',
+        durationMonths: r.durationMonths,
+        effectiveDate: r.effectiveDate,
+        expiryDate: DateTime(r.effectiveDate.year + 1, r.effectiveDate.month, r.effectiveDate.day - 1),
+        premium: _vtcPremium,
+        guarantees: const [
+          MotoGuarantee(label: 'Garantie de démonstration', details: []),
+        ],
+      );
+
+  @override
+  Future<VtcQuoteForm> getVtcForm() async {
+    await _latency(300);
+    return VtcQuoteForm(
+      energies: const ['ESSENCE', 'DIESEL', 'HYBRIDE', 'ELECTRIQUE'],
+      durations: const [MotoQuoteDuration(months: 12, total: 185667)],
+      formulaId: 'demo-vtc',
+      formulaName: 'Formule de démonstration',
+      brands: const ['Marque démo A', 'Marque démo B'],
+      platforms: const ['Plateforme démo'],
+      minFiscalPower: 3,
+      minSeats: 4,
+      maxSeats: 8,
+      minEffectiveDate: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<MotoQuoteSimulation> simulateVtc(VtcQuoteRequest request) async {
+    await _latency(500);
+    return _vtcSimulation(request);
+  }
+
+  @override
+  Future<MotoQuote> createVtc(VtcQuoteRequest request) async {
+    await _latency(500);
+    final quote = MotoQuote(
+      reference: 'DEV-DEMO-${(_saved.length + 1).toString().padLeft(6, '0')}',
+      status: MotoQuoteStatus.calcule,
+      canAccept: true,
+      simulation: _vtcSimulation(request),
+      cylinderCc: 0,
+      brand: request.brand,
+      model: request.model,
+      registrationNumber: request.registrationNumber,
+      chassisNumber: request.chassisNumber,
+      validUntil: DateTime.now().add(const Duration(days: 30)),
+      createdAt: DateTime.now(),
+      productKey: 'automobile-vtc',
+      fiscalPower: request.fiscalPower,
+      energy: request.energy,
+      seats: request.seats,
+      firstRegistrationYear: request.firstRegistrationYear,
+      vtcDeclared: request.vtcDeclared,
+      platform: request.platform,
+    );
+    _saved.insert(0, quote);
+    return quote;
   }
 }
 
