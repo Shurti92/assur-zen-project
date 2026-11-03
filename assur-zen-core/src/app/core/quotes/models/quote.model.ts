@@ -52,6 +52,16 @@ export interface QuoteCreateRequest {
   vehicle: QuoteVehicleRequest;
 }
 
+/** Un envoi de GET /admin/quotes/{reference}/emails (plus récent d'abord). */
+export interface QuoteEmailHistoryItem {
+  sentAt: string;
+  to: string;
+  sentBy?: string | null;
+  withPdf?: boolean;
+  /** Adresse de la copie « M'envoyer une copie », le cas échéant. */
+  copyTo?: string | null;
+}
+
 /** Corps de POST /admin/quotes/{reference}/send-email. */
 export interface QuoteSendEmailRequest {
   email: string;

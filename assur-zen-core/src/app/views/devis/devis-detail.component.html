@@ -75,6 +75,34 @@
               @if (q.status !== 'EXPIRE') {
                 · <button (click)="emailDialogOpen.set(true)" class="btn btn-link btn-sm p-0 align-baseline" type="button">Renvoyer</button>
               }
+              · <button (click)="toggleHistory()" [attr.aria-expanded]="historyOpen()" class="btn btn-link btn-sm p-0 align-baseline" type="button">
+                {{ historyOpen() ? "Masquer l'historique" : "Historique complet" }}
+              </button>
+              @if (historyOpen()) {
+                <div class="mt-2">
+                  @if (historyLoading()) {
+                    <span>Chargement de l'historique…</span>
+                  } @else if (historyError()) {
+                    <span class="text-danger">{{ historyError() }}</span>
+                    <button (click)="loadHistory()" class="btn btn-link btn-sm p-0 align-baseline ms-1" type="button">Réessayer</button>
+                  } @else {
+                    <ul class="list-unstyled mb-0">
+                      @for (h of history() ?? []; track h.sentAt + h.to) {
+                        <li class="py-1 border-bottom">
+                          <b class="text-body">{{ formatDateTime(h.sentAt) }}</b>
+                          · {{ h.to }}{{ h.sentBy ? ' · par ' + h.sentBy : '' }}
+                          <span class="dl-chip dl-chip--secondary ms-1">{{ h.withPdf ? 'avec PDF' : 'sans PDF' }}</span>
+                          @if (h.copyTo) {
+                            <span class="dl-chip dl-chip--info ms-1">copie à {{ h.copyTo }}</span>
+                          }
+                        </li>
+                      } @empty {
+                        <li>Aucun envoi enregistré.</li>
+                      }
+                    </ul>
+                  }
+                </div>
+              }
             } @else {
               <b class="text-body">Aucun envoi</b> pour ce devis.
             }

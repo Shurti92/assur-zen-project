@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
+import { QuoteEmailHistoryItem } from '../../core/quotes/models/quote.model';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteView } from '../../core/quotes/models/quote.model';
 import { QuoteService } from '../../core/quotes/quote.service';
@@ -28,6 +29,12 @@ export class DevisDetailComponent {
 
   readonly emailEnabled = QUOTE_EMAIL_ENABLED;
   readonly emailDialogOpen = signal(false);
+
+  /** Historique complet des envois, chargé à l'ouverture du volet. */
+  readonly historyOpen = signal(false);
+  readonly history = signal<QuoteEmailHistoryItem[] | null>(null);
+  readonly historyLoading = signal(false);
+  readonly historyError = signal<string | null>(null);
 
   readonly quote = signal<QuoteView | null>(null);
   readonly loading = signal(true);
@@ -78,9 +85,33 @@ export class DevisDetailComponent {
     });
   }
 
+  toggleHistory(): void {
+    const open = !this.historyOpen();
+    this.historyOpen.set(open);
+    if (open && this.history() === null) this.loadHistory();
+  }
+
+  loadHistory(): void {
+    this.historyLoading.set(true);
+    this.historyError.set(null);
+    this.service.emailHistory(this.reference()).subscribe({
+      next: (items) => {
+        this.history.set(items);
+        this.historyLoading.set(false);
+      },
+      error: () => {
+        this.historyError.set("Impossible de charger l'historique des envois.");
+        this.historyLoading.set(false);
+      },
+    });
+  }
+
   onEmailSent(updated: QuoteView): void {
     this.quote.set(updated);
     this.emailDialogOpen.set(false);
+    // L'historique déjà affiché doit montrer le nouvel envoi ; sinon il sera chargé à l'ouverture.
+    if (this.historyOpen()) this.loadHistory();
+    else this.history.set(null);
     this.success.set(`Devis envoyé à ${updated.lastEmailTo ?? updated.prospectEmail ?? 'le prospect'}.`);
   }
 

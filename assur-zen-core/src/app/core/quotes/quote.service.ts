@@ -6,6 +6,7 @@ import {
   QuoteCreateRequest,
   QuoteForm,
   QuoteList,
+  QuoteEmailHistoryItem,
   QuoteSendEmailRequest,
   QuoteSimulation,
   QuoteStatus,
@@ -50,6 +51,13 @@ export class QuoteService {
   /** Envoie le devis par e-mail au prospect (inactif tant que QUOTE_EMAIL_ENABLED est false). */
   sendEmail(reference: string, request: QuoteSendEmailRequest): Observable<QuoteView> {
     return this.http.post<QuoteView>(`${this.base}/${encodeURIComponent(reference)}/send-email`, request);
+  }
+
+  /** Historique complet des envois d'un devis, trié du plus récent au plus ancien. */
+  emailHistory(reference: string): Observable<QuoteEmailHistoryItem[]> {
+    return this.http
+      .get<{ items: QuoteEmailHistoryItem[] }>(`${this.base}/${encodeURIComponent(reference)}/emails`)
+      .pipe(map((r) => [...r.items].sort((a, b) => b.sentAt.localeCompare(a.sentAt))));
   }
 
   /** Options du formulaire moto (types de véhicule, durées, date d'effet minimale). */
