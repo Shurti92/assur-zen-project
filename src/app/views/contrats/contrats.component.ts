@@ -161,7 +161,8 @@ export class ContratsComponent {
   readonly allContracts = signal<ContractResponse[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
-  readonly searchQuery = signal('');
+  // ?q= permet d'ouvrir la liste déjà filtrée (ex. depuis une demande de contrat du mobile).
+  readonly searchQuery = signal(this.route.snapshot.queryParamMap.get('q') ?? '');
   /** Permet au widget "Contrats en attente" du tableau de bord de renvoyer directement
    * sur cette liste déjà filtrée (?status=pending), plutôt que sur la liste complète —
    * sans effet en dehors du mode cycle, seul mode où statusFilter influence l'affichage. */

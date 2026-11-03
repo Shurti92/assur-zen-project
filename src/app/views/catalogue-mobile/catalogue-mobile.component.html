@@ -1,0 +1,315 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Produits sur le mobile</h2>
+    </div>
+    <div class="dl-actions">
+      @if (savingOrder()) {
+        <span class="small text-body-secondary"><c-spinner size="sm" /> Enregistrement de l'ordre…</span>
+      }
+      <button (click)="load()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  <div class="px-4 pt-3">
+    <div class="alert alert-info small mb-3">
+      Un produit n'apparaît sur l'application que s'il est <strong>actif</strong>, <strong>marqué visible</strong> et qu'un
+      <strong>contenu mobile</strong> a été enregistré. Tant qu'aucun produit n'est rendu visible, le catalogue de l'application est vide.
+      Glissez les lignes pour choisir l'ordre d'affichage : le premier produit est affiché en premier.
+    </div>
+    @if (listMessage(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="load()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement du catalogue…</p>
+  } @else if (products().length === 0) {
+    <p class="dl-empty">Aucun produit dans le back-office.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" style="width: 2.5rem"></th>
+            <th scope="col">Produit</th>
+            <th scope="col">Famille</th>
+            <th scope="col">Icône</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Visible sur le mobile</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody (cdkDropListDropped)="drop($event)" cdkDropList [cdkDropListData]="products()">
+          @for (p of products(); track p.productId) {
+            <tr cdkDrag [cdkDragData]="p">
+              <td>
+                <span cdkDragHandle class="cm-grip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
+              </td>
+              <td>
+                <div class="dl-insured-name">{{ p.title }}</div>
+                @if (p.shortName && p.shortName !== p.title) {
+                  <div class="dl-insured-meta">Nom court : {{ p.shortName }}</div>
+                }
+              </td>
+              <td>{{ familyLabel(p.family) }}</td>
+              <td>@if (p.icon) { <span class="dl-tag">{{ p.icon }}</span> } @else { — }</td>
+              <td>
+                <span [class]="'dl-chip dl-chip--' + statusChip(p).variant"><span class="dl-chip-dot"></span>{{ statusChip(p).label }}</span>
+              </td>
+              <td>
+                <div class="form-check form-switch mb-0">
+                  <input
+                    (change)="toggleVisible(p)"
+                    [attr.aria-label]="'Visible sur le mobile : ' + p.title"
+                    [checked]="p.visibleMobile && p.configured"
+                    [disabled]="!p.configured || !p.productActive || busyProductId() === p.productId"
+                    [title]="p.configured ? '' : 'Renseignez d\'abord le contenu du produit'"
+                    class="form-check-input"
+                    role="switch"
+                    type="checkbox"
+                  />
+                </div>
+              </td>
+              <td>
+                <div class="dl-row-actions">
+                  <button (click)="openEdit(p)" [class.dl-btn-primary]="!p.configured" cButton class="dl-btn" size="sm" type="button">
+                    {{ p.configured ? 'Modifier le contenu' : 'Renseigner le contenu' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ visibleCount }}</strong> produit{{ visibleCount > 1 ? 's' : '' }} visible{{ visibleCount > 1 ? 's' : '' }} sur {{ products().length }}</span>
+    <span>Les garanties saisies apparaissent aussi dans le détail de chaque contrat du client.</span>
+  </div>
+</section>
+
+<!-- ===== Fiche d'édition ===== -->
+<app-modal [visible]="editVisible()" size="xl" title="Contenu mobile · {{ editProduct()?.title }}" (closed)="closeEdit()">
+  @if (draft; as d) {
+    <div class="cm-tabs" role="tablist">
+      <button (click)="editTab.set('general')" [class.cm-tab--on]="editTab() === 'general'" class="cm-tab" role="tab" type="button">Général</button>
+      <button (click)="editTab.set('guarantees')" [class.cm-tab--on]="editTab() === 'guarantees'" class="cm-tab" role="tab" type="button">
+        Garanties <span class="cm-count">{{ d.guarantees.length }}</span>
+      </button>
+      <button (click)="editTab.set('formulas')" [class.cm-tab--on]="editTab() === 'formulas'" class="cm-tab" role="tab" type="button">
+        Formules <span class="cm-count">{{ d.formulas.length }}</span>
+      </button>
+      <button (click)="editTab.set('practical')" [class.cm-tab--on]="editTab() === 'practical'" class="cm-tab" role="tab" type="button">Infos pratiques</button>
+    </div>
+
+    @if (formError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+
+    <!-- Liste de textes réutilisée (avantages, exclusions, pièces à fournir) -->
+    <ng-template #textList let-list="list" let-max="max" let-label="label" let-placeholder="placeholder" let-maxlength="maxlength">
+     <div>
+      @for (item of list; track $index) {
+        <div class="d-flex gap-2 mb-2">
+          <input [(ngModel)]="list[$index]" [attr.maxlength]="maxlength" [attr.aria-label]="label + ' ' + ($index + 1)" [placeholder]="placeholder" class="form-control" type="text" />
+          <button (click)="move(list, $index, -1)" [disabled]="$index === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
+          <button (click)="move(list, $index, 1)" [disabled]="$index === list.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
+          <button (click)="removeAt(list, $index)" aria-label="Supprimer" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
+        </div>
+      }
+      <button (click)="addText(list, max)" [disabled]="list.length >= max" cButton class="dl-btn" size="sm" type="button">+ Ajouter ({{ list.length }}/{{ max }})</button>
+     </div>
+    </ng-template>
+
+    @switch (editTab()) {
+      @case ('general') {
+        <div class="form-check form-switch mb-3">
+          <input [(ngModel)]="d.visibleMobile" class="form-check-input" id="cm-visible" role="switch" type="checkbox" />
+          <label class="form-check-label fw-semibold" for="cm-visible">Visible sur le mobile</label>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold" for="cm-short">Nom court</label>
+            <input [(ngModel)]="d.shortName" class="form-control" id="cm-short" maxlength="100" type="text" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold" for="cm-family">Famille</label>
+            <select [(ngModel)]="d.family" class="form-select" id="cm-family">
+              <option value="">—</option>
+              @for (f of familyOptions; track f.value) {
+                <option [value]="f.value">{{ f.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold" for="cm-icon">Icône (code)</label>
+            <input (input)="onIconInput($any($event.target).value)" [ngModel]="d.icon" class="form-control" id="cm-icon" maxlength="40" placeholder="car, moto, health, home…" type="text" />
+          </div>
+        </div>
+
+        <label class="form-label fw-semibold mt-3" for="cm-desc">Description <span class="text-body-secondary fw-normal">({{ d.description.length }}/2000)</span></label>
+        <textarea [(ngModel)]="d.description" class="form-control" id="cm-desc" maxlength="2000" rows="4"></textarea>
+
+        <div class="fw-semibold mt-3 mb-2">Avantages</div>
+        <ng-container *ngTemplateOutlet="textList; context: { list: d.benefits, max: limits.benefits, label: 'Avantage', placeholder: 'Ex. Assistance 24h/24', maxlength: 200 }" />
+
+        <label class="form-label fw-semibold mt-3" for="cm-how">Comment ça marche <span class="text-body-secondary fw-normal">({{ d.howItWorks.length }}/4000)</span></label>
+        <textarea [(ngModel)]="d.howItWorks" class="form-control" id="cm-how" maxlength="4000" rows="5"></textarea>
+
+        <label class="form-label fw-semibold mt-3" for="cm-elig">Éligibilité <span class="text-body-secondary fw-normal">({{ d.eligibility.length }}/2000)</span></label>
+        <textarea [(ngModel)]="d.eligibility" class="form-control" id="cm-elig" maxlength="2000" rows="3"></textarea>
+      }
+
+      @case ('guarantees') {
+        <p class="small text-body-secondary">
+          Les garanties saisies ici apparaissent aussi dans le détail de chaque contrat du client. Cochez les formules qui incluent chaque garantie (créez d'abord les formules dans l'onglet « Formules »).
+        </p>
+        @for (g of d.guarantees; track $index; let gi = $index) {
+          <div class="cm-card">
+            <div class="d-flex gap-2 align-items-start">
+              <div class="flex-grow-1 row g-2">
+                <div class="col-md-7">
+                  <label class="form-label small fw-semibold mb-1" [for]="'cm-g-name-' + $index">Nom *</label>
+                  <input [(ngModel)]="g.name" class="form-control" [id]="'cm-g-name-' + $index" maxlength="150" type="text" />
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label small fw-semibold mb-1" [for]="'cm-g-kind-' + $index">Type</label>
+                  <select [(ngModel)]="g.kind" class="form-select" [id]="'cm-g-kind-' + $index">
+                    @for (k of kindOptions; track k.value) {
+                      <option [value]="k.value">{{ k.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold mb-1" [for]="'cm-g-desc-' + $index">Description</label>
+                  <textarea [(ngModel)]="g.description" class="form-control" [id]="'cm-g-desc-' + $index" maxlength="500" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-semibold mb-1" [for]="'cm-g-limit-' + $index">Plafond</label>
+                  <input [(ngModel)]="g.limit" class="form-control" [id]="'cm-g-limit-' + $index" maxlength="200" placeholder="Ex. 5 000 000 FCFA" type="text" />
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                  <div class="form-check form-switch mb-2">
+                    <input [(ngModel)]="g.visible" class="form-check-input" [id]="'cm-g-vis-' + $index" role="switch" type="checkbox" />
+                    <label class="form-check-label" [for]="'cm-g-vis-' + $index">Visible dans l'application</label>
+                  </div>
+                </div>
+                @if (d.formulas.length > 0) {
+                  <div class="col-12">
+                    <div class="small fw-semibold mb-1">Incluse dans les formules</div>
+                    <div class="d-flex flex-wrap gap-3">
+                      @for (f of d.formulas; track f.id) {
+                        <div class="form-check">
+                          <input (change)="toggleGuaranteeFormula(g, f.id)" [checked]="g.formulaIds.includes(f.id)" class="form-check-input" [id]="'cm-g-' + gi + '-f-' + f.id" type="checkbox" />
+                          <label class="form-check-label" [for]="'cm-g-' + gi + '-f-' + f.id">{{ f.name || f.id }}</label>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+              <div class="d-flex flex-column gap-1">
+                <button (click)="move(d.guarantees, $index, -1)" [disabled]="$index === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
+                <button (click)="move(d.guarantees, $index, 1)" [disabled]="$index === d.guarantees.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
+                <button (click)="removeAt(d.guarantees, $index)" aria-label="Supprimer la garantie" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
+              </div>
+            </div>
+          </div>
+        } @empty {
+          <p class="dl-empty">Aucune garantie.</p>
+        }
+        <button (click)="addGuarantee()" [disabled]="d.guarantees.length >= limits.guarantees" cButton class="dl-btn" size="sm" type="button">
+          + Ajouter une garantie ({{ d.guarantees.length }}/{{ limits.guarantees }})
+        </button>
+      }
+
+      @case ('formulas') {
+        <p class="small text-body-secondary">
+          Les formules (ex. Tiers, Tiers complet, Tous risques) regroupent des garanties. Au plus {{ limits.formulas }} formules ; l'ordre ci-dessous est l'ordre d'affichage.
+        </p>
+        @for (f of d.formulas; track f.id) {
+          <div class="cm-card">
+            <div class="d-flex gap-2 align-items-start">
+              <div class="flex-grow-1 row g-2">
+                <div class="col-md-8">
+                  <label class="form-label small fw-semibold mb-1" [for]="'cm-f-name-' + $index">Nom *</label>
+                  <input [(ngModel)]="f.name" class="form-control" [id]="'cm-f-name-' + $index" maxlength="100" type="text" />
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                  <div class="form-check form-switch mb-2">
+                    <input [(ngModel)]="f.visible" class="form-check-input" [id]="'cm-f-vis-' + $index" role="switch" type="checkbox" />
+                    <label class="form-check-label" [for]="'cm-f-vis-' + $index">Visible</label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold mb-1" [for]="'cm-f-desc-' + $index">Description</label>
+                  <textarea [(ngModel)]="f.description" class="form-control" [id]="'cm-f-desc-' + $index" maxlength="1000" rows="2"></textarea>
+                </div>
+              </div>
+              <div class="d-flex flex-column gap-1">
+                <button (click)="move(d.formulas, $index, -1)" [disabled]="$index === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
+                <button (click)="move(d.formulas, $index, 1)" [disabled]="$index === d.formulas.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
+                <button (click)="removeFormula($index)" aria-label="Supprimer la formule" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
+              </div>
+            </div>
+          </div>
+        } @empty {
+          <p class="dl-empty">Aucune formule.</p>
+        }
+        <button (click)="addFormula()" [disabled]="d.formulas.length >= limits.formulas" cButton class="dl-btn" size="sm" type="button">
+          + Ajouter une formule ({{ d.formulas.length }}/{{ limits.formulas }})
+        </button>
+      }
+
+      @case ('practical') {
+        <div class="fw-semibold mb-2">Exclusions</div>
+        <ng-container *ngTemplateOutlet="textList; context: { list: d.exclusions, max: limits.exclusions, label: 'Exclusion', placeholder: 'Ex. Conduite sans permis valide', maxlength: 300 }" />
+
+        <div class="fw-semibold mt-4 mb-2">Pièces à fournir</div>
+        <ng-container *ngTemplateOutlet="textList; context: { list: d.requiredDocuments, max: limits.documents, label: 'Pièce', placeholder: 'Ex. Carte grise', maxlength: 200 }" />
+
+        <div class="fw-semibold mt-4 mb-2">Questions fréquentes (FAQ)</div>
+        @for (q of d.faq; track $index) {
+          <div class="cm-card">
+            <div class="d-flex gap-2 align-items-start">
+              <div class="flex-grow-1">
+                <label class="form-label small fw-semibold mb-1" [for]="'cm-q-' + $index">Question *</label>
+                <input [(ngModel)]="q.question" class="form-control mb-2" [id]="'cm-q-' + $index" maxlength="300" type="text" />
+                <label class="form-label small fw-semibold mb-1" [for]="'cm-a-' + $index">Réponse *</label>
+                <textarea [(ngModel)]="q.answer" class="form-control" [id]="'cm-a-' + $index" maxlength="2000" rows="2"></textarea>
+              </div>
+              <div class="d-flex flex-column gap-1">
+                <button (click)="move(d.faq, $index, -1)" [disabled]="$index === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
+                <button (click)="move(d.faq, $index, 1)" [disabled]="$index === d.faq.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
+                <button (click)="removeAt(d.faq, $index)" aria-label="Supprimer la question" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
+              </div>
+            </div>
+          </div>
+        }
+        <button (click)="addFaq()" [disabled]="d.faq.length >= limits.faq" cButton class="dl-btn" size="sm" type="button">+ Ajouter une question ({{ d.faq.length }}/{{ limits.faq }})</button>
+      }
+    }
+
+    <div class="cm-footer">
+      <span class="small text-body-secondary me-auto">L'enregistrement remplace tout le contenu mobile de ce produit.</span>
+      <button (click)="closeEdit()" cButton class="dl-btn" type="button">Annuler</button>
+      <button (click)="save()" [disabled]="saving()" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (saving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  }
+</app-modal>

@@ -107,6 +107,30 @@ const baseNavItems: INavData[] = [
     url: '/assures',
   },
   {
+    // Administration de l'application mobile (ADMIN). Les écrans Catalogue et Demandes mobile
+    // s'ajouteront ici au fur et à mesure.
+    name: 'nav.mobile.title',
+    url: '/mobile',
+    iconComponent: { name: 'cilMobile' },
+    children: [
+      {
+        name: 'nav.mobile.comptes',
+        url: '/mobile/comptes',
+        icon: 'nav-icon-bullet',
+      },
+      {
+        name: 'nav.mobile.catalogue',
+        url: '/mobile/catalogue',
+        icon: 'nav-icon-bullet',
+      },
+      {
+        name: 'nav.mobile.demandes',
+        url: '/mobile/demandes',
+        icon: 'nav-icon-bullet',
+      },
+    ],
+  },
+  {
     name: 'nav.gestionFlotte',
     iconComponent: { name: 'cilCarAlt' },
     url: '/gestion-de-flotte',
@@ -486,7 +510,7 @@ const adminNavItems: INavData[] = [
  * lui-même). Masquage de menu uniquement, le vrai rempart reste le 403 backend. Distinct de
  * canAccessAdminMenus (masquage Paramétrage pour un type de profil partenaire, question
  * différente) — même choix que role === 'ADMIN' dans VignettesMotoComponent. */
-const ADMIN_ONLY_NAV_NAMES = new Set(['nav.ged', 'nav.sortiesDeFonds', 'nav.sycapay.title']);
+const ADMIN_ONLY_NAV_NAMES = new Set(['nav.ged', 'nav.sortiesDeFonds', 'nav.sycapay.title', 'nav.mobile.title']);
 
 export function getNavItems(canAccessAdminMenus: boolean, isAdmin: boolean): INavData[] {
   const items = isAdmin ? baseNavItems : baseNavItems.filter((item) => !ADMIN_ONLY_NAV_NAMES.has(item.name ?? ''));

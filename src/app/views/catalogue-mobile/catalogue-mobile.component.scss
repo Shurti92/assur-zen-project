@@ -1,0 +1,78 @@
+.cm-grip {
+  cursor: grab;
+  color: var(--cui-secondary-color);
+  font-size: 1.2rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.cm-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--cui-border-color);
+  margin-bottom: 1rem;
+}
+
+.cm-tab {
+  border: 0;
+  background: none;
+  padding: 0.7rem 0.9rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--cui-secondary-color);
+  border-bottom: 2px solid transparent;
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  cursor: pointer;
+
+  &--on {
+    color: var(--cui-primary);
+    border-bottom-color: var(--cui-primary);
+  }
+}
+
+.cm-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--cui-secondary-bg-subtle);
+  color: var(--cui-secondary-text-emphasis);
+}
+
+.cm-card {
+  border: 1px solid var(--cui-border-color);
+  border-radius: 0.7rem;
+  padding: 0.9rem;
+  margin-bottom: 0.8rem;
+  background: var(--cui-tertiary-bg);
+}
+
+.cm-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--cui-border-color);
+}
+
+// Aperçu et emplacement pendant le glisser-déposer (CDK) : l'aperçu est ajouté au <body>, hors de
+// l'encapsulation du composant, d'où ::ng-deep.
+::ng-deep .cdk-drag-preview {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  background: var(--cui-body-bg);
+  display: table;
+}
+
+::ng-deep .cdk-drag-placeholder {
+  opacity: 0.35;
+}
+
+::ng-deep .cdk-drag-animating {
+  transition: transform 200ms ease;
+}
