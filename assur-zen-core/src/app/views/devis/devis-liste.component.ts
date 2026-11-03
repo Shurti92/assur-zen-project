@@ -38,10 +38,17 @@ export class DevisListeComponent {
   readonly search = signal('');
   readonly pageIndex = signal(0);
 
-  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.quotes().length / this.pageSize)));
+  /** Filtre produit côté écran (l'API renvoie moto et VTC ensemble, productKey les distingue). */
+  readonly product = signal<'moto' | 'automobile-vtc' | null>(null);
+  readonly filtered = computed(() => {
+    const p = this.product();
+    return p ? this.quotes().filter((q) => this.productOf(q) === p) : this.quotes();
+  });
+
+  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filtered().length / this.pageSize)));
   readonly pageItems = computed(() => {
     const start = this.pageIndex() * this.pageSize;
-    return this.quotes().slice(start, start + this.pageSize);
+    return this.filtered().slice(start, start + this.pageSize);
   });
 
   constructor() {
@@ -79,8 +86,22 @@ export class DevisListeComponent {
     this.pageIndex.set(index);
   }
 
+  onProductChange(value: string): void {
+    this.product.set((value || null) as 'moto' | 'automobile-vtc' | null);
+    this.pageIndex.set(0);
+  }
+
+  productOf(q: QuoteView): 'moto' | 'automobile-vtc' {
+    return q.productKey === 'automobile-vtc' ? 'automobile-vtc' : 'moto';
+  }
+
+  productLabel(q: QuoteView): string {
+    return this.productOf(q) === 'automobile-vtc' ? 'VTC' : 'Moto';
+  }
+
   vehicleLabel(q: QuoteView): string {
-    return `${q.vehicleType === 'MOTO' ? 'Moto' : 'Tricycle'} · ${q.brand}`;
+    if (this.productOf(q) === 'automobile-vtc') return `${q.brand} ${q.model}`.trim();
+    return `${q.vehicleType === 'TRICYCLE' ? 'Tricycle' : 'Moto'} · ${q.brand}`;
   }
 
   formatDate(value?: string | null): string {

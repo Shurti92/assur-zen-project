@@ -6,7 +6,9 @@ import { QuoteTariff, QuoteTariffRequestItem, VehicleCategory } from '../../core
 import { QuoteTariffService } from '../../core/quotes/quote-tariff.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 
-type AmountKey = 'netPremium' | 'taxes' | 'accessories' | 'fga';
+type AmountKey = 'netPremium' | 'taxes' | 'accessories' | 'fga' | 'cedeao' | 'attestation';
+type CriteriaKey = 'minFiscalPower' | 'minSeats' | 'maxSeats';
+type ProductTab = 'moto' | 'automobile-vtc';
 
 interface TariffRow {
   key: number;
@@ -20,6 +22,11 @@ interface TariffRow {
   taxes: number | null;
   accessories: number | null;
   fga: number | null;
+  cedeao: number | null;
+  attestation: number | null;
+  minFiscalPower: number | null;
+  minSeats: number | null;
+  maxSeats: number | null;
   active: boolean;
   updatedAt: string | null;
   updatedBy: string | null;
@@ -30,22 +37,29 @@ interface FormulaGroup {
   rows: TariffRow[];
 }
 
-const DEFAULT_PRODUCT_KEY = 'moto';
-const DEFAULT_FORMULA_ID = 'tiers-simple-moto';
+const VTC_PRODUCT = 'automobile-vtc';
+
+const PRODUCT_TABS: { key: ProductTab; label: string; formulaId: string; category: string }[] = [
+  { key: 'moto', label: 'Moto', formulaId: 'tiers-simple-moto', category: 'MOTO' },
+  { key: 'automobile-vtc', label: 'Automobile VTC', formulaId: 'tiers-simple-vtc', category: 'VTC' },
+];
 
 const FORMULA_LABEL: Record<string, string> = {
   'tiers-simple-moto': 'Tiers Simple Moto',
+  'tiers-simple-vtc': 'Tiers Simple VTC',
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
-  VALIDATION_FAILED: 'Une ligne est invalide : vérifiez les montants et la durée.',
+  VALIDATION_FAILED: 'Une ligne est invalide : vérifiez les montants, la durée et les critères.',
 };
 
 /** Composantes du prix, dans l'ordre d'affichage (couleur de la barre de répartition incluse). */
-export const AMOUNT_FIELDS: { key: AmountKey; label: string; color: string }[] = [
+export const AMOUNT_FIELDS: { key: AmountKey; label: string; color: string; vtcOnly?: boolean }[] = [
   { key: 'netPremium', label: 'Prime nette', color: '#4f46e5' },
-  { key: 'taxes', label: 'Taxes', color: '#f59e0b' },
   { key: 'accessories', label: 'Accessoires', color: '#06b6d4' },
+  { key: 'taxes', label: 'Taxes', color: '#f59e0b' },
+  { key: 'cedeao', label: 'CEDEAO', color: '#16a34a', vtcOnly: true },
+  { key: 'attestation', label: 'Attestation', color: '#8b5cf6', vtcOnly: true },
   { key: 'fga', label: 'FGA', color: '#ec4899' },
 ];
 
@@ -59,7 +73,11 @@ export class GrilleTarifaireComponent {
   private readonly service = inject(QuoteTariffService);
   private nextKey = 1;
 
-  readonly fields = AMOUNT_FIELDS;
+  readonly tabs = PRODUCT_TABS;
+  readonly product = signal<ProductTab>('moto');
+  readonly isVtc = computed(() => this.product() === 'automobile-vtc');
+  /** Composantes affichées : CEDEAO et attestation seulement pour le VTC. */
+  readonly fields = computed(() => AMOUNT_FIELDS.filter((f) => this.isVtc() || !f.vtcOnly));
 
   readonly rows = signal<TariffRow[]>([]);
   /** Photo de chaque ligne telle qu'enregistrée (clé de ligne → empreinte), pour repérer les changements. */
@@ -69,9 +87,12 @@ export class GrilleTarifaireComponent {
   readonly error = signal<string | null>(null);
   readonly success = signal<string | null>(null);
 
+  /** Lignes du produit sélectionné. */
+  readonly visibleRows = computed(() => this.rows().filter((r) => this.productOf(r) === this.product()));
+
   readonly groups = computed<FormulaGroup[]>(() => {
     const map = new Map<string, TariffRow[]>();
-    for (const r of this.rows()) {
+    for (const r of this.visibleRows()) {
       const list = map.get(r.formulaId) ?? [];
       list.push(r);
       map.set(r.formulaId, list);
@@ -83,7 +104,7 @@ export class GrilleTarifaireComponent {
     const saved = this.savedByKey();
     return new Set(this.rows().filter((r) => saved.get(r.key) !== this.snapshot(r)).map((r) => r.key));
   });
-  /** Une ligne supprimée (nouvelle ligne retirée) ne compte pas : seules les modifications visibles comptent. */
+  /** Modifications sur tous les produits : l'enregistrement envoie toute la grille. */
   readonly changeCount = computed(() => this.changedKeys().size);
 
   /** Même formule + catégorie + durée que plus haut dans la liste : l'API écraserait l'autre ligne. */
@@ -91,7 +112,7 @@ export class GrilleTarifaireComponent {
     const seen = new Set<string>();
     const dup = new Set<number>();
     for (const r of this.rows()) {
-      const id = `${r.formulaId}|${r.vehicleCategory}|${r.durationMonths}`;
+      const id = `${r.productKey}|${r.formulaId}|${r.vehicleCategory}|${r.durationMonths}`;
       if (r.durationMonths && seen.has(id)) dup.add(r.key);
       seen.add(id);
     }
@@ -107,7 +128,7 @@ export class GrilleTarifaireComponent {
       this.duplicateKeys().size === 0,
   );
 
-  readonly activeRows = computed(() => this.rows().filter((r) => r.active));
+  readonly activeRows = computed(() => this.visibleRows().filter((r) => r.active));
   readonly activeDurations = computed(() =>
     [...new Set(this.activeRows().map((r) => r.durationMonths).filter((d): d is number => !!d))].sort((a, b) => a - b),
   );
@@ -116,7 +137,7 @@ export class GrilleTarifaireComponent {
     return totals.length ? Math.min(...totals) : null;
   });
   readonly lastUpdate = computed(() => {
-    const done = this.rows().filter((r) => r.updatedAt);
+    const done = this.visibleRows().filter((r) => r.updatedAt);
     if (!done.length) return null;
     return done.reduce((a, b) => ((a.updatedAt as string) >= (b.updatedAt as string) ? a : b));
   });
@@ -140,9 +161,26 @@ export class GrilleTarifaireComponent {
     });
   }
 
+  selectProduct(tab: ProductTab): void {
+    this.product.set(tab);
+  }
+
+  /** Nombre de modifications en attente sur un produit (pastille de l'onglet). */
+  changesFor(tab: ProductTab): number {
+    const changed = this.changedKeys();
+    return this.rows().filter((r) => this.productOf(r) === tab && changed.has(r.key)).length;
+  }
+
   /** Total = somme des composantes (la gateway refuse tout autre total). */
   total(row: TariffRow): number {
-    return (row.netPremium ?? 0) + (row.taxes ?? 0) + (row.accessories ?? 0) + (row.fga ?? 0);
+    return (
+      (row.netPremium ?? 0) +
+      (row.taxes ?? 0) +
+      (row.accessories ?? 0) +
+      (row.fga ?? 0) +
+      (row.cedeao ?? 0) +
+      (row.attestation ?? 0)
+    );
   }
 
   /** Part de chaque composante dans le prix, en %, pour la barre de répartition. */
@@ -152,11 +190,33 @@ export class GrilleTarifaireComponent {
   }
 
   isComplete(row: TariffRow): boolean {
+    const vtc = this.productOf(row) === 'automobile-vtc';
+    const amounts: AmountKey[] = vtc
+      ? ['netPremium', 'taxes', 'accessories', 'fga', 'cedeao', 'attestation']
+      : ['netPremium', 'taxes', 'accessories', 'fga'];
+    const criteriaOk =
+      !vtc ||
+      (!!row.minFiscalPower &&
+        !!row.minSeats &&
+        !!row.maxSeats &&
+        row.maxSeats >= row.minSeats);
     return (
       !!row.durationMonths &&
       row.durationMonths > 0 &&
       !!row.formulaId.trim() &&
-      this.fields.every((f) => row[f.key] !== null && (row[f.key] as number) >= 0)
+      !!row.vehicleCategory.trim() &&
+      criteriaOk &&
+      amounts.every((k) => row[k] !== null && (row[k] as number) >= 0)
+    );
+  }
+
+  /** Message sous la carte quand les critères VTC sont incohérents. */
+  criteriaInvalid(row: TariffRow): boolean {
+    return (
+      this.productOf(row) === 'automobile-vtc' &&
+      row.minSeats !== null &&
+      row.maxSeats !== null &&
+      row.maxSeats < row.minSeats
     );
   }
 
@@ -164,12 +224,23 @@ export class GrilleTarifaireComponent {
     return FORMULA_LABEL[formulaId] ?? formulaId;
   }
 
+  categoryLabel(category: string): string {
+    if (category === 'MOTO') return 'Moto';
+    if (category === 'TRICYCLE') return 'Tricycle';
+    return category;
+  }
+
+  icon(row: TariffRow): string {
+    if (this.productOf(row) === 'automobile-vtc') return '🚕';
+    return row.vehicleCategory === 'TRICYCLE' ? '🛺' : '🏍️';
+  }
+
   update(row: TariffRow, patch: Partial<TariffRow>): void {
     this.success.set(null);
     this.rows.update((rows) => rows.map((r) => (r.key === row.key ? { ...r, ...patch } : r)));
   }
 
-  setAmount(row: TariffRow, key: AmountKey, value: string): void {
+  setAmount(row: TariffRow, key: AmountKey | CriteriaKey, value: string): void {
     this.update(row, { [key]: this.numberOf(value) });
   }
 
@@ -180,21 +251,28 @@ export class GrilleTarifaireComponent {
   }
 
   addRow(): void {
-    const last = this.rows().at(-1);
+    const tab = PRODUCT_TABS.find((t) => t.key === this.product()) ?? PRODUCT_TABS[0];
+    const last = this.visibleRows().at(-1);
+    const vtc = tab.key === VTC_PRODUCT;
     this.success.set(null);
     this.rows.update((rows) => [
       ...rows,
       {
         key: this.nextKey++,
         existing: false,
-        productKey: last?.productKey ?? DEFAULT_PRODUCT_KEY,
-        formulaId: last?.formulaId ?? DEFAULT_FORMULA_ID,
-        vehicleCategory: last?.vehicleCategory ?? 'MOTO',
+        productKey: tab.key,
+        formulaId: last?.formulaId ?? tab.formulaId,
+        vehicleCategory: last?.vehicleCategory ?? tab.category,
         durationMonths: null,
         netPremium: null,
         taxes: null,
         accessories: null,
         fga: null,
+        cedeao: vtc ? null : 0,
+        attestation: vtc ? null : 0,
+        minFiscalPower: vtc ? (last?.minFiscalPower ?? 3) : null,
+        minSeats: vtc ? (last?.minSeats ?? 4) : null,
+        maxSeats: vtc ? (last?.maxSeats ?? 8) : null,
         active: true,
         updatedAt: null,
         updatedBy: null,
@@ -202,16 +280,17 @@ export class GrilleTarifaireComponent {
     ]);
   }
 
-  /** Copie les montants d'un tarif vers un nouveau (autre durée ou autre catégorie). */
+  /** Copie les montants d'un tarif vers un nouveau (autre catégorie Moto/Tricycle, ou autre tranche VTC). */
   duplicate(row: TariffRow): void {
     this.success.set(null);
+    const vtc = this.productOf(row) === 'automobile-vtc';
     this.rows.update((rows) => [
       ...rows,
       {
         ...row,
         key: this.nextKey++,
         existing: false,
-        vehicleCategory: row.vehicleCategory === 'MOTO' ? 'TRICYCLE' : 'MOTO',
+        vehicleCategory: vtc ? this.nextTranche(row.vehicleCategory) : row.vehicleCategory === 'MOTO' ? 'TRICYCLE' : 'MOTO',
         updatedAt: null,
         updatedBy: null,
       },
@@ -234,18 +313,24 @@ export class GrilleTarifaireComponent {
     this.saving.set(true);
     this.error.set(null);
     this.success.set(null);
-    const body: QuoteTariffRequestItem[] = this.rows().map((r) => ({
-      productKey: r.productKey,
-      formulaId: r.formulaId.trim(),
-      vehicleCategory: r.vehicleCategory,
-      durationMonths: r.durationMonths as number,
-      netPremium: r.netPremium as number,
-      taxes: r.taxes as number,
-      accessories: r.accessories as number,
-      fga: r.fga as number,
-      total: this.total(r),
-      active: r.active,
-    }));
+    const body: QuoteTariffRequestItem[] = this.rows().map((r) => {
+      const vtc = this.productOf(r) === 'automobile-vtc';
+      return {
+        productKey: r.productKey,
+        formulaId: r.formulaId.trim(),
+        vehicleCategory: r.vehicleCategory.trim(),
+        durationMonths: r.durationMonths as number,
+        netPremium: r.netPremium as number,
+        taxes: r.taxes as number,
+        accessories: r.accessories as number,
+        fga: r.fga as number,
+        cedeao: r.cedeao ?? 0,
+        attestation: r.attestation ?? 0,
+        ...(vtc ? { minFiscalPower: r.minFiscalPower, minSeats: r.minSeats, maxSeats: r.maxSeats } : {}),
+        total: this.total(r),
+        active: r.active,
+      };
+    });
     this.service.save(body).subscribe({
       next: (items) => {
         this.setRows(items);
@@ -269,14 +354,27 @@ export class GrilleTarifaireComponent {
     return `${value.toLocaleString('fr-FR')} F`;
   }
 
+  private productOf(row: { productKey: string }): ProductTab {
+    return row.productKey === VTC_PRODUCT ? 'automobile-vtc' : 'moto';
+  }
+
+  /** VTC → VTC-2 → VTC-3 … en évitant une catégorie déjà utilisée. */
+  private nextTranche(category: string): string {
+    const base = category.replace(/-\d+$/, '');
+    const used = new Set(this.rows().map((r) => r.vehicleCategory));
+    let n = 2;
+    while (used.has(`${base}-${n}`)) n++;
+    return `${base}-${n}`;
+  }
+
   private setRows(items: QuoteTariff[]): void {
     const rows: TariffRow[] = [...items]
       .sort(
         (a, b) =>
           a.productKey.localeCompare(b.productKey) ||
           a.formulaId.localeCompare(b.formulaId) ||
-          a.durationMonths - b.durationMonths ||
-          a.vehicleCategory.localeCompare(b.vehicleCategory),
+          a.vehicleCategory.localeCompare(b.vehicleCategory) ||
+          a.durationMonths - b.durationMonths,
       )
       .map((t) => ({
         key: this.nextKey++,
@@ -289,6 +387,11 @@ export class GrilleTarifaireComponent {
         taxes: t.taxes,
         accessories: t.accessories,
         fga: t.fga,
+        cedeao: t.cedeao ?? 0,
+        attestation: t.attestation ?? 0,
+        minFiscalPower: t.minFiscalPower ?? null,
+        minSeats: t.minSeats ?? null,
+        maxSeats: t.maxSeats ?? null,
         active: t.active,
         updatedAt: t.updatedAt ?? null,
         updatedBy: t.updatedBy ?? null,
@@ -299,6 +402,7 @@ export class GrilleTarifaireComponent {
 
   private snapshot(r: TariffRow): string {
     return JSON.stringify([
+      r.productKey,
       r.formulaId,
       r.vehicleCategory,
       r.durationMonths,
@@ -306,6 +410,11 @@ export class GrilleTarifaireComponent {
       r.taxes,
       r.accessories,
       r.fga,
+      r.cedeao,
+      r.attestation,
+      r.minFiscalPower,
+      r.minSeats,
+      r.maxSeats,
       r.active,
     ]);
   }

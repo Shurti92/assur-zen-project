@@ -128,6 +128,11 @@ const baseNavItems: INavData[] = [
         url: '/devis/marques',
         icon: 'nav-icon-bullet',
       },
+      {
+        name: 'nav.devis.vtc',
+        url: '/devis/vtc-parametrage',
+        icon: 'nav-icon-bullet',
+      },
     ],
   },
   {
@@ -547,7 +552,7 @@ const adminNavItems: INavData[] = [
 const ADMIN_ONLY_NAV_NAMES = new Set(['nav.ged', 'nav.sortiesDeFonds', 'nav.sycapay.title', 'nav.mobile.title']);
 
 /** Devis : la grille tarifaire est réservée ADMIN, le reste du menu est ouvert aux commerciaux. */
-const DEVIS_ADMIN_ONLY_CHILDREN = new Set(['nav.devis.grille', 'nav.devis.marques']);
+const DEVIS_ADMIN_ONLY_CHILDREN = new Set(['nav.devis.grille', 'nav.devis.marques', 'nav.devis.vtc']);
 
 export function getNavItems(canAccessAdminMenus: boolean, isAdmin: boolean, isCommercial = false): INavData[] {
   const base = baseNavItems

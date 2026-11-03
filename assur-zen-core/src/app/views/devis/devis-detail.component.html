@@ -37,7 +37,15 @@
           <dt class="col-sm-4">Téléphone</dt>
           <dd class="col-sm-8">{{ q.prospectPhone || '—' }}</dd>
           <dt class="col-sm-4">Véhicule</dt>
-          <dd class="col-sm-8">{{ q.vehicleType === 'MOTO' ? 'Moto' : 'Tricycle' }} · {{ q.brand }} {{ q.model }} · {{ q.cylinderCc }} cc</dd>
+          @if (q.productKey === 'automobile-vtc') {
+            <dd class="col-sm-8">VTC · {{ q.brand }} {{ q.model }} · {{ q.fiscalPower }} CV · {{ q.seats }} places</dd>
+            <dt class="col-sm-4">Énergie</dt>
+            <dd class="col-sm-8">{{ energyLabel(q.energy) }} · 1re mise en circulation {{ q.firstRegistrationYear ?? '—' }}</dd>
+            <dt class="col-sm-4">Usage VTC</dt>
+            <dd class="col-sm-8">{{ q.vtcDeclared ? 'Déclaré' : 'Non déclaré' }}{{ q.platform ? ' · ' + q.platform : '' }}</dd>
+          } @else {
+            <dd class="col-sm-8">{{ q.vehicleType === 'TRICYCLE' ? 'Tricycle' : 'Moto' }} · {{ q.brand }} {{ q.model }} · {{ q.cylinderCc }} cc</dd>
+          }
           <dt class="col-sm-4">Immatriculation</dt>
           <dd class="col-sm-8">{{ q.registrationNumber || '—' }}</dd>
           <dt class="col-sm-4">N° de châssis</dt>
@@ -57,8 +65,18 @@
         <table class="table table-sm mb-3">
           <tbody>
             <tr><td>Prime nette</td><td class="text-end">{{ q.premium.netPremium.toLocaleString('fr-FR') }}</td></tr>
+            @if ((q.premium.discount ?? 0) > 0) {
+              <tr class="text-success">
+                <td>Remise{{ q.discountPercent ? ' ' + q.discountPercent + ' %' : '' }}</td>
+                <td class="text-end">− {{ q.premium.discount!.toLocaleString('fr-FR') }}</td>
+              </tr>
+            }
             <tr><td>Taxes</td><td class="text-end">{{ q.premium.taxes.toLocaleString('fr-FR') }}</td></tr>
             <tr><td>Accessoires</td><td class="text-end">{{ q.premium.accessories.toLocaleString('fr-FR') }}</td></tr>
+            @if (q.productKey === 'automobile-vtc') {
+              <tr><td>CEDEAO</td><td class="text-end">{{ (q.premium.cedeao ?? 0).toLocaleString('fr-FR') }}</td></tr>
+              <tr><td>Attestation</td><td class="text-end">{{ (q.premium.attestation ?? 0).toLocaleString('fr-FR') }}</td></tr>
+            }
             <tr><td>FGA</td><td class="text-end">{{ q.premium.fga.toLocaleString('fr-FR') }}</td></tr>
           </tbody>
         </table>

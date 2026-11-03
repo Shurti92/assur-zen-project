@@ -1,7 +1,7 @@
 <div class="gt">
   <header class="gt-header">
     <div>
-      <h1>Grille tarifaire · Devis Moto</h1>
+      <h1>Grille tarifaire · Devis</h1>
       <p class="gt-sub">
         Les tarifs actifs sont proposés dans le formulaire public et aux commerciaux. Le total est calculé automatiquement :
         plus aucune incohérence possible.
@@ -11,6 +11,23 @@
       <button (click)="cancel()" [disabled]="saving()" class="gt-btn gt-btn--secondary" type="button">Annuler les modifications</button>
     }
   </header>
+
+  <div class="gt-seg" role="tablist" aria-label="Produit">
+    @for (t of tabs; track t.key) {
+      <button
+        (click)="selectProduct(t.key)"
+        [class.gt-seg--on]="product() === t.key"
+        [attr.aria-selected]="product() === t.key"
+        role="tab"
+        type="button"
+      >
+        {{ t.label }}
+        @if (changesFor(t.key) > 0) {
+          <span class="gt-seg-badge">{{ changesFor(t.key) }}</span>
+        }
+      </button>
+    }
+  </div>
 
   @if (error()) {
     <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
@@ -42,7 +59,7 @@
     </div>
 
     <div class="gt-legend">
-      @for (f of fields; track f.key) {
+      @for (f of fields(); track f.key) {
         <span><i class="gt-dot" [style.background]="f.color"></i>{{ f.label }}</span>
       }
     </div>
@@ -54,13 +71,20 @@
       </div>
       <div class="gt-cards">
         @for (r of g.rows; track r.key) {
-          <article [class.gt-card--changed]="changedKeys().has(r.key)" [class.gt-card--off]="!r.active" [class.gt-card--error]="duplicateKeys().has(r.key)" class="gt-card">
+          <article [class.gt-card--changed]="changedKeys().has(r.key)" [class.gt-card--off]="!r.active" [class.gt-card--error]="duplicateKeys().has(r.key) || criteriaInvalid(r)" class="gt-card">
             <div class="gt-top">
               <div class="gt-title">
-                <div class="gt-ico" aria-hidden="true">{{ r.vehicleCategory === 'MOTO' ? '🏍️' : '🛺' }}</div>
+                <div class="gt-ico" aria-hidden="true">{{ icon(r) }}</div>
                 <div>
                   @if (r.existing) {
-                    {{ r.vehicleCategory === 'MOTO' ? 'Moto' : 'Tricycle' }}
+                    {{ categoryLabel(r.vehicleCategory) }}
+                  } @else if (isVtc()) {
+                    <input
+                      (input)="update(r, { vehicleCategory: $any($event.target).value })"
+                      [value]="r.vehicleCategory"
+                      aria-label="Catégorie ou tranche (ex. VTC-2)"
+                      class="gt-select"
+                    />
                   } @else {
                     <select
                       (change)="update(r, { vehicleCategory: $any($event.target).value })"
@@ -93,7 +117,7 @@
                 <input
                   (change)="update(r, { active: $any($event.target).checked })"
                   [checked]="r.active"
-                  [attr.aria-label]="'Tarif actif'"
+                  aria-label="Tarif actif"
                   type="checkbox"
                 />
                 <i></i>
@@ -105,13 +129,13 @@
               <span>/ {{ r.durationMonths ?? '…' }} mois</span>
             </div>
             <div class="gt-bar" aria-hidden="true">
-              @for (f of fields; track f.key) {
+              @for (f of fields(); track f.key) {
                 <div [style.background]="f.color" [style.width.%]="share(r, f.key)"></div>
               }
             </div>
 
-            <div class="gt-fields">
-              @for (f of fields; track f.key) {
+            <div [class.gt-fields--3]="isVtc()" class="gt-fields">
+              @for (f of fields(); track f.key) {
                 <div class="gt-field">
                   <label [for]="'gt-' + r.key + '-' + f.key"><i class="gt-dot" [style.background]="f.color"></i>{{ f.label }}</label>
                   <div class="gt-input">
@@ -126,18 +150,58 @@
               }
             </div>
 
+            @if (isVtc()) {
+              <div class="gt-crit">
+                <div class="gt-crit-title">Critères du véhicule</div>
+                <div class="gt-crit-grid">
+                  <div class="gt-field">
+                    <label [for]="'gt-' + r.key + '-cv'">CV minimum</label>
+                    <input
+                      (input)="setAmount(r, 'minFiscalPower', $any($event.target).value)"
+                      [id]="'gt-' + r.key + '-cv'"
+                      [value]="r.minFiscalPower ?? ''"
+                      class="gt-crit-input"
+                      inputmode="numeric"
+                    />
+                  </div>
+                  <div class="gt-field">
+                    <label [for]="'gt-' + r.key + '-smin'">Places min.</label>
+                    <input
+                      (input)="setAmount(r, 'minSeats', $any($event.target).value)"
+                      [id]="'gt-' + r.key + '-smin'"
+                      [value]="r.minSeats ?? ''"
+                      class="gt-crit-input"
+                      inputmode="numeric"
+                    />
+                  </div>
+                  <div class="gt-field">
+                    <label [for]="'gt-' + r.key + '-smax'">Places max.</label>
+                    <input
+                      (input)="setAmount(r, 'maxSeats', $any($event.target).value)"
+                      [id]="'gt-' + r.key + '-smax'"
+                      [value]="r.maxSeats ?? ''"
+                      class="gt-crit-input"
+                      inputmode="numeric"
+                    />
+                  </div>
+                </div>
+              </div>
+            }
+
             <div class="gt-foot">
               @if (duplicateKeys().has(r.key)) {
                 <span class="gt-error">Ce tarif existe déjà pour cette durée</span>
+              } @else if (criteriaInvalid(r)) {
+                <span class="gt-error">Places max. inférieures aux places min.</span>
               } @else if (!isComplete(r)) {
-                <span class="gt-warn">Renseignez la durée et tous les montants</span>
+                <span class="gt-warn">Renseignez la durée, les montants{{ isVtc() ? ' et les critères' : '' }}</span>
               } @else {
                 <span class="gt-ok">✓ Total = somme des composantes</span>
               }
               <span class="gt-foot-actions">
                 <span>{{ r.active ? 'Visible au public' : 'Masqué' }}</span>
                 @if (r.existing) {
-                  <button (click)="duplicate(r)" class="gt-link" title="Copier ces montants vers l'autre catégorie" type="button">Dupliquer</button>
+                  <button (click)="duplicate(r)" class="gt-link" [title]="isVtc() ? 'Copier ces montants vers une nouvelle tranche' : 'Copier ces montants vers l\'autre catégorie'" type="button">Dupliquer</button>
                 } @else {
                   <button (click)="removeRow(r)" class="gt-link" type="button">Retirer</button>
                 }
@@ -149,14 +213,14 @@
           <button (click)="addRow()" [disabled]="saving()" class="gt-add" type="button">
             <span>
               <b>＋</b>
-              Ajouter une durée
-              <small>ex. 6 mois, pour Moto ou Tricycle</small>
+              {{ isVtc() ? 'Ajouter une durée ou une tranche' : 'Ajouter une durée' }}
+              <small>{{ isVtc() ? 'ex. 2 mois, ou une tranche VTC-2' : 'ex. 6 mois, pour Moto ou Tricycle' }}</small>
             </span>
           </button>
         }
       </div>
     } @empty {
-      <p class="gt-empty">Aucune ligne tarifaire.</p>
+      <p class="gt-empty">Aucune ligne tarifaire pour ce produit.</p>
       <button (click)="addRow()" class="gt-add" type="button"><span><b>＋</b>Ajouter un tarif</span></button>
     }
   }

@@ -1,0 +1,44 @@
+<section class="el-card">
+  <h3 class="el-title">
+    {{ title() }}
+    <span class="el-count">{{ items().length }} / {{ max() }}</span>
+  </h3>
+
+  <div class="el-add">
+    <input
+      (input)="onDraft($any($event.target).value)"
+      (keydown.enter)="add()"
+      [class.el-invalid]="!!draftError()"
+      [attr.maxlength]="maxLength"
+      [placeholder]="placeholder()"
+      [value]="draft()"
+      class="el-input"
+    />
+    <button (click)="add()" aria-label="Ajouter" class="el-btn" type="button">+</button>
+  </div>
+  <div class="el-err">{{ draftError() }}</div>
+
+  <ul (cdkDropListDropped)="drop($event)" cdkDropList class="el-list">
+    @for (name of items(); track $index; let i = $index) {
+      <li [class.el-item--error]="!!problem(i)" cdkDrag class="el-item">
+        <span cdkDragHandle class="el-handle" title="Glisser pour réordonner">⠿</span>
+        <input
+          (input)="rename(i, $any($event.target).value)"
+          [attr.aria-label]="title() + ' ' + (i + 1)"
+          [attr.maxlength]="maxLength"
+          [value]="name"
+          class="el-name"
+        />
+        @if (problem(i); as p) {
+          <span class="el-item-error">{{ p }}</span>
+        }
+        <button (click)="move(i, -1)" [disabled]="i === 0" class="el-icon" title="Monter" type="button">↑</button>
+        <button (click)="move(i, 1)" [disabled]="i === items().length - 1" class="el-icon" title="Descendre" type="button">↓</button>
+        <button (click)="remove(i)" class="el-icon el-icon--danger" title="Supprimer" type="button">✕</button>
+      </li>
+    } @empty {
+      <li class="el-empty">Aucun élément.</li>
+    }
+  </ul>
+  <p class="el-hint">{{ emptyHint() }}</p>
+</section>

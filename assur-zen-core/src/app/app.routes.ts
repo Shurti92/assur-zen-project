@@ -452,6 +452,20 @@ export const routes: Routes = [
         data: { title: 'Marques moto', section: 'Devis' },
       },
       {
+        path: 'devis/vtc-parametrage',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./views/vtc-parametrage/vtc-parametrage.component').then((m) => m.VtcParametrageComponent),
+        data: { title: 'Paramétrage VTC', section: 'Devis' },
+      },
+      {
+        path: 'devis/nouveau-vtc',
+        canActivate: [quoteGuard],
+        loadComponent: () =>
+          import('./views/devis/devis-nouveau-vtc.component').then((m) => m.DevisNouveauVtcComponent),
+        data: { title: 'Nouveau devis VTC', section: 'Devis' },
+      },
+      {
         path: 'devis/liste',
         canActivate: [quoteGuard],
         loadComponent: () => import('./views/devis/devis-liste.component').then((m) => m.DevisListeComponent),

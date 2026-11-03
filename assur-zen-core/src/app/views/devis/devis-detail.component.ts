@@ -73,6 +73,11 @@ export class DevisDetailComponent {
     });
   }
 
+  energyLabel(energy?: string | null): string {
+    const labels: Record<string, string> = { ESSENCE: 'Essence', DIESEL: 'Diesel', HYBRIDE: 'Hybride', ELECTRIQUE: 'Électrique' };
+    return energy ? (labels[energy] ?? energy) : '—';
+  }
+
   formatDate(value?: string | null): string {
     return value ? new Date(value).toLocaleDateString('fr-FR') : '—';
   }

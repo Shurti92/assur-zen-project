@@ -1,7 +1,7 @@
 <section class="dl-panel">
   <div class="dl-toolbar">
     <div class="dl-toolbar-title">
-      <h2>Devis · Moto</h2>
+      <h2>Devis</h2>
       <p class="small text-body-secondary mb-0">Un commercial voit ses devis ; un administrateur voit tous les devis.</p>
     </div>
     <input
@@ -20,6 +20,11 @@
         <option [value]="s">{{ statusLabel[s] }}</option>
       }
     </select>
+    <select (change)="onProductChange($any($event.target).value)" aria-label="Filtrer par produit" class="form-select form-select-sm w-auto">
+      <option value="">Tous les produits</option>
+      <option value="moto">Moto</option>
+      <option value="automobile-vtc">Automobile VTC</option>
+    </select>
     <div class="dl-actions">
       <button (click)="load()" [disabled]="loading()" cButton class="dl-btn" type="button">
         @if (loading()) {
@@ -35,7 +40,7 @@
     <p class="dl-empty">{{ error() }} <button (click)="load()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
   } @else if (loading()) {
     <p class="dl-empty">Chargement des devis…</p>
-  } @else if (quotes().length === 0) {
+  } @else if (filtered().length === 0) {
     <p class="dl-empty">Aucun devis ne correspond.</p>
   } @else {
     <div class="dl-table-scroll">
@@ -43,6 +48,7 @@
         <thead>
           <tr>
             <th scope="col">Référence</th>
+            <th scope="col">Produit</th>
             <th scope="col">Prospect</th>
             <th scope="col">Téléphone</th>
             <th scope="col">Véhicule</th>
@@ -57,6 +63,7 @@
           @for (d of pageItems(); track d.reference) {
             <tr>
               <td class="dl-timestamp">{{ d.reference }}</td>
+              <td><span class="dl-chip dl-chip--secondary">{{ productLabel(d) }}</span></td>
               <td>{{ d.prospectName || '—' }}</td>
               <td class="dl-timestamp">{{ d.prospectPhone || '—' }}</td>
               <td>{{ vehicleLabel(d) }}</td>
@@ -74,7 +81,7 @@
 
   <div class="dl-footnote">
     <span>
-      <strong>{{ pageItems().length }}</strong> sur {{ quotes().length }} devis (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
+      <strong>{{ pageItems().length }}</strong> sur {{ filtered().length }} devis (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
     </span>
     <div class="d-flex align-items-center gap-2">
       <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>

@@ -469,3 +469,77 @@
 .gt-save--on {
   transform: translate(-50%, 0);
 }
+
+// Sélecteur de produit (Moto / Automobile VTC).
+.gt-seg {
+  display: inline-flex;
+  border: 1px solid var(--gt-bd);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 1.1rem;
+
+  button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+  }
+}
+
+.gt-seg--on {
+  background: var(--gt-pri-soft) !important;
+  color: var(--gt-pri) !important;
+  font-weight: 600;
+}
+
+.gt-seg-badge {
+  display: inline-block;
+  min-width: 1.2rem;
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 99px;
+  background: var(--gt-pri);
+  color: #fff;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+// VTC : six composantes sur trois colonnes.
+.gt-fields--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+// Critères du véhicule (VTC).
+.gt-crit {
+  margin-top: 0.9rem;
+  padding: 0.65rem 0.8rem;
+  background: var(--gt-pri-soft);
+  border-radius: 10px;
+}
+
+.gt-crit-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gt-mut);
+  margin-bottom: 0.4rem;
+}
+
+.gt-crit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.gt-crit-input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--gt-bd);
+  border-radius: 8px;
+  background: var(--gt-card);
+  color: inherit;
+  font: inherit;
+  text-align: right;
+}
