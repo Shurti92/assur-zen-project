@@ -1,0 +1,69 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>FAQ de l'application mobile</h2>
+    </div>
+    <div class="dl-actions">
+      @if (dirty()) {
+        <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>Modifications non enregistrées</span>
+      }
+      <button (click)="discard()" [disabled]="loading() || saving() || !dirty()" cButton class="dl-btn" type="button">Annuler les modifications</button>
+      <button (click)="add()" [disabled]="loading()" cButton class="dl-btn" type="button">+ Ajouter une question</button>
+      <button (click)="save()" [disabled]="loading() || saving() || !dirty()" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (saving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  </div>
+
+  <div class="px-4 pt-3">
+    <div class="alert alert-info small mb-3">
+      Ces questions s'affichent dans l'aide de l'application. Glissez les entrées (ou utilisez les flèches) pour choisir l'ordre d'affichage.
+      L'enregistrement <strong>remplace toute la FAQ</strong>.
+    </div>
+    @if (saveError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    @if (saved()) {
+      <app-alert-message class="d-block mb-3" variant="success" message="FAQ enregistrée." />
+    }
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="load()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement de la FAQ…</p>
+  } @else {
+    <div (cdkDropListDropped)="drop($event)" cdkDropList [cdkDropListData]="items" class="fm-list px-4 pb-3">
+      @for (item of items; track $index; let i = $index) {
+        <div cdkDrag class="fm-card" [class.fm-card--hidden]="!item.visible">
+          <span cdkDragHandle class="fm-grip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
+          <div class="flex-grow-1">
+            <label class="form-label small fw-semibold mb-1" [for]="'fm-q-' + i">Question *</label>
+            <input (ngModelChange)="markDirty()" [(ngModel)]="item.question" [id]="'fm-q-' + i" [attr.maxlength]="maxQuestion" class="form-control mb-2" type="text" />
+            <label class="form-label small fw-semibold mb-1" [for]="'fm-a-' + i">Réponse * <span class="text-body-secondary fw-normal">({{ item.answer.length }}/{{ maxAnswer }})</span></label>
+            <textarea (ngModelChange)="markDirty()" [(ngModel)]="item.answer" [id]="'fm-a-' + i" [attr.maxlength]="maxAnswer" class="form-control" rows="3"></textarea>
+            <div class="form-check form-switch mt-2 mb-0">
+              <input (ngModelChange)="markDirty()" [(ngModel)]="item.visible" [id]="'fm-v-' + i" class="form-check-input" role="switch" type="checkbox" />
+              <label class="form-check-label small" [for]="'fm-v-' + i">Visible dans l'application</label>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-1">
+            <button (click)="move(i, -1)" [disabled]="i === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
+            <button (click)="move(i, 1)" [disabled]="i === items.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
+            <button (click)="remove(i)" aria-label="Supprimer la question" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
+          </div>
+        </div>
+      } @empty {
+        <p class="dl-empty">Aucune question. Cliquez sur « Ajouter une question » pour commencer.</p>
+      }
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span><strong>{{ items.length }}</strong> question{{ items.length > 1 ? 's' : '' }}, dont {{ visibleCount }} visible{{ visibleCount > 1 ? 's' : '' }}</span>
+    <span>Lecture publique : GET /public/support/faq</span>
+  </div>
+</section>
