@@ -415,6 +415,16 @@ public class SmsNotificationService {
         return sendImmediate(phone, message, TypeMessageSms.echeance_pret_jour_j);
     }
 
+    /** Invitation envoyee quand un administrateur cree un compte mobile (2026-11-03) : aucun secret dans le SMS. */
+    public boolean sendMobileAccountCreatedSms(String phone) {
+        if (!StringUtils.hasText(phone)) {
+            return false;
+        }
+        return sendImmediate(phone,
+                "Votre compte AssurZen Mobile a été créé. Téléchargez l'application, choisissez « PIN oublié » puis suivez les étapes pour définir votre code PIN.",
+                TypeMessageSms.bienvenue);
+    }
+
     private boolean sendImmediate(String phone, String message, TypeMessageSms type) {
         if (modeTest != null && modeTest.isActif() && SMS_REDIRIGES_EN_MODE_TEST.contains(type)) {
             // Texte reel conserve (montant reel), prefixe du vrai destinataire ; envoye au numero de test.

@@ -39,4 +39,11 @@ public class AccountDeletionRequest implements Serializable {
 
     @Column(name = "processed_at")
     private Instant processedAt;
+
+    /** Administrateur qui a traite la demande et son commentaire (2026-11-03). */
+    @Column(name = "processed_by", length = 100)
+    private String processedBy;
+
+    @Column(name = "process_comment", length = 500)
+    private String processComment;
 }

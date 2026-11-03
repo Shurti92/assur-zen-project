@@ -96,6 +96,11 @@ public class SecurityConfig {
                         // Mobile lot 1 (2026-11-02) : verification du PIN et demande de suppression reservees au role CLIENT ;
                         // DOIVENT preceder le permitAll de /auth/** (premier matcher retenu).
                         .requestMatchers("/api-assur-zen/auth/mobile/pin/verify", "/api-assur-zen/auth/mobile/me/**").hasRole("CLIENT")
+                        // Catalogue et demande de rappel du mobile, sans compte (2026-11-03).
+                        .requestMatchers(HttpMethod.GET, "/api-assur-zen/public/products", "/api-assur-zen/public/products/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api-assur-zen/public/callbacks").permitAll()
+                        // Administration des comptes et demandes mobile (2026-11-03) : reserve aux administrateurs.
+                        .requestMatchers("/api-assur-zen/admin/mobile/**").hasRole("ADMIN")
                         // Espace mobile (2026-11-02) : reserve au role CLIENT.
                         .requestMatchers("/api-assur-zen/mobile/**").hasRole("CLIENT")
                         .requestMatchers("/api-assur-zen/auth/**").permitAll()

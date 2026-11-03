@@ -48,7 +48,7 @@ class MobileContractServiceTest {
         when(config.getLong(eq("MOBILE_RENEWAL_WINDOW_DAYS"), anyLong())).thenReturn(30L);
         when(liens.findByUserId(45L)).thenReturn(List.of(new ClientAccountInsured(45L, 627L)));
         when(contrats.findByContratPrecedentId(anyLong())).thenReturn(Optional.empty());
-        service = new MobileContractService(liens, contrats, config, requests, mock(ci.assurzen.services.TelegramNotificationService.class));
+        service = new MobileContractService(liens, contrats, config, requests, mock(ci.assurzen.services.TelegramNotificationService.class), mock(MobileProductContentService.class));
     }
 
     private Contract contrat(long id, ContractStatus statut, LocalDate echeance, String produit) {

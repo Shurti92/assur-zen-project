@@ -24,7 +24,7 @@ public class ClientRoleRestrictionFilter extends OncePerRequestFilter {
     private static final String ROLE_CLIENT = "ROLE_CLIENT";
     private static final String BASE = "/api-assur-zen/";
     private static final List<String> PREFIXES_AUTORISES = List.of(
-            BASE + "auth/", BASE + "mobile/", BASE + "i18n/", BASE + "me/support-contact",
+            BASE + "auth/", BASE + "mobile/", BASE + "public/", BASE + "i18n/", BASE + "me/support-contact",
             "/v3/api-docs", "/swagger-ui", "/actuator/health", "/error");
 
     @Override

@@ -53,6 +53,7 @@ public class MobileContractService {
     private final DynamicConfigurationService dynamicConfigurationService;
     private final ContractCustomerRequestRepository requestRepository;
     private final TelegramNotificationService telegramNotificationService;
+    private final MobileProductContentService produitContenu;
 
     /** Paiements mobile actifs (simulation en dev) : alors seulement, renewal.payableReference est renseigne. */
     @org.springframework.beans.factory.annotation.Value("${mobile.payments.simulated:false}")
@@ -189,6 +190,8 @@ public class MobileContractService {
                 paiementsActifs ? MobilePaymentService.referenceRenouvellement(contrat) : null)
                 : null;
         boolean actif = "ACTIVE".equals(statut);
+        // Sinistre : aussi sur un contrat echu (declaration tardive d'un sinistre survenu pendant la couverture, 2026-11-03).
+        boolean sinistrePossible = actif || "EXPIRED".equals(statut);
         Insured assure = contrat.getInsured();
         String titulaire = assure == null ? null : (nonNull(assure.getPrenoms()) + " " + nonNull(assure.getNom())).trim();
         return new MobileContractDtos.ContractDetail(
@@ -202,12 +205,21 @@ public class MobileContractService {
                 contrat.getDateEffet(),
                 contrat.getDateEcheance(),
                 contrat.getPremium(),
-                List.of(),
+                garantiesDuProduit(contrat),
                 List.of(),
                 null,
                 renouvellement,
-                new MobileContractDtos.Actions(actif, actif, actif),
+                new MobileContractDtos.Actions(sinistrePossible, actif, actif),
                 miseAJour(contrat));
+    }
+
+    /** Garanties parametrees depuis le back-office pour le produit du contrat (liste vide si non renseignees). */
+    private List<MobileContractDtos.Guarantee> garantiesDuProduit(Contract contrat) {
+        if (contrat.getProduct() == null) {
+            return List.of();
+        }
+        return produitContenu.garanties(contrat.getProduct().getId()).stream()
+                .map(g -> new MobileContractDtos.Guarantee(g.name(), g.kind(), null)).toList();
     }
 
     /** Vehicule pour un contrat auto/moto ("Toyota Corolla · 1234 AB 01"), sinon nom de l'assure. */

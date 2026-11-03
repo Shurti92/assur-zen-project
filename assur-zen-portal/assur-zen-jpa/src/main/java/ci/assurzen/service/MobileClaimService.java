@@ -141,8 +141,11 @@ public class MobileClaimService {
     public MobileClaimDtos.Created declarer(Long userId, MobileClaimDtos.CreateRequest requete) {
         Contract contrat = contratDuClient(userId, requete.contractId());
         LocalDate aujourdhui = LocalDate.now(ABIDJAN);
-        if (!"ACTIVE".equals(MobileContractService.statut(contrat, aujourdhui))) {
-            throw new MobileApiException(409, "CLAIM_NOT_ALLOWED", "Un sinistre ne peut être déclaré que sur un contrat actif.", "contractId");
+        String statutContrat = MobileContractService.statut(contrat, aujourdhui);
+        // Decision du 2026-11-03 : un sinistre survenu pendant la periode de couverture peut etre declare meme apres
+        // l'echeance du contrat (la date est controlee plus bas). Un contrat en attente ou resilie reste refuse.
+        if (!"ACTIVE".equals(statutContrat) && !"EXPIRED".equals(statutContrat)) {
+            throw new MobileApiException(409, "CLAIM_NOT_ALLOWED", "Un sinistre ne peut être déclaré que sur un contrat actif ou échu.", "contractId");
         }
         List<MobileClaimDtos.ClaimType> types = typesPourProduit(MobileContractService.identifiantProduit(contrat));
         MobileClaimDtos.ClaimType type = types.stream().filter(t -> t.id().equalsIgnoreCase(requete.typeId())).findFirst()

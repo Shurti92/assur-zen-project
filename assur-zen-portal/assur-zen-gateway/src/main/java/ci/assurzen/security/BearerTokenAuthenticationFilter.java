@@ -73,6 +73,12 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
                 // filtre dans la chaine, addFilterAfter(..., BearerTokenAuthenticationFilter.class)) -
                 // sans ce log applicatif, ces rejets de token ne laisseraient plus AUCUNE trace nulle
                 // part (ni AuditFlux, ni ce fichier de log), rendant un futur diagnostic impossible.
+                if (request.getRequestURI().startsWith("/api-assur-zen/public/")) {
+                    // Routes publiques (catalogue, rappel) : un jeton perime est ignore, la requete reste anonyme.
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 log.warn("Bearer token rejete sur {} {} ({}) - reponse 401 immediate", request.getMethod(), request.getRequestURI(), e.getMessage());
                 SecurityContextHolder.clearContext();
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

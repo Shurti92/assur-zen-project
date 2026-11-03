@@ -177,4 +177,27 @@ class MobileClaimServiceTest {
         assertEquals("INCONNU", MobileClaimService.detecterType(new MockMultipartFile("file", "a.jpg", "image/jpeg", "MZ-exe".getBytes())));
         assertTrue(true);
     }
+
+    @Test
+    void declarationTardive_contratEchuMaisDateDansLaCouverture_estAcceptee() {
+        Contract echu = contrat(656L, ContractStatus.signed, "Assurance Moto", actif.getInsured());
+        echu.setDateEffet(AUJOURDHUI.minusYears(1));
+        echu.setDateEcheance(AUJOURDHUI.minusDays(5));
+        when(contrats.findByIdAndInsuredIdIn(656L, List.of(627L))).thenReturn(Optional.of(echu));
+
+        MobileClaimDtos.Created cree = service.declarer(45L, requete("656", "COLLISION", AUJOURDHUI.minusDays(20)));
+        assertEquals("DECLARED", cree.status());
+
+        // survenu APRES l'echeance : hors couverture
+        assertEquals("OCCURRED_AT_OUT_OF_RANGE", assertThrows(MobileApiException.class,
+                () -> service.declarer(45L, requete("656", "COLLISION", AUJOURDHUI.minusDays(2)))).getCode());
+    }
+
+    @Test
+    void declaration_contratResilie_resteRefusee() {
+        Contract resilie = contrat(657L, ContractStatus.cancelled, "Assurance Moto", actif.getInsured());
+        when(contrats.findByIdAndInsuredIdIn(657L, List.of(627L))).thenReturn(Optional.of(resilie));
+        assertEquals("CLAIM_NOT_ALLOWED", assertThrows(MobileApiException.class,
+                () -> service.declarer(45L, requete("657", "COLLISION", AUJOURDHUI.minusDays(2)))).getCode());
+    }
 }

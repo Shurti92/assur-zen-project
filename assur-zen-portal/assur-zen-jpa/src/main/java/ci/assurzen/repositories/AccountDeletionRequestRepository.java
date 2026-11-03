@@ -8,4 +8,8 @@ import java.util.Optional;
 public interface AccountDeletionRequestRepository extends JpaRepository<AccountDeletionRequest, Long> {
 
     Optional<AccountDeletionRequest> findFirstByUserIdAndStatutOrderByRequestedAtDesc(Long userId, String statut);
+
+    java.util.List<AccountDeletionRequest> findTop200ByOrderByRequestedAtDesc();
+
+    java.util.List<AccountDeletionRequest> findTop200ByStatutOrderByRequestedAtDesc(String statut);
 }
