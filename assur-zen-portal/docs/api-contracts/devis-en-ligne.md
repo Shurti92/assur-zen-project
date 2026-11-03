@@ -64,7 +64,7 @@ Paramétrage (ADMIN) :
 - `GET /admin/quotes?email=ENVOYE|NON_ENVOYE` (filtre serveur) ; `q` cherche aussi dans l'e-mail du prospect.
 - `QuoteView` gagne `prospectEmail, emailSentCount, lastEmailSentAt, lastEmailTo, lastEmailSentBy`.
 - Un devis ACCEPTE peut être renvoyé ; un devis EXPIRE ne peut pas l'être. Le prix envoyé est le prix figé du devis (remise comprise). Chaque envoi est tracé (qui, quand, à qui, avec ou sans PDF).
-- Contenu : objet `Votre devis AssurZen {reference} · {produit}`, HTML + PDF joint (`Devis-{reference}.pdf`) généré par le gateway. Mention légale et pied de page modifiables dans la configuration (`QUOTE_EMAIL_LEGAL_TEXT`, `QUOTE_EMAIL_FOOTER`). Expéditeur : paramètre de configuration `QUOTE_EMAIL_FROM` (`info@assurzen.ci` par défaut ; le compte SMTP utilisé doit être autorisé à envoyer pour cette adresse). Les autres e-mails (campagnes) gardent `MAIL_FROM`.
+- Contenu : objet `Votre devis AssurZen {reference} · {produit}`, HTML + PDF joint (`Devis-{reference}.pdf`) généré par le gateway. Mention légale et pied de page modifiables dans la configuration (`QUOTE_EMAIL_LEGAL_TEXT`, `QUOTE_EMAIL_FOOTER`). Expéditeur : paramètre de configuration `QUOTE_EMAIL_FROM` (`customer@assurzen.ci` par défaut ; le compte SMTP utilisé doit être autorisé à envoyer pour cette adresse). Les autres e-mails (campagnes) gardent `MAIL_FROM`.
 
 ## À venir
 Statut CONVERTI : conversion d'un devis accepté en contrat, avec le paiement dans l'application (API de paiement à fournir par l'utilisateur).

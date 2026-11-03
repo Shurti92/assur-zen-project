@@ -106,7 +106,7 @@ class QuoteEmailServiceTest {
         assertEquals("Awa Koné", v.lastEmailSentBy());
         ArgumentCaptor<byte[]> pdf = ArgumentCaptor.forClass(byte[].class);
         ArgumentCaptor<String> corps = ArgumentCaptor.forClass(String.class);
-        verify(mail).envoyerAvecPiece(eq("info@assurzen.ci"), eq("prospect@example.com"), eq("awa@assurzen.ci"), eq("Votre devis AssurZen DEV-2026-000001 · Assurance Automobile VTC"),
+        verify(mail).envoyerAvecPiece(eq("customer@assurzen.ci"), eq("prospect@example.com"), eq("awa@assurzen.ci"), eq("Votre devis AssurZen DEV-2026-000001 · Assurance Automobile VTC"),
                 corps.capture(), eq("Devis-DEV-2026-000001.pdf"), pdf.capture());
         assertEquals("%PDF", new String(pdf.getValue(), 0, 4));
         String html = corps.getValue();
@@ -127,7 +127,7 @@ class QuoteEmailServiceTest {
     void envoi_sansPdf_neJointRien() {
         when(mail.envoyerAvecPiece(anyString(), anyString(), any(), anyString(), anyString(), anyString(), any())).thenReturn(null);
         service.envoyer("DEV-2026-000001", new SendEmailRequest(null, null, false, false));
-        verify(mail).envoyerAvecPiece(eq("info@assurzen.ci"), anyString(), eq(null), anyString(), anyString(), anyString(), eq(null));
+        verify(mail).envoyerAvecPiece(eq("customer@assurzen.ci"), anyString(), eq(null), anyString(), anyString(), anyString(), eq(null));
     }
 
     @Test

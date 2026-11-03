@@ -45,6 +45,11 @@ spring:
     properties:
       mail.smtp.auth: ${SMTP_AUTH:false}
       mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+      # Port 465 = SSL direct : SMTP_SSL=true (et SMTP_STARTTLS=false)
+      mail.smtp.ssl.enable: ${SMTP_SSL:false}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 20000
+      mail.smtp.writetimeout: 20000
 
   # ========================================================
   # SSL BUNDLE

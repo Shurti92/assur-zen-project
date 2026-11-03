@@ -41,7 +41,7 @@ public class QuoteDocumentService {
 
     /** Adresse d'expedition des devis : cle QUOTE_EMAIL_FROM (info@assurzen.ci par defaut). */
     public String adresseExpedition() {
-        return configuration.getString("QUOTE_EMAIL_FROM", "info@assurzen.ci");
+        return configuration.getString("QUOTE_EMAIL_FROM", "customer@assurzen.ci");
     }
 
     public String pied() {
