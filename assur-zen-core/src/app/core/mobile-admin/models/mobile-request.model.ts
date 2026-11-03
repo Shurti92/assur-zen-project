@@ -54,8 +54,26 @@ export interface DeletionRequest {
   comment?: string | null;
 }
 
+export type SupportStatus = 'EN_ATTENTE' | 'EN_COURS' | 'REPONDU' | 'CLOTURE';
+
+/** Demande d'aide d'un client (§9 du contrat). `topic` est un code issu de la configuration SUPPORT_TOPICS. */
+export interface SupportRequest {
+  id: number;
+  reference: string;
+  userId?: number | null;
+  phone?: string | null;
+  topic?: string | null;
+  message: string;
+  status: SupportStatus;
+  response?: string | null;
+  respondedAt?: string | null;
+  respondedBy?: string | null;
+  createdAt: string;
+}
+
 export interface PendingCounts {
   callbacks: number;
   contractRequests: number;
   deletionRequests: number;
+  supportRequests: number;
 }

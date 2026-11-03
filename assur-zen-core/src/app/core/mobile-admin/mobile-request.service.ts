@@ -7,6 +7,7 @@ import {
   ContractRequest,
   DeletionRequest,
   PendingCounts,
+  SupportRequest,
 } from './models/mobile-request.model';
 
 /** File « Demandes mobile » — /admin/mobile/{callbacks,contract-requests,deletion-requests} (ADMIN). */
@@ -19,7 +20,7 @@ export class MobileRequestService {
   readonly pending = signal<PendingCounts | null>(null);
   readonly pendingTotal = computed(() => {
     const p = this.pending();
-    return p ? p.callbacks + p.contractRequests + p.deletionRequests : 0;
+    return p ? p.callbacks + p.contractRequests + p.deletionRequests + p.supportRequests : 0;
   });
 
   private params(statut?: string): HttpParams {
@@ -36,6 +37,18 @@ export class MobileRequestService {
 
   listDeletionRequests(statut?: string): Observable<DeletionRequest[]> {
     return this.http.get<DeletionRequest[]>(`${this.base}/deletion-requests`, { params: this.params(statut) });
+  }
+
+  listSupportRequests(statut?: string): Observable<SupportRequest[]> {
+    return this.http.get<SupportRequest[]>(`${this.base}/support-requests`, { params: this.params(statut) });
+  }
+
+  /** REPONDU exige `response` et notifie le client dans l'application ; une demande CLOTURE n'est plus modifiable. */
+  processSupportRequest(id: number, statut: 'EN_COURS' | 'REPONDU' | 'CLOTURE', response?: string): Observable<SupportRequest> {
+    return this.http.post<SupportRequest>(`${this.base}/support-requests/${id}/process`, {
+      statut,
+      response: response || undefined,
+    });
   }
 
   processCallback(id: number, statut: 'RAPPELE' | 'ANNULE', comment?: string): Observable<unknown> {
@@ -65,6 +78,7 @@ export class MobileRequestService {
       callbacks: this.listCallbacks('EN_ATTENTE').pipe(map((l) => l.length)),
       contractRequests: this.listContractRequests('EN_ATTENTE').pipe(map((l) => l.length)),
       deletionRequests: this.listDeletionRequests('EN_ATTENTE').pipe(map((l) => l.length)),
+      supportRequests: this.listSupportRequests('EN_ATTENTE').pipe(map((l) => l.length)),
     }).subscribe({
       next: (counts) => this.pending.set(counts),
       // Silencieux : une pastille manquante ne doit pas gêner la navigation.

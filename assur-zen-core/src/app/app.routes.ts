@@ -455,6 +455,24 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'mobile/faq',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./views/faq-mobile/faq-mobile.component').then((m) => m.FaqMobileComponent),
+        data: {
+          title: 'FAQ mobile',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
+        path: 'mobile/avis',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./views/avis-mobile/avis-mobile.component').then((m) => m.AvisMobileComponent),
+        data: {
+          title: 'Avis des clients',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
         path: 'mobile/demandes',
         canActivate: [adminGuard],
         loadComponent: () =>
