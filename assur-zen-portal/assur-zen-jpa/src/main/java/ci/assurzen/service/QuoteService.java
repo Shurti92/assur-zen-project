@@ -280,6 +280,12 @@ public class QuoteService {
         return new VtcSettings(remiseMaxVtc());
     }
 
+    /** Plafond de remise lisible par tout utilisateur du back-office (ADMIN et COMMERCIAL) : le controleur est protege par la securite. */
+    @Transactional(readOnly = true)
+    public VtcSettings limiteRemiseVtc() {
+        return new VtcSettings(remiseMaxVtc());
+    }
+
     @Transactional
     public VtcSettings enregistrerParametresVtc(VtcSettings settings) {
         commercialService.requireAdmin();

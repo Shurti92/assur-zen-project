@@ -57,6 +57,12 @@ public class AdminVtcQuoteController {
         return ResponseEntity.ok(quoteService.enregistrerPlateformes(update));
     }
 
+    @GetMapping("/discount-limit")
+    @Operation(operationId = "backofficeQuoteVtcDiscountLimit", summary = "Plafond de remise VTC en % de la prime nette (lecture : ADMIN et COMMERCIAL)")
+    public ResponseEntity<QuoteDtos.VtcSettings> plafondRemise() {
+        return ResponseEntity.ok(quoteService.limiteRemiseVtc());
+    }
+
     @GetMapping("/settings")
     @Operation(operationId = "adminQuoteVtcSettings", summary = "Parametres VTC : plafond de remise (en % de la prime nette)")
     public ResponseEntity<QuoteDtos.VtcSettings> parametres() {

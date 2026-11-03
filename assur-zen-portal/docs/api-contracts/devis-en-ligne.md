@@ -52,6 +52,7 @@ Back-office : `POST /admin/quotes/vtc` (ADMIN et COMMERCIAL) `{prospectName, pro
 Paramétrage (ADMIN) :
 - `GET/PUT /admin/quotes/vtc/brands` `{brands:[...]}` (marques de véhicules, mêmes règles que la moto) ;
 - `GET/PUT /admin/quotes/vtc/platforms` `{platforms:[...]}` (50 max, 60 caractères, sans virgule) ;
+- `GET /admin/quotes/vtc/discount-limit` -> `{maxDiscountPercent}` : lecture du plafond de remise pour ADMIN **et COMMERCIAL** (pour régler le curseur de l'écran de devis).
 - `GET/PUT /admin/quotes/vtc/settings` `{maxDiscountPercent}` (0 à 100 ; 0 = aucune remise).
 - `GET/PUT /admin/quotes/tariffs` : lignes VTC avec `vehicleCategory: "VTC"` (suffixe possible pour une autre tranche, ex. `VTC-2`), champs `cedeao`, `attestation`, `minFiscalPower`, `minSeats`, `maxSeats` ; le total doit égaler netPremium + taxes + accessories + fga + cedeao + attestation.
 
