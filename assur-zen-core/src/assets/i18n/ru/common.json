@@ -60,6 +60,10 @@
   "nav.sinistres.liste": "Список страховых случаев",
 
   "nav.assures": "Страхователи",
+  "nav.devis.title": "Quotes",
+  "nav.devis.liste": "Quotes list",
+  "nav.devis.grille": "Pricing grid",
+  "nav.devis.marques": "Motorcycle brands",
   "nav.mobile.title": "AssurZen Mobile",
   "nav.mobile.comptes": "Аккаунты клиентов",
   "nav.mobile.catalogue": "Мобильный каталог",

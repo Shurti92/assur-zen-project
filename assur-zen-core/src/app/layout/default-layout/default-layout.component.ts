@@ -19,6 +19,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { NavPermissionsService } from '../../core/auth/nav-permissions.service';
 import { MobileRequestService } from '../../core/mobile-admin/mobile-request.service';
 import { DefaultFooterComponent, DefaultHeaderComponent } from './';
+import { isCommercialRole } from '../../core/profile/models/profile-details.model';
 import { getNavItems } from './_nav';
 
 function isOverflown(element: HTMLElement) {
@@ -71,7 +72,11 @@ export class DefaultLayoutComponent {
     this.translationLoaded();
     return this.translateNavItems(
       this.withMobileBadges(
-        getNavItems(this.navPermissionsService.canAccessAdminMenus(), this.authService.currentUser()?.role === 'ADMIN'),
+        getNavItems(
+          this.navPermissionsService.canAccessAdminMenus(),
+          this.authService.currentUser()?.role === 'ADMIN',
+          isCommercialRole(this.authService.currentUser()?.role),
+        ),
       ),
     );
   });

@@ -1,0 +1,174 @@
+<div class="gt">
+  <header class="gt-header">
+    <div>
+      <h1>Grille tarifaire · Devis Moto</h1>
+      <p class="gt-sub">
+        Les tarifs actifs sont proposés dans le formulaire public et aux commerciaux. Le total est calculé automatiquement :
+        plus aucune incohérence possible.
+      </p>
+    </div>
+    @if (changeCount() > 0) {
+      <button (click)="cancel()" [disabled]="saving()" class="gt-btn gt-btn--secondary" type="button">Annuler les modifications</button>
+    }
+  </header>
+
+  @if (error()) {
+    <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+  }
+  @if (success()) {
+    <app-alert-message variant="success" [message]="success()!" [dismissible]="true" (dismissed)="success.set(null)" />
+  }
+
+  @if (loading()) {
+    <p class="gt-empty"><c-spinner size="sm" /> Chargement de la grille…</p>
+  } @else {
+    <div class="gt-kpis">
+      <div class="gt-kpi"><span>Tarifs actifs</span><b>{{ activeRows().length }}</b></div>
+      <div class="gt-kpi">
+        <span>Durées proposées</span>
+        <b>{{ activeDurations().length ? activeDurations().join(' · ') + ' mois' : '—' }}</b>
+      </div>
+      <div class="gt-kpi"><span>Prix le plus bas</span><b>{{ minPrice() !== null ? formatAmount(minPrice()!) : '—' }}</b></div>
+      <div class="gt-kpi">
+        <span>Dernière mise à jour</span>
+        <b class="gt-kpi-small">
+          @if (lastUpdate(); as u) {
+            {{ formatDate(u.updatedAt) }}{{ u.updatedBy ? ' · ' + u.updatedBy : '' }}
+          } @else {
+            —
+          }
+        </b>
+      </div>
+    </div>
+
+    <div class="gt-legend">
+      @for (f of fields; track f.key) {
+        <span><i class="gt-dot" [style.background]="f.color"></i>{{ f.label }}</span>
+      }
+    </div>
+
+    @for (g of groups(); track g.formulaId) {
+      <div class="gt-formula">
+        <h2>{{ formulaLabel(g.formulaId) }}</h2>
+        <span class="gt-chip">{{ g.formulaId }}</span>
+      </div>
+      <div class="gt-cards">
+        @for (r of g.rows; track r.key) {
+          <article [class.gt-card--changed]="changedKeys().has(r.key)" [class.gt-card--off]="!r.active" [class.gt-card--error]="duplicateKeys().has(r.key)" class="gt-card">
+            <div class="gt-top">
+              <div class="gt-title">
+                <div class="gt-ico" aria-hidden="true">{{ r.vehicleCategory === 'MOTO' ? '🏍️' : '🛺' }}</div>
+                <div>
+                  @if (r.existing) {
+                    {{ r.vehicleCategory === 'MOTO' ? 'Moto' : 'Tricycle' }}
+                  } @else {
+                    <select
+                      (change)="update(r, { vehicleCategory: $any($event.target).value })"
+                      [value]="r.vehicleCategory"
+                      aria-label="Catégorie"
+                      class="gt-select"
+                    >
+                      <option value="MOTO">Moto</option>
+                      <option value="TRICYCLE">Tricycle</option>
+                    </select>
+                  }
+                  <small>
+                    @if (r.existing) {
+                      {{ r.durationMonths }} mois
+                    } @else {
+                      <input
+                        (input)="update(r, { durationMonths: numberOf($any($event.target).value) })"
+                        [value]="r.durationMonths ?? ''"
+                        aria-label="Durée en mois"
+                        class="gt-duration"
+                        inputmode="numeric"
+                        placeholder="12"
+                      />
+                      mois · nouveau
+                    }
+                  </small>
+                </div>
+              </div>
+              <label class="gt-switch" [title]="r.active ? 'Actif' : 'Inactif'">
+                <input
+                  (change)="update(r, { active: $any($event.target).checked })"
+                  [checked]="r.active"
+                  [attr.aria-label]="'Tarif actif'"
+                  type="checkbox"
+                />
+                <i></i>
+              </label>
+            </div>
+
+            <div class="gt-total">
+              <b>{{ formatAmount(total(r)) }}</b>
+              <span>/ {{ r.durationMonths ?? '…' }} mois</span>
+            </div>
+            <div class="gt-bar" aria-hidden="true">
+              @for (f of fields; track f.key) {
+                <div [style.background]="f.color" [style.width.%]="share(r, f.key)"></div>
+              }
+            </div>
+
+            <div class="gt-fields">
+              @for (f of fields; track f.key) {
+                <div class="gt-field">
+                  <label [for]="'gt-' + r.key + '-' + f.key"><i class="gt-dot" [style.background]="f.color"></i>{{ f.label }}</label>
+                  <div class="gt-input">
+                    <input
+                      (input)="setAmount(r, f.key, $any($event.target).value)"
+                      [id]="'gt-' + r.key + '-' + f.key"
+                      [value]="r[f.key] ?? ''"
+                      inputmode="numeric"
+                    />
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="gt-foot">
+              @if (duplicateKeys().has(r.key)) {
+                <span class="gt-error">Ce tarif existe déjà pour cette durée</span>
+              } @else if (!isComplete(r)) {
+                <span class="gt-warn">Renseignez la durée et tous les montants</span>
+              } @else {
+                <span class="gt-ok">✓ Total = somme des composantes</span>
+              }
+              <span class="gt-foot-actions">
+                <span>{{ r.active ? 'Visible au public' : 'Masqué' }}</span>
+                @if (r.existing) {
+                  <button (click)="duplicate(r)" class="gt-link" title="Copier ces montants vers l'autre catégorie" type="button">Dupliquer</button>
+                } @else {
+                  <button (click)="removeRow(r)" class="gt-link" type="button">Retirer</button>
+                }
+              </span>
+            </div>
+          </article>
+        }
+        @if ($last) {
+          <button (click)="addRow()" [disabled]="saving()" class="gt-add" type="button">
+            <span>
+              <b>＋</b>
+              Ajouter une durée
+              <small>ex. 6 mois, pour Moto ou Tricycle</small>
+            </span>
+          </button>
+        }
+      </div>
+    } @empty {
+      <p class="gt-empty">Aucune ligne tarifaire.</p>
+      <button (click)="addRow()" class="gt-add" type="button"><span><b>＋</b>Ajouter un tarif</span></button>
+    }
+  }
+
+  <div [class.gt-save--on]="changeCount() > 0" class="gt-save" role="status">
+    <span>{{ changeCount() }} modification{{ changeCount() > 1 ? 's' : '' }} non enregistrée{{ changeCount() > 1 ? 's' : '' }}</span>
+    <button (click)="cancel()" [disabled]="saving()" class="gt-btn gt-btn--ghost" type="button">Annuler</button>
+    <button (click)="save()" [disabled]="!canSave()" class="gt-btn gt-btn--primary" type="button">
+      @if (saving()) {
+        <c-spinner size="sm" />
+      }
+      Enregistrer
+    </button>
+  </div>
+</div>

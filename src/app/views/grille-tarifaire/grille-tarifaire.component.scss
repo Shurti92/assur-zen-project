@@ -1,0 +1,471 @@
+// Grille tarifaire des devis : cartes par tarif. S'appuie sur les variables CoreUI pour suivre le thème clair/sombre.
+:host {
+  display: block;
+}
+
+.gt {
+  --gt-pri: var(--cui-primary, #4f46e5);
+  --gt-pri-soft: color-mix(in srgb, var(--gt-pri) 12%, transparent);
+  --gt-card: var(--cui-body-bg, #fff);
+  --gt-bd: var(--cui-border-color, #e4e7ef);
+  --gt-mut: var(--cui-secondary-color, #6b7385);
+  --gt-ok: var(--cui-success, #16a34a);
+  --gt-radius: 14px;
+
+  width: 100%;
+  padding-bottom: 6rem;
+}
+
+.gt-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+
+  h1 {
+    font-size: 1.4rem;
+    margin: 0 0 0.25rem;
+  }
+}
+
+.gt-sub {
+  color: var(--gt-mut);
+  margin: 0;
+}
+
+.gt-empty {
+  color: var(--gt-mut);
+  padding: 1.5rem 0;
+}
+
+.gt-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.gt-kpi {
+  background: var(--gt-card);
+  border: 1px solid var(--gt-bd);
+  border-radius: var(--gt-radius);
+  padding: 0.85rem 1rem;
+
+  span {
+    display: block;
+    color: var(--gt-mut);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  b {
+    display: block;
+    font-size: 1.4rem;
+    margin-top: 0.1rem;
+  }
+}
+
+.gt-kpi-small {
+  font-size: 1rem !important;
+  margin-top: 0.55rem !important;
+}
+
+.gt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  color: var(--gt-mut);
+  font-size: 0.8rem;
+  margin-bottom: 1.1rem;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+}
+
+.gt-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.gt-formula {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.75rem;
+
+  h2 {
+    font-size: 1.05rem;
+    margin: 0;
+  }
+}
+
+.gt-chip {
+  background: var(--gt-pri-soft);
+  color: var(--gt-pri);
+  padding: 0.15rem 0.65rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.gt-cards {
+  display: grid;
+  // Deux cartes (Moto, Tricycle) se partagent toute la largeur ; une colonne sur petit écran.
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 767.98px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gt-card {
+  background: var(--gt-card);
+  border: 1px solid var(--gt-bd);
+  border-radius: var(--gt-radius);
+  padding: 1.1rem;
+  transition:
+    box-shadow 0.15s,
+    border-color 0.15s,
+    opacity 0.15s;
+
+  &:hover {
+    box-shadow: 0 6px 24px rgba(30, 35, 60, 0.08);
+  }
+}
+
+.gt-card--changed {
+  border-color: var(--gt-pri);
+  box-shadow: 0 0 0 3px var(--gt-pri-soft);
+}
+
+.gt-card--error {
+  border-color: var(--cui-danger, #e55353);
+}
+
+.gt-card--off {
+  opacity: 0.6;
+}
+
+.gt-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.gt-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 700;
+  font-size: 1rem;
+
+  small {
+    display: block;
+    font-weight: 500;
+    color: var(--gt-mut);
+    font-size: 0.78rem;
+  }
+}
+
+.gt-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--gt-pri-soft);
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+}
+
+.gt-select,
+.gt-duration {
+  border: 1px solid var(--gt-bd);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0.1rem 0.35rem;
+}
+
+.gt-duration {
+  width: 3.2rem;
+  text-align: right;
+}
+
+.gt-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex: none;
+  margin: 0;
+
+  input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  i {
+    position: absolute;
+    inset: 0;
+    background: #c9cedb;
+    border-radius: 99px;
+    transition: 0.15s;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 16px;
+      height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.15s;
+    }
+  }
+
+  input:checked + i {
+    background: var(--gt-ok);
+
+    &::after {
+      transform: translateX(18px);
+    }
+  }
+
+  input:focus-visible + i {
+    outline: 2px solid var(--gt-pri);
+    outline-offset: 2px;
+  }
+}
+
+.gt-total {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+
+  b {
+    font-size: 1.9rem;
+    letter-spacing: -0.02em;
+  }
+
+  span {
+    color: var(--gt-mut);
+  }
+}
+
+.gt-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--gt-bd);
+  margin-bottom: 0.9rem;
+
+  div {
+    transition: width 0.25s;
+  }
+}
+
+.gt-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.gt-field label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--gt-mut);
+  margin-bottom: 0.25rem;
+}
+
+.gt-input {
+  position: relative;
+
+  input {
+    width: 100%;
+    padding: 0.5rem 1.8rem 0.5rem 0.6rem;
+    border: 1px solid var(--gt-bd);
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+
+    &:focus {
+      outline: 2px solid var(--gt-pri);
+      border-color: transparent;
+    }
+  }
+
+  &::after {
+    content: 'F';
+    position: absolute;
+    right: 0.7rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gt-mut);
+    font-size: 0.75rem;
+    pointer-events: none;
+  }
+}
+
+.gt-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--gt-bd);
+  color: var(--gt-mut);
+  font-size: 0.78rem;
+}
+
+.gt-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.gt-ok {
+  color: var(--gt-ok);
+  font-weight: 600;
+}
+
+.gt-warn {
+  color: var(--cui-warning, #b45309);
+  font-weight: 600;
+}
+
+.gt-error {
+  color: var(--cui-danger, #e55353);
+  font-weight: 600;
+}
+
+.gt-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--gt-pri);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.gt-add {
+  border: 2px dashed var(--gt-bd);
+  background: transparent;
+  border-radius: var(--gt-radius);
+  // Bande pleine largeur sous les cartes.
+  grid-column: 1 / -1;
+  min-height: 5rem;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--gt-mut);
+  cursor: pointer;
+  padding: 0.9rem 1.25rem;
+
+  &:hover:not(:disabled) {
+    border-color: var(--gt-pri);
+    color: var(--gt-pri);
+    background: var(--gt-pri-soft);
+  }
+
+  span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  b {
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+
+  small {
+    font-size: 0.8rem;
+  }
+}
+
+.gt-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.gt-btn--primary {
+  background: var(--gt-pri);
+  color: #fff;
+}
+
+.gt-btn--ghost {
+  background: transparent;
+  color: #cfd3e2;
+}
+
+.gt-btn--secondary {
+  background: var(--gt-card);
+  color: inherit;
+  border: 1px solid var(--gt-bd);
+}
+
+// Barre flottante « modifications non enregistrées ».
+.gt-save {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translate(-50%, 160%);
+  transition: transform 0.25s;
+  background: #1f2433;
+  color: #fff;
+  border-radius: 16px;
+  padding: 0.7rem 0.8rem 0.7rem 1.25rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  width: max-content;
+  max-width: calc(100vw - 1.5rem);
+  z-index: 1030;
+}
+
+.gt-save--on {
+  transform: translate(-50%, 0);
+}

@@ -107,6 +107,30 @@ const baseNavItems: INavData[] = [
     url: '/assures',
   },
   {
+    // Devis en ligne (produit Moto). Les devis sont ouverts à ADMIN et COMMERCIAL ; la grille
+    // tarifaire est ADMIN seulement (voir getNavItems).
+    name: 'nav.devis.title',
+    url: '/devis',
+    iconComponent: { name: 'cilCalculator' },
+    children: [
+      {
+        name: 'nav.devis.liste',
+        url: '/devis/liste',
+        icon: 'nav-icon-bullet',
+      },
+      {
+        name: 'nav.devis.grille',
+        url: '/devis/grille-tarifaire',
+        icon: 'nav-icon-bullet',
+      },
+      {
+        name: 'nav.devis.marques',
+        url: '/devis/marques',
+        icon: 'nav-icon-bullet',
+      },
+    ],
+  },
+  {
     // Administration de l'application mobile (ADMIN). Les écrans Catalogue et Demandes mobile
     // s'ajouteront ici au fur et à mesure.
     name: 'nav.mobile.title',
@@ -522,7 +546,18 @@ const adminNavItems: INavData[] = [
  * différente) — même choix que role === 'ADMIN' dans VignettesMotoComponent. */
 const ADMIN_ONLY_NAV_NAMES = new Set(['nav.ged', 'nav.sortiesDeFonds', 'nav.sycapay.title', 'nav.mobile.title']);
 
-export function getNavItems(canAccessAdminMenus: boolean, isAdmin: boolean): INavData[] {
-  const items = isAdmin ? baseNavItems : baseNavItems.filter((item) => !ADMIN_ONLY_NAV_NAMES.has(item.name ?? ''));
+/** Devis : la grille tarifaire est réservée ADMIN, le reste du menu est ouvert aux commerciaux. */
+const DEVIS_ADMIN_ONLY_CHILDREN = new Set(['nav.devis.grille', 'nav.devis.marques']);
+
+export function getNavItems(canAccessAdminMenus: boolean, isAdmin: boolean, isCommercial = false): INavData[] {
+  const base = baseNavItems
+    // Menu Devis : ADMIN et COMMERCIAL ; les autres profils ne le voient pas.
+    .filter((item) => item.name !== 'nav.devis.title' || isAdmin || isCommercial)
+    .map((item) =>
+      item.name === 'nav.devis.title' && !isAdmin
+        ? { ...item, children: item.children?.filter((c) => !DEVIS_ADMIN_ONLY_CHILDREN.has(c.name ?? '')) }
+        : item,
+    );
+  const items = isAdmin ? base : base.filter((item) => !ADMIN_ONLY_NAV_NAMES.has(item.name ?? ''));
   return canAccessAdminMenus ? [...items, ...adminNavItems] : items;
 }

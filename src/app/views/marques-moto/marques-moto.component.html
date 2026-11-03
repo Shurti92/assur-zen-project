@@ -1,0 +1,107 @@
+<div class="mm">
+  <header class="mm-header">
+    <h1>Marques moto</h1>
+    <p class="mm-sub">
+      Liste proposée dans le devis moto de l'application mobile. L'ordre affiché ici est l'ordre dans l'application.
+    </p>
+  </header>
+
+  @if (error()) {
+    <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+  }
+  @if (success()) {
+    <app-alert-message variant="success" [message]="success()!" [dismissible]="true" (dismissed)="success.set(null)" />
+  }
+
+  @if (loading()) {
+    <p class="mm-empty"><c-spinner size="sm" /> Chargement des marques…</p>
+  } @else {
+    <div class="mm-grid">
+      <section [class.mm-card--changed]="changed()" class="mm-card">
+        @if (items().length === 0) {
+          <div class="mm-info">ⓘ La liste est vide : l'application mobile revient à la saisie libre de la marque.</div>
+        }
+
+        <div class="mm-bar">
+          <div class="mm-add">
+            <input
+              (input)="onNewBrandInput($any($event.target).value)"
+              (keydown.enter)="add()"
+              [class.mm-invalid]="!!newBrandError()"
+              [attr.maxlength]="maxLength"
+              [value]="newBrand()"
+              aria-label="Nouvelle marque"
+              class="mm-input"
+              placeholder="Ajouter une marque (Entrée)"
+            />
+            <button (click)="add()" class="mm-btn mm-btn--primary" type="button">+ Ajouter</button>
+          </div>
+          <button (click)="sortAlphabetically()" [disabled]="items().length < 2" class="mm-btn mm-btn--secondary" type="button">
+            Trier A → Z
+          </button>
+        </div>
+        <div class="mm-err">{{ newBrandError() }}</div>
+
+        <div class="mm-count">
+          <span>{{ items().length }} / {{ maxBrands }} marques</span>
+          <span>Glisser ⠿ pour réordonner · cliquer sur un nom pour le modifier</span>
+        </div>
+
+        <ul (cdkDropListDropped)="drop($event)" cdkDropList class="mm-list">
+          @for (item of items(); track item.id; let i = $index) {
+            <li [class.mm-item--error]="!!itemError(item)" cdkDrag class="mm-item">
+              <span cdkDragHandle class="mm-handle" title="Glisser pour réordonner">⠿</span>
+              <span class="mm-num">{{ i + 1 }}</span>
+              <input
+                (input)="rename(item, $any($event.target).value)"
+                [attr.aria-label]="'Marque ' + (i + 1)"
+                [attr.maxlength]="maxLength"
+                [value]="item.name"
+                class="mm-name"
+              />
+              @if (itemError(item); as e) {
+                <span class="mm-item-error">{{ e }}</span>
+              }
+              <button (click)="move(i, -1)" [disabled]="i === 0" class="mm-icon" title="Monter" type="button">↑</button>
+              <button (click)="move(i, 1)" [disabled]="i === items().length - 1" class="mm-icon" title="Descendre" type="button">↓</button>
+              <button (click)="remove(item)" class="mm-icon mm-icon--danger" title="Supprimer" type="button">✕</button>
+            </li>
+          } @empty {
+            <li class="mm-empty">Aucune marque. Ajoutez-en une ci-dessus.</li>
+          }
+        </ul>
+      </section>
+
+      <aside class="mm-card">
+        <div class="mm-phone">
+          <h3>Aperçu dans l'application</h3>
+          <div class="mm-fake"><span>Marque</span><span>▾</span></div>
+          <div class="mm-opts">
+            @for (b of preview(); track $index) {
+              <div>{{ b }}</div>
+            } @empty {
+              <div class="mm-more">Saisie libre</div>
+            }
+            @if (previewMore() > 0) {
+              <div class="mm-more">… et {{ previewMore() }} autre{{ previewMore() > 1 ? 's' : '' }}</div>
+            }
+          </div>
+        </div>
+        <p class="mm-rules">
+          Max. {{ maxBrands }} marques · 1 à {{ maxLength }} caractères · sans virgule ni point-virgule · doublons ignorés (sans tenir compte de la casse).
+        </p>
+      </aside>
+    </div>
+  }
+
+  <div [class.mm-save--on]="changed()" class="mm-save" role="status">
+    <span>Liste modifiée, non enregistrée</span>
+    <button (click)="cancel()" [disabled]="saving()" class="mm-btn mm-btn--ghost" type="button">Annuler</button>
+    <button (click)="save()" [disabled]="!canSave()" class="mm-btn mm-btn--primary" type="button">
+      @if (saving()) {
+        <c-spinner size="sm" />
+      }
+      Enregistrer
+    </button>
+  </div>
+</div>

@@ -3,6 +3,7 @@ import { provideTranslocoScope } from '@jsverse/transloco';
 
 import {
   adminGuard,
+  quoteGuard,
   authGuard,
   changePasswordGuard,
   invalidUrlGuard,
@@ -433,6 +434,40 @@ export const routes: Routes = [
         data: {
           title: 'Assurés',
         },
+      },
+      {
+        path: 'devis/grille-tarifaire',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./views/grille-tarifaire/grille-tarifaire.component').then((m) => m.GrilleTarifaireComponent),
+        data: {
+          title: 'Grille tarifaire',
+          section: 'Devis',
+        },
+      },
+      {
+        path: 'devis/marques',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./views/marques-moto/marques-moto.component').then((m) => m.MarquesMotoComponent),
+        data: { title: 'Marques moto', section: 'Devis' },
+      },
+      {
+        path: 'devis/liste',
+        canActivate: [quoteGuard],
+        loadComponent: () => import('./views/devis/devis-liste.component').then((m) => m.DevisListeComponent),
+        data: { title: 'Devis', section: 'Devis' },
+      },
+      {
+        path: 'devis/nouveau',
+        canActivate: [quoteGuard],
+        loadComponent: () => import('./views/devis/devis-nouveau.component').then((m) => m.DevisNouveauComponent),
+        data: { title: 'Nouveau devis', section: 'Devis' },
+      },
+      {
+        path: 'devis/liste/:reference',
+        canActivate: [quoteGuard],
+        loadComponent: () => import('./views/devis/devis-detail.component').then((m) => m.DevisDetailComponent),
+        data: { title: 'Détail du devis', section: 'Devis' },
       },
       {
         path: 'mobile/comptes',

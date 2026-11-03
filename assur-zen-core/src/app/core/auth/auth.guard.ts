@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { map } from 'rxjs';
 
+import { isCommercialRole } from '../profile/models/profile-details.model';
 import { AppAccessService } from './app-access.service';
 import { AuthService } from './auth.service';
 import { LockService } from './lock.service';
@@ -56,6 +57,17 @@ export const adminGuard: CanActivateFn = () => {
   const router = inject(Router);
 
   if (authService.currentUser()?.role === 'ADMIN') return true;
+  return router.createUrlTree(['/404'], { queryParams: { reason: 'admin-only' } });
+};
+
+/** Devis en ligne saisis au back-office : rôles ADMIN et COMMERCIAL (le 403 backend reste le vrai
+ * rempart ; un commercial ne voit que ses devis). */
+export const quoteGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  const role = authService.currentUser()?.role;
+  if (role === 'ADMIN' || isCommercialRole(role)) return true;
   return router.createUrlTree(['/404'], { queryParams: { reason: 'admin-only' } });
 };
 

@@ -60,6 +60,10 @@
   "nav.sinistres.liste": "Lista de siniestros",
 
   "nav.assures": "Asegurados",
+  "nav.devis.title": "Presupuestos",
+  "nav.devis.liste": "Lista de presupuestos",
+  "nav.devis.grille": "Tabla de tarifas",
+  "nav.devis.marques": "Marcas de moto",
   "nav.mobile.title": "AssurZen Móvil",
   "nav.mobile.comptes": "Cuentas de clientes",
   "nav.mobile.catalogue": "Catálogo móvil",

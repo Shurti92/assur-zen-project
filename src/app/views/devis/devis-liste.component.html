@@ -1,0 +1,84 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Devis · Moto</h2>
+      <p class="small text-body-secondary mb-0">Un commercial voit ses devis ; un administrateur voit tous les devis.</p>
+    </div>
+    <input
+      #q
+      (keyup.enter)="onSearch(q.value)"
+      (search)="onSearch(q.value)"
+      aria-label="Rechercher un devis"
+      class="form-control form-control-sm w-auto"
+      placeholder="Nom, téléphone, référence, immatriculation (Entrée)"
+      style="min-width: 20rem"
+      type="search"
+    />
+    <select (change)="onStatusChange($any($event.target).value)" aria-label="Filtrer par statut" class="form-select form-select-sm w-auto">
+      <option value="">Tous les statuts</option>
+      @for (s of statuses; track s) {
+        <option [value]="s">{{ statusLabel[s] }}</option>
+      }
+    </select>
+    <div class="dl-actions">
+      <button (click)="load()" [disabled]="loading()" cButton class="dl-btn" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        }
+        Actualiser
+      </button>
+      <a cButton color="primary" routerLink="/devis/nouveau">+ Nouveau devis</a>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="dl-empty">{{ error() }} <button (click)="load()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="dl-empty">Chargement des devis…</p>
+  } @else if (quotes().length === 0) {
+    <p class="dl-empty">Aucun devis ne correspond.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Référence</th>
+            <th scope="col">Prospect</th>
+            <th scope="col">Téléphone</th>
+            <th scope="col">Véhicule</th>
+            <th scope="col">Immat.</th>
+            <th scope="col">Total</th>
+            <th scope="col">Valable jusqu'au</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of pageItems(); track d.reference) {
+            <tr>
+              <td class="dl-timestamp">{{ d.reference }}</td>
+              <td>{{ d.prospectName || '—' }}</td>
+              <td class="dl-timestamp">{{ d.prospectPhone || '—' }}</td>
+              <td>{{ vehicleLabel(d) }}</td>
+              <td>{{ d.registrationNumber || '—' }}</td>
+              <td>{{ formatAmount(d.premium.total) }}</td>
+              <td class="dl-timestamp">{{ formatDate(d.validUntil) }}</td>
+              <td><span [class]="'dl-chip dl-chip--' + statusVariant[d.status]">{{ statusLabel[d.status] }}</span></td>
+              <td><a [routerLink]="['/devis/liste', d.reference]" cButton class="dl-btn" size="sm">Voir</a></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="dl-footnote">
+    <span>
+      <strong>{{ pageItems().length }}</strong> sur {{ quotes().length }} devis (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+    </div>
+  </div>
+</section>

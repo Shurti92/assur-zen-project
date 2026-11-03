@@ -1,0 +1,128 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>Nouveau devis Moto</h2>
+    </div>
+    <div class="dl-actions">
+      <a cButton class="dl-btn" routerLink="/devis/liste">← Liste des devis</a>
+    </div>
+  </div>
+
+  <div class="px-3">
+    @if (error()) {
+      <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+    }
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="simulate()" class="row g-3 px-3 pb-3">
+    <div class="col-lg-8">
+      <h3 class="h6 text-uppercase text-body-secondary">Prospect</h3>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label" for="dv-name">Nom *</label>
+          <input class="form-control" formControlName="prospectName" id="dv-name" [class.is-invalid]="hasError('prospectName')" />
+          @if (fieldError('prospectName'); as e) { <div class="invalid-feedback">{{ e }}</div> }
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="dv-phone">Téléphone * (10 chiffres)</label>
+          <input class="form-control" formControlName="prospectPhone" id="dv-phone" inputmode="numeric" maxlength="10" placeholder="0701020304" [class.is-invalid]="hasError('prospectPhone')" />
+          <div class="invalid-feedback">{{ fieldError('prospectPhone') ?? 'Le téléphone doit comporter 10 chiffres.' }}</div>
+        </div>
+      </div>
+
+      <h3 class="h6 text-uppercase text-body-secondary">Véhicule</h3>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="dv-type">Type *</label>
+          <select class="form-select" formControlName="vehicleType" id="dv-type">
+            <option value="MOTO">Moto</option>
+            <option value="TRICYCLE">Tricycle</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="dv-cc">Cylindrée (cc) *</label>
+          <input class="form-control" formControlName="cylinderCc" id="dv-cc" min="1" type="number" [class.is-invalid]="hasError('cylinderCc')" />
+          <div class="invalid-feedback">La cylindrée est obligatoire.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="dv-brand">Marque *</label>
+          <input class="form-control" formControlName="brand" id="dv-brand" [class.is-invalid]="hasError('brand')" />
+          <div class="invalid-feedback">La marque est obligatoire.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="dv-model">Modèle *</label>
+          <input class="form-control" formControlName="model" id="dv-model" [class.is-invalid]="hasError('model')" />
+          <div class="invalid-feedback">Le modèle est obligatoire.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="dv-duration">Durée *</label>
+          <select class="form-select" formControlName="durationMonths" id="dv-duration" [class.is-invalid]="hasError('durationMonths')">
+            @for (m of durations(); track m) {
+              <option [ngValue]="m">{{ m }} mois</option>
+            }
+          </select>
+          @if (fieldError('durationMonths'); as e) { <div class="invalid-feedback">{{ e }}</div> }
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="dv-date">Date d'effet *</label>
+          <input class="form-control" formControlName="effectiveDate" id="dv-date" [min]="minDate()" type="date" [class.is-invalid]="hasError('effectiveDate')" />
+          <div class="invalid-feedback">{{ fieldError('effectiveDate') ?? "La date d'effet est obligatoire." }}</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="dv-immat">Immatriculation</label>
+          <input class="form-control" formControlName="registrationNumber" id="dv-immat" [class.is-invalid]="hasError('registrationNumber') || identifierMissing()" />
+          @if (fieldError('registrationNumber'); as e) { <div class="invalid-feedback">{{ e }}</div> }
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="dv-chassis">N° de châssis</label>
+          <input class="form-control" formControlName="chassisNumber" id="dv-chassis" [class.is-invalid]="identifierMissing()" />
+        </div>
+      </div>
+      <div class="small mt-2" [class.text-danger]="identifierMissing()" [class.text-body-secondary]="!identifierMissing()">
+        Immatriculation ou châssis : au moins un des deux.
+      </div>
+      <div class="mt-3">
+        <button [disabled]="simulating()" cButton class="dl-btn" type="submit">
+          @if (simulating()) {
+            <c-spinner size="sm" />
+          }
+          Calculer le prix
+        </button>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <h3 class="h6 text-uppercase text-body-secondary">Prix et garanties</h3>
+      @if (simulation(); as s) {
+        @if (!simulationUpToDate()) {
+          <p class="small text-warning">Le formulaire a changé : recalculez le prix avant d'enregistrer.</p>
+        }
+        <div class="fs-2 fw-bold text-primary">{{ formatAmount(s.premium.total) }}</div>
+        <div class="text-body-secondary mb-2">{{ s.formulaName }} · {{ s.durationMonths }} mois</div>
+        <table class="table table-sm mb-3">
+          <tbody>
+            <tr><td>Prime nette</td><td class="text-end">{{ s.premium.netPremium.toLocaleString('fr-FR') }}</td></tr>
+            <tr><td>Taxes</td><td class="text-end">{{ s.premium.taxes.toLocaleString('fr-FR') }}</td></tr>
+            <tr><td>Accessoires</td><td class="text-end">{{ s.premium.accessories.toLocaleString('fr-FR') }}</td></tr>
+            <tr><td>FGA</td><td class="text-end">{{ s.premium.fga.toLocaleString('fr-FR') }}</td></tr>
+          </tbody>
+        </table>
+        @for (g of s.guarantees; track g.label) {
+          <div class="fw-semibold">{{ g.label }}</div>
+          @for (d of g.details ?? []; track d.label) {
+            <div class="small text-body-secondary">{{ d.label }} : {{ d.amount }}</div>
+          }
+        }
+        <button (click)="save()" [disabled]="saving() || !simulationUpToDate()" cButton class="mt-3" color="primary" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Enregistrer le devis
+        </button>
+        <p class="small text-body-secondary mt-2 mb-0">L'enregistrement fige le prix.</p>
+      } @else {
+        <p class="text-body-secondary">Renseignez le véhicule puis cliquez sur « Calculer le prix ». Aucun devis n'est enregistré à ce stade.</p>
+      }
+    </div>
+  </form>
+</section>

@@ -1,0 +1,317 @@
+// Marques moto : liste réordonnable. Variables CoreUI pour suivre le thème clair/sombre.
+:host {
+  display: block;
+}
+
+.mm {
+  --mm-pri: var(--cui-primary, #4f46e5);
+  --mm-soft: color-mix(in srgb, var(--mm-pri) 12%, transparent);
+  --mm-card: var(--cui-body-bg, #fff);
+  --mm-bd: var(--cui-border-color, #e4e7ef);
+  --mm-mut: var(--cui-secondary-color, #6b7385);
+  --mm-ko: var(--cui-danger, #e55353);
+  --mm-radius: 14px;
+
+  width: 100%;
+  padding-bottom: 6rem;
+}
+
+.mm-header h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.25rem;
+}
+
+.mm-sub {
+  color: var(--mm-mut);
+  margin: 0 0 1.25rem;
+}
+
+.mm-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(17.5rem, 1fr);
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 899.98px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mm-card {
+  background: var(--mm-card);
+  border: 1px solid var(--mm-bd);
+  border-radius: var(--mm-radius);
+  padding: 1.1rem;
+}
+
+.mm-card--changed {
+  border-color: var(--mm-pri);
+  box-shadow: 0 0 0 3px var(--mm-soft);
+}
+
+.mm-info {
+  background: color-mix(in srgb, var(--cui-warning, #f9b115) 18%, transparent);
+  border-radius: 12px;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.mm-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.mm-add {
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  min-width: 15rem;
+}
+
+.mm-input,
+.mm-name {
+  border: 1px solid var(--mm-bd);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  min-width: 0;
+
+  &:focus {
+    outline: 2px solid var(--mm-pri);
+    border-color: transparent;
+  }
+}
+
+.mm-input {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+}
+
+.mm-invalid {
+  outline: 2px solid var(--mm-ko);
+  border-color: transparent;
+}
+
+.mm-err {
+  color: var(--mm-ko);
+  font-size: 0.78rem;
+  min-height: 1.1rem;
+  margin: -0.35rem 0 0.5rem;
+}
+
+.mm-count {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: var(--mm-mut);
+  font-size: 0.78rem;
+  margin-bottom: 0.5rem;
+}
+
+.mm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+  max-height: 35rem;
+  overflow: auto;
+}
+
+.mm-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--mm-bd);
+  border-radius: 10px;
+  background: var(--mm-card);
+}
+
+.mm-item--error {
+  border-color: var(--mm-ko);
+}
+
+.mm-handle {
+  cursor: grab;
+  color: var(--mm-mut);
+  user-select: none;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.mm-num {
+  width: 1.6rem;
+  text-align: right;
+  color: var(--mm-mut);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+}
+
+.mm-name {
+  flex: 1;
+  border: 0;
+  padding: 0.25rem;
+  border-radius: 6px;
+}
+
+.mm-item-error {
+  color: var(--mm-ko);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.mm-icon {
+  border: 0;
+  background: transparent;
+  color: var(--mm-mut);
+  cursor: pointer;
+  padding: 0.15rem 0.5rem;
+  border-radius: 8px;
+
+  &:hover:not(:disabled) {
+    background: var(--mm-soft);
+    color: var(--mm-pri);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.mm-icon--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mm-ko) 14%, transparent);
+  color: var(--mm-ko);
+}
+
+.mm-empty {
+  text-align: center;
+  color: var(--mm-mut);
+  padding: 1.5rem;
+}
+
+// Aperçu de la liste déroulante mobile.
+.mm-phone {
+  border: 1px solid var(--mm-bd);
+  border-radius: 22px;
+  padding: 0.9rem;
+  background: var(--cui-tertiary-bg, #f3f4f7);
+
+  h3 {
+    margin: 0 0 0.6rem;
+    font-size: 0.78rem;
+    color: var(--mm-mut);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+.mm-fake {
+  display: flex;
+  justify-content: space-between;
+  border: 1px solid var(--mm-bd);
+  border-radius: 12px;
+  background: var(--mm-card);
+  padding: 0.6rem 0.75rem;
+}
+
+.mm-opts {
+  margin-top: 0.4rem;
+  border: 1px solid var(--mm-bd);
+  border-radius: 12px;
+  background: var(--mm-card);
+  overflow: hidden;
+
+  div {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--mm-bd);
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+}
+
+.mm-more {
+  color: var(--mm-mut);
+  font-size: 0.78rem;
+}
+
+.mm-rules {
+  color: var(--mm-mut);
+  font-size: 0.78rem;
+  margin: 0.8rem 0 0;
+}
+
+.mm-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.mm-btn--primary {
+  background: var(--mm-pri);
+  color: #fff;
+}
+
+.mm-btn--secondary {
+  background: transparent;
+  border: 1px solid var(--mm-bd);
+  color: inherit;
+}
+
+.mm-btn--ghost {
+  background: transparent;
+  color: #cfd3e2;
+}
+
+// Barre flottante « liste modifiée ».
+.mm-save {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translate(-50%, 160%);
+  transition: transform 0.25s;
+  background: #1f2433;
+  color: #fff;
+  border-radius: 16px;
+  padding: 0.7rem 0.8rem 0.7rem 1.25rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  width: max-content;
+  max-width: calc(100vw - 1.5rem);
+  z-index: 1030;
+}
+
+.mm-save--on {
+  transform: translate(-50%, 0);
+}
+
+// Pendant le glisser-déposer (CDK).
+.cdk-drag-preview {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.35;
+}
+
+.cdk-drop-list-dragging .mm-item:not(.cdk-drag-placeholder) {
+  transition: transform 0.2s;
+}

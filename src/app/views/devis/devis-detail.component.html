@@ -1,0 +1,87 @@
+<section class="dl-panel">
+  <div class="dl-toolbar">
+    <div class="dl-toolbar-title">
+      <h2>
+        {{ reference() }}
+        @if (quote(); as q) {
+          <span [class]="'dl-chip dl-chip--' + statusVariant[q.status]">{{ statusLabel[q.status] }}</span>
+        }
+      </h2>
+      @if (quote(); as q) {
+        <p class="small text-body-secondary mb-0">Créé le {{ formatDate(q.createdAt) }} · valable jusqu'au {{ formatDate(q.validUntil) }}</p>
+      }
+    </div>
+    <div class="dl-actions">
+      <a cButton class="dl-btn" routerLink="/devis/liste">← Liste des devis</a>
+    </div>
+  </div>
+
+  <div class="px-3">
+    @if (error()) {
+      <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+    }
+    @if (success()) {
+      <app-alert-message variant="success" [message]="success()!" [dismissible]="true" (dismissed)="success.set(null)" />
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="dl-empty">Chargement du devis…</p>
+  } @else if (quote(); as q) {
+    <div class="row g-3 px-3 pb-3">
+      <div class="col-lg-8">
+        <h3 class="h6 text-uppercase text-body-secondary">Prospect et véhicule</h3>
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Prospect</dt>
+          <dd class="col-sm-8">{{ q.prospectName || '—' }}</dd>
+          <dt class="col-sm-4">Téléphone</dt>
+          <dd class="col-sm-8">{{ q.prospectPhone || '—' }}</dd>
+          <dt class="col-sm-4">Véhicule</dt>
+          <dd class="col-sm-8">{{ q.vehicleType === 'MOTO' ? 'Moto' : 'Tricycle' }} · {{ q.brand }} {{ q.model }} · {{ q.cylinderCc }} cc</dd>
+          <dt class="col-sm-4">Immatriculation</dt>
+          <dd class="col-sm-8">{{ q.registrationNumber || '—' }}</dd>
+          <dt class="col-sm-4">N° de châssis</dt>
+          <dd class="col-sm-8">{{ q.chassisNumber || '—' }}</dd>
+          <dt class="col-sm-4">Période</dt>
+          <dd class="col-sm-8">{{ formatDate(q.effectiveDate) }} → {{ formatDate(q.expiryDate) }} ({{ q.durationMonths }} mois)</dd>
+          @if (q.acceptedAt) {
+            <dt class="col-sm-4">Accepté le</dt>
+            <dd class="col-sm-8">{{ formatDate(q.acceptedAt) }}</dd>
+          }
+        </dl>
+      </div>
+      <div class="col-lg-4">
+        <h3 class="h6 text-uppercase text-body-secondary">Prix</h3>
+        <div class="fs-2 fw-bold text-primary">{{ formatAmount(q.premium.total) }}</div>
+        <div class="text-body-secondary mb-2">{{ q.formulaName }} · {{ q.durationMonths }} mois</div>
+        <table class="table table-sm mb-3">
+          <tbody>
+            <tr><td>Prime nette</td><td class="text-end">{{ q.premium.netPremium.toLocaleString('fr-FR') }}</td></tr>
+            <tr><td>Taxes</td><td class="text-end">{{ q.premium.taxes.toLocaleString('fr-FR') }}</td></tr>
+            <tr><td>Accessoires</td><td class="text-end">{{ q.premium.accessories.toLocaleString('fr-FR') }}</td></tr>
+            <tr><td>FGA</td><td class="text-end">{{ q.premium.fga.toLocaleString('fr-FR') }}</td></tr>
+          </tbody>
+        </table>
+        @if (q.guarantees.length > 0) {
+          <h3 class="h6 text-uppercase text-body-secondary">Garanties</h3>
+          @for (g of q.guarantees; track g.label) {
+            <div class="fw-semibold">{{ g.label }}</div>
+            @for (d of g.details ?? []; track d.label) {
+              <div class="small text-body-secondary">{{ d.label }} : {{ d.amount }}</div>
+            }
+          }
+        }
+        @if (q.canAccept) {
+          <button (click)="accept()" [disabled]="accepting()" cButton class="mt-3" color="primary" type="button">
+            @if (accepting()) {
+              <c-spinner size="sm" />
+            }
+            Marquer comme accepté
+          </button>
+        } @else if (q.status === 'EXPIRE') {
+          <p class="text-body-secondary mt-3 mb-0">Devis expiré.</p>
+        }
+      </div>
+    </div>
+  }
+</section>
