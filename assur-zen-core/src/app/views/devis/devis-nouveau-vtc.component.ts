@@ -7,13 +7,14 @@ import { debounceTime } from 'rxjs';
 import { SpinnerComponent } from '@coreui/angular';
 
 import { QuoteSimulation, VtcEnergy, VtcQuoteForm, VtcVehicleRequest } from '../../core/quotes/models/quote.model';
-import { QuoteVtcSettingsService } from '../../core/quotes/quote-vtc-settings.service';
+import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteService } from '../../core/quotes/quote.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 
 const FIELD_TO_CONTROL: Record<string, string> = {
   prospectName: 'prospectName',
   prospectPhone: 'prospectPhone',
+  prospectEmail: 'prospectEmail',
   fiscalPower: 'fiscalPower',
   energy: 'energy',
   brand: 'brand',
@@ -54,7 +55,6 @@ function today(): string {
 })
 export class DevisNouveauVtcComponent {
   private readonly service = inject(QuoteService);
-  private readonly settings = inject(QuoteVtcSettingsService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder).nonNullable;
 
@@ -72,6 +72,7 @@ export class DevisNouveauVtcComponent {
   readonly form = this.fb.group({
     prospectName: ['', [Validators.required, Validators.maxLength(150)]],
     prospectPhone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+    prospectEmail: ['', [Validators.email, Validators.maxLength(150)]],
     brand: ['', Validators.required],
     model: ['', Validators.required],
     fiscalPower: [null as number | null, [Validators.required, Validators.min(1)]],
@@ -137,7 +138,14 @@ export class DevisNouveauVtcComponent {
     () => (this.value(), this.form.controls.durationMonths.valid && this.form.controls.effectiveDate.valid) && this.discount() <= this.maxDiscount(),
   );
 
-  readonly step1Done = computed(() => this.nameOk() && this.phoneOk());
+  /** Envoi par e-mail : inactif tant que la gateway n'a pas confirmé l'API (QUOTE_EMAIL_ENABLED). */
+  readonly emailEnabled = QUOTE_EMAIL_ENABLED;
+  readonly sendEmail = signal(false);
+  readonly emailFilled = computed(
+    () => (this.value(), !!this.form.controls.prospectEmail.value.trim() && this.form.controls.prospectEmail.valid),
+  );
+  readonly emailOk = computed(() => (this.value(), this.form.controls.prospectEmail.valid));
+  readonly step1Done = computed(() => this.nameOk() && this.phoneOk() && this.emailOk());
   readonly step2Done = computed(() => this.vehicleOk() && this.identifierOk());
   readonly progress = computed(() => {
     const steps = [this.nameOk(), this.phoneOk(), this.vehicleOk(), this.identifierOk(), this.contractOk()];
@@ -178,8 +186,8 @@ export class DevisNouveauVtcComponent {
       next: (opts) => this.options.set(opts),
       error: () => this.options.set(null),
     });
-    // Lisible seulement par un administrateur : à défaut, plafond par défaut (le serveur refuse au-delà).
-    this.settings.maxDiscountPercent().subscribe({
+    // Plafond lisible par ADMIN et COMMERCIAL ; à défaut, 10 % (le serveur refuse au-delà du vrai plafond).
+    this.service.vtcDiscountLimit().subscribe({
       next: (v) => this.maxDiscount.set(v),
       error: () => this.maxDiscount.set(DEFAULT_MAX_DISCOUNT),
     });
@@ -241,7 +249,7 @@ export class DevisNouveauVtcComponent {
     this.error.set(null);
     const v = this.form.getRawValue();
     this.service
-      .createVtc({ prospectName: v.prospectName.trim(), prospectPhone: v.prospectPhone, vehicle: this.vehicleRequest(true) })
+      .createVtc({ prospectName: v.prospectName.trim(), prospectPhone: v.prospectPhone, ...this.emailPart(), vehicle: this.vehicleRequest(true) })
       .subscribe({
         next: (q) => {
           this.saving.set(false);
@@ -252,6 +260,13 @@ export class DevisNouveauVtcComponent {
           this.handleError(err, "Impossible d'enregistrer le devis.");
         },
       });
+  }
+
+  /** E-mail du prospect (et envoi à l'enregistrement) : seulement si la fonction est active et l'adresse saisie. */
+  private emailPart(): { prospectEmail?: string; sendEmail?: boolean } {
+    const email = this.form.controls.prospectEmail.value.trim();
+    if (!this.emailEnabled || !email) return {};
+    return { prospectEmail: email, ...(this.sendEmail() ? { sendEmail: true } : {}) };
   }
 
   formatAmount(value: number): string {

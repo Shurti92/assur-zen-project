@@ -45,7 +45,19 @@ export interface QuoteVehicleRequest {
 export interface QuoteCreateRequest {
   prospectName: string;
   prospectPhone: string;
+  /** Facultatif ; envoyé seulement s'il est renseigné. */
+  prospectEmail?: string;
+  /** Enregistre puis envoie le devis par e-mail (nécessite prospectEmail). */
+  sendEmail?: boolean;
   vehicle: QuoteVehicleRequest;
+}
+
+/** Corps de POST /admin/quotes/{reference}/send-email. */
+export interface QuoteSendEmailRequest {
+  email: string;
+  message?: string;
+  attachPdf: boolean;
+  copyToMe: boolean;
 }
 
 /** Véhicule d'un devis automobile VTC (simulation publique, sans remise ; création avec remise facultative). */
@@ -68,6 +80,8 @@ export interface VtcVehicleRequest {
 export interface VtcQuoteCreateRequest {
   prospectName: string;
   prospectPhone: string;
+  prospectEmail?: string;
+  sendEmail?: boolean;
   vehicle: VtcVehicleRequest;
 }
 
@@ -132,6 +146,12 @@ export interface QuoteView {
   prospectName?: string | null;
   prospectPhone?: string | null;
   createdByUserId?: number | null;
+  /** Envoi par e-mail (contrat proposé, à confirmer par la gateway). */
+  prospectEmail?: string | null;
+  emailSentCount?: number | null;
+  lastEmailSentAt?: string | null;
+  lastEmailTo?: string | null;
+  lastEmailSentBy?: string | null;
   /** VTC uniquement (null pour la moto). */
   fiscalPower?: number | null;
   energy?: VtcEnergy | null;

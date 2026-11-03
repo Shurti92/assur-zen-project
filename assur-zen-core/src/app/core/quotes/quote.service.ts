@@ -6,6 +6,7 @@ import {
   QuoteCreateRequest,
   QuoteForm,
   QuoteList,
+  QuoteSendEmailRequest,
   QuoteSimulation,
   QuoteStatus,
   QuoteVehicleRequest,
@@ -46,6 +47,11 @@ export class QuoteService {
     return this.http.post<QuoteView>(`${this.base}/${encodeURIComponent(reference)}/accept`, {});
   }
 
+  /** Envoie le devis par e-mail au prospect (inactif tant que QUOTE_EMAIL_ENABLED est false). */
+  sendEmail(reference: string, request: QuoteSendEmailRequest): Observable<QuoteView> {
+    return this.http.post<QuoteView>(`${this.base}/${encodeURIComponent(reference)}/send-email`, request);
+  }
+
   /** Options du formulaire moto (types de véhicule, durées, date d'effet minimale). */
   form(): Observable<QuoteForm> {
     return this.http.get<QuoteForm>('/public/quotes/moto/form');
@@ -59,6 +65,11 @@ export class QuoteService {
   /** Options du formulaire VTC (énergies, durées, marques, plateformes, bornes CV et places). */
   vtcForm(): Observable<VtcQuoteForm> {
     return this.http.get<VtcQuoteForm>('/public/quotes/vtc/form');
+  }
+
+  /** Plafond de remise VTC, lisible par ADMIN et COMMERCIAL (GET /admin/quotes/vtc/discount-limit). */
+  vtcDiscountLimit(): Observable<number> {
+    return this.http.get<{ maxDiscountPercent: number }>(`${this.base}/vtc/discount-limit`).pipe(map((r) => r.maxDiscountPercent));
   }
 
   /** Calcul du prix VTC sans aucune écriture (sans remise : elle est estimée à l'écran). */

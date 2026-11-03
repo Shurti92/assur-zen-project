@@ -7,6 +7,7 @@ import { debounceTime } from 'rxjs';
 import { SpinnerComponent } from '@coreui/angular';
 
 import { QuoteForm, QuoteSimulation, QuoteVehicleRequest } from '../../core/quotes/models/quote.model';
+import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteService } from '../../core/quotes/quote.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 
@@ -14,6 +15,7 @@ import { AlertMessageComponent } from '../../shared/alert-message/alert-message.
 const FIELD_TO_CONTROL: Record<string, string> = {
   prospectPhone: 'prospectPhone',
   prospectName: 'prospectName',
+  prospectEmail: 'prospectEmail',
   registrationNumber: 'registrationNumber',
   chassisNumber: 'registrationNumber',
   effectiveDate: 'effectiveDate',
@@ -52,6 +54,7 @@ export class DevisNouveauComponent {
   readonly form = this.fb.group({
     prospectName: ['', [Validators.required, Validators.maxLength(150)]],
     prospectPhone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+    prospectEmail: ['', [Validators.email, Validators.maxLength(150)]],
     vehicleType: ['MOTO', Validators.required],
     cylinderCc: [null as number | null, [Validators.required, Validators.min(1)]],
     brand: ['', Validators.required],
@@ -83,7 +86,14 @@ export class DevisNouveauComponent {
   });
   readonly contractOk = computed(() => (this.value(), this.form.controls.durationMonths.valid && this.form.controls.effectiveDate.valid));
 
-  readonly step1Done = computed(() => this.nameOk() && this.phoneOk());
+  /** Envoi par e-mail : inactif tant que la gateway n'a pas confirmé l'API (QUOTE_EMAIL_ENABLED). */
+  readonly emailEnabled = QUOTE_EMAIL_ENABLED;
+  readonly sendEmail = signal(false);
+  readonly emailFilled = computed(
+    () => (this.value(), !!this.form.controls.prospectEmail.value.trim() && this.form.controls.prospectEmail.valid),
+  );
+  readonly emailOk = computed(() => (this.value(), this.form.controls.prospectEmail.valid));
+  readonly step1Done = computed(() => this.nameOk() && this.phoneOk() && this.emailOk());
   readonly step2Done = computed(() => this.vehicleOk() && this.identifierOk());
   readonly progress = computed(() => {
     const steps = [this.nameOk(), this.phoneOk(), this.vehicleOk(), this.identifierOk(), this.contractOk()];
@@ -180,7 +190,7 @@ export class DevisNouveauComponent {
     this.error.set(null);
     const v = this.form.getRawValue();
     this.service
-      .create({ prospectName: v.prospectName.trim(), prospectPhone: v.prospectPhone, vehicle: this.vehicleRequest() })
+      .create({ prospectName: v.prospectName.trim(), prospectPhone: v.prospectPhone, ...this.emailPart(), vehicle: this.vehicleRequest() })
       .subscribe({
         next: (q) => {
           this.saving.set(false);
@@ -191,6 +201,13 @@ export class DevisNouveauComponent {
           this.handleError(err, "Impossible d'enregistrer le devis.");
         },
       });
+  }
+
+  /** E-mail du prospect (et envoi à l'enregistrement) : seulement si la fonction est active et l'adresse saisie. */
+  private emailPart(): { prospectEmail?: string; sendEmail?: boolean } {
+    const email = this.form.controls.prospectEmail.value.trim();
+    if (!this.emailEnabled || !email) return {};
+    return { prospectEmail: email, ...(this.sendEmail() ? { sendEmail: true } : {}) };
   }
 
   formatAmount(value: number): string {

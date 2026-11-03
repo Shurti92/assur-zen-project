@@ -5,6 +5,9 @@
         {{ reference() }}
         @if (quote(); as q) {
           <span [class]="'dl-chip dl-chip--' + statusVariant[q.status]">{{ statusLabel[q.status] }}</span>
+          @if (emailEnabled && q.lastEmailSentAt) {
+            <span class="dl-chip dl-chip--warning">✉ Envoyé</span>
+          }
         }
       </h2>
       @if (quote(); as q) {
@@ -36,6 +39,10 @@
           <dd class="col-sm-8">{{ q.prospectName || '—' }}</dd>
           <dt class="col-sm-4">Téléphone</dt>
           <dd class="col-sm-8">{{ q.prospectPhone || '—' }}</dd>
+          @if (emailEnabled) {
+            <dt class="col-sm-4">E-mail</dt>
+            <dd class="col-sm-8">{{ q.prospectEmail || '—' }}</dd>
+          }
           <dt class="col-sm-4">Véhicule</dt>
           @if (q.productKey === 'automobile-vtc') {
             <dd class="col-sm-8">VTC · {{ q.brand }} {{ q.model }} · {{ q.fiscalPower }} CV · {{ q.seats }} places</dd>
@@ -57,6 +64,22 @@
             <dd class="col-sm-8">{{ formatDate(q.acceptedAt) }}</dd>
           }
         </dl>
+        @if (emailEnabled) {
+          <div class="border-top mt-3 pt-3 small text-body-secondary">
+            @if (q.lastEmailSentAt) {
+              <b class="text-body">Envoyé le {{ formatDateTime(q.lastEmailSentAt) }}</b>
+              à {{ q.lastEmailTo }}{{ q.lastEmailSentBy ? ' par ' + q.lastEmailSentBy : '' }}
+              @if ((q.emailSentCount ?? 0) > 1) {
+                ({{ q.emailSentCount }} envois)
+              }
+              @if (q.status !== 'EXPIRE') {
+                · <button (click)="emailDialogOpen.set(true)" class="btn btn-link btn-sm p-0 align-baseline" type="button">Renvoyer</button>
+              }
+            } @else {
+              <b class="text-body">Aucun envoi</b> pour ce devis.
+            }
+          </div>
+        }
       </div>
       <div class="col-lg-4">
         <h3 class="h6 text-uppercase text-body-secondary">Prix</h3>
@@ -89,8 +112,11 @@
             }
           }
         }
+        @if (emailEnabled && q.status !== 'EXPIRE') {
+          <button (click)="emailDialogOpen.set(true)" cButton class="mt-3 w-100" color="primary" type="button">✉ Envoyer par e-mail</button>
+        }
         @if (q.canAccept) {
-          <button (click)="accept()" [disabled]="accepting()" cButton class="mt-3" color="primary" type="button">
+          <button (click)="accept()" [disabled]="accepting()" cButton class="mt-2 w-100" color="primary" variant="outline" type="button">
             @if (accepting()) {
               <c-spinner size="sm" />
             }
@@ -99,7 +125,13 @@
         } @else if (q.status === 'EXPIRE') {
           <p class="text-body-secondary mt-3 mb-0">Devis expiré.</p>
         }
+        @if (emailEnabled) {
+          <p class="small text-body-secondary mt-2 mb-0">Le prospect reçoit le devis au nom d'AssurZen, avec le prix et les garanties.</p>
+        }
       </div>
     </div>
+    @if (emailDialogOpen()) {
+      <app-send-quote-email-dialog (closed)="emailDialogOpen.set(false)" (sent)="onEmailSent($event)" [quote]="q" />
+    }
   }
 </section>

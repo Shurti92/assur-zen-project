@@ -1,0 +1,59 @@
+<div (click)="closed.emit()" (keydown.escape)="closed.emit()" class="sq-ov" role="presentation">
+  <div (click)="$event.stopPropagation()" aria-labelledby="sq-title" aria-modal="true" class="sq-modal" role="dialog">
+    <h2 id="sq-title">Envoyer le devis par e-mail</h2>
+    <div class="sq-hint">{{ quote().reference }} · {{ quote().prospectName || '—' }}</div>
+
+    <div class="sq-f">
+      <label for="sq-to">Adresse e-mail du prospect *</label>
+      <div class="sq-in">
+        <i>✉️</i>
+        <input
+          (input)="setEmail($any($event.target).value)"
+          (keydown.enter)="send()"
+          [class.sq-invalid]="!!emailError()"
+          [value]="email()"
+          autocomplete="off"
+          id="sq-to"
+          type="email"
+        />
+      </div>
+      <div class="sq-err">{{ emailError() }}</div>
+    </div>
+
+    <div class="sq-f">
+      <label for="sq-msg">Message personnel <span class="sq-light">(facultatif)</span></label>
+      <textarea
+        (input)="message.set($any($event.target).value)"
+        [attr.maxlength]="maxMessage"
+        [value]="message()"
+        id="sq-msg"
+        placeholder="Ajoutez un mot pour le prospect…"
+      ></textarea>
+    </div>
+
+    <button (click)="attachPdf.set(!attachPdf())" [attr.aria-pressed]="attachPdf()" [class.sq-on]="attachPdf()" class="sq-opt" type="button">
+      <span class="sq-ck">✓</span>
+      <span><b>Joindre le devis en PDF</b><small>Prix, garanties et période de couverture</small></span>
+    </button>
+    <button (click)="copyToMe.set(!copyToMe())" [attr.aria-pressed]="copyToMe()" [class.sq-on]="copyToMe()" class="sq-opt" type="button">
+      <span class="sq-ck">✓</span>
+      <span><b>M'envoyer une copie</b><small>À l'adresse de votre compte</small></span>
+    </button>
+
+    <div class="sq-mini"><span>Total du devis</span><b>{{ formatAmount(quote().premium.total) }}</b></div>
+
+    @if (error()) {
+      <div class="sq-fail" role="alert">{{ error() }}</div>
+    }
+
+    <div class="sq-ft">
+      <button (click)="closed.emit()" [disabled]="sending()" class="sq-btn sq-btn--secondary" type="button">Annuler</button>
+      <button (click)="send()" [disabled]="!canSend()" class="sq-btn" type="button">
+        @if (sending()) {
+          <c-spinner size="sm" />
+        }
+        ✉ Envoyer le devis
+      </button>
+    </div>
+  </div>
+</div>

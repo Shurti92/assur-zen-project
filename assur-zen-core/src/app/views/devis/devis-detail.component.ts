@@ -3,15 +3,17 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
+import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteView } from '../../core/quotes/models/quote.model';
 import { QuoteService } from '../../core/quotes/quote.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
+import { SendQuoteEmailDialogComponent } from './send-quote-email-dialog.component';
 import { QUOTE_STATUS_LABEL, QUOTE_STATUS_VARIANT } from './devis-liste.component';
 
 @Component({
   selector: 'app-devis-detail',
   templateUrl: './devis-detail.component.html',
-  imports: [AlertMessageComponent, ButtonDirective, RouterLink, SpinnerComponent],
+  imports: [AlertMessageComponent, ButtonDirective, RouterLink, SendQuoteEmailDialogComponent, SpinnerComponent],
 })
 export class DevisDetailComponent {
   private readonly service = inject(QuoteService);
@@ -23,6 +25,9 @@ export class DevisDetailComponent {
 
   readonly statusLabel = QUOTE_STATUS_LABEL;
   readonly statusVariant = QUOTE_STATUS_VARIANT;
+
+  readonly emailEnabled = QUOTE_EMAIL_ENABLED;
+  readonly emailDialogOpen = signal(false);
 
   readonly quote = signal<QuoteView | null>(null);
   readonly loading = signal(true);
@@ -71,6 +76,18 @@ export class DevisDetailComponent {
         this.error.set(this.messageOf(err, "Impossible d'enregistrer l'accord du prospect."));
       },
     });
+  }
+
+  onEmailSent(updated: QuoteView): void {
+    this.quote.set(updated);
+    this.emailDialogOpen.set(false);
+    this.success.set(`Devis envoyé à ${updated.lastEmailTo ?? updated.prospectEmail ?? 'le prospect'}.`);
+  }
+
+  formatDateTime(value?: string | null): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    return `${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
   }
 
   energyLabel(energy?: string | null): string {

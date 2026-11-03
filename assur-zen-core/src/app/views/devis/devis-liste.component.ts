@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
 import { QuoteStatus, QuoteView } from '../../core/quotes/models/quote.model';
+import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteService } from '../../core/quotes/quote.service';
 
 export const QUOTE_STATUS_LABEL: Record<QuoteStatus, string> = {
@@ -25,6 +26,8 @@ export const QUOTE_STATUS_VARIANT: Record<QuoteStatus, string> = {
 })
 export class DevisListeComponent {
   private readonly service = inject(QuoteService);
+
+  readonly emailEnabled = QUOTE_EMAIL_ENABLED;
 
   readonly pageSize = 20;
   readonly statusLabel = QUOTE_STATUS_LABEL;
@@ -102,6 +105,12 @@ export class DevisListeComponent {
   vehicleLabel(q: QuoteView): string {
     if (this.productOf(q) === 'automobile-vtc') return `${q.brand} ${q.model}`.trim();
     return `${q.vehicleType === 'TRICYCLE' ? 'Tricycle' : 'Moto'} · ${q.brand}`;
+  }
+
+  formatDayMonth(value?: string | null): string {
+    if (!value) return '';
+    const d = new Date(value);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 
   formatDate(value?: string | null): string {

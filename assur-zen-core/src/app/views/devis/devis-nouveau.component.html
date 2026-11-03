@@ -42,6 +42,27 @@
           </div>
           @if (fieldError('prospectPhone'); as e) { <div class="df-error">{{ e }}</div> }
         </div>
+        @if (emailEnabled) {
+          <div class="df-field df-span2">
+            <label for="dv-email">E-mail <span class="df-light">(facultatif, pour envoyer le devis)</span></label>
+            <div [class.df-in--valid]="emailFilled()" class="df-in">
+              <i class="df-ico">✉️</i>
+              <input formControlName="prospectEmail" id="dv-email" placeholder="prenom.nom@exemple.com" type="email" [class.df-invalid]="hasError('prospectEmail') || form.controls.prospectEmail.invalid" />
+              <span class="df-check">✓</span>
+            </div>
+            @if (form.controls.prospectEmail.invalid) { <div class="df-error">Adresse e-mail invalide.</div> }
+            @if (fieldError('prospectEmail'); as e) { <div class="df-error">{{ e }}</div> }
+          </div>
+          <div class="df-field df-span2">
+            <button (click)="sendEmail.set(!sendEmail())" [attr.aria-pressed]="sendEmail()" [class.df-on]="sendEmail() && emailFilled()" [disabled]="!emailFilled()" class="df-switch" type="button">
+              <span>
+                <b>Envoyer le devis par e-mail dès l'enregistrement</b><br />
+                <span class="df-hint">Disponible si une adresse e-mail est renseignée</span>
+              </span>
+              <span class="df-tg"></span>
+            </button>
+          </div>
+        }
       </div>
     </section>
 
