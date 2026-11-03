@@ -26,11 +26,12 @@ public class AdminVtcQuoteController {
 
     private final QuoteService quoteService;
     private final BackOfficeQuoteService backOfficeQuoteService;
+    private final ci.assurzen.service.QuoteEmailService emailService;
 
     @PostMapping
     @Operation(operationId = "backofficeQuoteCreateVtc", summary = "Cree un devis VTC pour un prospect ; discountPercent facultatif, plafonne par le parametre VTC")
     public ResponseEntity<QuoteDtos.QuoteView> creer(@Valid @RequestBody QuoteDtos.BackOfficeVtcQuoteRequest request) {
-        return ResponseEntity.status(201).body(backOfficeQuoteService.creerVtc(request));
+        return ResponseEntity.status(201).body(emailService.envoyerSiDemande(backOfficeQuoteService.creerVtc(request), request.sendEmail()));
     }
 
     @GetMapping("/brands")

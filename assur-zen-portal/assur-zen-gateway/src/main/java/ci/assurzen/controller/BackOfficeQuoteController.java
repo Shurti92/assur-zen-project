@@ -25,17 +25,31 @@ import org.springframework.web.bind.annotation.RestController;
 public class BackOfficeQuoteController {
 
     private final BackOfficeQuoteService quoteService;
+    private final ci.assurzen.service.QuoteEmailService emailService;
 
     @PostMapping("/moto")
     @Operation(operationId = "backofficeQuoteCreateMoto", summary = "Cree un devis moto pour un prospect (prix fige, sans remise)")
     public ResponseEntity<QuoteDtos.QuoteView> creer(@Valid @RequestBody QuoteDtos.BackOfficeQuoteRequest request) {
-        return ResponseEntity.status(201).body(quoteService.creerMoto(request));
+        return ResponseEntity.status(201).body(emailService.envoyerSiDemande(quoteService.creerMoto(request), request.sendEmail()));
     }
 
     @GetMapping
     @Operation(operationId = "backofficeQuoteList", summary = "Liste des devis (filtres facultatifs : statut CALCULE|ACCEPTE|EXPIRE, q = nom, telephone, reference, immatriculation)")
-    public ResponseEntity<QuoteDtos.QuoteList> lister(@RequestParam(required = false) String statut, @RequestParam(required = false) String q) {
-        return ResponseEntity.ok(quoteService.lister(statut, q));
+    public ResponseEntity<QuoteDtos.QuoteList> lister(@RequestParam(required = false) String statut, @RequestParam(required = false) String q,
+                                                      @RequestParam(required = false) String email) {
+        return ResponseEntity.ok(quoteService.lister(statut, q, email));
+    }
+
+    @PostMapping("/{reference}/send-email")
+    @Operation(operationId = "backofficeQuoteSendEmail", summary = "Envoie le devis par e-mail au prospect (PDF joint par defaut ; 409 QUOTE_EXPIRED, 429 au-dela de 5 envois par jour)")
+    public ResponseEntity<QuoteDtos.QuoteView> envoyerEmail(@PathVariable String reference, @Valid @RequestBody(required = false) QuoteDtos.SendEmailRequest request) {
+        return ResponseEntity.ok(emailService.envoyer(reference, request));
+    }
+
+    @GetMapping("/{reference}/emails")
+    @Operation(operationId = "backofficeQuoteEmails", summary = "Historique des envois par e-mail d'un devis")
+    public ResponseEntity<QuoteDtos.EmailHistory> historique(@PathVariable String reference) {
+        return ResponseEntity.ok(emailService.historique(reference));
     }
 
     @GetMapping("/{reference}")

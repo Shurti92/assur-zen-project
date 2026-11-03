@@ -35,8 +35,13 @@ public class BackOfficeQuoteService {
             devis.setCreatedByUserId(p.userId());
             devis.setProspectName(r.prospectName().trim());
             devis.setProspectPhone(r.prospectPhone());
+            devis.setProspectEmail(emailOuNull(r.prospectEmail()));
         });
         return mobileQuoteService.vue(q);
+    }
+
+    private static String emailOuNull(String e) {
+        return e == null || e.isBlank() ? null : e.trim();
     }
 
     /** Devis VTC pour un prospect ; une remise est possible, plafonnee par QUOTE_VTC_MAX_DISCOUNT_PERCENT. */
@@ -48,6 +53,7 @@ public class BackOfficeQuoteService {
             devis.setCreatedByUserId(p.userId());
             devis.setProspectName(r.prospectName().trim());
             devis.setProspectPhone(r.prospectPhone());
+            devis.setProspectEmail(emailOuNull(r.prospectEmail()));
         });
         return mobileQuoteService.vue(q);
     }
@@ -55,6 +61,12 @@ public class BackOfficeQuoteService {
     /** statut et q (nom, telephone, reference, immatriculation) sont facultatifs. */
     @Transactional
     public QuoteList lister(String statut, String recherche) {
+        return lister(statut, recherche, null);
+    }
+
+    /** email : ENVOYE (au moins un envoi) ou NON_ENVOYE ; null = tous. */
+    @Transactional
+    public QuoteList lister(String statut, String recherche, String email) {
         AuthenticatedUserPrincipal p = authService.currentPrincipal();
         List<Quote> base = commercialService.isAdmin(p)
                 ? quotes.findAllByOrderByCreatedAtDesc()
@@ -65,6 +77,8 @@ public class BackOfficeQuoteService {
                 .map(mobileQuoteService::actualiser)
                 .filter(q -> s == null || s.equals(q.getStatus()))
                 .filter(q -> needle == null || contient(q, needle))
+                .filter(q -> email == null || email.isBlank()
+                        || ("ENVOYE".equalsIgnoreCase(email) == (q.getEmailSentCount() != null && q.getEmailSentCount() > 0)))
                 .limit(500)
                 .map(mobileQuoteService::vue)
                 .toList());
@@ -90,7 +104,7 @@ public class BackOfficeQuoteService {
         return mobileQuoteService.vue(q);
     }
 
-    private Quote trouver(String reference) {
+    Quote trouver(String reference) {
         AuthenticatedUserPrincipal p = authService.currentPrincipal();
         Quote q = quotes.findByReference(reference).orElseThrow(() -> new MobileApiException(404, "NOT_FOUND", "Devis introuvable."));
         // Un commercial n'accede qu'a ses propres devis (404 pour ne pas reveler l'existence des autres).
@@ -101,7 +115,7 @@ public class BackOfficeQuoteService {
     }
 
     private static boolean contient(Quote q, String needle) {
-        return java.util.stream.Stream.of(q.getReference(), q.getProspectName(), q.getProspectPhone(), q.getRegistrationNumber(), q.getChassisNumber())
+        return java.util.stream.Stream.of(q.getReference(), q.getProspectName(), q.getProspectPhone(), q.getProspectEmail(), q.getRegistrationNumber(), q.getChassisNumber())
                 .anyMatch(v -> v != null && v.toLowerCase(Locale.ROOT).contains(needle));
     }
 }

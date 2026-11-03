@@ -31,6 +31,36 @@ public class MailService {
     @Value("${mailer.from.name}")
     private String fromName;
 
+    /**
+     * Envoi avec adresse d'expedition, copie et piece jointe facultatives (devis en ligne). Retourne null si envoye, sinon le motif :
+     * "DISABLED" (EMAIL_ENABLED=false) ou le message d'erreur du transport.
+     */
+    public String envoyerAvecPiece(String expediteur, String destinataire, String copie, String sujet, String corpsHtml, String nomPiece, byte[] piece) {
+        if (!dynamicConfigurationService.getBoolean("EMAIL_ENABLED", true)) {
+            log.info("Envoi email ignore (EMAIL_ENABLED=false) pour {}", destinataire);
+            return "DISABLED";
+        }
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, piece != null, "UTF-8");
+            helper.setFrom(expediteur == null || expediteur.isBlank() ? fromAddress : expediteur, "AssurZen");
+            helper.setTo(destinataire);
+            if (copie != null && !copie.isBlank()) {
+                helper.setCc(copie);
+            }
+            helper.setSubject(sujet);
+            helper.setText(corpsHtml, true);
+            if (piece != null) {
+                helper.addAttachment(nomPiece, new org.springframework.core.io.ByteArrayResource(piece), "application/pdf");
+            }
+            mailSender.send(message);
+            return null;
+        } catch (MailException | UnsupportedEncodingException | MessagingException e) {
+            log.warn("Echec de l'envoi email a {}: {}", destinataire, e.getMessage());
+            return e.getMessage() == null ? "erreur" : e.getMessage();
+        }
+    }
+
     /** Chokepoint : EMAIL_ENABLED=false (Dynamic Configuration Engine) coupe tout envoi d'email. */
     public boolean envoyer(String destinataire, String sujet, String corpsHtml) {
         if (!dynamicConfigurationService.getBoolean("EMAIL_ENABLED", true)) {

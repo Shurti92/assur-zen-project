@@ -56,5 +56,15 @@ Paramétrage (ADMIN) :
 - `GET/PUT /admin/quotes/vtc/settings` `{maxDiscountPercent}` (0 à 100 ; 0 = aucune remise).
 - `GET/PUT /admin/quotes/tariffs` : lignes VTC avec `vehicleCategory: "VTC"` (suffixe possible pour une autre tranche, ex. `VTC-2`), champs `cedeao`, `attestation`, `minFiscalPower`, `minSeats`, `maxSeats` ; le total doit égaler netPremium + taxes + accessories + fga + cedeao + attestation.
 
+## Envoi du devis par e-mail (back-office : ADMIN et COMMERCIAL)
+- `POST /admin/quotes/moto` et `POST /admin/quotes/vtc` acceptent `prospectEmail?` (e-mail valide, 150 max) et `sendEmail?` (true = enregistrer puis envoyer ; un échec d'envoi ne fait pas échouer la création : `emailSentCount` reste 0).
+- `POST /admin/quotes/{reference}/send-email` corps facultatif `{email?, message? (500 max, texte brut échappé), attachPdf? (défaut true), copyToMe? (défaut false : copie à l'e-mail du compte connecté)}` -> `QuoteView` à jour. `email` fourni remplace `prospectEmail`.
+  Erreurs : 400 `VALIDATION_FAILED` field `email` | `message` | `copyToMe` ; 404 `NOT_FOUND` (devis d'un autre commercial) ; 409 `QUOTE_EXPIRED` ; 429 `TOO_MANY_REQUESTS` (5 envois par devis et par 24 h) ; 502 `MAIL_SEND_FAILED` ; 503 `MAIL_DISABLED` (paramètre `EMAIL_ENABLED` à false).
+- `GET /admin/quotes/{reference}/emails` -> `{items:[{sentAt,to,sentBy,withPdf,copyTo}]}`, plus récent d'abord.
+- `GET /admin/quotes?email=ENVOYE|NON_ENVOYE` (filtre serveur) ; `q` cherche aussi dans l'e-mail du prospect.
+- `QuoteView` gagne `prospectEmail, emailSentCount, lastEmailSentAt, lastEmailTo, lastEmailSentBy`.
+- Un devis ACCEPTE peut être renvoyé ; un devis EXPIRE ne peut pas l'être. Le prix envoyé est le prix figé du devis (remise comprise). Chaque envoi est tracé (qui, quand, à qui, avec ou sans PDF).
+- Contenu : objet `Votre devis AssurZen {reference} · {produit}`, HTML + PDF joint (`Devis-{reference}.pdf`) généré par le gateway. Mention légale et pied de page modifiables dans la configuration (`QUOTE_EMAIL_LEGAL_TEXT`, `QUOTE_EMAIL_FOOTER`). Expéditeur : paramètre de configuration `QUOTE_EMAIL_FROM` (`info@assurzen.ci` par défaut ; le compte SMTP utilisé doit être autorisé à envoyer pour cette adresse). Les autres e-mails (campagnes) gardent `MAIL_FROM`.
+
 ## À venir
 Statut CONVERTI : conversion d'un devis accepté en contrat, avec le paiement dans l'application (API de paiement à fournir par l'utilisateur).

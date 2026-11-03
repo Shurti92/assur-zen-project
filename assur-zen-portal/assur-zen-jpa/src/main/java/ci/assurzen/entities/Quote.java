@@ -145,4 +145,21 @@ public class Quote implements Serializable {
 
     @Column(length = 60)
     private String platform;
+
+    // ---- Envoi par e-mail (2026-11-03)
+    @Column(name = "prospect_email", length = 150)
+    private String prospectEmail;
+
+    @org.hibernate.annotations.ColumnDefault("0")
+    @Column(name = "email_sent_count", nullable = false)
+    private Integer emailSentCount = 0;
+
+    @Column(name = "last_email_sent_at")
+    private Instant lastEmailSentAt;
+
+    @Column(name = "last_email_to", length = 150)
+    private String lastEmailTo;
+
+    @Column(name = "last_email_sent_by", length = 100)
+    private String lastEmailSentBy;
 }

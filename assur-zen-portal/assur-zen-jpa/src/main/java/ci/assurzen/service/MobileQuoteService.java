@@ -175,7 +175,9 @@ public class MobileQuoteService {
                 q.getCreatedAt(), q.getAcceptedAt(),
                 q.getChannel(), q.getProspectName(), q.getProspectPhone(), q.getCreatedByUserId(),
                 q.getFiscalPower(), q.getEnergy(), q.getSeats(), q.getFirstRegistrationYear(), q.getVtcDeclared(), q.getPlatform(),
-                q.getDiscountPercent());
+                q.getDiscountPercent(),
+                q.getProspectEmail(), q.getEmailSentCount() == null ? 0 : q.getEmailSentCount(), q.getLastEmailSentAt(), q.getLastEmailTo(),
+                q.getLastEmailSentBy());
     }
 
     private static String blankToNull(String s) {

@@ -98,7 +98,9 @@ public final class QuoteDtos {
             @NotBlank(message = "Le nom du prospect est obligatoire") @Size(max = 150) String prospectName,
             @NotBlank(message = "Le telephone du prospect est obligatoire")
             @Pattern(regexp = "^[0-9]{10}$", message = "Le telephone doit contenir 10 chiffres") String prospectPhone,
-            @NotNull @Valid VtcSimulationRequest vehicle
+            @NotNull @Valid VtcSimulationRequest vehicle,
+            @Email(message = "Adresse e-mail invalide") @Size(max = 150) String prospectEmail,
+            Boolean sendEmail
     ) {
     }
 
@@ -166,11 +168,28 @@ public final class QuoteDtos {
             String channel, String prospectName, String prospectPhone, Long createdByUserId,
             /** Champs VTC (null pour la moto). */
             Integer fiscalPower, String energy, Integer seats, Integer firstRegistrationYear, Boolean vtcDeclared, String platform,
-            java.math.BigDecimal discountPercent
+            java.math.BigDecimal discountPercent,
+            /** Envoi par e-mail (prospectEmail null et emailSentCount 0 pour les devis du mobile). */
+            String prospectEmail, int emailSentCount, Instant lastEmailSentAt, String lastEmailTo, String lastEmailSentBy
     ) {
     }
 
     public record QuoteList(List<QuoteView> items) {
+    }
+
+    /** Envoi d'un devis par e-mail : email (defaut = prospectEmail), message personnel, PDF (defaut oui), copie a l'expediteur. */
+    public record SendEmailRequest(
+            @Email(message = "Adresse e-mail invalide") @Size(max = 150) String email,
+            @Size(max = 500, message = "Le message fait 500 caracteres au maximum") String message,
+            Boolean attachPdf,
+            Boolean copyToMe
+    ) {
+    }
+
+    public record EmailSent(Instant sentAt, String to, String sentBy, boolean withPdf, String copyTo) {
+    }
+
+    public record EmailHistory(List<EmailSent> items) {
     }
 
     /** Devis cree au back-office pour un prospect : memes champs que la simulation + identite du prospect. */
@@ -178,7 +197,10 @@ public final class QuoteDtos {
             @NotBlank(message = "Le nom du prospect est obligatoire") @Size(max = 150) String prospectName,
             @NotBlank(message = "Le telephone du prospect est obligatoire")
             @Pattern(regexp = "^[0-9]{10}$", message = "Le telephone doit contenir 10 chiffres") String prospectPhone,
-            @NotNull @Valid MotoSimulationRequest vehicle
+            @NotNull @Valid MotoSimulationRequest vehicle,
+            @Email(message = "Adresse e-mail invalide") @Size(max = 150) String prospectEmail,
+            /** true = enregistrer puis envoyer au prospectEmail (sans effet si prospectEmail absent). */
+            Boolean sendEmail
     ) {
     }
 }
