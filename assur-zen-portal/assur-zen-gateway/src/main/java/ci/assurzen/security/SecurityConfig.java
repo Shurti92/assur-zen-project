@@ -102,8 +102,11 @@ public class SecurityConfig {
                         // Devis en ligne moto : formulaire et simulation sans compte ; grille reservee aux administrateurs (2026-11-03).
                         .requestMatchers(HttpMethod.GET, "/api-assur-zen/public/quotes/moto/form").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api-assur-zen/public/quotes/moto/simulate").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api-assur-zen/public/quotes/vtc/form").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api-assur-zen/public/quotes/vtc/simulate").permitAll()
                         .requestMatchers("/api-assur-zen/admin/quotes/tariffs/**", "/api-assur-zen/admin/quotes/tariffs").hasRole("ADMIN")
-                        .requestMatchers("/api-assur-zen/admin/quotes/moto/brands").hasRole("ADMIN")
+                        .requestMatchers("/api-assur-zen/admin/quotes/moto/brands", "/api-assur-zen/admin/quotes/vtc/brands",
+                                "/api-assur-zen/admin/quotes/vtc/platforms", "/api-assur-zen/admin/quotes/vtc/settings").hasRole("ADMIN")
                         .requestMatchers("/api-assur-zen/admin/quotes/**").hasAnyRole("ADMIN", "COMMERCIAL")
                         // Administration des comptes et demandes mobile (2026-11-03) : reserve aux administrateurs.
                         .requestMatchers("/api-assur-zen/admin/mobile/**").hasRole("ADMIN")

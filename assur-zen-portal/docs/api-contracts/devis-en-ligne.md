@@ -36,5 +36,24 @@ Validité : `QUOTE_VALIDITY_DAYS` (défaut 30), plafonnée à la date d'effet. P
 `QuoteView` gagne `channel` (MOBILE|BACKOFFICE), `prospectName`, `prospectPhone`, `createdByUserId` (champs additifs, nuls pour le canal MOBILE hormis channel).
 Pas de remise sur la moto. `/admin/quotes/tariffs` reste réservé aux ADMIN.
 
+## Assurance automobile VTC (`productKey: "automobile-vtc"`)
+Formule **Tiers Simple VTC** (`tiers-simple-vtc`), garanties : Responsabilité civile, Défense et Recours. Tarif unique pour les véhicules de **3 CV et plus, 4 à 8 places**, usage public ; durées 1, 3, 6 et 12 mois : **23 800 / 54 160 / 98 732 / 185 667 F**. Frais fixes par tarif : accessoires 2 024, CEDEAO 1 000, attestation 1 000, FGA 280 (taxes 0, non communiquées) ; prime nette = total - 4 304 F. Hypothèses à confirmer : taxes à 0 ; remise calculée sur la prime nette uniquement.
+
+Corps (simulation et création) `VtcSimulationRequest` : `{fiscalPower, energy ESSENCE|DIESEL|HYBRIDE|ELECTRIQUE, brand, model, firstRegistrationYear (<= année en cours + 1), seats, vtcDeclared (booleen obligatoire), platform?, durationMonths (1|3|6|12), registrationNumber? , chassisNumber? (au moins un), effectiveDate (>= aujourd'hui), formulaId?, discountPercent? (back-office uniquement)}`.
+Erreurs 400 `VALIDATION_FAILED` + `field` : `seats` (aucun tarif pour cette puissance ou ce nombre de places), `durationMonths`, `discountPercent` (remise interdite hors back-office, ou supérieure au plafond), `firstRegistrationYear`, `effectiveDate`, `registrationNumber`.
+
+`premium` (VTC et moto) : `{netPremium, taxes, accessories, fga, cedeao, attestation, discount, total, currency}` avec `total = netPremium - discount + taxes + accessories + fga + cedeao + attestation` (cedeao, attestation, discount = 0 pour la moto).
+
+Public : `GET /public/quotes/vtc/form` -> `{productKey, energies[], durations[{months,total}], formulaId, formulaName, minEffectiveDate, brands[], platforms[], minFiscalPower, minSeats, maxSeats}` ; `POST /public/quotes/vtc/simulate` -> `{productKey, formulaId, formulaName, durationMonths, effectiveDate, expiryDate, premium, guarantees[]}` (aucune remise).
+Client connecté : `POST /mobile/quotes/vtc` (201, `QuoteView`, aucune remise) ; liste, détail et acceptation : mêmes endpoints que la moto (`/mobile/quotes...`).
+`QuoteView` gagne (null pour la moto) : `fiscalPower, energy, seats, firstRegistrationYear, vtcDeclared, platform, discountPercent`.
+
+Back-office : `POST /admin/quotes/vtc` (ADMIN et COMMERCIAL) `{prospectName, prospectPhone, vehicle: VtcSimulationRequest}` avec `discountPercent` facultatif, plafonné par `QUOTE_VTC_MAX_DISCOUNT_PERCENT` (10 par défaut) ; liste, détail, acceptation : `/admin/quotes...` (inchangés).
+Paramétrage (ADMIN) :
+- `GET/PUT /admin/quotes/vtc/brands` `{brands:[...]}` (marques de véhicules, mêmes règles que la moto) ;
+- `GET/PUT /admin/quotes/vtc/platforms` `{platforms:[...]}` (50 max, 60 caractères, sans virgule) ;
+- `GET/PUT /admin/quotes/vtc/settings` `{maxDiscountPercent}` (0 à 100 ; 0 = aucune remise).
+- `GET/PUT /admin/quotes/tariffs` : lignes VTC avec `vehicleCategory: "VTC"` (suffixe possible pour une autre tranche, ex. `VTC-2`), champs `cedeao`, `attestation`, `minFiscalPower`, `minSeats`, `maxSeats` ; le total doit égaler netPremium + taxes + accessories + fga + cedeao + attestation.
+
 ## À venir
 Statut CONVERTI : conversion d'un devis accepté en contrat, avec le paiement dans l'application (API de paiement à fournir par l'utilisateur).

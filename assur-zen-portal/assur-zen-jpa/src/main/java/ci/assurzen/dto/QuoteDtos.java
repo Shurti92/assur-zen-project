@@ -34,7 +34,13 @@ public final class QuoteDtos {
     public record GuaranteeLine(String label, List<Coverage> details) {
     }
 
-    public record PremiumBreakdown(long netPremium, long taxes, long accessories, long fga, long total, String currency) {
+    /** total = netPremium - discount + taxes + accessories + fga + cedeao + attestation. */
+    public record PremiumBreakdown(long netPremium, long taxes, long accessories, long fga, long cedeao, long attestation,
+                                   long discount, long total, String currency) {
+        /** Forme historique (moto) : sans CEDEAO, attestation ni remise. */
+        public PremiumBreakdown(long netPremium, long taxes, long accessories, long fga, long total, String currency) {
+            this(netPremium, taxes, accessories, fga, 0, 0, 0, total, currency);
+        }
     }
 
     public record MotoSimulation(
@@ -53,6 +59,49 @@ public final class QuoteDtos {
     public record DurationOption(int months, long total) {
     }
 
+    /** Assurance automobile VTC : criteres saisis par le client. discountPercent n'est accepte qu'au back-office. */
+    public record VtcSimulationRequest(
+            @NotNull(message = "La puissance fiscale est obligatoire") @Min(value = 1, message = "Puissance fiscale invalide") @Max(value = 60, message = "Puissance fiscale invalide") Integer fiscalPower,
+            @NotBlank(message = "L'energie est obligatoire")
+            @Pattern(regexp = "ESSENCE|DIESEL|HYBRIDE|ELECTRIQUE", message = "energy doit valoir ESSENCE, DIESEL, HYBRIDE ou ELECTRIQUE") String energy,
+            @NotBlank(message = "La marque est obligatoire") @Size(max = 60) String brand,
+            @NotBlank(message = "Le modele est obligatoire") @Size(max = 60) String model,
+            @NotNull(message = "L'annee de mise en circulation est obligatoire") @Min(value = 1950, message = "Annee invalide") @Max(value = 2100, message = "Annee invalide") Integer firstRegistrationYear,
+            @NotNull(message = "Le nombre de places est obligatoire") @Min(value = 1, message = "Nombre de places invalide") @Max(value = 60, message = "Nombre de places invalide") Integer seats,
+            @NotNull(message = "Indiquez si le vehicule est deja declare en VTC") Boolean vtcDeclared,
+            @Size(max = 60) String platform,
+            @NotNull(message = "La duree est obligatoire") @Min(1) @Max(60) Integer durationMonths,
+            @Size(max = 20) String registrationNumber,
+            @Size(max = 30) String chassisNumber,
+            @NotNull(message = "La date d'effet est obligatoire") LocalDate effectiveDate,
+            @Size(max = 40) String formulaId,
+            /** Remise en % sur la prime nette (back-office uniquement, plafonnee par QUOTE_VTC_MAX_DISCOUNT_PERCENT). */
+            @DecimalMin(value = "0", message = "La remise ne peut pas etre negative") @DecimalMax(value = "100", message = "Remise invalide") java.math.BigDecimal discountPercent
+    ) {
+    }
+
+    public record VtcSimulation(
+            String productKey, String formulaId, String formulaName, int durationMonths, LocalDate effectiveDate, LocalDate expiryDate,
+            PremiumBreakdown premium, List<GuaranteeLine> guarantees
+    ) {
+    }
+
+    public record VtcFormInfo(String productKey, List<String> energies, List<DurationOption> durations, String formulaId, String formulaName,
+                              LocalDate minEffectiveDate, List<String> brands, List<String> platforms,
+                              Integer minFiscalPower, Integer minSeats, Integer maxSeats) {
+    }
+
+    public record VtcSettings(@NotNull @DecimalMin("0") @DecimalMax("100") java.math.BigDecimal maxDiscountPercent) {
+    }
+
+    public record BackOfficeVtcQuoteRequest(
+            @NotBlank(message = "Le nom du prospect est obligatoire") @Size(max = 150) String prospectName,
+            @NotBlank(message = "Le telephone du prospect est obligatoire")
+            @Pattern(regexp = "^[0-9]{10}$", message = "Le telephone doit contenir 10 chiffres") String prospectPhone,
+            @NotNull @Valid VtcSimulationRequest vehicle
+    ) {
+    }
+
     /** brands : liste proposee dans le formulaire (cle QUOTE_MOTO_BRANDS) ; vide = saisie libre. */
     public record MotoFormInfo(String productKey, List<String> vehicleTypes, List<DurationOption> durations, String formulaId,
                                String formulaName, LocalDate minEffectiveDate, List<String> brands) {
@@ -61,14 +110,21 @@ public final class QuoteDtos {
     public record TariffInput(
             @NotBlank @Size(max = 40) String productKey,
             @NotBlank @Size(max = 40) String formulaId,
-            @NotBlank @Pattern(regexp = "MOTO|TRICYCLE") String vehicleCategory,
+            @NotBlank @Pattern(regexp = "^(MOTO|TRICYCLE|VTC[A-Z0-9_-]{0,20})$", message = "vehicleCategory doit valoir MOTO, TRICYCLE ou VTC (suffixe facultatif pour une autre tranche)") String vehicleCategory,
             @NotNull @Min(1) @Max(60) Integer durationMonths,
             @NotNull @Min(0) Long netPremium,
             @NotNull @Min(0) Long taxes,
             @NotNull @Min(0) Long accessories,
             @NotNull @Min(0) Long fga,
+            /** Facultatifs (VTC) : 0 par defaut. */
+            @Min(0) Long cedeao,
+            @Min(0) Long attestation,
             @NotNull @Min(1) Long total,
-            Boolean active
+            Boolean active,
+            /** Criteres VTC : puissance fiscale minimale, places min et max (facultatifs). */
+            @Min(0) Integer minFiscalPower,
+            @Min(0) Integer minSeats,
+            @Min(0) Integer maxSeats
     ) {
     }
 
@@ -76,7 +132,8 @@ public final class QuoteDtos {
     }
 
     public record TariffView(Long id, String productKey, String formulaId, String vehicleCategory, int durationMonths, long netPremium,
-                             long taxes, long accessories, long fga, long total, boolean active, Instant updatedAt, String updatedBy) {
+                             long taxes, long accessories, long fga, long cedeao, long attestation, long total, boolean active,
+                             Instant updatedAt, String updatedBy, Integer minFiscalPower, Integer minSeats, Integer maxSeats) {
     }
 
     public record TariffList(List<TariffView> items) {
@@ -84,6 +141,15 @@ public final class QuoteDtos {
 
     /** Marques proposees dans le formulaire du devis moto (ordre d'affichage). */
     public record BrandList(List<String> brands) {
+    }
+
+    /** Plateformes VTC proposees dans le formulaire (Yango, Heetch...). */
+    public record PlatformList(List<String> platforms) {
+    }
+
+    public record PlatformUpdate(@NotNull(message = "La liste des plateformes est obligatoire") @Size(max = 50, message = "50 plateformes au maximum")
+                                 List<@NotBlank(message = "Une plateforme ne peut pas etre vide") @Size(max = 60, message = "Une plateforme fait 60 caracteres au maximum")
+                                         @Pattern(regexp = "^[^,;\\n\\r]+$", message = "Une plateforme ne peut pas contenir de virgule, de point-virgule ni de retour a la ligne") String> platforms) {
     }
 
     public record BrandUpdate(@NotNull(message = "La liste des marques est obligatoire") @Size(max = 200, message = "200 marques au maximum")
@@ -97,7 +163,10 @@ public final class QuoteDtos {
             String vehicleType, Integer cylinderCc, String brand, String model, String registrationNumber, String chassisNumber,
             int durationMonths, LocalDate effectiveDate, LocalDate expiryDate, LocalDate validUntil,
             PremiumBreakdown premium, List<GuaranteeLine> guarantees, Instant createdAt, Instant acceptedAt,
-            String channel, String prospectName, String prospectPhone, Long createdByUserId
+            String channel, String prospectName, String prospectPhone, Long createdByUserId,
+            /** Champs VTC (null pour la moto). */
+            Integer fiscalPower, String energy, Integer seats, Integer firstRegistrationYear, Boolean vtcDeclared, String platform,
+            java.math.BigDecimal discountPercent
     ) {
     }
 

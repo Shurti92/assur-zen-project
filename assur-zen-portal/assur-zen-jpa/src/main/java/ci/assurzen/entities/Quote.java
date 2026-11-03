@@ -110,4 +110,39 @@ public class Quote implements Serializable {
 
     @Column(name = "prospect_phone", length = 20)
     private String prospectPhone;
+
+    // ---- Assurance automobile VTC (2026-11-03)
+    @org.hibernate.annotations.ColumnDefault("0")
+    @Column(nullable = false)
+    private Long cedeao = 0L;
+
+    @org.hibernate.annotations.ColumnDefault("0")
+    @Column(nullable = false)
+    private Long attestation = 0L;
+
+    /** Remise accordee (back-office) sur la prime nette : pourcentage et montant en F CFA. */
+    @Column(name = "discount_percent", precision = 5, scale = 2)
+    private java.math.BigDecimal discountPercent;
+
+    @org.hibernate.annotations.ColumnDefault("0")
+    @Column(name = "discount_amount", nullable = false)
+    private Long discountAmount = 0L;
+
+    @Column(name = "fiscal_power")
+    private Integer fiscalPower;
+
+    @Column(length = 20)
+    private String energy;
+
+    @Column
+    private Integer seats;
+
+    @Column(name = "first_registration_year")
+    private Integer firstRegistrationYear;
+
+    @Column(name = "vtc_declared")
+    private Boolean vtcDeclared;
+
+    @Column(length = 60)
+    private String platform;
 }

@@ -50,8 +50,27 @@ public class QuoteTariff implements Serializable {
     @Column(name = "fga", nullable = false)
     private Long fga;
 
+    /** Frais CEDEAO (carte brune) et attestation : fixes par tarif, 0 si non applicable. */
+    @org.hibernate.annotations.ColumnDefault("0")
+    @Column(name = "cedeao", nullable = false)
+    private Long cedeao = 0L;
+
+    @org.hibernate.annotations.ColumnDefault("0")
+    @Column(name = "attestation", nullable = false)
+    private Long attestation = 0L;
+
     @Column(name = "total", nullable = false)
     private Long total;
+
+    /** Criteres d'application (VTC) : puissance fiscale minimale, nombre de places min et max. Null = sans condition. */
+    @Column(name = "min_fiscal_power")
+    private Integer minFiscalPower;
+
+    @Column(name = "min_seats")
+    private Integer minSeats;
+
+    @Column(name = "max_seats")
+    private Integer maxSeats;
 
     @Column(nullable = false)
     private boolean active = true;

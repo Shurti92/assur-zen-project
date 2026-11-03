@@ -67,6 +67,50 @@ public class MobileQuoteService {
         return quotes.save(q);
     }
 
+    @Transactional
+    public QuoteView creerVtc(Long userId, VtcSimulationRequest r) {
+        return vue(enregistrerVtc(r, false, q -> q.setUserId(userId)));
+    }
+
+    /** Cree et enregistre un devis VTC ; remiseAutorisee = true au back-office uniquement. */
+    Quote enregistrerVtc(VtcSimulationRequest r, boolean remiseAutorisee, java.util.function.Consumer<Quote> extra) {
+        VtcSimulation s = quoteService.simulerVtc(r, remiseAutorisee);
+        long jours = Math.max(1, configuration.getLong("QUOTE_VALIDITY_DAYS", 30L));
+        Quote q = new Quote();
+        q.setReference("TMP-" + java.util.UUID.randomUUID().toString().substring(0, 20));
+        q.setProductKey(s.productKey());
+        q.setFormulaId(s.formulaId());
+        q.setFormulaName(s.formulaName());
+        q.setVehicleType("VTC");
+        q.setFiscalPower(r.fiscalPower());
+        q.setEnergy(r.energy());
+        q.setSeats(r.seats());
+        q.setFirstRegistrationYear(r.firstRegistrationYear());
+        q.setVtcDeclared(r.vtcDeclared());
+        q.setPlatform(blankToNull(r.platform()));
+        q.setBrand(r.brand());
+        q.setModel(r.model());
+        q.setRegistrationNumber(blankToNull(r.registrationNumber()));
+        q.setChassisNumber(blankToNull(r.chassisNumber()));
+        q.setDurationMonths(s.durationMonths());
+        q.setEffectiveDate(s.effectiveDate());
+        q.setExpiryDate(s.expiryDate());
+        q.setNetPremium(s.premium().netPremium());
+        q.setTaxes(s.premium().taxes());
+        q.setAccessories(s.premium().accessories());
+        q.setFga(s.premium().fga());
+        q.setCedeao(s.premium().cedeao());
+        q.setAttestation(s.premium().attestation());
+        q.setDiscountAmount(s.premium().discount());
+        q.setDiscountPercent(r.discountPercent() == null || r.discountPercent().signum() == 0 ? null : r.discountPercent());
+        q.setTotal(s.premium().total());
+        q.setValidUntil(plafonner(aujourdhui().plusDays(jours), s.effectiveDate()));
+        extra.accept(q);
+        q = quotes.save(q);
+        q.setReference(String.format("DEV-%d-%06d", aujourdhui().getYear(), q.getId()));
+        return quotes.save(q);
+    }
+
     /** Un devis ne peut pas etre accepte apres la date d'effet demandee. */
     private static LocalDate plafonner(LocalDate validite, LocalDate effet) {
         return validite.isAfter(effet) ? effet : validite;
@@ -125,9 +169,13 @@ public class MobileQuoteService {
         return new QuoteView(q.getReference(), q.getStatus(), "CALCULE".equals(q.getStatus()), q.getProductKey(), q.getFormulaId(),
                 q.getFormulaName(), q.getVehicleType(), q.getCylinderCc(), q.getBrand(), q.getModel(), q.getRegistrationNumber(),
                 q.getChassisNumber(), q.getDurationMonths(), q.getEffectiveDate(), q.getExpiryDate(), q.getValidUntil(),
-                new PremiumBreakdown(q.getNetPremium(), q.getTaxes(), q.getAccessories(), q.getFga(), q.getTotal(), "XOF"),
-                QuoteService.garantiesTiersSimpleMoto(), q.getCreatedAt(), q.getAcceptedAt(),
-                q.getChannel(), q.getProspectName(), q.getProspectPhone(), q.getCreatedByUserId());
+                new PremiumBreakdown(q.getNetPremium(), q.getTaxes(), q.getAccessories(), q.getFga(), q.getCedeao(), q.getAttestation(),
+                        q.getDiscountAmount(), q.getTotal(), "XOF"),
+                QuoteService.VTC.equals(q.getProductKey()) ? QuoteService.garantiesTiersSimpleVtc() : QuoteService.garantiesTiersSimpleMoto(),
+                q.getCreatedAt(), q.getAcceptedAt(),
+                q.getChannel(), q.getProspectName(), q.getProspectPhone(), q.getCreatedByUserId(),
+                q.getFiscalPower(), q.getEnergy(), q.getSeats(), q.getFirstRegistrationYear(), q.getVtcDeclared(), q.getPlatform(),
+                q.getDiscountPercent());
     }
 
     private static String blankToNull(String s) {

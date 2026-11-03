@@ -39,6 +39,19 @@ public class BackOfficeQuoteService {
         return mobileQuoteService.vue(q);
     }
 
+    /** Devis VTC pour un prospect ; une remise est possible, plafonnee par QUOTE_VTC_MAX_DISCOUNT_PERCENT. */
+    @Transactional
+    public QuoteView creerVtc(BackOfficeVtcQuoteRequest r) {
+        AuthenticatedUserPrincipal p = authService.currentPrincipal();
+        Quote q = mobileQuoteService.enregistrerVtc(r.vehicle(), true, devis -> {
+            devis.setChannel("BACKOFFICE");
+            devis.setCreatedByUserId(p.userId());
+            devis.setProspectName(r.prospectName().trim());
+            devis.setProspectPhone(r.prospectPhone());
+        });
+        return mobileQuoteService.vue(q);
+    }
+
     /** statut et q (nom, telephone, reference, immatriculation) sont facultatifs. */
     @Transactional
     public QuoteList lister(String statut, String recherche) {
