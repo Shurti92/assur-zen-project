@@ -16,4 +16,6 @@ public interface ClientAccountInsuredRepository extends JpaRepository<ClientAcco
     void deleteByUserId(Long userId);
 
     long countByUserId(Long userId);
+
+    java.util.List<ClientAccountInsured> findByInsuredId(Long insuredId);
 }

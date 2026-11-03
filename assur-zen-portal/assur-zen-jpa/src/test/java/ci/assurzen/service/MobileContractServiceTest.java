@@ -153,7 +153,7 @@ class MobileContractServiceTest {
         });
         var cree = service.demander(45L, 10L, "TERMINATION", "Je vends mon vehicule");
         assertTrue(cree.reference().startsWith("RQ-"));
-        assertEquals(24, cree.expectedWithinHours());
+        assertEquals(null, cree.expectedWithinHours());
 
         ci.assurzen.entities.ContractCustomerRequest ouverte = new ci.assurzen.entities.ContractCustomerRequest();
         ouverte.setReference("RQ-2026-000007");

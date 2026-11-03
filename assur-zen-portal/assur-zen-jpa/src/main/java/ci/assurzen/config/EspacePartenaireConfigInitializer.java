@@ -38,6 +38,19 @@ public class EspacePartenaireConfigInitializer {
         creerSiAbsente("SUPPORT_TELEPHONE", "", ConfigValueType.STRING, "Contact support de l'Espace Partenaire : telephone.", ConfigCategory.GENERAL, 12);
         creerSiAbsente("SUPPORT_EMAIL", "", ConfigValueType.STRING, "Contact support de l'Espace Partenaire : e-mail.", ConfigCategory.GENERAL, 13);
         creerSiAbsente("SUPPORT_WHATSAPP", "", ConfigValueType.STRING, "Contact support de l'Espace Partenaire : numero WhatsApp (facultatif).", ConfigCategory.GENERAL, 14);
+        creerSiAbsente("SUPPORT_TELEPHONE_2", "", ConfigValueType.STRING, "Application mobile : second telephone d'assistance (facultatif). Vide = non communique.", ConfigCategory.GENERAL, 16);
+        creerSiAbsente("SUPPORT_ADRESSE", "", ConfigValueType.STRING, "Application mobile : adresse de l'agence (facultatif). Vide = rubrique masquee.", ConfigCategory.GENERAL, 17);
+        creerSiAbsente("SUPPORT_DISPONIBILITE", "", ConfigValueType.STRING, "Application mobile : phrase de disponibilite du support affichee au client (ex. Un conseiller vous repond du lundi au samedi). Vide = non communique.", ConfigCategory.GENERAL, 18);
+        creerSiAbsente("SUPPORT_URGENCES", "", ConfigValueType.STRING, "Application mobile : numeros d'urgence, au format Libelle:numero;Libelle:numero (ex. SAMU:185;Pompiers:180). Vide = rubrique masquee.", ConfigCategory.GENERAL, 19);
+        creerSiAbsente("CALLBACK_EXPECTED_MINUTES", "", ConfigValueType.STRING, "Application mobile : delai de rappel annonce au client, en minutes (ex. 30). Vide = aucun engagement affiche.", ConfigCategory.GENERAL, 20);
+        creerSiAbsente("SUPPORT_RESPONSE_MINUTES", "", ConfigValueType.STRING, "Application mobile : delai de reponse du support annonce au client, en minutes (ex. 120). Vide = aucun engagement affiche.", ConfigCategory.GENERAL, 21);
+        creerSiAbsente("CLAIM_HANDLING_HOURS", "", ConfigValueType.STRING, "Application mobile : delai de prise en charge d'un sinistre annonce au client, en heures (ex. 24). Vide = aucun engagement affiche.", ConfigCategory.GENERAL, 22);
+        creerSiAbsente("CONTRACT_REQUEST_RESPONSE_HOURS", "", ConfigValueType.STRING, "Application mobile : delai de reponse a une demande de modification ou de resiliation de contrat, en heures (ex. 24). Vide = aucun engagement affiche.", ConfigCategory.GENERAL, 23);
+        creerSiAbsente("LEGAL_TERMS_URL", "", ConfigValueType.STRING, "Application mobile : lien des conditions generales d'utilisation. Vide = lien masque.", ConfigCategory.GENERAL, 30);
+        creerSiAbsente("LEGAL_PRIVACY_URL", "", ConfigValueType.STRING, "Application mobile : lien de la politique de confidentialite. Vide = lien masque.", ConfigCategory.GENERAL, 31);
+        creerSiAbsente("LEGAL_UPDATED_AT", "", ConfigValueType.STRING, "Application mobile : date de derniere mise a jour des documents legaux (texte libre, ex. 2026-11-03).", ConfigCategory.GENERAL, 32);
+        creerSiAbsente("SUPPORT_TOPICS", "CONTRACT:Contrat;PAYMENT:Paiement;CLAIM:Sinistre;OTHER:Autre", ConfigValueType.STRING, "Application mobile : sujets des demandes d'aide, au format CODE:Libelle;CODE:Libelle. Vide = aucune demande possible.", ConfigCategory.GENERAL, 33);
+        creerSiAbsente("NOTIFICATION_RETENTION_MONTHS", "12", ConfigValueType.STRING, "Application mobile : duree de conservation des notifications, en mois (defaut 12).", ConfigCategory.GENERAL, 34);
         creerSiAbsente("SUPPORT_HORAIRES", "", ConfigValueType.STRING, "Contact support de l'Espace Partenaire : horaires (ex. Lun-Ven 8h-17h).", ConfigCategory.GENERAL, 15);
         creerSiAbsente("NOTIFICATIONS_RAPPELS_AUTO_ENABLED", "false", ConfigValueType.BOOLEAN,
                 "Rappels automatiques de l'Espace Partenaire, chaque jour a 8h (in-app + push selon preferences, jamais de SMS) : echeance de contrat a J-30 et J-7, prime non reversee, document expirant ou expire.",

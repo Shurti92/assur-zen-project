@@ -79,6 +79,7 @@ public class AdminMobileService {
     private final FunctionalAuditRecorder auditRecorder;
     private final CommercialService commercialService;
     private final ci.assurzen.service.AuthService authService;
+    private final MobileNotificationService notificationService;
 
     // ------------------------------------------------------------------ comptes
 
@@ -278,6 +279,11 @@ public class AdminMobileService {
         marquer(demande::setProcessedAt, demande::setProcessedBy, demande::setProcessComment, requete.comment());
         contractRequestRepository.save(demande);
         auditRecorder.recordAction(MODULE, "DemandeContratMobile", demande.getReference(), ActionAudit.UPDATE, "Demande " + demande.getType() + " " + demande.getStatut());
+        notificationService.notifier(demande.getUserId(), "SERVICE",
+                "TERMINATION".equals(demande.getType()) ? "Demande de résiliation" : "Demande de modification",
+                "Votre demande " + demande.getReference() + " a été " + ("TRAITEE".equals(demande.getStatut()) ? "traitée" : "refusée")
+                        + (StringUtils.hasText(requete.comment()) ? ". " + requete.comment().trim() : "."),
+                demande.getContractId(), null, "REQ-" + demande.getId());
         Contract contrat = contractRepository.findById(demande.getContractId()).orElse(null);
         return vueDemandeContrat(demande, contrat, telephonesDe(List.of(demande.getUserId())).get(demande.getUserId()));
     }

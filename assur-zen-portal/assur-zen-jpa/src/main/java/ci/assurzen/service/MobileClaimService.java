@@ -194,7 +194,9 @@ public class MobileClaimService {
                 .build());
         businessMetrics.incrementClaimsDeclared();
         log.info("[MOBILE-SINISTRE] sinistre {} declare sur le contrat {}", numero, contrat.getPolicyNumber());
-        return new MobileClaimDtos.Created(String.valueOf(sinistre.getId()), numero, CODES.get(SinistreStatus.declare), aujourdhui);
+        long heures = dynamicConfigurationService.getLong("CLAIM_HANDLING_HOURS", 0L);
+        return new MobileClaimDtos.Created(String.valueOf(sinistre.getId()), numero, CODES.get(SinistreStatus.declare), aujourdhui,
+                heures > 0 ? (int) heures : null);
     }
 
     private String notes(MobileClaimDtos.CreateRequest r) {
@@ -346,6 +348,11 @@ public class MobileClaimService {
         List<Long> assures = assuresDuCompte(userId);
         return (assures.isEmpty() ? java.util.Optional.<Sinistre>empty() : sinistreRepository.findWithContractByIdAndInsuredIdIn(id, assures))
                 .orElseThrow(() -> new MobileApiException(404, "CLAIM_NOT_FOUND", "Sinistre introuvable."));
+    }
+
+    /** Libelle francais d'un statut de sinistre (historique du suivi et notifications). */
+    public static String libelleStatut(SinistreStatus statut) {
+        return LIBELLES.get(statut);
     }
 
     static int etapeCourante(SinistreStatus statut) {

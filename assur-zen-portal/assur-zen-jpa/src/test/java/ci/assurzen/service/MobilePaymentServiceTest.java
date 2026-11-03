@@ -41,7 +41,7 @@ class MobilePaymentServiceTest {
         payments = mock(MobilePaymentRepository.class);
         liens = mock(ClientAccountInsuredRepository.class);
         contrats = mock(ContractRepository.class);
-        service = new MobilePaymentService(payments, liens, contrats);
+        service = new MobilePaymentService(payments, liens, contrats, mock(MobileNotificationService.class));
         service.setSimulation(true);
         when(liens.findByUserId(45L)).thenReturn(List.of(new ClientAccountInsured(45L, 627L)));
 

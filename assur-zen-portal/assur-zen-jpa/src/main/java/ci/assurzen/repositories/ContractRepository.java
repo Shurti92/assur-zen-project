@@ -36,6 +36,9 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"product", "insured", "vehicule"})
     Optional<Contract> findByIdAndInsuredIdIn(Long id, java.util.Collection<Long> insuredIds);
 
+    /** Contrats a une echeance donnee (rappels d'echeance du mobile, 2026-11-03). */
+    List<Contract> findByDateEcheanceAndStatus(LocalDate dateEcheance, ContractStatus status);
+
     /** Garde-fou IDOR (audit securite 2026-09-12) : un assure n'est accessible a un non-admin que s'il
      * a au moins un contrat ou il est salesRep sur cet assure - meme principe que
      * ContractsService.getContractScoped(), applique a InsuredService. */

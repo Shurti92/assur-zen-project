@@ -54,3 +54,17 @@ Erreurs : 400 `VALIDATION_FAILED` (avec `field`), 404 `PRODUCT_NOT_FOUND`.
 Les **garanties** parametrees alimentent aussi `guarantees` dans le détail d'un contrat mobile (`GET /mobile/contracts/{id}`).
 `onlineSubscription` n'a d'effet que si la souscription en ligne existe réellement (devis et paiement réel non livrés) : le laisser à false.
 Écran à construire côté portail : liste des produits (case « visible sur le mobile », ordre par glisser-déposer) et fiche d'édition des champs ci-dessus.
+
+## 8. Contenu produit enrichi et coordonnées (ajouté le 2026-11-03, suite)
+`PUT /admin/mobile/products/{productId}` accepte en plus : `guarantees[{id?, name, kind, description?, limit?, formulaIds[]?, displayOrder?, visible?}]`, `formulas[{id, name, description?, displayOrder?, visible?}]` (au plus 10), `exclusions[]` (≤20), `requiredDocuments[]` (≤20), `faq[{question, answer}]` (≤30). Les garanties référencent les formules par `formulaIds` (400 `VALIDATION_FAILED` si une formule est inconnue ou un identifiant en double). La lecture (`GET`) renvoie les mêmes champs. `PUT` remplace tout le contenu. Côté public, seuls les éléments `visible` sont renvoyés, triés par `displayOrder`, avec `contentVersion` (dernière modification).
+Coordonnées de l'application (`GET /public/contact-info`) et délais annoncés aux clients : tout se règle dans l'écran de configuration existant, catégorie GENERAL : `SUPPORT_TELEPHONE`, `SUPPORT_TELEPHONE_2`, `SUPPORT_WHATSAPP`, `SUPPORT_EMAIL`, `SUPPORT_ADRESSE`, `SUPPORT_HORAIRES`, `SUPPORT_DISPONIBILITE`, `SUPPORT_URGENCES` (SAMU:185;Pompiers:180), `CALLBACK_EXPECTED_MINUTES`, `SUPPORT_RESPONSE_MINUTES`, `CLAIM_HANDLING_HOURS`, `CONTRACT_REQUEST_RESPONSE_HOURS`. Une valeur vide = aucun engagement ni rubrique affichés dans l'application.
+
+## 9. Support, FAQ, avis, liens légaux et notifications (ajouté le 2026-11-03)
+**Support** (rôle ADMIN) :
+- `GET /admin/mobile/support-requests?statut=EN_ATTENTE|EN_COURS|REPONDU|CLOTURE` → `[{id, reference, userId, phone, topic, message, status, response, respondedAt, respondedBy, createdAt}]` (200 plus récentes).
+- `POST /admin/mobile/support-requests/{id}/process` `{statut: EN_COURS|REPONDU|CLOTURE, response?}` : `REPONDU` exige `response` (400 sinon) et **crée une notification** dans l'application du client ; une demande `CLOTURE` n'est plus modifiable (409).
+**FAQ** : `GET /admin/mobile/faq` (toutes les entrées) et `PUT /admin/mobile/faq` `{items:[{question, answer, order?, visible?}]}` qui remplace toute la FAQ (l'ordre de la liste fixe l'ordre d'affichage, 10, 20, ...). Lecture publique : `GET /public/support/faq`.
+**Avis des clients** : `GET /admin/mobile/feedback` → `[{id, userId, phone, contractId, rating 1-5, comment, createdAt}]`.
+**Configuration (écran de configuration existant, catégorie GENERAL)** : `SUPPORT_TOPICS` (sujets des demandes d'aide, `CODE:Libellé;CODE:Libellé`), `LEGAL_TERMS_URL`, `LEGAL_PRIVACY_URL`, `LEGAL_UPDATED_AT` (liens légaux, vides = masqués dans l'application), `NOTIFICATION_RETENTION_MONTHS` (conservation des notifications, 12 par défaut).
+**Notifications** : créées par le serveur (changement de statut d'un sinistre, demande de contrat traitée, paiement, réponse du support, échéance J-30 et J-7). Aucun endpoint d'écriture côté portail.
+Écrans suggérés : onglet « Support » dans la file « Demandes mobile » (liste, détail, zone de réponse), écran « FAQ mobile » (liste éditable et réordonnable), liste des avis avec moyenne des notes.

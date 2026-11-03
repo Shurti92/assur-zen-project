@@ -31,6 +31,9 @@ public class PublicMobileController {
 
     private final PublicCatalogService catalogService;
     private final CallbackService callbackService;
+    private final ci.assurzen.service.PublicContactService contactService;
+    private final ci.assurzen.service.MobileProfileService profileService;
+    private final ci.assurzen.service.MobileSupportService supportService;
 
     @GetMapping("/products")
     @Operation(operationId = "publicListProducts", summary = "Produits actifs du catalogue (titre tel quel ; onlineSubscription=false tant que la souscription en ligne n'existe pas)")
@@ -44,6 +47,34 @@ public class PublicMobileController {
     @SecurityRequirements
     public ResponseEntity<PublicMobileDtos.Product> produit(@PathVariable String id) {
         return ResponseEntity.ok(catalogService.produit(id));
+    }
+
+    @GetMapping("/contact-info")
+    @Operation(operationId = "publicContactInfo", summary = "Coordonnees de l'entreprise (telephones, WhatsApp, e-mail, adresse, horaires, numeros d'urgence, disponibilite), lues dans la configuration SUPPORT_* du back-office ; un champ null = non communique")
+    @SecurityRequirements
+    public ResponseEntity<ci.assurzen.dto.PublicContactInfo> contact() {
+        return ResponseEntity.ok(contactService.contact());
+    }
+
+    @GetMapping("/legal")
+    @Operation(operationId = "publicLegal", summary = "Liens des conditions generales et de la politique de confidentialite (cles LEGAL_* du back-office) ; null = lien masque")
+    @SecurityRequirements
+    public ResponseEntity<ci.assurzen.dto.MobileExtraDtos.LegalInfo> mentionsLegales() {
+        return ResponseEntity.ok(profileService.mentionsLegales());
+    }
+
+    @GetMapping("/support/topics")
+    @Operation(operationId = "publicSupportTopics", summary = "Sujets des demandes d'aide (cle SUPPORT_TOPICS du back-office)")
+    @SecurityRequirements
+    public ResponseEntity<ci.assurzen.dto.MobileExtraDtos.TopicList> sujets() {
+        return ResponseEntity.ok(supportService.sujets());
+    }
+
+    @GetMapping("/support/faq")
+    @Operation(operationId = "publicSupportFaq", summary = "Questions frequentes visibles, triees (geree depuis le back-office)")
+    @SecurityRequirements
+    public ResponseEntity<ci.assurzen.dto.MobileExtraDtos.FaqList> faq() {
+        return ResponseEntity.ok(supportService.faq());
     }
 
     @PostMapping("/callbacks")

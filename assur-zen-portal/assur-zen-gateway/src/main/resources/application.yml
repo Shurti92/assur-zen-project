@@ -170,6 +170,8 @@ logging:
 # ==========================================================
 
 app:
+  # Port HTTP clair supplementaire (dev uniquement, telephone de test mobile) : vide = desactive
+  http-port: ${SERVER_HTTP_PORT:}
   name: AssurZen Gateway
   version: 1.0.0
   api-prefix: /api-assur-zen

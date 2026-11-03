@@ -39,7 +39,8 @@ public final class MobileClaimDtos {
     ) {
     }
 
-    public record Created(String id, String number, String status, LocalDate declaredAt) {
+    /** expectedHandlingHours est null tant que CLAIM_HANDLING_HOURS n'est pas configure (aucun engagement). */
+    public record Created(String id, String number, String status, LocalDate declaredAt, Integer expectedHandlingHours) {
     }
 
     public record Step(String label, /** DONE, CURRENT ou TODO */ String state) {

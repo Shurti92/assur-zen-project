@@ -17,6 +17,7 @@ public final class MobileContractRequestDtos {
     ) {
     }
 
-    public record CreatedResponse(String reference, int expectedWithinHours) {
+    /** expectedWithinHours est null tant que CONTRACT_REQUEST_RESPONSE_HOURS n'est pas configure (aucun engagement). */
+    public record CreatedResponse(String reference, Integer expectedWithinHours) {
     }
 }

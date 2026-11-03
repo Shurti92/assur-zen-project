@@ -52,6 +52,7 @@ public class MobilePaymentService {
     private final MobilePaymentRepository paymentRepository;
     private final ClientAccountInsuredRepository clientAccountInsuredRepository;
     private final ContractRepository contractRepository;
+    private final MobileNotificationService notificationService;
 
     @Value("${mobile.payments.simulated:false}")
     private boolean simulation;
@@ -154,7 +155,12 @@ public class MobilePaymentService {
             if (!echec) {
                 paiement.setRenewalContractId(creerRenouvellement(paiement));
             }
-            return paymentRepository.save(paiement);
+            MobilePayment resolu = paymentRepository.save(paiement);
+            notificationService.notifier(resolu.getUserId(), "PAYMENT", echec ? "Paiement échoué" : "Paiement confirmé",
+                    echec ? "Votre paiement de " + resolu.getAmount() + " FCFA n'a pas abouti. Vous pouvez réessayer."
+                            : "Votre paiement de " + resolu.getAmount() + " FCFA a été confirmé.",
+                    resolu.getContractId(), null, "PAY-" + resolu.getId());
+            return resolu;
         }
         if (maintenant.isAfter(paiement.getExpiresAt())) {
             paiement.setStatus("FAILED");

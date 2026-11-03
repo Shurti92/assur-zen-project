@@ -13,7 +13,15 @@ public final class PublicMobileDtos {
     }
 
     /** kind : MANDATORY, INCLUDED, OPTIONAL ou TO_CONFIRM. */
-    public record Guarantee(String name, String kind) {
+    /** limit : plafond ou franchise en texte libre ; formulaIds : formules qui incluent la garantie. */
+    public record Guarantee(String id, String name, String kind, String description, String limit, List<String> formulaIds) {
+    }
+
+    /** Formule d'un produit (contenu, sans prix) ; guaranteeIds : garanties visibles incluses. */
+    public record Formula(String id, String name, String description, List<String> guaranteeIds) {
+    }
+
+    public record Faq(String question, String answer) {
     }
 
     /**
@@ -31,8 +39,14 @@ public final class PublicMobileDtos {
             String howItWorks,
             String eligibility,
             List<Guarantee> guarantees,
+            List<Formula> formulas,
+            List<String> exclusions,
+            List<String> requiredDocuments,
+            List<Faq> faq,
             String icon,
-            int displayOrder
+            int displayOrder,
+            /** Derniere modification du contenu : sert de version pour le cache de l'application. */
+            java.time.Instant contentVersion
     ) {
     }
 

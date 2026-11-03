@@ -51,7 +51,14 @@ class MobileProductContentServiceTest {
     private AdminMobileProductDtos.ContentRequest requete(boolean visible, Integer ordre) {
         return new AdminMobileProductDtos.ContentRequest(visible, "Moto", "VEHICLE", "Protegez votre moto",
                 List.of("Rapide", " ", "Sans paperasse"), "Souscrivez en 3 etapes", "Plus de 18 ans",
-                List.of(new AdminMobileProductDtos.GuaranteeInput("Responsabilite civile", "MANDATORY")), "moto", ordre, false);
+                List.of(new AdminMobileProductDtos.GuaranteeInput(null, "Responsabilite civile", "MANDATORY", "Dommages aux tiers", "Selon la loi",
+                                List.of("tiers", "tous-risques"), null, null),
+                        new AdminMobileProductDtos.GuaranteeInput("vol", "Vol", "OPTIONAL", null, "10 000 000 FCFA", List.of("tous-risques"), 5, null),
+                        new AdminMobileProductDtos.GuaranteeInput("cache", "Garantie masquee", "INCLUDED", null, null, List.of(), 1, false)),
+                List.of(new AdminMobileProductDtos.FormulaInput("tiers", "Tiers", "Responsabilite civile seule", 10, null),
+                        new AdminMobileProductDtos.FormulaInput("tous-risques", "Tous risques", null, 20, true)),
+                List.of("Conduite sans permis", " "), List.of("Carte grise", "Piece d'identite"),
+                List.of(new AdminMobileProductDtos.FaqInput("Comment payer ?", "Par Wave.")), "moto", ordre, false);
     }
 
     @Test
@@ -66,8 +73,52 @@ class MobileProductContentServiceTest {
         assertEquals("moto", c.productKey());
         assertEquals(List.of("Rapide", "Sans paperasse"), c.benefits());
         assertEquals("MANDATORY", c.guarantees().get(0).kind());
+        assertEquals("g1", c.guarantees().get(0).id());
+        assertEquals(List.of("Conduite sans permis"), c.exclusions());
+        assertEquals(List.of("Carte grise", "Piece d'identite"), c.requiredDocuments());
+        assertEquals("Par Wave.", c.faq().get(0).answer());
+        assertEquals(2, c.formulas().size());
         assertEquals(20, c.displayOrder());
         assertEquals("admin", c.updatedBy());
+    }
+
+    @Test
+    void formuleInconnueDansUneGarantie_estRefusee() {
+        when(produits.findById(4L)).thenReturn(Optional.of(produit(4, "Assurance Moto", true)));
+        when(contenus.findByProductId(4L)).thenReturn(Optional.empty());
+        AdminMobileProductDtos.ContentRequest r = new AdminMobileProductDtos.ContentRequest(true, null, null, null, null, null, null,
+                List.of(new AdminMobileProductDtos.GuaranteeInput("rc", "RC", "MANDATORY", null, null, List.of("inconnue"), null, null)),
+                List.of(new AdminMobileProductDtos.FormulaInput("tiers", "Tiers", null, null, null)), null, null, null, null, null, null);
+        assertEquals("VALIDATION_FAILED", assertThrows(MobileApiException.class, () -> service.enregistrer(4L, r)).getCode());
+    }
+
+    @Test
+    void catalogue_publicFiltreLesGarantiesMasqueesEtDeriveLesGarantiesDesFormules() {
+        when(produits.findById(4L)).thenReturn(Optional.of(produit(4, "Assurance Moto", true)));
+        when(contenus.findByProductId(4L)).thenReturn(Optional.empty());
+        MobileProductContent enregistre = new MobileProductContent();
+        when(contenus.save(any(MobileProductContent.class))).thenAnswer(inv -> {
+            MobileProductContent c = inv.getArgument(0);
+            enregistre.setProductId(c.getProductId());
+            enregistre.setVisibleMobile(c.isVisibleMobile());
+            enregistre.setGuaranteesJson(c.getGuaranteesJson());
+            enregistre.setFormulasJson(c.getFormulasJson());
+            enregistre.setDisplayOrder(c.getDisplayOrder());
+            enregistre.setUpdatedAt(c.getUpdatedAt());
+            return c;
+        });
+        service.enregistrer(4L, requete(true, 20));
+        when(contenus.findAll()).thenReturn(List.of(enregistre));
+        when(produits.findAllById(any())).thenReturn(List.of(produit(4, "Assurance Moto", true)));
+
+        PublicMobileDtos.Product p = service.produitsVisibles().items().get(0);
+
+        assertEquals(List.of("vol", "g1"), p.guarantees().stream().map(PublicMobileDtos.Guarantee::id).toList());
+        assertEquals(List.of("tiers", "tous-risques"), p.formulas().stream().map(PublicMobileDtos.Formula::id).toList());
+        assertEquals(List.of("g1"), p.formulas().get(0).guaranteeIds());
+        assertEquals(List.of("g1", "vol"), p.formulas().get(1).guaranteeIds().stream().sorted().toList());
+        assertEquals("10 000 000 FCFA", p.guarantees().get(0).limit());
+        assertTrue(p.contentVersion() != null);
     }
 
     @Test

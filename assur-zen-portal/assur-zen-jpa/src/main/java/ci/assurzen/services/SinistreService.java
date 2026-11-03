@@ -60,6 +60,7 @@ public class SinistreService {
     private final SmsNotificationService smsNotificationService;
     private final SinistrePhotoStorageService sinistrePhotoStorageService;
     private final BusinessMetrics businessMetrics;
+    private final ci.assurzen.service.MobileNotificationService mobileNotificationService;
     private final FunctionalAuditRecorder functionalAuditRecorder;
     private final DynamicConfigurationService dynamicConfigurationService;
 
@@ -197,6 +198,14 @@ public class SinistreService {
                 .notificationEnvoyee(notified)
                 .build();
         suivi = sinistreSuiviRepository.save(suivi);
+
+        // Notification in-app du client mobile (2026-11-03) : changement de statut du sinistre.
+        if (sinistre.getInsured() != null) {
+            mobileNotificationService.notifierAssure(sinistre.getInsured().getId(), "CLAIM", "Sinistre " + sinistre.getNumero(),
+                    "Nouveau statut : " + ci.assurzen.service.MobileClaimService.libelleStatut(request.statut())
+                            + (StringUtils.hasText(request.commentaire()) ? ". " + request.commentaire() : ""),
+                    sinistre.getContract() == null ? null : sinistre.getContract().getId(), sinistre.getId(), null);
+        }
 
         return toSuiviResponse(suivi);
     }

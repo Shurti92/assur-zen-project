@@ -57,6 +57,25 @@ public class MobileProductContent implements Serializable {
     @Column(name = "guarantees_json", columnDefinition = "TEXT")
     private String guaranteesJson;
 
+    /** Tableau JSON de {id, name, kind, description, limit, formulaIds, displayOrder, visible}. */
+    // (guarantees_json ci-dessus : meme colonne, structure enrichie le 2026-11-03)
+
+    /** Tableau JSON de {id, name, description, displayOrder, visible}. */
+    @Column(name = "formulas_json", columnDefinition = "TEXT")
+    private String formulasJson;
+
+    /** Tableau JSON de textes. */
+    @Column(name = "exclusions_json", columnDefinition = "TEXT")
+    private String exclusionsJson;
+
+    /** Tableau JSON de textes : pieces a fournir pour souscrire. */
+    @Column(name = "required_documents_json", columnDefinition = "TEXT")
+    private String requiredDocumentsJson;
+
+    /** Tableau JSON de {question, answer}. */
+    @Column(name = "faq_json", columnDefinition = "TEXT")
+    private String faqJson;
+
     /** Code d'icone choisi par le back-office (ex. car, moto, health). */
     @Column(name = "icon", length = 40)
     private String icon;

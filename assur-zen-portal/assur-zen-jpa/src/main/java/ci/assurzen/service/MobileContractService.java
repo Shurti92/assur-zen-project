@@ -46,7 +46,6 @@ public class MobileContractService {
     private static final ZoneId ABIDJAN = ZoneId.of("Africa/Abidjan");
     private static final Set<String> STATUTS = Set.of("PENDING", "ACTIVE", "SUSPENDED", "EXPIRED", "TERMINATED");
     private static final long FENETRE_RENOUVELLEMENT_PAR_DEFAUT = 30;
-    private static final int DELAI_REPONSE_HEURES = 24;
 
     private final ClientAccountInsuredRepository clientAccountInsuredRepository;
     private final ContractRepository contractRepository;
@@ -108,7 +107,7 @@ public class MobileContractService {
         ContractCustomerRequest existante = requestRepository
                 .findFirstByContractIdAndTypeAndStatutOrderByCreatedAtDesc(contractId, type, "EN_ATTENTE").orElse(null);
         if (existante != null) {
-            return new ci.assurzen.dto.MobileContractRequestDtos.CreatedResponse(existante.getReference(), DELAI_REPONSE_HEURES);
+            return new ci.assurzen.dto.MobileContractRequestDtos.CreatedResponse(existante.getReference(), delaiReponseHeures());
         }
         ContractCustomerRequest demande = new ContractCustomerRequest();
         demande.setContractId(contractId);
@@ -126,10 +125,16 @@ public class MobileContractService {
         } catch (RuntimeException e) {
             // notification non bloquante
         }
-        return new ci.assurzen.dto.MobileContractRequestDtos.CreatedResponse(demande.getReference(), DELAI_REPONSE_HEURES);
+        return new ci.assurzen.dto.MobileContractRequestDtos.CreatedResponse(demande.getReference(), delaiReponseHeures());
     }
 
     // ------------------------------------------------------------------
+
+    /** Delai annonce pour une demande de contrat : cle CONTRACT_REQUEST_RESPONSE_HOURS, null si non configure. */
+    private Integer delaiReponseHeures() {
+        long heures = dynamicConfigurationService.getLong("CONTRACT_REQUEST_RESPONSE_HOURS", 0L);
+        return heures > 0 ? (int) heures : null;
+    }
 
     private List<Long> assuresDuCompte(Long userId) {
         return clientAccountInsuredRepository.findByUserId(userId).stream().map(ClientAccountInsured::getInsuredId).toList();
