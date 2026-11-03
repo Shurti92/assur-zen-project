@@ -1,195 +1,220 @@
-<section class="dl-panel">
-  <div class="dl-toolbar">
-    <div class="dl-toolbar-title">
-      <h2>Nouveau devis</h2>
-    </div>
-    <div class="btn-group" role="group" aria-label="Produit">
-      <a class="btn btn-sm btn-outline-primary" routerLink="/devis/nouveau">Moto</a>
-      <a class="btn btn-sm btn-primary active" aria-current="page" routerLink="/devis/nouveau-vtc">Automobile VTC</a>
-    </div>
-    <div class="dl-actions">
-      <a cButton class="dl-btn" routerLink="/devis/liste">← Liste des devis</a>
-    </div>
+<div class="df-top">
+  <div>
+    <h1>Nouveau devis</h1>
+    <p class="df-sub">Le prix se calcule dès que le formulaire est complet.</p>
   </div>
-
-  <div class="px-3">
-    @if (error()) {
-      <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
-    }
+  <div class="df-top-right">
+    <div class="df-seg" aria-label="Produit">
+      <a routerLink="/devis/nouveau">🏍️ Moto</a>
+      <a class="df-seg-on" aria-current="page" routerLink="/devis/nouveau-vtc">🚕 Automobile VTC</a>
+    </div>
+    <a class="df-link" routerLink="/devis/liste">← Liste des devis</a>
   </div>
+</div>
 
-  <form [formGroup]="form" (ngSubmit)="simulate()" class="row g-3 px-3 pb-3">
-    <div class="col-lg-8">
-      <h3 class="h6 text-uppercase text-body-secondary">Prospect</h3>
-      <div class="row g-3 mb-4">
-        <div class="col-md-6">
-          <label class="form-label" for="vt-name">Nom *</label>
-          <input class="form-control" formControlName="prospectName" id="vt-name" [class.is-invalid]="hasError('prospectName')" />
-          @if (fieldError('prospectName'); as e) { <div class="invalid-feedback">{{ e }}</div> }
+@if (error()) {
+  <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+}
+
+<form [formGroup]="form" class="df-layout">
+  <div>
+    <section class="df-card">
+      <div class="df-hd">
+        <span [class.df-num--done]="step1Done()" class="df-num">1</span>
+        <h2>Prospect<small>Qui demande le devis ?</small></h2>
+      </div>
+      <div class="df-grid">
+        <div class="df-field">
+          <label for="vt-name">Nom complet *</label>
+          <div [class.df-in--valid]="nameOk()" class="df-in">
+            <i class="df-ico">👤</i>
+            <input formControlName="prospectName" id="vt-name" placeholder="Kouassi Yao" [class.df-invalid]="hasError('prospectName')" />
+            <span class="df-check">✓</span>
+          </div>
+          @if (fieldError('prospectName'); as e) { <div class="df-error">{{ e }}</div> }
         </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-phone">Téléphone * (10 chiffres)</label>
-          <input class="form-control" formControlName="prospectPhone" id="vt-phone" inputmode="numeric" maxlength="10" placeholder="0701020304" [class.is-invalid]="hasError('prospectPhone')" />
-          <div class="invalid-feedback">{{ fieldError('prospectPhone') ?? 'Le téléphone doit comporter 10 chiffres.' }}</div>
+        <div class="df-field">
+          <label for="vt-phone">Téléphone * <span class="df-light">(10 chiffres)</span></label>
+          <div [class.df-in--valid]="phoneOk()" class="df-in">
+            <i class="df-ico">📞</i>
+            <input formControlName="prospectPhone" id="vt-phone" inputmode="numeric" maxlength="10" placeholder="0701020304" [class.df-invalid]="hasError('prospectPhone')" />
+            <span class="df-check">✓</span>
+          </div>
+          @if (fieldError('prospectPhone'); as e) { <div class="df-error">{{ e }}</div> }
         </div>
       </div>
+    </section>
 
-      <h3 class="h6 text-uppercase text-body-secondary">Véhicule</h3>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label" for="vt-brand">Marque *</label>
+    <section class="df-card">
+      <div class="df-hd">
+        <span [class.df-num--done]="step2Done()" class="df-num">2</span>
+        <h2>Véhicule<small>Voiture utilisée en VTC</small></h2>
+      </div>
+      <div class="df-grid">
+        <div class="df-field">
+          <label for="vt-brand">Marque *</label>
           @if (brands().length > 0) {
-            <select class="form-select" formControlName="brand" id="vt-brand" [class.is-invalid]="hasError('brand')">
+            <select formControlName="brand" id="vt-brand">
               <option value="">Choisir…</option>
               @for (b of brands(); track b) {
                 <option [value]="b">{{ b }}</option>
               }
             </select>
           } @else {
-            <input class="form-control" formControlName="brand" id="vt-brand" [class.is-invalid]="hasError('brand')" />
+            <input class="df-input" formControlName="brand" id="vt-brand" />
           }
-          <div class="invalid-feedback">{{ fieldError('brand') ?? 'La marque est obligatoire.' }}</div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-model">Modèle *</label>
-          <input class="form-control" formControlName="model" id="vt-model" [class.is-invalid]="hasError('model')" />
-          <div class="invalid-feedback">{{ fieldError('model') ?? 'Le modèle est obligatoire.' }}</div>
+        <div class="df-field">
+          <label for="vt-model">Modèle *</label>
+          <input class="df-input" formControlName="model" id="vt-model" />
         </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-cv">Puissance fiscale (CV) * · min {{ minFiscalPower() }}</label>
-          <input class="form-control" formControlName="fiscalPower" id="vt-cv" [min]="minFiscalPower()" type="number" [class.is-invalid]="hasError('fiscalPower')" />
-          <div class="invalid-feedback">{{ fieldError('fiscalPower') ?? 'La puissance fiscale est obligatoire.' }}</div>
+        <div class="df-field">
+          <label for="vt-cv">Puissance fiscale (CV) * <span class="df-light">· min {{ minFiscalPower() }}</span></label>
+          <input class="df-input" formControlName="fiscalPower" id="vt-cv" [min]="minFiscalPower()" placeholder="5" type="number" [class.df-invalid]="hasError('fiscalPower')" />
+          @if (fieldError('fiscalPower'); as e) { <div class="df-error">{{ e }}</div> }
         </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-energy">Énergie *</label>
-          <select class="form-select" formControlName="energy" id="vt-energy" [class.is-invalid]="hasError('energy')">
+        <div class="df-field">
+          <label for="vt-year">Année de 1re mise en circulation *</label>
+          <input class="df-input" formControlName="firstRegistrationYear" id="vt-year" placeholder="2019" type="number" [class.df-invalid]="hasError('firstRegistrationYear')" />
+          @if (fieldError('firstRegistrationYear'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
+        <div class="df-field df-span2">
+          <span class="df-label">Énergie *</span>
+          <div class="df-chips">
             @for (e of energies(); track e) {
-              <option [value]="e">{{ energyLabel[e] }}</option>
+              <button (click)="setEnergy(e)" [class.df-on]="form.controls.energy.value === e" class="df-chip" type="button">{{ energyLabel[e] }}</button>
             }
-          </select>
-          @if (fieldError('energy'); as e) { <div class="invalid-feedback">{{ e }}</div> }
+          </div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-year">Année de 1re mise en circulation *</label>
-          <input class="form-control" formControlName="firstRegistrationYear" id="vt-year" type="number" [class.is-invalid]="hasError('firstRegistrationYear')" />
-          <div class="invalid-feedback">{{ fieldError('firstRegistrationYear') ?? "L'année est obligatoire." }}</div>
+        <div class="df-field">
+          <span class="df-label">Nombre de places * <span class="df-light">· {{ minSeats() }} à {{ maxSeats() }}</span></span>
+          <div class="df-stepper">
+            <button (click)="stepSeats(-1)" aria-label="Moins de places" type="button">−</button>
+            <b>{{ form.controls.seats.value }}</b>
+            <button (click)="stepSeats(1)" aria-label="Plus de places" type="button">+</button>
+          </div>
+          @if (fieldError('seats'); as e) { <div class="df-error">{{ e }}</div> }
         </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-seats">Nombre de places * · {{ minSeats() }} à {{ maxSeats() }}</label>
-          <input class="form-control" formControlName="seats" id="vt-seats" [max]="maxSeats()" [min]="minSeats()" type="number" [class.is-invalid]="hasError('seats')" />
-          <div class="invalid-feedback">{{ fieldError('seats') ?? 'Le nombre de places est obligatoire.' }}</div>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-platform">Plateforme VTC</label>
+        <div class="df-field">
+          <label for="vt-platform">Plateforme</label>
           @if (platforms().length > 0) {
-            <select class="form-select" formControlName="platform" id="vt-platform" [class.is-invalid]="hasError('platform')">
-              <option value="">Aucune / autre</option>
+            <select formControlName="platform" id="vt-platform">
+              <option value="">Autre / aucune</option>
               @for (p of platforms(); track p) {
                 <option [value]="p">{{ p }}</option>
               }
             </select>
           } @else {
-            <input class="form-control" formControlName="platform" id="vt-platform" [class.is-invalid]="hasError('platform')" />
+            <input class="df-input" formControlName="platform" id="vt-platform" />
           }
-          @if (fieldError('platform'); as e) { <div class="invalid-feedback">{{ e }}</div> }
         </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-date">Date d'effet *</label>
-          <input class="form-control" formControlName="effectiveDate" id="vt-date" [min]="minDate()" type="date" [class.is-invalid]="hasError('effectiveDate')" />
-          <div class="invalid-feedback">{{ fieldError('effectiveDate') ?? "La date d'effet est obligatoire." }}</div>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-immat">Immatriculation</label>
-          <input class="form-control" formControlName="registrationNumber" id="vt-immat" [class.is-invalid]="hasError('registrationNumber') || identifierMissing()" />
-          @if (fieldError('registrationNumber'); as e) { <div class="invalid-feedback">{{ e }}</div> }
-        </div>
-        <div class="col-md-6">
-          <label class="form-label" for="vt-chassis">N° de châssis</label>
-          <input class="form-control" formControlName="chassisNumber" id="vt-chassis" [class.is-invalid]="identifierMissing()" />
+        <div class="df-field df-span2">
+          <button (click)="toggleDeclared()" [attr.aria-pressed]="form.controls.vtcDeclared.value" [class.df-on]="form.controls.vtcDeclared.value" class="df-switch" type="button">
+            <span>
+              <b>Usage VTC déclaré *</b><br />
+              <span class="df-hint">Le véhicule est utilisé en transport public de personnes</span>
+            </span>
+            <span class="df-tg"></span>
+          </button>
+          @if (fieldError('vtcDeclared'); as e) { <div class="df-error">{{ e }}</div> }
         </div>
       </div>
-      <div class="small mt-2" [class.text-danger]="identifierMissing()" [class.text-body-secondary]="!identifierMissing()">
-        Immatriculation ou châssis : au moins un des deux.
+      <div class="df-grid df-mt">
+        <div class="df-field">
+          <label for="vt-immat">Immatriculation</label>
+          <div class="df-in">
+            <i class="df-ico">🔖</i>
+            <input formControlName="registrationNumber" id="vt-immat" placeholder="1234 AB 01" [class.df-invalid]="hasError('registrationNumber')" />
+          </div>
+          @if (fieldError('registrationNumber'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
+        <div class="df-field">
+          <label for="vt-chassis">N° de châssis</label>
+          <div class="df-in">
+            <i class="df-ico">#</i>
+            <input formControlName="chassisNumber" id="vt-chassis" />
+          </div>
+        </div>
       </div>
+      <div [class.df-ident--ok]="identifierOk()" class="df-ident">
+        {{ identifierOk() ? '✓ Identification du véhicule renseignée' : "ⓘ Renseignez l'immatriculation ou le châssis (au moins un des deux)." }}
+      </div>
+    </section>
 
-      <div class="mt-3">
-        <span class="form-label d-block">Usage VTC déclaré *</span>
-        <div class="btn-group" role="group" aria-label="Usage VTC déclaré">
-          <button (click)="setDeclared(true)" [class.btn-primary]="form.controls.vtcDeclared.value === true" [class.btn-outline-primary]="form.controls.vtcDeclared.value !== true" class="btn btn-sm" type="button">Oui, véhicule VTC</button>
-          <button (click)="setDeclared(false)" [class.btn-primary]="form.controls.vtcDeclared.value === false" [class.btn-outline-primary]="form.controls.vtcDeclared.value !== false" class="btn btn-sm" type="button">Non</button>
-        </div>
-        @if (hasError('vtcDeclared')) {
-          <div class="small text-danger mt-1">{{ fieldError('vtcDeclared') ?? "Indiquez si l'usage VTC est déclaré." }}</div>
-        }
+    <section class="df-card">
+      <div class="df-hd">
+        <span [class.df-num--done]="contractOk()" class="df-num">3</span>
+        <h2>Contrat<small>Durée et date d'effet</small></h2>
       </div>
-
-      <div class="mt-3">
-        <span class="form-label d-block">Durée *</span>
-        <div class="btn-group" role="group" aria-label="Durée">
+      <div class="df-field">
+        <span class="df-label">Durée *</span>
+        <div class="df-chips">
           @for (m of durations(); track m) {
-            <button (click)="setDuration(m)" [class.btn-primary]="form.controls.durationMonths.value === m" [class.btn-outline-primary]="form.controls.durationMonths.value !== m" class="btn btn-sm" type="button">{{ m }} mois</button>
+            <button (click)="setDuration(m)" [class.df-on]="form.controls.durationMonths.value === m" class="df-chip" type="button">{{ m }} mois</button>
           }
         </div>
-        @if (fieldError('durationMonths'); as e) { <div class="small text-danger mt-1">{{ e }}</div> }
+        @if (fieldError('durationMonths'); as e) { <div class="df-error">{{ e }}</div> }
       </div>
-
-      <div class="mt-3">
-        <label class="form-label" for="vt-discount">Remise commerciale (max {{ maxDiscount() }} % de la prime nette)</label>
-        <div class="d-flex align-items-center gap-3">
-          <input class="form-range" formControlName="discountPercent" id="vt-discount" max="{{ maxDiscount() }}" min="0" step="0.5" type="range" />
-          <b style="min-width: 3.5rem; text-align: right">{{ form.controls.discountPercent.value }} %</b>
+      <div class="df-grid df-mt">
+        <div class="df-field">
+          <label for="vt-date">Date d'effet *</label>
+          <input class="df-input" formControlName="effectiveDate" id="vt-date" [min]="minDate()" type="date" [class.df-invalid]="hasError('effectiveDate')" />
+          @if (fieldError('effectiveDate'); as e) { <div class="df-error">{{ e }}</div> }
         </div>
-        @if (fieldError('discountPercent'); as e) { <div class="small text-danger">{{ e }}</div> }
+        <div class="df-field">
+          <label for="vt-discount">Remise commerciale <span class="df-light">(max {{ maxDiscount() }} % de la prime nette)</span></label>
+          <div class="df-range">
+            <input formControlName="discountPercent" id="vt-discount" max="{{ maxDiscount() }}" min="0" step="0.5" type="range" />
+            <b>{{ form.controls.discountPercent.value }} %</b>
+          </div>
+          @if (fieldError('discountPercent'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
       </div>
+    </section>
+  </div>
 
-      <div class="mt-3">
-        <button [disabled]="simulating()" cButton class="dl-btn" type="submit">
-          @if (simulating()) {
-            <c-spinner size="sm" />
-          }
-          Calculer le prix
-        </button>
-      </div>
-    </div>
+  <aside class="df-sticky">
+    <div class="df-card" style="margin: 0">
+      <div class="df-panel-hd"><b>Prix et garanties</b><span>{{ progress() }} %</span></div>
+      <div class="df-prog"><div [style.width.%]="progress()"></div></div>
 
-    <div class="col-lg-4">
-      <h3 class="h6 text-uppercase text-body-secondary">Prix et garanties</h3>
-      @if (simulation(); as s) {
+      @if (shownSimulation(); as s) {
         @if (!simulationUpToDate()) {
-          <p class="small text-warning">Le formulaire a changé : recalculez le prix avant d'enregistrer.</p>
+          <p class="df-warn">Mise à jour du prix…</p>
         }
-        <div class="fs-2 fw-bold text-primary">{{ formatAmount(estimate()?.total ?? s.premium.total) }}</div>
-        <div class="text-body-secondary mb-2">{{ s.formulaName }} · {{ s.durationMonths }} mois</div>
-        <table class="table table-sm mb-1">
+        <span class="df-badge">{{ s.formulaName }} · {{ s.durationMonths }} mois</span>
+        <div class="df-price">{{ formatAmount(total()) }}</div>
+        <div class="df-bar" aria-hidden="true">
+          @for (b of bars(); track $index) {
+            <div [style.background]="b.color" [style.width.%]="b.percent"></div>
+          }
+        </div>
+        <table class="df-table">
           <tbody>
-            <tr><td>Prime nette</td><td class="text-end">{{ s.premium.netPremium.toLocaleString('fr-FR') }}</td></tr>
-            @if ((estimate()?.discount ?? 0) > 0) {
-              <tr class="text-success"><td>Remise {{ form.controls.discountPercent.value }} %</td><td class="text-end">− {{ estimate()!.discount.toLocaleString('fr-FR') }}</td></tr>
+            @for (r of rows(); track r.label) {
+              <tr [class.df-disc]="r.discount"><td>{{ r.label }}</td><td>{{ r.amount < 0 ? '− ' + formatAmount(-r.amount) : formatAmount(r.amount) }}</td></tr>
             }
-            <tr><td>Taxes</td><td class="text-end">{{ s.premium.taxes.toLocaleString('fr-FR') }}</td></tr>
-            <tr><td>Accessoires</td><td class="text-end">{{ s.premium.accessories.toLocaleString('fr-FR') }}</td></tr>
-            <tr><td>CEDEAO</td><td class="text-end">{{ (s.premium.cedeao ?? 0).toLocaleString('fr-FR') }}</td></tr>
-            <tr><td>Attestation</td><td class="text-end">{{ (s.premium.attestation ?? 0).toLocaleString('fr-FR') }}</td></tr>
-            <tr><td>FGA</td><td class="text-end">{{ s.premium.fga.toLocaleString('fr-FR') }}</td></tr>
           </tbody>
         </table>
-        <p class="small text-body-secondary mb-3">Remise estimée à l'écran ; le serveur recalcule et fait foi.</p>
-        @for (g of s.guarantees; track g.label) {
-          <div class="fw-semibold">{{ g.label }}</div>
-          @for (d of g.details ?? []; track d.label) {
-            <div class="small text-body-secondary">{{ d.label }} : {{ d.amount }}</div>
+        <div class="df-guarantees">
+          @for (g of s.guarantees; track g.label) {
+            <span>✓ {{ g.label }}</span>
           }
-        }
-        <button (click)="save()" [disabled]="saving() || !simulationUpToDate()" cButton class="mt-3" color="primary" type="button">
+        </div>
+        <button (click)="save()" [disabled]="saving() || simulating() || !simulationUpToDate()" class="df-save" type="button">
           @if (saving()) {
             <c-spinner size="sm" />
           }
           Enregistrer le devis
         </button>
-        <p class="small text-body-secondary mt-2 mb-0">L'enregistrement fige le prix.</p>
+        <div class="df-note">L'enregistrement fige le prix. Remise estimée à l'écran ; le serveur recalcule et fait foi.</div>
       } @else {
-        <p class="text-body-secondary">Renseignez le véhicule puis cliquez sur « Calculer le prix ». Aucun devis n'est enregistré à ce stade.</p>
+        <div class="df-empty">
+          <b>🧮</b>Complétez le formulaire pour voir le prix
+          <div class="df-sk"></div><div class="df-sk" style="width: 50%"></div><div class="df-sk" style="width: 60%"></div>
+        </div>
+        <button class="df-save" disabled type="button">Enregistrer le devis</button>
       }
     </div>
-  </form>
-</section>
+  </aside>
+</form>

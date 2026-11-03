@@ -1,8 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
+import { debounceTime } from 'rxjs';
+import { SpinnerComponent } from '@coreui/angular';
 
 import { QuoteForm, QuoteSimulation, QuoteVehicleRequest } from '../../core/quotes/models/quote.model';
 import { QuoteService } from '../../core/quotes/quote.service';
@@ -19,6 +21,8 @@ const FIELD_TO_CONTROL: Record<string, string> = {
   vehicleType: 'vehicleType',
 };
 
+const PRICE_COLORS = ['#4f46e5', '#06b6d4', '#f59e0b', '#16a34a', '#8b5cf6', '#ec4899'];
+
 function today(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -28,7 +32,8 @@ function today(): string {
 @Component({
   selector: 'app-devis-nouveau',
   templateUrl: './devis-nouveau.component.html',
-  imports: [AlertMessageComponent, ButtonDirective, ReactiveFormsModule, RouterLink, SpinnerComponent],
+  styleUrl: './devis-form.component.scss',
+  imports: [AlertMessageComponent, ReactiveFormsModule, RouterLink, SpinnerComponent],
 })
 export class DevisNouveauComponent {
   private readonly service = inject(QuoteService);
@@ -47,7 +52,7 @@ export class DevisNouveauComponent {
   readonly form = this.fb.group({
     prospectName: ['', [Validators.required, Validators.maxLength(150)]],
     prospectPhone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-    vehicleType: ['MOTO' as 'MOTO' | 'TRICYCLE', Validators.required],
+    vehicleType: ['MOTO', Validators.required],
     cylinderCc: [null as number | null, [Validators.required, Validators.min(1)]],
     brand: ['', Validators.required],
     model: ['', Validators.required],
@@ -57,21 +62,66 @@ export class DevisNouveauComponent {
     chassisNumber: [''],
   });
 
-  private readonly formKey = signal(JSON.stringify(this.form.getRawValue()));
+  /** Valeur du formulaire en signal : les états calculés (étapes, progression, prêt) en dépendent. */
+  private readonly value = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
+  readonly formKey = computed(() => JSON.stringify(this.value()));
 
   readonly minDate = computed(() => this.options()?.minEffectiveDate ?? today());
-  readonly identifierMissing = signal(false);
-  /** Le prix affiché correspond bien aux valeurs actuelles du formulaire. */
+  readonly brands = computed(() => this.options()?.brands ?? []);
+  readonly vehicleTypes = computed(() => this.options()?.vehicleTypes ?? ['MOTO', 'TRICYCLE']);
+
+  readonly nameOk = computed(() => (this.value(), this.form.controls.prospectName.valid && this.form.controls.prospectName.value.trim().length > 1));
+  readonly phoneOk = computed(() => (this.value(), this.form.controls.prospectPhone.valid));
+  readonly identifierOk = computed(() => {
+    const v = this.value();
+    return !!(v.registrationNumber?.trim() || v.chassisNumber?.trim());
+  });
+  readonly vehicleOk = computed(() => {
+    this.value();
+    const c = this.form.controls;
+    return c.vehicleType.valid && c.cylinderCc.valid && c.brand.valid && c.model.valid;
+  });
+  readonly contractOk = computed(() => (this.value(), this.form.controls.durationMonths.valid && this.form.controls.effectiveDate.valid));
+
+  readonly step1Done = computed(() => this.nameOk() && this.phoneOk());
+  readonly step2Done = computed(() => this.vehicleOk() && this.identifierOk());
+  readonly progress = computed(() => {
+    const steps = [this.nameOk(), this.phoneOk(), this.vehicleOk(), this.identifierOk(), this.contractOk()];
+    return Math.round((steps.filter(Boolean).length / steps.length) * 100);
+  });
+  /** Formulaire complet : le prix se calcule tout seul. */
+  readonly ready = computed(() => this.step1Done() && this.step2Done() && this.contractOk());
+
   readonly simulationUpToDate = computed(() => !!this.simulation() && this.simulatedKey() === this.formKey());
+  readonly shownSimulation = computed(() => (this.ready() ? this.simulation() : null));
+
+  /** Répartition du prix pour la barre colorée (composantes non nulles). */
+  readonly rows = computed(() => {
+    const s = this.simulation();
+    if (!s) return [];
+    const p = s.premium;
+    return [
+      { label: 'Prime nette', amount: p.netPremium },
+      { label: 'Taxes', amount: p.taxes },
+      { label: 'Accessoires', amount: p.accessories },
+      { label: 'FGA', amount: p.fga },
+    ];
+  });
+  readonly bars = computed(() => {
+    const rows = this.rows().filter((r) => r.amount > 0);
+    const sum = rows.reduce((a, r) => a + r.amount, 0) || 1;
+    return rows.map((r, i) => ({ percent: (r.amount / sum) * 100, color: PRICE_COLORS[i % PRICE_COLORS.length] }));
+  });
 
   constructor() {
     this.service.form().subscribe({
       next: (opts) => this.options.set(opts),
       error: () => this.options.set(null),
     });
-    this.form.valueChanges.subscribe(() => {
-      this.formKey.set(JSON.stringify(this.form.getRawValue()));
+    // Calcul automatique du prix (simulation sans écriture) dès que le formulaire est complet.
+    this.form.valueChanges.pipe(debounceTime(400)).subscribe(() => {
       this.fieldErrors.set({});
+      if (this.ready() && !this.simulationUpToDate()) this.simulate();
     });
   }
 
@@ -80,9 +130,24 @@ export class DevisNouveauComponent {
     return list?.length ? list : [12];
   }
 
+  setType(type: string): void {
+    this.form.controls.vehicleType.setValue(type);
+  }
+
+  setDuration(months: number): void {
+    this.form.controls.durationMonths.setValue(months);
+  }
+
+  typeIcon(type: string): string {
+    return type === 'TRICYCLE' ? '🛺' : '🏍️';
+  }
+
+  typeLabel(type: string): string {
+    return type === 'TRICYCLE' ? 'Tricycle' : 'Moto';
+  }
+
   hasError(control: string): boolean {
-    const c = this.form.get(control);
-    return !!(c && c.invalid && (c.touched || c.dirty)) || !!this.fieldErrors()[control];
+    return !!this.fieldErrors()[control];
   }
 
   fieldError(control: string): string | null {
@@ -90,7 +155,7 @@ export class DevisNouveauComponent {
   }
 
   simulate(): void {
-    if (!this.validate() || this.simulating()) return;
+    if (!this.ready() || this.simulating()) return;
     this.simulating.set(true);
     this.error.set(null);
     const key = this.formKey();
@@ -99,6 +164,8 @@ export class DevisNouveauComponent {
         this.simulation.set(s);
         this.simulatedKey.set(key);
         this.simulating.set(false);
+        // Le formulaire a pu changer pendant le calcul : on recalcule.
+        if (this.formKey() !== key && this.ready()) this.simulate();
       },
       error: (err) => {
         this.simulating.set(false);
@@ -108,7 +175,7 @@ export class DevisNouveauComponent {
   }
 
   save(): void {
-    if (!this.validate() || this.saving()) return;
+    if (!this.ready() || !this.simulationUpToDate() || this.saving()) return;
     this.saving.set(true);
     this.error.set(null);
     const v = this.form.getRawValue();
@@ -128,14 +195,6 @@ export class DevisNouveauComponent {
 
   formatAmount(value: number): string {
     return `${value.toLocaleString('fr-FR')} F`;
-  }
-
-  private validate(): boolean {
-    this.form.markAllAsTouched();
-    const v = this.form.getRawValue();
-    const missing = !v.registrationNumber.trim() && !v.chassisNumber.trim();
-    this.identifierMissing.set(missing);
-    return this.form.valid && !missing;
   }
 
   private vehicleRequest(): QuoteVehicleRequest {

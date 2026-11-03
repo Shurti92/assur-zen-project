@@ -1,0 +1,528 @@
+// Formulaire de nouveau devis (moto et VTC) : cartes numérotées + panneau de prix collant.
+:host {
+  display: block;
+  --df-pri: var(--cui-primary, #4f46e5);
+  --df-soft: color-mix(in srgb, var(--df-pri) 12%, transparent);
+  --df-card: var(--cui-body-bg, #fff);
+  --df-bd: var(--cui-border-color, #e4e7ef);
+  --df-mut: var(--cui-secondary-color, #6b7385);
+  --df-ok: var(--cui-success, #16a34a);
+  --df-ok-soft: color-mix(in srgb, var(--df-ok) 14%, transparent);
+  --df-ko: var(--cui-danger, #e55353);
+  --df-radius: 14px;
+}
+
+.df-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+
+  h1 {
+    font-size: 1.4rem;
+    margin: 0;
+  }
+}
+
+.df-sub {
+  color: var(--df-mut);
+  margin: 0.1rem 0 0;
+}
+
+.df-top-right {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.df-seg {
+  display: inline-flex;
+  background: var(--df-card);
+  border: 1px solid var(--df-bd);
+  border-radius: 12px;
+  padding: 3px;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+    padding: 0.4rem 1rem;
+    border-radius: 9px;
+  }
+}
+
+.df-seg-on {
+  background: var(--df-pri);
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.df-link {
+  color: var(--df-mut);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.df-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22.5rem;
+  gap: 1.1rem;
+  align-items: start;
+
+  @media (max-width: 979.98px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.df-card {
+  background: var(--df-card);
+  border: 1px solid var(--df-bd);
+  border-radius: var(--df-radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.df-hd {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    font-size: 1rem;
+    margin: 0;
+  }
+
+  small {
+    display: block;
+    color: var(--df-mut);
+    font-weight: 400;
+  }
+}
+
+.df-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--df-soft);
+  color: var(--df-pri);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex: none;
+}
+
+.df-num--done {
+  background: var(--df-ok);
+  color: #fff;
+}
+
+.df-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+
+  @media (max-width: 639.98px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.df-span2 {
+  grid-column: 1 / -1;
+}
+
+.df-mt {
+  margin-top: 0.9rem;
+}
+
+.df-field > label,
+.df-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--df-mut);
+  margin-bottom: 0.3rem;
+}
+
+.df-light {
+  font-weight: 400;
+}
+
+.df-in {
+  position: relative;
+
+  .df-ico {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .df-check {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--df-ok);
+    display: none;
+  }
+
+  input {
+    padding-left: 2.25rem;
+  }
+}
+
+.df-in--valid .df-check {
+  display: block;
+}
+
+.df-input,
+.df-in input,
+.df-field select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--df-bd);
+  border-radius: 11px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  transition: 0.12s;
+
+  &:focus {
+    outline: none;
+    border-color: var(--df-pri);
+    box-shadow: 0 0 0 3px var(--df-soft);
+  }
+}
+
+.df-in input {
+  padding-left: 2.25rem;
+}
+
+.df-invalid {
+  border-color: var(--df-ko) !important;
+}
+
+.df-error {
+  color: var(--df-ko);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.df-hint {
+  font-size: 0.75rem;
+  color: var(--df-mut);
+  margin-top: 0.3rem;
+}
+
+.df-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.6rem;
+}
+
+.df-tile {
+  border: 1.5px solid var(--df-bd);
+  border-radius: 12px;
+  padding: 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  transition: 0.12s;
+
+  b {
+    display: block;
+    font-size: 1.4rem;
+  }
+
+  &:hover {
+    border-color: var(--df-pri);
+  }
+}
+
+.df-on {
+  border-color: var(--df-pri) !important;
+  background: var(--df-soft) !important;
+  color: var(--df-pri) !important;
+  font-weight: 600;
+}
+
+.df-chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.df-chip {
+  border: 1.5px solid var(--df-bd);
+  border-radius: 99px;
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.df-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--df-bd);
+  border-radius: 11px;
+  overflow: hidden;
+
+  button {
+    border: 0;
+    background: var(--df-soft);
+    color: var(--df-pri);
+    width: 2.6rem;
+    height: 2.6rem;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
+  b {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+.df-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  border: 1.5px solid var(--df-bd);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.df-tg {
+  width: 40px;
+  height: 22px;
+  background: #c9cedb;
+  border-radius: 99px;
+  position: relative;
+  flex: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: 0.15s;
+  }
+}
+
+.df-switch.df-on .df-tg {
+  background: var(--df-ok);
+
+  &::after {
+    transform: translateX(18px);
+  }
+}
+
+.df-range {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+
+  input {
+    flex: 1;
+    accent-color: var(--df-pri);
+  }
+
+  b {
+    min-width: 3rem;
+    text-align: right;
+  }
+}
+
+.df-ident {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: var(--df-soft);
+  color: var(--df-pri);
+}
+
+.df-ident--ok {
+  background: var(--df-ok-soft);
+  color: var(--df-ok);
+}
+
+.df-ident--ko {
+  background: color-mix(in srgb, var(--df-ko) 12%, transparent);
+  color: var(--df-ko);
+}
+
+// Panneau de prix.
+.df-sticky {
+  position: sticky;
+  top: 0.75rem;
+
+  @media (max-width: 979.98px) {
+    position: static;
+  }
+}
+
+.df-panel-hd {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--df-mut);
+
+  b {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+.df-prog {
+  height: 6px;
+  background: var(--df-bd);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 0.4rem 0 0.9rem;
+
+  div {
+    height: 100%;
+    background: var(--df-pri);
+    transition: width 0.25s;
+  }
+}
+
+.df-empty {
+  text-align: center;
+  color: var(--df-mut);
+  padding: 1.4rem 0.6rem;
+
+  b {
+    display: block;
+    font-size: 2.1rem;
+    margin-bottom: 0.4rem;
+  }
+}
+
+.df-sk {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--df-bd);
+  margin: 0.55rem auto;
+  width: 70%;
+}
+
+.df-badge {
+  display: inline-block;
+  background: var(--df-soft);
+  color: var(--df-pri);
+  padding: 0.15rem 0.65rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.df-price {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--df-pri);
+}
+
+.df-bar {
+  display: flex;
+  height: 9px;
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 0.75rem 0;
+
+  div {
+    transition: width 0.25s;
+  }
+}
+
+.df-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  td {
+    padding: 0.35rem 0;
+    border-bottom: 1px dashed var(--df-bd);
+
+    + td {
+      text-align: right;
+    }
+  }
+}
+
+.df-disc td {
+  color: var(--df-ok);
+}
+
+.df-guarantees {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+
+  span {
+    background: var(--df-ok-soft);
+    color: var(--df-ok);
+    border-radius: 99px;
+    padding: 0.2rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+}
+
+.df-save {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 0.7rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--df-pri);
+  color: #fff;
+  margin-top: 0.4rem;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.df-note {
+  font-size: 0.75rem;
+  color: var(--df-mut);
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.df-warn {
+  font-size: 0.75rem;
+  color: var(--cui-warning, #b45309);
+  margin-bottom: 0.5rem;
+}
