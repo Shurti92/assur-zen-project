@@ -8,6 +8,7 @@ import { InsuredResponse } from '../../core/insured/models/insured.model';
 import { MobileAccountService } from '../../core/mobile-admin/mobile-account.service';
 import { LinkedInsured, MobileAccount, MobileAccountDetail } from '../../core/mobile-admin/models/mobile-account.model';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
+import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
 
 type StatusFilter = '' | 'true' | 'false';
@@ -23,7 +24,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 @Component({
   selector: 'app-comptes-mobile',
   templateUrl: './comptes-mobile.component.html',
-  imports: [ButtonDirective, SpinnerComponent, FormsModule, AlertMessageComponent, ModalComponent],
+  imports: [ButtonDirective, SpinnerComponent, FormsModule, AlertMessageComponent, ConfirmDialogComponent, ModalComponent],
 })
 export class ComptesMobileComponent {
   private readonly service = inject(MobileAccountService);
@@ -71,6 +72,9 @@ export class ComptesMobileComponent {
   // ---- Rattachement ----
   readonly attachVisible = signal(false);
   readonly attachInsured = signal<InsuredResponse | null>(null);
+
+  // ---- Détachement (confirmation) ----
+  readonly unlinkTarget = signal<LinkedInsured | null>(null);
 
   // ---- Désactivation ----
   readonly deactivateVisible = signal(false);
@@ -244,10 +248,24 @@ export class ComptesMobileComponent {
     });
   }
 
-  unlink(insured: LinkedInsured): void {
+  /** Demande confirmation (fenêtre du portail) avant de détacher un assuré. */
+  askUnlink(insured: LinkedInsured): void {
+    this.unlinkTarget.set(insured);
+  }
+
+  cancelUnlink(): void {
+    this.unlinkTarget.set(null);
+  }
+
+  confirmUnlink(): void {
+    const insured = this.unlinkTarget();
+    this.unlinkTarget.set(null);
+    if (insured) this.unlink(insured);
+  }
+
+  private unlink(insured: LinkedInsured): void {
     const userId = this.detail()?.account.userId;
     if (userId === undefined) return;
-    if (!window.confirm(`Détacher ${insured.name} de ce compte ? Le client ne verra plus ses contrats ni ses sinistres.`)) return;
     this.actionBusy.set(true);
     this.actionError.set(null);
     this.service.unlinkInsured(userId, insured.insuredId).subscribe({
