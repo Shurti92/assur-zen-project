@@ -2,37 +2,52 @@
 
 **Votre sérénité, notre priorité.** Application Android d’AssurZen Assurances Côte d’Ivoire, en Flutter / Dart.
 
-Ce projet reprend la maquette validée (38 écrans) et les 61 décisions du questionnaire signé le 25/10/2026. Il fonctionne tout de suite avec des **données de démonstration fictives**. Il se branche ensuite sur le backend Java / Spring Boot sans modifier les écrans.
+Ce projet reprend la maquette validée (38 écrans) et les 61 décisions du questionnaire signé le 25/10/2026. Il fonctionne avec des **données de démonstration fictives** ou branché sur la **Gateway** (backend Java / Spring Boot). Aucun contenu métier n’est écrit en dur : catalogue, garanties, tarifs, coordonnées et délais viennent de l’API, paramétrables depuis le back-office. Une information absente côté serveur n’est pas affichée.
 
 ---
 
-## 1. Démarrer en 5 minutes
+## 1. Démarrer
 
 **Prérequis**
-- Flutter **3.27 ou plus récent** (`flutter --version`)
-- Android Studio avec le plugin Flutter, et un émulateur ou un téléphone Android 7.0 minimum
+- Flutter avec Dart **3.5 ou plus récent** (`flutter --version`)
+- Android Studio avec le plugin Flutter, et un émulateur ou un téléphone Android 7.0 minimum (API 24)
 - `flutter doctor` sans erreur sur la partie Android
 
 **Installation**
 
-1. Décompressez le dossier `assurzen_mobile`.
-2. Ouvrez un terminal dans ce dossier.
-3. Lancez le script de préparation, une seule fois.
-   - Windows (PowerShell) : `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1`
-   - macOS / Linux : `sh scripts/setup.sh`
-4. Lancez l’application : `flutter run`
+1. Récupérez le dossier `assur-zen-mobile/` du dépôt.
+2. Placez le fichier Firebase `google-services.json` dans `android/app/`. Il n’est **pas publié** (il est ignoré par git) : demandez-le à l’équipe, il vient du projet Firebase d’AssurZen. Le plugin Google Services le lit pour les notifications push, et le build Android en a besoin.
+3. Dans ce dossier : `flutter pub get`
+4. Lancez l’application en mode démonstration : `flutter run`
 
-Le script fait 4 choses :
-1. il génère le dossier `android/` adapté à **votre** version de Flutter (`flutter create`) ;
-2. il y copie la configuration AssurZen du dossier `android_config/` : manifeste, permissions, icône, activité compatible empreinte ;
-3. il fixe Android 7.0 (API 24) comme version minimale ;
-4. il télécharge les dépendances (`flutter pub get`).
-
-Vous pouvez ensuite ouvrir le dossier dans Android Studio (*File › Open*) et lancer avec ▶.
+Le dossier `android/` est déjà versionné. Le script `scripts/setup.ps1` (Windows) ou `scripts/setup.sh` (macOS / Linux) reste disponible : il est sans danger à relancer, il ne régénère `android/` que s’il manque et applique la configuration du dossier `android_config/` (manifeste, permissions, icône, activité compatible empreinte).
 
 ---
 
-## 2. Tester la démo
+## 2. Environnements
+
+Trois environnements, choisis au lancement avec `--dart-define=APP_ENV=…`. Sans option, l’application tourne en **démonstration** (`USE_MOCK=true`).
+
+| `APP_ENV` | Gateway | Usage |
+|---|---|---|
+| `local` (défaut) | `http://localhost:9191` | Gateway de développement sur votre poste |
+| `recette` | `https://medicis-apps.com:9443/assur-zen-gateway-recette/` | Recette |
+| `prod` | `https://medicis-apps.com:9443/assur-zen-gateway/` | Production |
+
+```bash
+flutter run                                                          # démonstration
+flutter run --dart-define=USE_MOCK=false                             # Gateway locale
+flutter run --dart-define=USE_MOCK=false --dart-define=APP_ENV=recette
+flutter build apk --release --dart-define=USE_MOCK=false --dart-define=APP_ENV=prod
+```
+
+- `API_BASE_URL` force une adresse précise et passe avant `APP_ENV`.
+- Un `APP_ENV` inconnu est refusé au démarrage quand l’application se branche sur la Gateway (`USE_MOCK=false`).
+- **Gateway locale sur un téléphone branché en USB** : ouvrez le tunnel avec `adb reverse tcp:9191 tcp:9191`. Le HTTP en clair n’est autorisé que dans le build de debug.
+
+---
+
+## 3. Tester la démonstration
 
 Toutes les données sont fictives. Règles utiles pour parcourir les états :
 
@@ -45,25 +60,24 @@ Toutes les données sont fictives. Règles utiles pour parcourir les états :
 | Paiement | un paiement refusé | un numéro qui finit par `99` |
 | Création de compte | un nouveau client sans contrat | créer un compte, puis vérifier le code |
 
-Le bouton « Découvrir les offres sans compte » ouvre le catalogue et le devis sans connexion. Le compte n’est demandé qu’au moment de souscrire.
+Le bouton « Découvrir les offres sans compte » ouvre le catalogue et le devis sans connexion. Le compte n’est demandé qu’au moment de souscrire ou d’enregistrer un devis.
 
 ---
 
-## 3. Brancher le backend Java
+## 4. Branchement sur la Gateway
 
-```bash
-flutter run --dart-define=USE_MOCK=false --dart-define=API_BASE_URL=https://api-test.assurzen.ci
-```
+Toutes les données passent par des **dépôts** (`lib/data/repositories/repositories.dart`). Les écrans ne savent pas si les données viennent de la démonstration ou du serveur.
 
-Toutes les données passent par des **dépôts** (`lib/data/repositories/repositories.dart`). Les écrans ne savent pas si les données viennent de la démo ou du serveur.
+**Branché et utilisé** : authentification (PIN, SMS, inscription, PIN oublié, suppression de compte), contrats et demandes (modification, résiliation, renouvellement), paiement (simulé par le serveur en développement), sinistres avec photos, catalogue, demande de rappel, coordonnées et liens légaux, support, notifications push, et le **devis moto en ligne** (simulation, devis enregistré, acceptation, liste « Mes devis »).
 
-**Étapes**
+**Pas encore branché** : le parcours de devis générique, utilisé pour les autres produits. Ses routes (`quotes`, `referentials`, `quoteDocuments`) sont encore provisoires (`/TODO/...`) dans `lib/core/network/endpoints.dart`. Tant qu’elles ne sont pas livrées, seul le devis moto est servi.
 
-1. **Routes** : remplacer les chemins provisoires `/TODO/...` dans `lib/core/network/endpoints.dart` par ceux de la documentation OpenAPI (Swagger) de Spring Boot.
-2. **Dépôts** : compléter `lib/data/api/api_repositories.dart`. `ApiContractRepository` est un **exemple complet** à copier : appel, conversion JSON, modèle. Les autres dépôts lèvent une erreur explicite « Service non branché » tant qu’ils ne sont pas reliés.
-3. **Format d’erreur** : `ApiClient` attend `{ "code", "message", "field" }` sur une erreur 4xx. Le `message` est affiché tel quel au client, sous le champ `field` s’il est fourni.
-4. **Authentification** : le jeton est envoyé en `Authorization: Bearer …` et stocké chiffré (`flutter_secure_storage`). Une réponse **401** verrouille l’application et redemande le PIN.
-5. **Paiement** : l’application lance la transaction (`initiate`), puis interroge son statut (`status`) toutes les 3 s pendant 3 minutes au plus. La confirmation doit venir du serveur : webhook de l’agrégateur côté backend. L’application n’affiche jamais « payé » sans elle.
+**Règles à respecter**
+1. **Rien en dur** : un texte qui promet quelque chose (horaire, délai, coordonnée, tarif) doit venir du serveur. Champ absent, `null` ou vide : la rubrique ou le bouton est masqué. Les données de démonstration restent dans `lib/data/mock/`.
+2. **Format d’erreur** : `ApiClient` attend `{ "code", "message", "field" }` sur une erreur 4xx. Le `message` est affiché tel quel, sous le champ `field` s’il est fourni.
+3. **Authentification** : le jeton est envoyé en `Authorization: Bearer …` et stocké chiffré (`flutter_secure_storage`). Sur une réponse **401**, l’application renouvelle le jeton (`auth/refresh`) et rejoue l’appel ; si le renouvellement échoue, elle verrouille et redemande le PIN.
+4. **Paiement** : l’application lance la transaction (`initiate`), puis interroge son statut (`status`) toutes les 3 s pendant 3 minutes au plus. La confirmation vient du serveur (webhook de l’agrégateur côté backend). L’application n’affiche jamais « payé » sans elle.
+5. **Montants** : jamais calculés dans l’application. Le prix d’un devis est celui du serveur.
 
 | Écran | Lecture | Création | Fichier | Paiement | Auth |
 |---|---|---|---|---|---|
@@ -76,7 +90,28 @@ Toutes les données passent par des **dépôts** (`lib/data/repositories/reposit
 
 ---
 
-## 4. Organisation du code
+## 5. Verrouillage de l’application
+
+Après plus de 5 minutes passées hors de l’application, la session se verrouille. Le client la rouvre au choix, depuis **Profil › Mon compte** :
+
+- **Code PIN** : toujours disponible, vérifié par le serveur. Il reste la référence : il sert à la suppression de compte et de repli pour confirmer un paiement quand l’empreinte n’est pas utilisée.
+- **Empreinte digitale** : à activer dans le profil.
+- **Schéma** : grille 3×3 enregistrée sur l’appareil sous forme de hachage salé dans le stockage chiffré, jamais envoyée au serveur. Il ne rouvre qu’une session déjà ouverte. Après 5 schémas faux, il ne reste que le PIN. Il est effacé à la déconnexion.
+
+---
+
+## 6. Tests
+
+```bash
+flutter analyze
+flutter test
+```
+
+Les tests couvrent les dépôts API (réponses simulées au format réel de la Gateway), les validations, le verrouillage par schéma, l’auto-complétion et les environnements.
+
+---
+
+## 7. Organisation du code
 
 ```
 lib/
@@ -84,7 +119,7 @@ lib/
 ├─ app/
 │  ├─ app.dart                MaterialApp, français, verrouillage après 5 min
 │  ├─ routes.dart             toutes les routes (noms kebab-case)
-│  ├─ env.dart                paramètres et coordonnées officielles
+│  ├─ env.dart                environnements (local, recette, prod) et délais
 │  ├─ app_scope.dart          injection des services (sans paquet tiers)
 │  └─ session_controller.dart état de session
 ├─ core/
@@ -92,15 +127,16 @@ lib/
 │  ├─ theme/                  couleurs, typographie, espacements, thème
 │  ├─ widgets/                composants Az… réutilisables
 │  ├─ network/                ApiClient, erreurs, routes
+│  ├─ push/                   notifications push (Firebase Cloud Messaging)
 │  ├─ storage/                stockage chiffré et brouillons
-│  ├─ security/               empreinte digitale
+│  ├─ security/               empreinte digitale, schéma de déverrouillage
 │  ├─ state/                  AsyncView (chargement, vide, erreur, données)
 │  └─ utils/                  FCFA, téléphone +225, dates, validations, liens
 ├─ data/
 │  ├─ models/                 modèles métier (sans Flutter)
 │  ├─ repositories/           interfaces des dépôts
 │  ├─ mock/                   démonstration (données fictives)
-│  └─ api/                    branchement backend
+│  └─ api/                    branchement Gateway
 └─ features/
    ├─ onboarding/             lancement, présentation, bienvenue
    ├─ auth/                   connexion PIN, inscription, code SMS, PIN oublié, verrouillage
@@ -108,7 +144,7 @@ lib/
    ├─ home/                   accueil
    ├─ notifications/
    ├─ catalog/                catalogue, fiche produit, « Trouver mon assurance », rappel
-   ├─ quote/                  devis et souscription (6 étapes)
+   ├─ quote/                  devis moto en ligne, « Mes devis », devis générique (6 étapes)
    ├─ payment/                paiement Mobile Money, carte, agence
    ├─ contracts/              contrats, attestation avec QR code
    ├─ claims/                 déclaration et suivi des sinistres
@@ -125,7 +161,7 @@ lib/
 
 ---
 
-## 5. Design System
+## 8. Design System
 
 | Jeton | Valeur | Usage |
 |---|---|---|
@@ -144,16 +180,16 @@ Les couleurs sont mesurées sur le logo fourni (JPG). Un logo vectoriel permettr
 
 ---
 
-## 6. Avant la mise en production
+## 9. Avant la mise en production
 
 - [ ] Logo vectoriel et icône de lancement définitive.
-- [ ] Routes et DTO réels (OpenAPI) : `endpoints.dart` et `api_repositories.dart`.
-- [ ] Garanties, formules, éligibilité et tarifs servis par l’API. Aucune donnée contractuelle n’est codée en dur.
-- [ ] Agrégateur de paiement retenu, environnement de test (bac à sable).
-- [ ] Liens officiels : CGU, politique de confidentialité, mentions légales.
+- [ ] Brancher le devis générique pour les produits autres que la moto (routes `/TODO` dans `endpoints.dart`).
+- [ ] Garanties, formules, éligibilité et tarifs servis par l’API pour tous les produits (c’est le cas du devis moto).
+- [ ] Agrégateur de paiement réel : le paiement est aujourd’hui simulé par le serveur en développement.
+- [ ] Liens officiels (CGU, politique de confidentialité, mentions légales) renseignés dans le back-office.
 - [ ] Déclaration du traitement auprès de l’ARTCI.
-- [ ] Notifications push (Firebase Cloud Messaging) : enregistrement du jeton de l’appareil.
-- [ ] Signature de l’application (`key.properties`) et publication sur Google Play.
+- [x] Notifications push (Firebase Cloud Messaging) : enregistrement du jeton de l’appareil.
+- [ ] Signature de l’application : la version `release` utilise aujourd’hui la signature de debug. Créer `key.properties` et un keystore (jamais publiés), puis publier sur Google Play.
 - [ ] Valeur légale de l’attestation numérique et contenu du QR code de vérification.
 
 ---
