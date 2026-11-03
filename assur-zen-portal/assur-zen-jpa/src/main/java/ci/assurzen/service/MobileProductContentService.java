@@ -129,22 +129,25 @@ public class MobileProductContentService {
         return versAdmin(produit, contentRepository.save(c));
     }
 
-    /** Fixe l'ordre d'affichage : le premier produit de la liste est affiche en premier (10, 20, 30...). */
+    /**
+     * Fixe l'ordre d'affichage : le premier produit de la liste est affiche en premier (10, 20, 30...). Seuls les produits
+     * qui ont deja un contenu mobile sont renumerotes : aucune ligne n'est CREEE pour un produit jamais renseigne (il resterait
+     * sinon indistinguable d'un produit « renseigne puis masque »). Les produits jamais renseignes gardent leur place dans la
+     * numerotation (le rang compte pour tous) mais n'ont rien a stocker.
+     */
     @Transactional
     public AdminMobileProductDtos.ProductContentList ordonner(List<Long> produitIds) {
         commercialService.requireAdmin();
         int ordre = 10;
         for (Long id : produitIds) {
             produit(id);
-            MobileProductContent c = contentRepository.findByProductId(id).orElseGet(() -> {
-                MobileProductContent nouveau = new MobileProductContent();
-                nouveau.setProductId(id);
-                return nouveau;
-            });
-            c.setDisplayOrder(ordre);
-            c.setUpdatedAt(Instant.now());
-            c.setUpdatedBy(authService.currentPrincipal().username());
-            contentRepository.save(c);
+            MobileProductContent c = contentRepository.findByProductId(id).orElse(null);
+            if (c != null) {
+                c.setDisplayOrder(ordre);
+                c.setUpdatedAt(Instant.now());
+                c.setUpdatedBy(authService.currentPrincipal().username());
+                contentRepository.save(c);
+            }
             ordre += 10;
         }
         return lister();

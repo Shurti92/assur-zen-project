@@ -166,4 +166,21 @@ class MobileProductContentServiceTest {
         c.setDisplayOrder(ordre);
         return c;
     }
+
+    @Test
+    void ordre_neCreeAucuneLignePourUnProduitJamaisRenseigne() {
+        when(produits.findById(4L)).thenReturn(Optional.of(produit(4, "Assurance Moto", true)));
+        when(produits.findById(10L)).thenReturn(Optional.of(produit(10, "Assurance Transport", true)));
+        MobileProductContent existant = contenu(4L, true, 99);
+        when(contenus.findByProductId(4L)).thenReturn(Optional.of(existant));
+        when(contenus.findByProductId(10L)).thenReturn(Optional.empty());
+        when(produits.findAll()).thenReturn(List.of());
+        when(contenus.findAll()).thenReturn(List.of());
+
+        service.ordonner(List.of(10L, 4L));
+
+        // moto est en 2e position : 20 ; aucun enregistrement pour le produit 10
+        assertEquals(20, existant.getDisplayOrder());
+        org.mockito.Mockito.verify(contenus, org.mockito.Mockito.times(1)).save(any(MobileProductContent.class));
+    }
 }

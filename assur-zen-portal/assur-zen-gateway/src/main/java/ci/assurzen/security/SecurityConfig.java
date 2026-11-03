@@ -99,6 +99,12 @@ public class SecurityConfig {
                         // Catalogue et demande de rappel du mobile, sans compte (2026-11-03).
                         .requestMatchers(HttpMethod.GET, "/api-assur-zen/public/products", "/api-assur-zen/public/products/*", "/api-assur-zen/public/contact-info", "/api-assur-zen/public/legal", "/api-assur-zen/public/support/topics", "/api-assur-zen/public/support/faq").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api-assur-zen/public/callbacks").permitAll()
+                        // Devis en ligne moto : formulaire et simulation sans compte ; grille reservee aux administrateurs (2026-11-03).
+                        .requestMatchers(HttpMethod.GET, "/api-assur-zen/public/quotes/moto/form").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api-assur-zen/public/quotes/moto/simulate").permitAll()
+                        .requestMatchers("/api-assur-zen/admin/quotes/tariffs/**", "/api-assur-zen/admin/quotes/tariffs").hasRole("ADMIN")
+                        .requestMatchers("/api-assur-zen/admin/quotes/moto/brands").hasRole("ADMIN")
+                        .requestMatchers("/api-assur-zen/admin/quotes/**").hasAnyRole("ADMIN", "COMMERCIAL")
                         // Administration des comptes et demandes mobile (2026-11-03) : reserve aux administrateurs.
                         .requestMatchers("/api-assur-zen/admin/mobile/**").hasRole("ADMIN")
                         // Espace mobile (2026-11-02) : reserve au role CLIENT.
