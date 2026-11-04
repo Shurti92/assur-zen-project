@@ -124,19 +124,20 @@
       <app-alert-message class="d-block mb-3" [message]="message" />
     }
 
-    <!-- Liste de textes réutilisée (avantages, exclusions, pièces à fournir) -->
+    <!-- Liste de lignes de texte réutilisée (exclusions) -->
     <ng-template #textList let-list="list" let-max="max" let-label="label" let-placeholder="placeholder" let-maxlength="maxlength">
-     <div>
-      @for (item of list; track $index) {
-        <div class="d-flex gap-2 mb-2">
-          <input [(ngModel)]="list[$index]" [attr.maxlength]="maxlength" [attr.aria-label]="label + ' ' + ($index + 1)" [placeholder]="placeholder" class="form-control" type="text" />
-          <button (click)="move(list, $index, -1)" [disabled]="$index === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
-          <button (click)="move(list, $index, 1)" [disabled]="$index === list.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
-          <button (click)="removeAt(list, $index)" aria-label="Supprimer" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
-        </div>
-      }
-      <button (click)="addText(list, max)" [disabled]="list.length >= max" cButton class="dl-btn" size="sm" type="button">+ Ajouter ({{ list.length }}/{{ max }})</button>
-     </div>
+      <div>
+        @for (item of list; track $index) {
+          <div class="cm-lrow">
+            <span class="cm-bul"></span>
+            <input [(ngModel)]="list[$index]" [attr.maxlength]="maxlength" [attr.aria-label]="label + ' ' + ($index + 1)" [placeholder]="placeholder" type="text" />
+            <button (click)="move(list, $index, -1)" [disabled]="$index === 0" aria-label="Monter" class="cm-btn cm-btn--ghost cm-btn--sm" type="button">↑</button>
+            <button (click)="move(list, $index, 1)" [disabled]="$index === list.length - 1" aria-label="Descendre" class="cm-btn cm-btn--ghost cm-btn--sm" type="button">↓</button>
+            <button (click)="removeAt(list, $index)" aria-label="Supprimer" class="cm-btn cm-btn--danger cm-btn--sm" type="button">×</button>
+          </div>
+        }
+        <button (click)="addText(list, max)" [disabled]="list.length >= max" class="cm-btn cm-btn--ghost cm-btn--sm" type="button">+ Ajouter {{ label.toLowerCase() === 'exclusion' ? 'une exclusion' : 'une ligne' }}</button>
+      </div>
     </ng-template>
 
     @switch (editTab()) {
@@ -237,132 +238,195 @@
       }
 
       @case ('guarantees') {
-        <p class="small text-body-secondary">
-          Les garanties saisies ici apparaissent aussi dans le détail de chaque contrat du client. Cochez les formules qui incluent chaque garantie (créez d'abord les formules dans l'onglet « Formules »).
-        </p>
-        @for (g of d.guarantees; track $index; let gi = $index) {
-          <div class="cm-card">
-            <div class="d-flex gap-2 align-items-start">
-              <div class="flex-grow-1 row g-2">
-                <div class="col-md-7">
-                  <label class="form-label small fw-semibold mb-1" [for]="'cm-g-name-' + $index">Nom *</label>
-                  <input [(ngModel)]="g.name" class="form-control" [id]="'cm-g-name-' + $index" maxlength="150" type="text" />
-                </div>
-                <div class="col-md-5">
-                  <label class="form-label small fw-semibold mb-1" [for]="'cm-g-kind-' + $index">Type</label>
-                  <select [(ngModel)]="g.kind" class="form-select" [id]="'cm-g-kind-' + $index">
-                    @for (k of kindOptions; track k.value) {
-                      <option [value]="k.value">{{ k.label }}</option>
+        <div class="cm-intro">
+          <p>
+            Les garanties saisies ici apparaissent aussi dans le détail de chaque contrat du client. Cochez les formules qui incluent chaque garantie (créez
+            d'abord les formules dans l'onglet « Formules »). Glissez ⠿ pour réordonner.
+          </p>
+          <button (click)="addGuarantee()" [disabled]="d.guarantees.length >= limits.guarantees" class="cm-btn cm-btn--pri" type="button">
+            + Ajouter une garantie ({{ d.guarantees.length }}/{{ limits.guarantees }})
+          </button>
+        </div>
+
+        <div (cdkDropListDropped)="dropGuarantee($event)" cdkDropList>
+          @for (g of d.guarantees; track g.uid; let gi = $index) {
+            <div [class.cm-item--open]="g.open" cdkDrag class="cm-item">
+              <div (click)="g.open = !g.open" class="cm-ihead">
+                <span cdkDragHandle (click)="$event.stopPropagation()" class="cm-igrip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
+                <span class="cm-iname">{{ g.name || 'Nouvelle garantie' }}</span>
+                <span [class]="'cm-pill ' + kindClass(g.kind)">{{ kindLabel(g.kind) }}</span>
+                <span class="cm-plafond">Plafond : {{ g.limit || '—' }}</span>
+                <span class="cm-fchips">
+                  @for (name of guaranteeFormulaNames(g); track name) {
+                    <span class="cm-fchip">{{ name }}</span>
+                  }
+                </span>
+                @if (!g.visible) {
+                  <span class="cm-pill cm-pill--mut">Masquée</span>
+                }
+                <span class="cm-sp"></span>
+                <span class="cm-chev">⌄</span>
+              </div>
+
+              @if (g.open) {
+                <div class="cm-ibody">
+                  <div class="cm-grid">
+                    <div class="cm-c7">
+                      <label [for]="'cm-g-name-' + g.uid">Nom *</label>
+                      <input [(ngModel)]="g.name" [id]="'cm-g-name-' + g.uid" maxlength="150" type="text" />
+                    </div>
+                    <div class="cm-c5">
+                      <label [for]="'cm-g-kind-' + g.uid">Type</label>
+                      <select [(ngModel)]="g.kind" [id]="'cm-g-kind-' + g.uid">
+                        @for (k of kindOptions; track k.value) {
+                          <option [value]="k.value">{{ k.label }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="cm-c12">
+                      <label [for]="'cm-g-desc-' + g.uid">Description</label>
+                      <textarea [(ngModel)]="g.description" [id]="'cm-g-desc-' + g.uid" maxlength="500" placeholder="Décrivez la garantie en quelques mots" rows="2"></textarea>
+                    </div>
+                    <div class="cm-c6">
+                      <label [for]="'cm-g-limit-' + g.uid">Plafond</label>
+                      <input [(ngModel)]="g.limit" [id]="'cm-g-limit-' + g.uid" maxlength="200" placeholder="Ex. 5 000 000 FCFA" type="text" />
+                    </div>
+                    <div class="cm-c6 cm-bottom">
+                      <label [class.cm-sw--on]="g.visible" class="cm-sw cm-sw--txt">
+                        <input [(ngModel)]="g.visible" role="switch" type="checkbox" /><i></i>Visible dans l'application
+                      </label>
+                    </div>
+                    @if (d.formulas.length > 0) {
+                      <div class="cm-c12">
+                        <label>Incluse dans les formules</label>
+                        <div class="cm-checks">
+                          @for (f of d.formulas; track f.id) {
+                            <label [class.cm-chk--on]="g.formulaIds.includes(f.id)" class="cm-chk">
+                              <input (change)="toggleGuaranteeFormula(g, f.id)" [checked]="g.formulaIds.includes(f.id)" type="checkbox" /><i>✓</i>{{ f.name || f.id }}
+                            </label>
+                          }
+                        </div>
+                      </div>
                     }
-                  </select>
-                </div>
-                <div class="col-12">
-                  <label class="form-label small fw-semibold mb-1" [for]="'cm-g-desc-' + $index">Description</label>
-                  <textarea [(ngModel)]="g.description" class="form-control" [id]="'cm-g-desc-' + $index" maxlength="500" rows="2"></textarea>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label small fw-semibold mb-1" [for]="'cm-g-limit-' + $index">Plafond</label>
-                  <input [(ngModel)]="g.limit" class="form-control" [id]="'cm-g-limit-' + $index" maxlength="200" placeholder="Ex. 5 000 000 FCFA" type="text" />
-                </div>
-                <div class="col-md-6 d-flex align-items-end">
-                  <div class="form-check form-switch mb-2">
-                    <input [(ngModel)]="g.visible" class="form-check-input" [id]="'cm-g-vis-' + $index" role="switch" type="checkbox" />
-                    <label class="form-check-label" [for]="'cm-g-vis-' + $index">Visible dans l'application</label>
+                  </div>
+                  <div class="cm-ifoot">
+                    <button (click)="removeAt(d.guarantees, gi)" class="cm-btn cm-btn--danger cm-btn--sm" type="button">Supprimer cette garantie</button>
                   </div>
                 </div>
-                @if (d.formulas.length > 0) {
-                  <div class="col-12">
-                    <div class="small fw-semibold mb-1">Incluse dans les formules</div>
-                    <div class="d-flex flex-wrap gap-3">
-                      @for (f of d.formulas; track f.id) {
-                        <div class="form-check">
-                          <input (change)="toggleGuaranteeFormula(g, f.id)" [checked]="g.formulaIds.includes(f.id)" class="form-check-input" [id]="'cm-g-' + gi + '-f-' + f.id" type="checkbox" />
-                          <label class="form-check-label" [for]="'cm-g-' + gi + '-f-' + f.id">{{ f.name || f.id }}</label>
-                        </div>
-                      }
+              }
+            </div>
+          } @empty {
+            <p class="cm-empty">Aucune garantie.</p>
+          }
+        </div>
+      }
+
+      @case ('formulas') {
+        <div class="cm-intro">
+          <p>
+            Les formules (ex. Tiers, Tiers complet, Tous risques) regroupent des garanties. Au plus {{ limits.formulas }} formules ; l'ordre ci-dessous est l'ordre
+            d'affichage.
+          </p>
+          <span class="cm-hint">{{ d.formulas.length }}/{{ limits.formulas }}</span>
+        </div>
+
+        <div class="cm-fgrid">
+          @for (f of d.formulas; track f.id; let fi = $index) {
+            <div [class.cm-fcard--off]="!f.visible" class="cm-fcard">
+              <div class="cm-ftop">
+                <span class="cm-num">{{ fi + 1 }}</span>
+                <span class="cm-fcount">{{ formulaCount(f) }} garantie{{ formulaCount(f) > 1 ? 's' : '' }} incluse{{ formulaCount(f) > 1 ? 's' : '' }}</span>
+              </div>
+              <div>
+                <label [for]="'cm-f-name-' + f.id">Nom *</label>
+                <input [(ngModel)]="f.name" [id]="'cm-f-name-' + f.id" maxlength="100" type="text" />
+              </div>
+              <div>
+                <label [for]="'cm-f-desc-' + f.id">Description</label>
+                <textarea [(ngModel)]="f.description" [id]="'cm-f-desc-' + f.id" maxlength="1000" placeholder="Ce que couvre cette formule" rows="3"></textarea>
+              </div>
+              <div class="cm-fact">
+                <label [class.cm-sw--on]="f.visible" class="cm-sw cm-sw--txt">
+                  <input [(ngModel)]="f.visible" role="switch" type="checkbox" /><i></i>{{ f.visible ? 'Visible' : 'Masquée' }}
+                </label>
+                <div class="cm-mini">
+                  <button (click)="move(d.formulas, fi, -1)" [disabled]="fi === 0" aria-label="Déplacer vers la gauche" class="cm-btn cm-btn--ghost cm-btn--sm" type="button">←</button>
+                  <button (click)="move(d.formulas, fi, 1)" [disabled]="fi === d.formulas.length - 1" aria-label="Déplacer vers la droite" class="cm-btn cm-btn--ghost cm-btn--sm" type="button">→</button>
+                  <button (click)="removeFormula(fi)" aria-label="Supprimer la formule" class="cm-btn cm-btn--danger cm-btn--sm" type="button">×</button>
+                </div>
+              </div>
+            </div>
+          }
+          @if (d.formulas.length < limits.formulas) {
+            <button (click)="addFormula()" class="cm-fadd" type="button">+ Ajouter une formule ({{ d.formulas.length }}/{{ limits.formulas }})</button>
+          }
+        </div>
+      }
+
+      @case ('practical') {
+        <section class="cm-card">
+          <h3><span class="cm-n">1</span>Exclusions <em>({{ d.exclusions.length }}/{{ limits.exclusions }})</em></h3>
+          <ng-container *ngTemplateOutlet="textList; context: { list: d.exclusions, max: limits.exclusions, label: 'Exclusion', placeholder: 'Ex. Conduite sans permis valide', maxlength: 300 }" />
+        </section>
+
+        <section class="cm-card">
+          <h3><span class="cm-n">2</span>Pièces à fournir <em>({{ d.requiredDocuments.length }}/{{ limits.documents }})</em></h3>
+          <div class="cm-chips">
+            @for (doc of d.requiredDocuments; track $index) {
+              <span class="cm-chip">{{ doc }} <button (click)="removeAt(d.requiredDocuments, $index)" [attr.aria-label]="'Supprimer : ' + doc" type="button">×</button></span>
+            } @empty {
+              <span class="cm-hint">Aucune pièce.</span>
+            }
+          </div>
+          <div class="cm-addrow">
+            <input
+              [(ngModel)]="newDocument"
+              (keyup.enter)="addDocument()"
+              [disabled]="d.requiredDocuments.length >= limits.documents"
+              aria-label="Nouvelle pièce à fournir"
+              maxlength="200"
+              placeholder="Ex. Carte grise"
+              type="text"
+            />
+            <button (click)="addDocument()" [disabled]="!newDocument.trim() || d.requiredDocuments.length >= limits.documents" class="cm-btn cm-btn--ghost" type="button">+ Ajouter</button>
+          </div>
+        </section>
+
+        <section class="cm-card">
+          <h3><span class="cm-n">3</span>Questions fréquentes (FAQ) <em>({{ d.faq.length }}/{{ limits.faq }})</em></h3>
+          <div (cdkDropListDropped)="dropFaq($event)" cdkDropList class="cm-qa">
+            @for (q of d.faq; track q.uid; let qi = $index) {
+              <div [class.cm-item--open]="q.open" cdkDrag class="cm-item cm-item--flat">
+                <div (click)="q.open = !q.open" class="cm-ihead">
+                  <span cdkDragHandle (click)="$event.stopPropagation()" class="cm-igrip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
+                  <span class="cm-iname cm-iname--q">{{ q.question || 'Nouvelle question' }}</span>
+                  <span class="cm-sp"></span>
+                  <span class="cm-chev">⌄</span>
+                </div>
+                @if (q.open) {
+                  <div class="cm-ibody">
+                    <div class="cm-grid">
+                      <div class="cm-c12">
+                        <label [for]="'cm-q-' + q.uid">Question *</label>
+                        <input [(ngModel)]="q.question" [id]="'cm-q-' + q.uid" maxlength="300" type="text" />
+                      </div>
+                      <div class="cm-c12">
+                        <label [for]="'cm-a-' + q.uid">Réponse *</label>
+                        <textarea [(ngModel)]="q.answer" [id]="'cm-a-' + q.uid" maxlength="2000" rows="3"></textarea>
+                      </div>
+                    </div>
+                    <div class="cm-ifoot">
+                      <button (click)="removeAt(d.faq, qi)" class="cm-btn cm-btn--danger cm-btn--sm" type="button">Supprimer cette question</button>
                     </div>
                   </div>
                 }
               </div>
-              <div class="d-flex flex-column gap-1">
-                <button (click)="move(d.guarantees, $index, -1)" [disabled]="$index === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
-                <button (click)="move(d.guarantees, $index, 1)" [disabled]="$index === d.guarantees.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
-                <button (click)="removeAt(d.guarantees, $index)" aria-label="Supprimer la garantie" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
-              </div>
-            </div>
+            }
           </div>
-        } @empty {
-          <p class="dl-empty">Aucune garantie.</p>
-        }
-        <button (click)="addGuarantee()" [disabled]="d.guarantees.length >= limits.guarantees" cButton class="dl-btn" size="sm" type="button">
-          + Ajouter une garantie ({{ d.guarantees.length }}/{{ limits.guarantees }})
-        </button>
-      }
-
-      @case ('formulas') {
-        <p class="small text-body-secondary">
-          Les formules (ex. Tiers, Tiers complet, Tous risques) regroupent des garanties. Au plus {{ limits.formulas }} formules ; l'ordre ci-dessous est l'ordre d'affichage.
-        </p>
-        @for (f of d.formulas; track f.id) {
-          <div class="cm-card">
-            <div class="d-flex gap-2 align-items-start">
-              <div class="flex-grow-1 row g-2">
-                <div class="col-md-8">
-                  <label class="form-label small fw-semibold mb-1" [for]="'cm-f-name-' + $index">Nom *</label>
-                  <input [(ngModel)]="f.name" class="form-control" [id]="'cm-f-name-' + $index" maxlength="100" type="text" />
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                  <div class="form-check form-switch mb-2">
-                    <input [(ngModel)]="f.visible" class="form-check-input" [id]="'cm-f-vis-' + $index" role="switch" type="checkbox" />
-                    <label class="form-check-label" [for]="'cm-f-vis-' + $index">Visible</label>
-                  </div>
-                </div>
-                <div class="col-12">
-                  <label class="form-label small fw-semibold mb-1" [for]="'cm-f-desc-' + $index">Description</label>
-                  <textarea [(ngModel)]="f.description" class="form-control" [id]="'cm-f-desc-' + $index" maxlength="1000" rows="2"></textarea>
-                </div>
-              </div>
-              <div class="d-flex flex-column gap-1">
-                <button (click)="move(d.formulas, $index, -1)" [disabled]="$index === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
-                <button (click)="move(d.formulas, $index, 1)" [disabled]="$index === d.formulas.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
-                <button (click)="removeFormula($index)" aria-label="Supprimer la formule" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
-              </div>
-            </div>
+          <div class="cm-mt">
+            <button (click)="addFaq()" [disabled]="d.faq.length >= limits.faq" class="cm-btn cm-btn--ghost cm-btn--sm" type="button">+ Ajouter une question ({{ d.faq.length }}/{{ limits.faq }})</button>
           </div>
-        } @empty {
-          <p class="dl-empty">Aucune formule.</p>
-        }
-        <button (click)="addFormula()" [disabled]="d.formulas.length >= limits.formulas" cButton class="dl-btn" size="sm" type="button">
-          + Ajouter une formule ({{ d.formulas.length }}/{{ limits.formulas }})
-        </button>
-      }
-
-      @case ('practical') {
-        <div class="fw-semibold mb-2">Exclusions</div>
-        <ng-container *ngTemplateOutlet="textList; context: { list: d.exclusions, max: limits.exclusions, label: 'Exclusion', placeholder: 'Ex. Conduite sans permis valide', maxlength: 300 }" />
-
-        <div class="fw-semibold mt-4 mb-2">Pièces à fournir</div>
-        <ng-container *ngTemplateOutlet="textList; context: { list: d.requiredDocuments, max: limits.documents, label: 'Pièce', placeholder: 'Ex. Carte grise', maxlength: 200 }" />
-
-        <div class="fw-semibold mt-4 mb-2">Questions fréquentes (FAQ)</div>
-        @for (q of d.faq; track $index) {
-          <div class="cm-card">
-            <div class="d-flex gap-2 align-items-start">
-              <div class="flex-grow-1">
-                <label class="form-label small fw-semibold mb-1" [for]="'cm-q-' + $index">Question *</label>
-                <input [(ngModel)]="q.question" class="form-control mb-2" [id]="'cm-q-' + $index" maxlength="300" type="text" />
-                <label class="form-label small fw-semibold mb-1" [for]="'cm-a-' + $index">Réponse *</label>
-                <textarea [(ngModel)]="q.answer" class="form-control" [id]="'cm-a-' + $index" maxlength="2000" rows="2"></textarea>
-              </div>
-              <div class="d-flex flex-column gap-1">
-                <button (click)="move(d.faq, $index, -1)" [disabled]="$index === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
-                <button (click)="move(d.faq, $index, 1)" [disabled]="$index === d.faq.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
-                <button (click)="removeAt(d.faq, $index)" aria-label="Supprimer la question" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
-              </div>
-            </div>
-          </div>
-        }
-        <button (click)="addFaq()" [disabled]="d.faq.length >= limits.faq" cButton class="dl-btn" size="sm" type="button">+ Ajouter une question ({{ d.faq.length }}/{{ limits.faq }})</button>
+        </section>
       }
     }
 

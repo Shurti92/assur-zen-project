@@ -524,8 +524,16 @@
   grid-column: span 3;
 }
 
+.cm-c5 {
+  grid-column: span 5;
+}
+
 .cm-c6 {
   grid-column: span 6;
+}
+
+.cm-c7 {
+  grid-column: span 7;
 }
 
 .cm-c12 {
@@ -534,7 +542,9 @@
 
 @media (max-width: 700px) {
   .cm-c3,
-  .cm-c6 {
+  .cm-c5,
+  .cm-c6,
+  .cm-c7 {
     grid-column: span 12;
   }
 }
@@ -547,7 +557,9 @@ label {
   }
 }
 
-.cm-card label {
+.cm-card label,
+.cm-ibody label,
+.cm-fcard label:not(.cm-sw) {
   display: block;
   margin-bottom: 4px;
   color: var(--cm-mut);
@@ -559,7 +571,12 @@ label {
 
 .cm-card input[type='text'],
 .cm-card textarea,
-.cm-card select {
+.cm-card select,
+.cm-ibody input[type='text'],
+.cm-ibody textarea,
+.cm-ibody select,
+.cm-fcard input[type='text'],
+.cm-fcard textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--cm-bd);
@@ -569,7 +586,9 @@ label {
   font: inherit;
 }
 
-.cm-card textarea {
+.cm-card textarea,
+.cm-ibody textarea,
+.cm-fcard textarea {
   resize: vertical;
 }
 
@@ -708,10 +727,302 @@ label {
   margin-top: 10px;
 }
 
-// ---------- Onglets Garanties / Formules / Infos pratiques (habillage commun) ----------
-.cm-pane .cm-card,
-.cm-pane > div > .cm-card {
-  margin-bottom: 0.8rem;
+// ---------- Onglets Garanties / Formules / Infos pratiques ----------
+.cm-intro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  p {
+    max-width: 680px;
+    margin: 0;
+    color: var(--cm-mut);
+    font-size: 14px;
+  }
+}
+
+.cm-btn--danger {
+  border-color: color-mix(in srgb, var(--cm-ko) 35%, var(--cm-card));
+  background: var(--cm-card);
+  color: var(--cm-ko);
+}
+
+.cm-mt {
+  margin-top: 12px;
+}
+
+// Cartes repliables (garanties, FAQ)
+.cm-item {
+  margin-bottom: 12px;
+  border: 1px solid var(--cm-bd);
+  border-radius: var(--cm-r);
+  background: var(--cm-card);
+  box-shadow: var(--cm-shadow);
+  overflow: hidden;
+}
+
+.cm-item--flat {
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.cm-ihead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  padding: 13px 18px;
+  cursor: pointer;
+}
+
+.cm-igrip {
+  color: var(--cm-mut);
+  font-size: 18px;
+  cursor: grab;
+  user-select: none;
+}
+
+.cm-iname {
+  min-width: 160px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.cm-iname--q {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cm-plafond {
+  color: var(--cm-mut);
+  font-size: 13px;
+}
+
+.cm-pill--req {
+  background: color-mix(in srgb, var(--cm-pri) 14%, var(--cm-card));
+  color: var(--cm-pri);
+}
+
+.cm-fchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cm-fchip {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--cm-soft);
+  color: var(--cm-pri);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cm-sp {
+  flex: 1;
+}
+
+.cm-chev {
+  color: var(--cm-mut);
+  transition: transform 0.15s;
+}
+
+.cm-item--open .cm-chev {
+  transform: rotate(180deg);
+}
+
+.cm-ibody {
+  padding: 18px;
+  border-top: 1px solid var(--cm-bd);
+  background: color-mix(in srgb, var(--cm-soft) 45%, var(--cm-card));
+
+  input[type='text'],
+  textarea,
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--cm-bd);
+    border-radius: 12px;
+    background: var(--cm-card);
+    color: var(--cm-txt);
+    font: inherit;
+  }
+}
+
+.cm-bottom {
+  display: flex;
+  align-items: flex-end;
+}
+
+.cm-sw--txt {
+  color: var(--cm-txt);
+}
+
+.cm-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cm-chk {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--cm-bd);
+  border-radius: 999px;
+  background: var(--cm-card);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  i {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--cm-soft2);
+    border-radius: 5px;
+    color: transparent;
+    font-size: 11px;
+    font-style: normal;
+  }
+
+  input:focus-visible + i {
+    outline: 2px solid var(--cm-pri);
+    outline-offset: 2px;
+  }
+}
+
+.cm-chk--on {
+  border-color: var(--cm-pri);
+  background: var(--cm-soft);
+  color: var(--cm-pri);
+
+  i {
+    border-color: var(--cm-pri);
+    background: var(--cm-pri);
+    color: #fff;
+  }
+}
+
+.cm-ifoot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+// Formules : grille de cartes
+.cm-fgrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cm-fcard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--cm-bd);
+  border-radius: var(--cm-r);
+  background: var(--cm-card);
+  box-shadow: var(--cm-shadow);
+}
+
+.cm-fcard--off {
+  opacity: 0.65;
+}
+
+.cm-ftop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cm-num {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--cm-pri);
+  color: #fff;
+  font-weight: 800;
+}
+
+.cm-fcount {
+  color: var(--cm-mut);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cm-fact {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.cm-mini {
+  display: flex;
+  gap: 6px;
+}
+
+.cm-fadd {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  border: 2px dashed var(--cm-soft2);
+  border-radius: var(--cm-r);
+  background: transparent;
+  color: var(--cm-pri);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+// Infos pratiques
+.cm-lrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+
+  input {
+    flex: 1;
+  }
+}
+
+.cm-bul {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cm-accent);
+}
+
+.cm-qa {
+  display: grid;
+  gap: 12px;
 }
 
 // Aperçu et emplacement pendant le glisser-déposer (CDK) : l'aperçu est ajouté au <body>, hors de

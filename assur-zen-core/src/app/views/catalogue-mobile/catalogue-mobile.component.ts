@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
+import { SpinnerComponent } from '@coreui/angular';
 
 import { MobileProductService } from '../../core/mobile-admin/mobile-product.service';
 import {
@@ -19,6 +19,9 @@ import { AssistancePlansComponent } from './assistance-plans.component';
 type EditTab = 'general' | 'guarantees' | 'formulas' | 'practical' | 'assistance';
 
 interface GuaranteeDraft {
+  /** Identifiant d'affichage local (jamais envoyé) : suit la carte pendant le glisser-déposer. */
+  uid: number;
+  open: boolean;
   id: string;
   name: string;
   kind: GuaranteeKind;
@@ -26,6 +29,13 @@ interface GuaranteeDraft {
   limit: string;
   formulaIds: string[];
   visible: boolean;
+}
+
+interface FaqDraft {
+  uid: number;
+  open: boolean;
+  question: string;
+  answer: string;
 }
 
 interface FormulaDraft {
@@ -48,7 +58,7 @@ interface Draft {
   formulas: FormulaDraft[];
   exclusions: string[];
   requiredDocuments: string[];
-  faq: { question: string; answer: string }[];
+  faq: FaqDraft[];
 }
 
 const FAMILY_LABEL: Record<ProductFamily, string> = {
@@ -96,7 +106,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   templateUrl: './catalogue-mobile.component.html',
   styleUrl: './catalogue-mobile.component.scss',
   imports: [
-    ButtonDirective,
     SpinnerComponent,
     FormsModule,
     NgTemplateOutlet,
@@ -172,6 +181,9 @@ export class CatalogueMobileComponent {
 
   /** Nouvel avantage en cours de saisie (puces de l'onglet Général). */
   newBenefit = '';
+  /** Nouvelle pièce à fournir en cours de saisie (puces de l'onglet Infos pratiques). */
+  newDocument = '';
+  private uidSeq = 0;
 
   get isAuto(): boolean {
     return this.editProduct()?.productKey === 'auto';
@@ -268,6 +280,7 @@ export class CatalogueMobileComponent {
     this.editProduct.set(product);
     this.assistanceCount.set(null);
     this.newBenefit = '';
+    this.newDocument = '';
     this.formError.set(null);
     this.editTab.set('general');
     this.draft = {
@@ -280,6 +293,8 @@ export class CatalogueMobileComponent {
       eligibility: product.eligibility ?? '',
       benefits: [...(product.benefits ?? [])],
       guarantees: (product.guarantees ?? []).map((g) => ({
+        uid: ++this.uidSeq,
+        open: false,
         id: g.id ?? '',
         name: g.name,
         kind: g.kind,
@@ -296,7 +311,7 @@ export class CatalogueMobileComponent {
       })),
       exclusions: [...(product.exclusions ?? [])],
       requiredDocuments: [...(product.requiredDocuments ?? [])],
-      faq: (product.faq ?? []).map((q) => ({ question: q.question, answer: q.answer })),
+      faq: (product.faq ?? []).map((q) => ({ uid: ++this.uidSeq, open: false, question: q.question, answer: q.answer })),
     };
     this.editVisible.set(true);
   }
@@ -326,7 +341,8 @@ export class CatalogueMobileComponent {
 
   addGuarantee(): void {
     if (!this.draft || this.draft.guarantees.length >= MAX_GUARANTEES) return;
-    this.draft.guarantees.push({ id: '', name: '', kind: 'INCLUDED', description: '', limit: '', formulaIds: [], visible: true });
+    for (const g of this.draft.guarantees) g.open = false;
+    this.draft.guarantees.push({ uid: ++this.uidSeq, open: true, id: '', name: '', kind: 'INCLUDED', description: '', limit: '', formulaIds: [], visible: true });
   }
 
   toggleGuaranteeFormula(guarantee: GuaranteeDraft, formulaId: string): void {
@@ -359,7 +375,9 @@ export class CatalogueMobileComponent {
   // ---- FAQ ----
 
   addFaq(): void {
-    if (this.draft && this.draft.faq.length < MAX_FAQ) this.draft.faq.push({ question: '', answer: '' });
+    if (!this.draft || this.draft.faq.length >= MAX_FAQ) return;
+    for (const q of this.draft.faq) q.open = false;
+    this.draft.faq.push({ uid: ++this.uidSeq, open: true, question: '', answer: '' });
   }
 
   // ---- Icône : minuscules, chiffres, - ou _, 40 caractères max ----
@@ -490,6 +508,49 @@ export class CatalogueMobileComponent {
     if (!d || !text || d.benefits.length >= MAX_BENEFITS) return;
     d.benefits.push(text);
     this.newBenefit = '';
+  }
+
+  addDocument(): void {
+    const d = this.draft;
+    const text = this.newDocument.trim();
+    if (!d || !text || d.requiredDocuments.length >= MAX_DOCUMENTS) return;
+    d.requiredDocuments.push(text);
+    this.newDocument = '';
+  }
+
+  // ---- Garanties : glisser-déposer, libellés, formules incluses ----
+
+  dropGuarantee(event: CdkDragDrop<GuaranteeDraft[]>): void {
+    if (this.draft) moveItemInArray(this.draft.guarantees, event.previousIndex, event.currentIndex);
+  }
+
+  dropFaq(event: CdkDragDrop<FaqDraft[]>): void {
+    if (this.draft) moveItemInArray(this.draft.faq, event.previousIndex, event.currentIndex);
+  }
+
+  kindLabel(kind: GuaranteeKind): string {
+    return KIND_LABEL[kind];
+  }
+
+  /** Classe de la pastille du type de garantie (maquette : req / inc / opt / tbc). */
+  kindClass(kind: GuaranteeKind): string {
+    const map: Record<GuaranteeKind, string> = {
+      MANDATORY: 'cm-pill--req',
+      INCLUDED: 'cm-pill--ok',
+      OPTIONAL: 'cm-pill--warn',
+      TO_CONFIRM: 'cm-pill--mut',
+    };
+    return map[kind];
+  }
+
+  /** Noms des formules qui incluent la garantie (puces de l'en-tête de carte). */
+  guaranteeFormulaNames(g: GuaranteeDraft): string[] {
+    return (this.draft?.formulas ?? []).filter((f) => g.formulaIds.includes(f.id)).map((f) => f.name || f.id);
+  }
+
+  /** Nombre de garanties incluses dans une formule. */
+  formulaCount(f: FormulaDraft): number {
+    return (this.draft?.guarantees ?? []).filter((g) => g.formulaIds.includes(f.id)).length;
   }
 
   /** Description de l'aperçu : début du texte saisi. */
