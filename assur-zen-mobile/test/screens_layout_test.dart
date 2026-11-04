@@ -94,7 +94,7 @@ void main() {
 
   group('Autres écrans : plusieurs tailles d\'écran, texte à 100 % et 130 %', () {
     Future<Widget> app(Widget Function(String productId) page, double scale) async {
-      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({'lock_choice_done': true});
       final store = await LocalStore.open();
       final repos = MockRepositories.create();
       final session = SessionController(store: store, repos: repos)..updateUser(MockData.demoUser);
@@ -154,7 +154,7 @@ void main() {
   group('Pastilles des autres écrans', () {
     testWidgets('notifications : « Toutes » et « Non lues » se partagent la largeur', (tester) async {
       _useScreen(tester, const Size(360, 640));
-      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({'lock_choice_done': true});
       final store = await LocalStore.open();
       final repos = MockRepositories.create();
       final session = SessionController(store: store, repos: repos)..updateUser(MockData.demoUser);

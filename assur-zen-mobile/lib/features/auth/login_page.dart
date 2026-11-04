@@ -109,18 +109,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _afterSignIn({required bool askBiometric, required bool wasEnabled}) async {
-    final s = context.session;
-    if (askBiometric && !wasEnabled && await Biometric.isAvailable() && mounted) {
-      final enable = await showAzConfirm(
-        context,
-        title: 'Activer l’empreinte ?',
-        message: 'Connectez-vous plus vite la prochaine fois. Le code PIN restera demandé avant chaque paiement.',
-        confirmLabel: 'Activer',
-        cancelLabel: 'Plus tard',
-        icon: Icons.fingerprint,
-      );
-      await s.setBiometric(enable);
-    }
+    // Le choix du mode de déverrouillage est proposé une seule fois, à l'arrivée sur l'accueil.
     if (mounted) context.resetTo(AppRoutes.shell, ShellTab.home);
   }
 

@@ -27,6 +27,7 @@ class LocalStore {
   static const _kKnownPhone = 'known_phone';
   static const _kBiometric = 'biometric_enabled';
   static const _kPattern = 'pattern_enabled';
+  static const _kLockChoice = 'lock_choice_done';
   static const _kDraft = 'quote_draft';
   static const _kAttestation = 'attestation_cache';
   static const _kPrefs = 'notification_prefs';
@@ -93,6 +94,10 @@ class LocalStore {
 
   bool get biometricEnabled => _prefs.getBool(_kBiometric) ?? false;
   Future<void> setBiometricEnabled(bool value) => _prefs.setBool(_kBiometric, value);
+
+  /// Le client a déjà choisi son mode de déverrouillage (empreinte, schéma, PIN) sur cet appareil.
+  bool get lockChoiceDone => _prefs.getBool(_kLockChoice) ?? false;
+  Future<void> setLockChoiceDone(bool value) => _prefs.setBool(_kLockChoice, value);
 
   bool get patternEnabled => _prefs.getBool(_kPattern) ?? false;
   Future<void> setPatternEnabled(bool value) => _prefs.setBool(_kPattern, value);

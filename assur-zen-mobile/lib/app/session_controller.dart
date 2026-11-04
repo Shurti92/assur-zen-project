@@ -34,6 +34,7 @@ class SessionController extends ChangeNotifier {
   String? get knownPhone => store.knownPhone;
   bool get biometricEnabled => store.biometricEnabled;
   bool get patternEnabled => store.patternEnabled;
+  bool get lockChoiceDone => store.lockChoiceDone;
 
   Future<String?> token() => store.readToken();
 
@@ -86,6 +87,10 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setLockChoiceDone(bool done) async {
+    await store.setLockChoiceDone(done);
+  }
+
   Future<void> setBiometric(bool enabled) async {
     await store.setBiometricEnabled(enabled);
     notifyListeners();
@@ -125,6 +130,8 @@ class SessionController extends ChangeNotifier {
     await store.clearAll();
     // Le schéma appartient au compte : il ne survit pas à une déconnexion.
     await clearPattern();
+    // Un autre client pourra choisir son propre mode de déverrouillage.
+    await store.setLockChoiceDone(false);
     if (forgetDevice) {
       await store.setKnownPhone(null);
       await store.setBiometricEnabled(false);

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../app/routes.dart';
+import '../../app/session_controller.dart';
 import '../../core/ui.dart';
+import '../auth/lock_choice.dart';
 import '../catalog/catalog_page.dart';
 import '../claims/claims_page.dart';
 import '../contracts/contracts_page.dart';
@@ -44,6 +46,37 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   late int _tab = widget.initialTab;
   final Set<int> _visited = {};
+  SessionController? _session;
+  bool _asking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Choix du mode de déverrouillage, proposé une seule fois quand un client est connecté
+    // (aussi quand il se connecte depuis le catalogue, sans quitter cette coquille).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _session = AppScope.read(context).session..addListener(_maybeAskLockChoice);
+      _maybeAskLockChoice();
+    });
+  }
+
+  @override
+  void dispose() {
+    _session?.removeListener(_maybeAskLockChoice);
+    super.dispose();
+  }
+
+  Future<void> _maybeAskLockChoice() async {
+    final s = _session;
+    if (!mounted || _asking || s == null || !s.isLoggedIn || s.isLocked || s.lockChoiceDone) return;
+    _asking = true;
+    try {
+      await askLockChoice(context);
+    } finally {
+      _asking = false;
+    }
+  }
 
   void _goTo(int tab) {
     if (tab == _tab) return;
