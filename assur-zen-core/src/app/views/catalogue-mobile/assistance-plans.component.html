@@ -1,0 +1,145 @@
+<div class="ap">
+  <div class="ap-intro">
+    <p>
+      Niveaux d'assistance proposés avec l'Assurance Auto sur le mobile. Glissez ⠿ pour réordonner. Le prix et son libellé sont indépendants : le libellé
+      s'affiche tel quel sur le mobile.
+      @if (meta(); as m) {
+        <br /><small>{{ m }}</small>
+      }
+    </p>
+    <button (click)="addPlan()" [disabled]="loading() || plans.length >= limits.plans" class="ap-btn ap-btn--pri" type="button">
+      + Ajouter un niveau ({{ plans.length }}/{{ limits.plans }})
+    </button>
+  </div>
+
+  @if (error()) {
+    <app-alert-message class="d-block mb-3" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+  }
+  @if (success()) {
+    <app-alert-message class="d-block mb-3" variant="success" [message]="success()!" [dismissible]="true" (dismissed)="success.set(null)" />
+  }
+
+  @if (loading()) {
+    <p class="ap-empty"><c-spinner size="sm" /> Chargement des niveaux…</p>
+  } @else {
+    <div (cdkDropListDropped)="drop($event)" cdkDropList>
+      @for (p of plans; track p.uid; let i = $index) {
+        <div [class.ap-plan--off]="!p.active" [class.ap-plan--open]="p.open" cdkDrag class="ap-plan">
+          <div (click)="toggle(p)" class="ap-phead">
+            <span cdkDragHandle (click)="$event.stopPropagation()" class="ap-grip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
+            <span class="ap-pname">{{ p.name || 'Nouveau niveau' }}</span>
+            <span class="ap-price">
+              {{ formatPrice(p) }}
+              @if (p.priceLabel) {
+                <small>libellé : « {{ p.priceLabel }} »</small>
+              }
+            </span>
+            <span class="ap-badges">
+              @if (p.benefit) {
+                <span class="ap-b ap-b--free">Avantage gratuit</span>
+              }
+              @if (ageLabel(p)) {
+                <span class="ap-b ap-b--age">{{ ageLabel(p) }}</span>
+              }
+              @if (p.recommended) {
+                <span class="ap-b ap-b--rec">Recommandé</span>
+              }
+              @if (!p.active) {
+                <span class="ap-b ap-b--off">Inactif</span>
+              }
+            </span>
+            <span class="ap-sp"></span>
+            <span class="ap-chev">⌄</span>
+          </div>
+
+          @if (p.open) {
+            <div class="ap-pbody">
+              <div class="ap-grid">
+                <div class="ap-c4">
+                  <label [for]="'ap-name-' + p.uid">Nom du niveau *</label>
+                  <input [(ngModel)]="p.name" [id]="'ap-name-' + p.uid" maxlength="60" type="text" />
+                </div>
+                <div class="ap-c4">
+                  <label [for]="'ap-key-' + p.uid">Identifiant</label>
+                  <input (ngModelChange)="onKeyInput(p, $event)" [ngModel]="p.key" [id]="'ap-key-' + p.uid" maxlength="40" placeholder="auto d'après le nom" type="text" />
+                  <div class="ap-hint">minuscules, chiffres, tirets · unique</div>
+                </div>
+                <div class="ap-c4">
+                  <label [for]="'ap-price-' + p.uid">Prix (F CFA)</label>
+                  <input [(ngModel)]="p.price" [id]="'ap-price-' + p.uid" min="0" step="1" type="number" />
+                  <div class="ap-hint">0 pour « Gratuit »</div>
+                </div>
+                <div class="ap-c6">
+                  <label [for]="'ap-label-' + p.uid">Libellé du prix (facultatif)</label>
+                  <input [(ngModel)]="p.priceLabel" [id]="'ap-label-' + p.uid" maxlength="60" placeholder="Ex. +38 000 F" type="text" />
+                  <div class="ap-hint">Affiché tel quel sur le mobile à la place du prix</div>
+                </div>
+                <div class="ap-c3">
+                  <label [for]="'ap-min-' + p.uid">Âge véhicule min (ans)</label>
+                  <input [(ngModel)]="p.minVehicleAge" [id]="'ap-min-' + p.uid" max="100" min="0" step="1" type="number" />
+                </div>
+                <div class="ap-c3">
+                  <label [for]="'ap-max-' + p.uid">Âge véhicule max (ans)</label>
+                  <input [(ngModel)]="p.maxVehicleAge" [id]="'ap-max-' + p.uid" max="100" min="0" step="1" type="number" />
+                  <div class="ap-hint">vide = sans limite · informatif</div>
+                </div>
+                <div class="ap-c12 ap-switches">
+                  <label class="ap-sw"><input [(ngModel)]="p.active" type="checkbox" role="switch" /><i></i>Actif sur le mobile</label>
+                  <label class="ap-sw"><input [(ngModel)]="p.benefit" type="checkbox" role="switch" /><i></i>Avantage gratuit</label>
+                  <label class="ap-sw"><input [(ngModel)]="p.recommended" type="checkbox" role="switch" /><i></i>Badge « Recommandé »</label>
+                </div>
+              </div>
+
+              @for (s of p.sections; track $index; let si = $index) {
+                <div class="ap-sec">
+                  <div class="ap-sechead">
+                    <input [(ngModel)]="s.title" [attr.aria-label]="'Titre de la section ' + (si + 1)" maxlength="60" placeholder="Ex. En cas d'accident" type="text" />
+                    <div class="ap-mini">
+                      <button (click)="move(p.sections, si, -1)" [disabled]="si === 0" aria-label="Monter la section" class="ap-btn ap-btn--ghost ap-sm" type="button">↑</button>
+                      <button (click)="move(p.sections, si, 1)" [disabled]="si === p.sections.length - 1" aria-label="Descendre la section" class="ap-btn ap-btn--ghost ap-sm" type="button">↓</button>
+                      <button (click)="removeAt(p.sections, si)" aria-label="Supprimer la section" class="ap-btn ap-btn--danger ap-sm" type="button">×</button>
+                    </div>
+                  </div>
+                  @for (it of s.items; track $index; let ii = $index) {
+                    <div class="ap-item">
+                      <input [(ngModel)]="it.text" [attr.aria-label]="'Prestation ' + (ii + 1)" maxlength="200" placeholder="Prestation" type="text" />
+                      <input [(ngModel)]="it.condition" [attr.aria-label]="'Condition de la prestation ' + (ii + 1)" maxlength="200" placeholder="Condition (facultatif)" type="text" />
+                      <div class="ap-mini">
+                        <button (click)="move(s.items, ii, -1)" [disabled]="ii === 0" aria-label="Monter" class="ap-btn ap-btn--ghost ap-sm" type="button">↑</button>
+                        <button (click)="move(s.items, ii, 1)" [disabled]="ii === s.items.length - 1" aria-label="Descendre" class="ap-btn ap-btn--ghost ap-sm" type="button">↓</button>
+                        <button (click)="removeAt(s.items, ii)" aria-label="Supprimer la prestation" class="ap-btn ap-btn--danger ap-sm" type="button">×</button>
+                      </div>
+                    </div>
+                  }
+                  <button (click)="addItem(s)" [disabled]="s.items.length >= limits.items" class="ap-btn ap-btn--ghost ap-sm" type="button">
+                    + Ajouter une prestation ({{ s.items.length }}/{{ limits.items }})
+                  </button>
+                </div>
+              }
+
+              <button (click)="addSection(p)" [disabled]="p.sections.length >= limits.sections" class="ap-btn ap-btn--ghost ap-addsec" type="button">
+                + Ajouter une section ({{ p.sections.length }}/{{ limits.sections }}) : accident, panne, vol, incendie…
+              </button>
+
+              <div class="ap-pfoot">
+                <button (click)="removePlan(i)" class="ap-btn ap-btn--danger" type="button">Supprimer ce niveau</button>
+              </div>
+            </div>
+          }
+        </div>
+      } @empty {
+        <p class="ap-empty">Aucun niveau d'assistance. L'enregistrement d'une liste vide retire l'assistance du mobile.</p>
+      }
+    </div>
+
+    <div class="ap-foot">
+      <small>Enregistre la liste complète des niveaux ; le contenu du produit s'enregistre séparément.</small>
+      <button (click)="save()" [disabled]="saving()" class="ap-btn ap-btn--pri" type="button">
+        @if (saving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer l'assistance
+      </button>
+    </div>
+  }
+</div>

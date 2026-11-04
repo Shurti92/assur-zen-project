@@ -76,3 +76,43 @@ export interface MobileProductContentRequest {
   displayOrder?: number;
   onlineSubscription?: boolean;
 }
+
+/** Une prestation d'un niveau d'assistance (texte libre, condition facultative). */
+export interface AssistanceItem {
+  text: string;
+  condition?: string | null;
+}
+
+/** Une section de prestations d'un niveau (accident, panne, vol, incendie…). */
+export interface AssistanceSection {
+  title: string;
+  items: AssistanceItem[];
+}
+
+/** Niveau d'assistance de l'Assurance Auto (admin-mobile.md §11, jamais pour le VTC). */
+export interface AssistancePlan {
+  key: string;
+  name: string;
+  /** Entier >= 0 en F CFA (0 pour « Gratuit »). */
+  price: number;
+  /** Libellé libre affiché tel quel sur le mobile (ex. « +38 000 F »). */
+  priceLabel?: string | null;
+  minVehicleAge?: number | null;
+  maxVehicleAge?: number | null;
+  displayOrder?: number | null;
+  active?: boolean;
+  benefit?: boolean;
+  recommended?: boolean;
+  sections: AssistanceSection[];
+}
+
+/** GET /admin/mobile/products/{id}/assistance. */
+export interface AssistanceResponse {
+  productId: number;
+  productKey?: string | null;
+  /** false hors Assurance Auto (plans vide). */
+  applicable: boolean;
+  plans: AssistancePlan[];
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}

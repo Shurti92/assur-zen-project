@@ -3,6 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import {
+  AssistancePlan,
+  AssistanceResponse,
   MobileProduct,
   MobileProductContentRequest,
   MobileProductList,
@@ -30,5 +32,15 @@ export class MobileProductService {
   /** Fixe l'ordre d'affichage : le premier identifiant est affiché en premier. */
   saveOrder(productIds: number[]): Observable<MobileProduct[]> {
     return this.http.put<MobileProductList>(`${this.base}/order`, { productIds }).pipe(map((r) => r.items));
+  }
+
+  /** Niveaux d'assistance de l'Assurance Auto (applicable=false pour les autres produits). */
+  assistance(productId: number): Observable<AssistanceResponse> {
+    return this.http.get<AssistanceResponse>(`${this.base}/${productId}/assistance`);
+  }
+
+  /** REMPLACE toute la liste des niveaux (liste vide autorisée). */
+  saveAssistance(productId: number, plans: AssistancePlan[]): Observable<AssistanceResponse> {
+    return this.http.put<AssistanceResponse>(`${this.base}/${productId}/assistance`, { plans });
   }
 }

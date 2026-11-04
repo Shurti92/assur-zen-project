@@ -109,6 +109,15 @@
       <button (click)="editTab.set('formulas')" [class.cm-tab--on]="editTab() === 'formulas'" class="cm-tab" role="tab" type="button">
         Formules <span class="cm-count">{{ d.formulas.length }}</span>
       </button>
+      @if (isAuto) {
+        <button (click)="editTab.set('assistance')" [class.cm-tab--on]="editTab() === 'assistance'" class="cm-tab" role="tab" type="button">
+          Assistance
+          @if (assistanceCount() !== null) {
+            <span class="cm-count">{{ assistanceCount() }}</span>
+          }
+          <span class="cm-auto">Auto</span>
+        </button>
+      }
       <button (click)="editTab.set('practical')" [class.cm-tab--on]="editTab() === 'practical'" class="cm-tab" role="tab" type="button">Infos pratiques</button>
     </div>
 
@@ -301,6 +310,14 @@
       }
     }
 
+    <!-- Assistance : composant monté dès l'ouverture (compteur de l'onglet), enregistrement indépendant -->
+    @if (isAuto) {
+      <div [hidden]="editTab() !== 'assistance'">
+        <app-assistance-plans (countChange)="assistanceCount.set($event)" [productId]="editProduct()!.productId" />
+      </div>
+    }
+
+    @if (editTab() !== 'assistance') {
     <div class="cm-footer">
       <span class="small text-body-secondary me-auto">L'enregistrement remplace tout le contenu mobile de ce produit.</span>
       <button (click)="closeEdit()" cButton class="dl-btn" type="button">Annuler</button>
@@ -311,5 +328,6 @@
         Enregistrer
       </button>
     </div>
+    }
   }
 </app-modal>

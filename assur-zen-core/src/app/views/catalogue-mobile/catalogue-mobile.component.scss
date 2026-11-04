@@ -42,6 +42,15 @@
   color: var(--cui-secondary-text-emphasis);
 }
 
+.cm-auto {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #ec7c1e;
+  color: #fff;
+}
+
 .cm-card {
   border: 1px solid var(--cui-border-color);
   border-radius: 0.7rem;

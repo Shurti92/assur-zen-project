@@ -14,8 +14,9 @@ import {
 } from '../../core/mobile-admin/models/mobile-product.model';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
+import { AssistancePlansComponent } from './assistance-plans.component';
 
-type EditTab = 'general' | 'guarantees' | 'formulas' | 'practical';
+type EditTab = 'general' | 'guarantees' | 'formulas' | 'practical' | 'assistance';
 
 interface GuaranteeDraft {
   id: string;
@@ -90,6 +91,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     CdkDragHandle,
     AlertMessageComponent,
     ModalComponent,
+    AssistancePlansComponent,
   ],
 })
 export class CatalogueMobileComponent {
@@ -118,6 +120,8 @@ export class CatalogueMobileComponent {
   readonly editVisible = signal(false);
   readonly editTab = signal<EditTab>('general');
   readonly editProduct = signal<MobileProduct | null>(null);
+  /** Nombre de niveaux d'assistance (onglet réservé à l'Assurance Auto, productKey « auto »). */
+  readonly assistanceCount = signal<number | null>(null);
   readonly saving = signal(false);
   readonly formError = signal<string | null>(null);
   /** Brouillon édité par ngModel : objet simple (pas un signal) pour permettre le binding bidirectionnel. */
@@ -142,6 +146,10 @@ export class CatalogueMobileComponent {
         this.loading.set(false);
       },
     });
+  }
+
+  get isAuto(): boolean {
+    return this.editProduct()?.productKey === 'auto';
   }
 
   get visibleCount(): number {
@@ -233,6 +241,7 @@ export class CatalogueMobileComponent {
 
   openEdit(product: MobileProduct): void {
     this.editProduct.set(product);
+    this.assistanceCount.set(null);
     this.formError.set(null);
     this.editTab.set('general');
     this.draft = {
