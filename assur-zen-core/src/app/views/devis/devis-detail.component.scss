@@ -198,6 +198,23 @@
   background: var(--dd-ok);
 }
 
+// Téléphone : le parcours tient dans la largeur (étapes et traits plus étroits)
+@media (max-width: 560px) {
+  .dd-stepper {
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .dd-step {
+    min-width: 0;
+    font-size: 11px;
+  }
+
+  .dd-line {
+    min-width: 6px;
+  }
+}
+
 // ---------- Grille et cartes ----------
 .dd-grid {
   display: grid;
