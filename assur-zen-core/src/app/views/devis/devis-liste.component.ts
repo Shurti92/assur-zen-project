@@ -1,9 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
+import { SpinnerComponent } from '@coreui/angular';
 
 import { QuoteStatus, QuoteView } from '../../core/quotes/models/quote.model';
+import { formatCiPhone } from '../../core/quotes/ci-phone';
 import { QUOTE_SMS_ENABLED } from '../../core/quotes/quote-sms.config';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteService } from '../../core/quotes/quote.service';
@@ -20,10 +21,13 @@ export const QUOTE_STATUS_VARIANT: Record<QuoteStatus, string> = {
   EXPIRE: 'secondary',
 };
 
+type ProductFilter = 'moto' | 'automobile-vtc' | null;
+
 @Component({
   selector: 'app-devis-liste',
   templateUrl: './devis-liste.component.html',
-  imports: [ButtonDirective, RouterLink, SpinnerComponent],
+  styleUrl: './devis-liste.component.scss',
+  imports: [RouterLink, SpinnerComponent],
 })
 export class DevisListeComponent {
   private readonly service = inject(QuoteService);
@@ -34,20 +38,30 @@ export class DevisListeComponent {
   readonly pageSize = 20;
   readonly statusLabel = QUOTE_STATUS_LABEL;
   readonly statusVariant = QUOTE_STATUS_VARIANT;
-  readonly statuses = Object.keys(QUOTE_STATUS_LABEL) as QuoteStatus[];
 
+  /** Devis chargés (la recherche est faite côté serveur ; statut et produit côté écran). */
   readonly quotes = signal<QuoteView[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly status = signal<QuoteStatus | null>(null);
   readonly search = signal('');
   readonly pageIndex = signal(0);
+  readonly product = signal<ProductFilter>(null);
 
-  /** Filtre produit côté écran (l'API renvoie moto et VTC ensemble, productKey les distingue). */
-  readonly product = signal<'moto' | 'automobile-vtc' | null>(null);
-  readonly filtered = computed(() => {
+  /** Compteurs cliquables : calculés sur les devis chargés, produit compris, statut exclu. */
+  private readonly byProduct = computed(() => {
     const p = this.product();
     return p ? this.quotes().filter((q) => this.productOf(q) === p) : this.quotes();
+  });
+  readonly counts = computed(() => {
+    const list = this.byProduct();
+    const count = (s: QuoteStatus) => list.filter((q) => q.status === s).length;
+    return { all: list.length, CALCULE: count('CALCULE'), ACCEPTE: count('ACCEPTE'), EXPIRE: count('EXPIRE') };
+  });
+
+  readonly filtered = computed(() => {
+    const s = this.status();
+    return s ? this.byProduct().filter((q) => q.status === s) : this.byProduct();
   });
 
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filtered().length / this.pageSize)));
@@ -63,7 +77,7 @@ export class DevisListeComponent {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.service.list(this.status(), this.search()).subscribe({
+    this.service.list(null, this.search()).subscribe({
       next: (list) => {
         this.quotes.set(list);
         this.pageIndex.set(0);
@@ -76,9 +90,10 @@ export class DevisListeComponent {
     });
   }
 
-  onStatusChange(value: string): void {
-    this.status.set((value || null) as QuoteStatus | null);
-    this.load();
+  /** Un clic sur le compteur déjà actif retire le filtre. */
+  onStatusChange(value: QuoteStatus | null): void {
+    this.status.set(value && value === this.status() ? null : value);
+    this.pageIndex.set(0);
   }
 
   onSearch(value: string): void {
@@ -91,8 +106,8 @@ export class DevisListeComponent {
     this.pageIndex.set(index);
   }
 
-  onProductChange(value: string): void {
-    this.product.set((value || null) as 'moto' | 'automobile-vtc' | null);
+  onProductChange(value: ProductFilter): void {
+    this.product.set(value);
     this.pageIndex.set(0);
   }
 
@@ -107,6 +122,17 @@ export class DevisListeComponent {
   vehicleLabel(q: QuoteView): string {
     if (this.productOf(q) === 'automobile-vtc') return `${q.brand} ${q.model}`.trim();
     return `${q.vehicleType === 'TRICYCLE' ? 'Tricycle' : 'Moto'} · ${q.brand}`;
+  }
+
+  /** Initiales de l'avatar du prospect. */
+  initials(q: QuoteView): string {
+    const parts = (q.prospectName ?? '').trim().split(/\s+/).filter(Boolean);
+    const out = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] ?? '').slice(0, 2);
+    return out.toUpperCase() || '?';
+  }
+
+  formatPhone(value?: string | null): string {
+    return value ? formatCiPhone(value) : '—';
   }
 
   formatDayMonth(value?: string | null): string {

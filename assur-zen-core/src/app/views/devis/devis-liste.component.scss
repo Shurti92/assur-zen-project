@@ -1,0 +1,453 @@
+// Liste des devis : en-tête uni, compteurs cliquables, filtres, lignes aérées.
+// Couleur unique (bleu AssurZen), aplats sans dégradé ; maquette validée le 2026-11-04.
+:host {
+  display: block;
+  --dq-pri: #1b3b8f;
+  --dq-accent: #ec7c1e;
+  --dq-card: var(--cui-body-bg, #fff);
+  --dq-bd: var(--cui-border-color, #e3e8f4);
+  --dq-txt: var(--cui-body-color, #1e2a4c);
+  --dq-mut: var(--cui-secondary-color, #6b7691);
+  --dq-soft: color-mix(in srgb, var(--dq-pri) 9%, var(--dq-card));
+  --dq-soft2: color-mix(in srgb, var(--dq-pri) 24%, var(--dq-card));
+  --dq-ok: #12a150;
+  --dq-ok-soft: color-mix(in srgb, var(--dq-ok) 14%, var(--dq-card));
+  --dq-warn-soft: color-mix(in srgb, var(--dq-accent) 14%, var(--dq-card));
+  --dq-r: 18px;
+  --dq-shadow: 0 1px 2px rgba(20, 38, 92, 0.05), 0 8px 24px rgba(20, 38, 92, 0.07);
+}
+
+.dq {
+  width: 100%;
+  padding-bottom: 3rem;
+}
+
+// ---------- En-tête ----------
+.dq-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px 28px;
+  border-radius: 24px;
+  background: var(--dq-pri);
+  box-shadow: var(--dq-shadow);
+  color: #fff;
+
+  h1 {
+    margin: 0;
+    color: #fff;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    margin: 2px 0 0;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+}
+
+.dq-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dq-btn {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 11px 18px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.12s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+.dq-btn--white {
+  background: #fff;
+  color: var(--dq-pri);
+
+  &:hover {
+    color: var(--dq-pri);
+  }
+}
+
+.dq-btn--glass {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+// ---------- Compteurs ----------
+.dq-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.dq-kpi {
+  padding: 16px 18px;
+  border: 1px solid var(--dq-bd);
+  border-radius: var(--dq-r);
+  background: var(--dq-card);
+  box-shadow: var(--dq-shadow);
+  color: var(--dq-txt);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  small {
+    display: block;
+    color: var(--dq-mut);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  b {
+    display: block;
+    margin-top: 2px;
+    font-size: 30px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  i {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 6px;
+    border-radius: 3px;
+  }
+}
+
+.dq-kpi--on {
+  outline: 2px solid var(--dq-pri);
+}
+
+.dq-k1 {
+  background: #4a74e8;
+}
+
+.dq-k2 {
+  background: #12a150;
+}
+
+.dq-k3 {
+  background: #9aa6cc;
+}
+
+// ---------- Filtres ----------
+.dq-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--dq-bd);
+  border-radius: var(--dq-r);
+  background: var(--dq-card);
+  box-shadow: var(--dq-shadow);
+}
+
+.dq-search {
+  position: relative;
+  flex: 1 1 300px;
+
+  input {
+    width: 100%;
+    padding: 11px 14px 11px 40px;
+    border: 1px solid var(--dq-bd);
+    border-radius: 14px;
+    background: var(--dq-soft);
+    color: var(--dq-txt);
+    font: inherit;
+  }
+
+  span {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    color: var(--dq-mut);
+    transform: translateY(-50%);
+  }
+}
+
+.dq-seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 14px;
+  background: var(--dq-soft);
+
+  a {
+    padding: 8px 16px;
+    border-radius: 11px;
+    color: var(--dq-mut);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
+
+.dq-on {
+  background: var(--dq-pri);
+  color: #fff !important;
+}
+
+// ---------- Liste ----------
+.dq-list {
+  margin-top: 16px;
+  border: 1px solid var(--dq-bd);
+  border-radius: var(--dq-r);
+  background: var(--dq-card);
+  box-shadow: var(--dq-shadow);
+  overflow: hidden;
+}
+
+.dq-head,
+.dq-row {
+  display: grid;
+  grid-template-columns: 1.25fr 1.7fr 1.5fr 0.9fr 1fr 1.2fr 80px;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 20px;
+}
+
+.dq-head {
+  background: var(--dq-soft);
+  color: var(--dq-mut);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dq-row {
+  border-top: 1px solid var(--dq-bd);
+  transition: background 0.12s;
+
+  &:hover {
+    background: var(--dq-soft);
+  }
+}
+
+.dq-empty {
+  padding: 2rem;
+  color: var(--dq-mut);
+  text-align: center;
+}
+
+.dq-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dq-pri);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dq-ref {
+  font-weight: 700;
+
+  small {
+    display: block;
+    color: var(--dq-mut);
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+
+.dq-who {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+
+  b {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: var(--dq-mut);
+  }
+}
+
+.dq-av {
+  display: grid;
+  flex: 0 0 38px;
+  place-items: center;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--dq-pri);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dq-veh b {
+  display: block;
+  font-weight: 600;
+}
+
+.dq-plate {
+  padding: 0 6px;
+  border: 1.5px solid var(--dq-txt);
+  border-radius: 6px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dq-total {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.dq-pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dq-pill--info {
+  background: color-mix(in srgb, var(--dq-pri) 16%, var(--dq-card));
+  color: var(--dq-pri);
+}
+
+.dq-pill--success {
+  background: var(--dq-ok-soft);
+  color: var(--dq-ok);
+}
+
+.dq-pill--secondary {
+  background: var(--dq-soft);
+  color: var(--dq-mut);
+}
+
+.dq-sends {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dq-send {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dq-send--sms {
+  background: var(--dq-ok-soft);
+  color: var(--dq-ok);
+}
+
+.dq-send--mail {
+  background: var(--dq-warn-soft);
+  color: var(--dq-accent);
+}
+
+.dq-send--none {
+  color: var(--dq-mut);
+  font-weight: 500;
+}
+
+.dq-go {
+  justify-self: end;
+  padding: 8px 16px;
+  border: 1px solid var(--dq-soft2);
+  border-radius: 12px;
+  background: var(--dq-card);
+  color: var(--dq-pri);
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    background: var(--dq-soft);
+  }
+}
+
+.dq-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--dq-bd);
+  color: var(--dq-mut);
+  font-size: 13px;
+}
+
+.dq-pg {
+  display: flex;
+  gap: 8px;
+
+  button {
+    padding: 7px 14px;
+    border: 1px solid var(--dq-bd);
+    border-radius: 12px;
+    background: var(--dq-card);
+    color: var(--dq-txt);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// Téléphone : chaque ligne devient une carte
+@media (max-width: 900px) {
+  .dq-head {
+    display: none;
+  }
+
+  .dq-row {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 8px;
+
+    .dq-who {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .dq-go {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    text-align: center;
+  }
+}
