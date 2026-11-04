@@ -71,12 +71,22 @@ public class QuoteService {
             tariffs.save(t);
         }
         // VTC, 3 CV et plus, 4 a 8 places, usage public. Totaux fournis ; frais fixes 4 304 F (accessoires 2 024,
-        // CEDEAO 1 000, attestation 1 000, FGA 280) ; taxes non communiquees = 0 (prime nette = total - frais fixes).
+        // CEDEAO 1 000, attestation 1 000, FGA 280) ; taxes = 14,5 % de la prime nette (prime nette deduite du total).
         Map<Integer, Long> totaux = Map.of(1, 23800L, 3, 54160L, 6, 98732L, 12, 185667L);
         for (Map.Entry<Integer, Long> e : totaux.entrySet()) {
-            if (tariffs.findByProductKeyAndFormulaIdAndVehicleCategoryAndDurationMonths(VTC, FORMULE_VTC, "VTC", e.getKey()).isPresent()) {
+            QuoteTariff existant = tariffs.findByProductKeyAndFormulaIdAndVehicleCategoryAndDurationMonths(VTC, FORMULE_VTC, "VTC", e.getKey()).orElse(null);
+            if (existant != null) {
+                // Mise a niveau des lignes initiales (jamais modifiees par un administrateur) : taxes a 14,5 %.
+                if (existant.getTaxRate() == null && "system".equals(existant.getUpdatedBy()) && existant.getTaxes() == 0L) {
+                    long[] nt = netEtTaxes(e.getValue() - FRAIS_FIXES_VTC);
+                    existant.setNetPremium(nt[0]);
+                    existant.setTaxes(nt[1]);
+                    existant.setTaxRate(TAUX_TAXE_VTC);
+                    tariffs.save(existant);
+                }
                 continue;
             }
+            long[] nt = netEtTaxes(e.getValue() - FRAIS_FIXES_VTC);
             QuoteTariff t = new QuoteTariff();
             t.setProductKey(VTC);
             t.setFormulaId(FORMULE_VTC);
@@ -86,8 +96,9 @@ public class QuoteService {
             t.setCedeao(1000L);
             t.setAttestation(1000L);
             t.setFga(280L);
-            t.setTaxes(0L);
-            t.setNetPremium(e.getValue() - 4304L);
+            t.setTaxes(nt[1]);
+            t.setTaxRate(TAUX_TAXE_VTC);
+            t.setNetPremium(nt[0]);
             t.setTotal(e.getValue());
             t.setMinFiscalPower(3);
             t.setMinSeats(4);
@@ -95,6 +106,24 @@ public class QuoteService {
             t.setUpdatedBy("system");
             tariffs.save(t);
         }
+    }
+
+    static final long FRAIS_FIXES_VTC = 2024L + 1000L + 1000L + 280L;
+    static final BigDecimal TAUX_TAXE_VTC = new BigDecimal("14.5");
+
+    /**
+     * Decompose (prime nette + taxes) = montant, avec taxes = 14,5 % de la prime nette arrondie a l'entier. Cherche la prime nette
+     * exacte ; a defaut (arrondi impossible), la valeur la plus proche, la taxe absorbant l'ecart de 1 F.
+     */
+    static long[] netEtTaxes(long montant) {
+        long approx = Math.round(montant / 1.145);
+        for (long n = approx - 3; n <= approx + 3; n++) {
+            long taxes = TAUX_TAXE_VTC.multiply(BigDecimal.valueOf(n)).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP).longValue();
+            if (n + taxes == montant) {
+                return new long[]{n, taxes};
+            }
+        }
+        return new long[]{approx, montant - approx};
     }
 
     // ------------------------------------------------------------------ public : moto
@@ -216,10 +245,13 @@ public class QuoteService {
                 .orElseThrow(() -> new MobileApiException(400, "VALIDATION_FAILED",
                         "Aucun tarif pour ce vehicule : verifiez la puissance fiscale et le nombre de places.", "seats"));
         long remise = BigDecimal.valueOf(t.getNetPremium()).multiply(pourcentage).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP).longValue();
-        long total = t.getNetPremium() - remise + t.getTaxes() + t.getAccessories() + t.getFga() + t.getCedeao() + t.getAttestation();
+        // Taxes : en % de la prime nette APRES remise quand le tarif porte un taux (VTC 14,5 %), sinon montant fixe du tarif.
+        long taxes = t.getTaxRate() == null ? t.getTaxes()
+                : BigDecimal.valueOf(t.getNetPremium() - remise).multiply(t.getTaxRate()).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP).longValue();
+        long total = t.getNetPremium() - remise + taxes + t.getAccessories() + t.getFga() + t.getCedeao() + t.getAttestation();
         return new VtcSimulation(VTC, formule, NOM_FORMULE_VTC, t.getDurationMonths(), r.effectiveDate(),
                 r.effectiveDate().plusMonths(t.getDurationMonths()).minusDays(1),
-                new PremiumBreakdown(t.getNetPremium(), t.getTaxes(), t.getAccessories(), t.getFga(), t.getCedeao(), t.getAttestation(), remise, total, "XOF"),
+                new PremiumBreakdown(t.getNetPremium(), taxes, t.getAccessories(), t.getFga(), t.getCedeao(), t.getAttestation(), remise, total, "XOF"),
                 garantiesTiersSimpleVtc());
     }
 
@@ -357,6 +389,7 @@ public class QuoteService {
             t.setCedeao(cedeao);
             t.setAttestation(attestation);
             t.setTotal(in.total());
+            t.setTaxRate(in.taxRate());
             t.setMinFiscalPower(in.minFiscalPower());
             t.setMinSeats(in.minSeats());
             t.setMaxSeats(in.maxSeats());
@@ -372,6 +405,6 @@ public class QuoteService {
         return new TariffList(tariffs.findAllByOrderByProductKeyAscFormulaIdAscVehicleCategoryAscDurationMonthsAsc().stream().map(t ->
                 new TariffView(t.getId(), t.getProductKey(), t.getFormulaId(), t.getVehicleCategory(), t.getDurationMonths(), t.getNetPremium(),
                         t.getTaxes(), t.getAccessories(), t.getFga(), t.getCedeao(), t.getAttestation(), t.getTotal(), t.isActive(),
-                        t.getUpdatedAt(), t.getUpdatedBy(), t.getMinFiscalPower(), t.getMinSeats(), t.getMaxSeats())).toList());
+                        t.getUpdatedAt(), t.getUpdatedBy(), t.getMinFiscalPower(), t.getMinSeats(), t.getMaxSeats(), t.getTaxRate())).toList());
     }
 }

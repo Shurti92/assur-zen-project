@@ -70,8 +70,10 @@ class QuoteServiceTest {
         t.setCedeao(1000L);
         t.setAttestation(1000L);
         t.setFga(280L);
-        t.setTaxes(0L);
-        t.setNetPremium(total - 4304L);
+        long[] nt = QuoteService.netEtTaxes(total - 4304L);
+        t.setNetPremium(nt[0]);
+        t.setTaxes(nt[1]);
+        t.setTaxRate(new java.math.BigDecimal("14.5"));
         t.setTotal(total);
         t.setMinFiscalPower(3);
         t.setMinSeats(4);
@@ -91,7 +93,8 @@ class QuoteServiceTest {
         assertEquals(98732L, service.simulerVtc(vtcDemande(5, 5, 6, null), false).premium().total());
         VtcSimulation s = service.simulerVtc(vtcDemande(5, 5, 12, null), false);
         assertEquals(185667L, s.premium().total());
-        assertEquals(181363L, s.premium().netPremium());
+        assertEquals(158396L, s.premium().netPremium());
+        assertEquals(22967L, s.premium().taxes(), "taxes = 14,5 % de la prime nette");
         assertEquals(1000L, s.premium().cedeao());
         assertEquals(1000L, s.premium().attestation());
         assertEquals(280L, s.premium().fga());
@@ -110,10 +113,20 @@ class QuoteServiceTest {
     @Test
     void vtc_remiseSurLaPrimeNetteEtPlafonnee() {
         VtcSimulation s = service.simulerVtc(vtcDemande(5, 5, 12, new java.math.BigDecimal("10")), true);
-        assertEquals(18136L, s.premium().discount());
-        assertEquals(185667L - 18136L, s.premium().total());
+        assertEquals(15840L, s.premium().discount());
+        // taxes recalculees sur la prime nette apres remise : 14,5 % de (158 396 - 15 840) = 20 671
+        assertEquals(20671L, s.premium().taxes());
+        assertEquals(158396L - 15840L + 20671L + 4304L, s.premium().total());
         assertEquals("discountPercent", assertThrows(MobileApiException.class,
                 () -> service.simulerVtc(vtcDemande(5, 5, 12, new java.math.BigDecimal("10.5")), true)).getField());
+    }
+
+    @Test
+    void vtc_decompositionDesTotauxAnnonces() {
+        assertArrayEquals(new long[]{17027, 2469}, QuoteService.netEtTaxes(23800 - 4304));
+        assertArrayEquals(new long[]{43542, 6314}, QuoteService.netEtTaxes(54160 - 4304));
+        assertArrayEquals(new long[]{82470, 11958}, QuoteService.netEtTaxes(98732 - 4304));
+        assertArrayEquals(new long[]{158396, 22967}, QuoteService.netEtTaxes(185667 - 4304));
     }
 
     @Test
@@ -132,11 +145,11 @@ class QuoteServiceTest {
 
     @Test
     void grille_leTotalInclutCedeaoEtAttestation() {
-        TariffInput ok = new TariffInput("automobile-vtc", "tiers-simple-vtc", "VTC", 12, 181363L, 0L, 2024L, 280L, 1000L, 1000L, 185667L, true, 3, 4, 8);
+        TariffInput ok = new TariffInput("automobile-vtc", "tiers-simple-vtc", "VTC", 12, 181363L, 0L, 2024L, 280L, 1000L, 1000L, 185667L, true, 3, 4, 8, null);
         when(repo.findByProductKeyAndFormulaIdAndVehicleCategoryAndDurationMonths(anyString(), anyString(), anyString(), anyInt())).thenReturn(Optional.empty());
         when(auth.currentPrincipal()).thenReturn(new ci.assurzen.security.AuthenticatedUserPrincipal(1L, "admin", "ADMIN"));
         assertDoesNotThrow(() -> service.enregistrerGrille(new TariffUpdate(java.util.List.of(ok))));
-        TariffInput ko = new TariffInput("automobile-vtc", "tiers-simple-vtc", "VTC", 12, 181363L, 0L, 2024L, 280L, null, null, 185667L, true, 3, 4, 8);
+        TariffInput ko = new TariffInput("automobile-vtc", "tiers-simple-vtc", "VTC", 12, 181363L, 0L, 2024L, 280L, null, null, 185667L, true, 3, 4, 8, null);
         assertThrows(MobileApiException.class, () -> service.enregistrerGrille(new TariffUpdate(java.util.List.of(ko))));
     }
 
@@ -178,7 +191,7 @@ class QuoteServiceTest {
 
     @Test
     void grille_refuseUnTotalIncoherent() {
-        TariffInput in = new TariffInput("moto", "tiers-simple-moto", "MOTO", 12, 6375L, 925L, 500L, 128L, null, null, 8000L, true, null, null, null);
+        TariffInput in = new TariffInput("moto", "tiers-simple-moto", "MOTO", 12, 6375L, 925L, 500L, 128L, null, null, 8000L, true, null, null, null, null);
         assertThrows(MobileApiException.class, () -> service.enregistrerGrille(new TariffUpdate(java.util.List.of(in))));
     }
 }

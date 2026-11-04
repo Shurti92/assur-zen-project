@@ -126,7 +126,9 @@ public final class QuoteDtos {
             /** Criteres VTC : puissance fiscale minimale, places min et max (facultatifs). */
             @Min(0) Integer minFiscalPower,
             @Min(0) Integer minSeats,
-            @Min(0) Integer maxSeats
+            @Min(0) Integer maxSeats,
+            /** Taux de taxe en % de la prime nette apres remise (facultatif ; VTC : 14.5). Absent = taxes fixes. */
+            @DecimalMin("0") @DecimalMax("100") java.math.BigDecimal taxRate
     ) {
     }
 
@@ -135,7 +137,8 @@ public final class QuoteDtos {
 
     public record TariffView(Long id, String productKey, String formulaId, String vehicleCategory, int durationMonths, long netPremium,
                              long taxes, long accessories, long fga, long cedeao, long attestation, long total, boolean active,
-                             Instant updatedAt, String updatedBy, Integer minFiscalPower, Integer minSeats, Integer maxSeats) {
+                             Instant updatedAt, String updatedBy, Integer minFiscalPower, Integer minSeats, Integer maxSeats,
+                             java.math.BigDecimal taxRate) {
     }
 
     public record TariffList(List<TariffView> items) {

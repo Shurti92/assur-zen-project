@@ -70,7 +70,7 @@ public class QuoteEmailService {
         }
         QuoteView vue = mobileQuoteService.vue(q);
         String corps = documents.html(vue, r == null ? null : r.message(), expediteur, avecPdf);
-        byte[] pdf = avecPdf ? documents.pdf(vue) : null;
+        byte[] pdf = avecPdf ? documents.pdf(vue, expediteur) : null;
         String erreur = mailService.envoyerAvecPiece(documents.adresseExpedition(), destinataire, copie, documents.objet(vue), corps, "Devis-" + q.getReference() + ".pdf", pdf);
         if ("DISABLED".equals(erreur)) {
             throw new MobileApiException(503, "MAIL_DISABLED", "L'envoi d'e-mails est désactivé (paramètre EMAIL_ENABLED).");

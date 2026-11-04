@@ -63,6 +63,10 @@ public class QuoteTariff implements Serializable {
     private Long total;
 
     /** Criteres d'application (VTC) : puissance fiscale minimale, nombre de places min et max. Null = sans condition. */
+    /** Taux de taxe en % de la prime nette apres remise (VTC : 14,5). Null = taxes fixes (montant du tarif), cas de la moto. */
+    @Column(name = "tax_rate", precision = 5, scale = 2)
+    private java.math.BigDecimal taxRate;
+
     @Column(name = "min_fiscal_power")
     private Integer minFiscalPower;
 

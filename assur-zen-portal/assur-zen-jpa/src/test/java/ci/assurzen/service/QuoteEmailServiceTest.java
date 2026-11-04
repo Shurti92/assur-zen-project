@@ -106,19 +106,24 @@ class QuoteEmailServiceTest {
         assertEquals("Awa Koné", v.lastEmailSentBy());
         ArgumentCaptor<byte[]> pdf = ArgumentCaptor.forClass(byte[].class);
         ArgumentCaptor<String> corps = ArgumentCaptor.forClass(String.class);
-        verify(mail).envoyerAvecPiece(eq("customer@assurzen.ci"), eq("prospect@example.com"), eq("awa@assurzen.ci"), eq("Votre devis AssurZen DEV-2026-000001 · Assurance Automobile VTC"),
+        verify(mail).envoyerAvecPiece(eq("customer@assurzen.ci"), eq("prospect@example.com"), eq("awa@assurzen.ci"), eq("Votre devis AssurZen DEV-2026-000001 · Assurance automobile VTC"),
                 corps.capture(), eq("Devis-DEV-2026-000001.pdf"), pdf.capture());
         assertEquals("%PDF", new String(pdf.getValue(), 0, 4));
         String html = corps.getValue();
         assertFalse(html.contains("<script>"), "le nom du prospect doit etre echappe");
         assertFalse(html.contains("Corolla <b>"), "le modele doit etre echappe");
         assertTrue(html.contains("Corolla &lt;b&gt;"));
-        assertTrue(html.contains("167 531 F CFA"));
-        assertTrue(html.contains("Remise (10 %)"));
+        assertTrue(html.contains("167 531 F"));
+        assertTrue(html.contains("Remise 10 %"));
         String texte = org.springframework.web.util.HtmlUtils.htmlUnescape(html);
         assertTrue(texte.contains("Une offre AssurZen Côte d'Ivoire"));
         assertTrue(texte.contains("Besoin d'aide ? Répondez à cet e-mail ou appelez le service client."));
         assertFalse(texte.contains("Sanlam"));
+        assertTrue(html.contains("#1b3b8f") && html.contains("#14265c") && html.contains("#ec7c1e"), "palette AssurZen");
+        assertFalse(html.contains("#4f46e5") || html.contains("#7c3aed"), "plus de violet");
+        assertTrue(texte.contains(">AssurZen Assurance<"));
+        assertTrue(texte.contains("Votre sérénité, notre priorité."));
+        assertFalse(texte.contains("Votre assurance, simplement."));
         assertTrue(texte.contains("Le devis détaillé est joint à cet e-mail (PDF)."));
         verify(emails).save(any(QuoteEmail.class));
     }

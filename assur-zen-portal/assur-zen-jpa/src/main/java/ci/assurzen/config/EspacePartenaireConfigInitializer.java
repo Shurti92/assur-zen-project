@@ -1,5 +1,6 @@
 package ci.assurzen.config;
 
+import ci.assurzen.service.QuoteDocumentService;
 import ci.assurzen.entities.ConfigCategory;
 import ci.assurzen.entities.ConfigValueType;
 import ci.assurzen.entities.DynamicConfiguration;
@@ -51,8 +52,11 @@ public class EspacePartenaireConfigInitializer {
         creerSiAbsente("QUOTE_VTC_PLATFORMS", "Yango, Heetch, Uber, Bolt, inDrive, Autre", ConfigValueType.STRING, "Devis en ligne VTC : plateformes de transport proposees, separees par des virgules. Vide = saisie libre.", ConfigCategory.GENERAL, 30);
         creerSiAbsente("QUOTE_VTC_MAX_DISCOUNT_PERCENT", "10", ConfigValueType.STRING, "Devis en ligne VTC : remise maximale accordee par le back-office, en pourcentage de la prime nette (0 = aucune remise).", ConfigCategory.GENERAL, 31);
         creerSiAbsente("QUOTE_EMAIL_FROM", "customer@assurzen.ci", ConfigValueType.STRING, "Devis en ligne : adresse d'expedition des e-mails de devis (le compte SMTP configure doit etre autorise a envoyer pour cette adresse).", ConfigCategory.GENERAL, 34);
-        creerSiAbsente("QUOTE_EMAIL_LEGAL_TEXT", "Ce document est une proposition d'assurance établie à partir des informations que vous avez déclarées. Il ne constitue pas un contrat d'assurance : la couverture ne prend effet qu'après acceptation du devis, paiement de la prime et émission de l'attestation. Les garanties sont soumises aux conditions générales et aux exclusions du contrat.", ConfigValueType.STRING, "Devis en ligne : mention legale affichee dans l'e-mail et le PDF d'un devis.", ConfigCategory.GENERAL, 32);
-        creerSiAbsente("QUOTE_EMAIL_FOOTER", "Une offre AssurZen Côte d'Ivoire\nBesoin d'aide ? Répondez à cet e-mail ou appelez le service client.", ConfigValueType.STRING, "Devis en ligne : pied de page de l'e-mail et du PDF d'un devis.", ConfigCategory.GENERAL, 33);
+        creerSiAbsente("QUOTE_EMAIL_BRAND", QuoteDocumentService.MARQUE_DEFAUT, ConfigValueType.STRING, "Devis en ligne : nom affiche dans l'en-tete de l'e-mail d'un devis.", ConfigCategory.GENERAL, 36);
+        creerSiAbsente("QUOTE_EMAIL_SLOGAN", QuoteDocumentService.SLOGAN_DEFAUT, ConfigValueType.STRING, "Devis en ligne : slogan affiche sous le nom dans l'en-tete de l'e-mail d'un devis.", ConfigCategory.GENERAL, 37);
+        creerSiAbsente("QUOTE_EMAIL_MENTION", QuoteDocumentService.MENTION_EMAIL_DEFAUT, ConfigValueType.STRING, "Devis en ligne : mention affichee sous les garanties dans l'e-mail d'un devis.", ConfigCategory.GENERAL, 35);
+        creerSiAbsente("QUOTE_EMAIL_LEGAL_TEXT", QuoteDocumentService.TEXTE_LEGAL_DEFAUT, ConfigValueType.STRING, "Devis en ligne : mention legale affichee dans l'e-mail et le PDF d'un devis.", ConfigCategory.GENERAL, 32);
+        creerSiAbsente("QUOTE_EMAIL_FOOTER", QuoteDocumentService.PIED_DEFAUT, ConfigValueType.STRING, "Devis en ligne : pied de page de l'e-mail et du PDF d'un devis.", ConfigCategory.GENERAL, 33);
         creerSiAbsente("QUOTE_VALIDITY_DAYS", "30", ConfigValueType.STRING, "Devis en ligne : duree de validite d'un devis, en jours (defaut 30).", ConfigCategory.GENERAL, 27);
         creerSiAbsente("PUSH_ENABLED", "false", ConfigValueType.STRING, "Application mobile : envoi reel des notifications push (true ou false). Necessite le compte de service Firebase (variable FIREBASE_CREDENTIALS_PATH). Modifiable sans redemarrage.", ConfigCategory.GENERAL, 35);
         creerSiAbsente("LEGAL_TERMS_URL", "", ConfigValueType.STRING, "Application mobile : lien des conditions generales d'utilisation. Vide = lien masque.", ConfigCategory.GENERAL, 30);
