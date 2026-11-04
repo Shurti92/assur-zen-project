@@ -161,7 +161,7 @@ export class CatalogueMobileComponent {
     this.error.set(null);
     this.service.list().subscribe({
       next: (items) => {
-        this.products.set(items);
+        this.products.set(this.sortByOrder(items));
         this.loading.set(false);
       },
       error: (err) => {
@@ -185,6 +185,11 @@ export class CatalogueMobileComponent {
   newDocument = '';
   private uidSeq = 0;
 
+  /** La gateway ne renvoie pas la liste dans l'ordre d'affichage : on trie ici (ordre stable, sans ordre = en dernier). */
+  private sortByOrder(items: MobileProduct[]): MobileProduct[] {
+    return [...items].sort((a, b) => (a.displayOrder ?? 1000) - (b.displayOrder ?? 1000));
+  }
+
   get isAuto(): boolean {
     return this.editProduct()?.productKey === 'auto';
   }
@@ -203,7 +208,7 @@ export class CatalogueMobileComponent {
     this.listMessage.set(null);
     this.service.saveOrder(reordered.map((p) => p.productId)).subscribe({
       next: (items) => {
-        this.products.set(items);
+        this.products.set(this.sortByOrder(items));
         this.savingOrder.set(false);
       },
       error: (err) => {
