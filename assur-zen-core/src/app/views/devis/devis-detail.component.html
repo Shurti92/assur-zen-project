@@ -1,197 +1,267 @@
-<section class="dl-panel">
-  <div class="dl-toolbar">
-    <div class="dl-toolbar-title">
-      <h2>
-        {{ reference() }}
-        @if (quote(); as q) {
-          <span [class]="'dl-chip dl-chip--' + statusVariant[q.status]">{{ statusLabel[q.status] }}</span>
-          @if (emailEnabled && q.lastEmailSentAt) {
-            <span class="dl-chip dl-chip--warning">✉ Envoyé</span>
-          }
-          @if (smsEnabled && q.lastSmsSentAt) {
-            <span class="dl-chip dl-chip--success">💬 SMS envoyé</span>
-          }
-        }
-      </h2>
-      @if (quote(); as q) {
-        <p class="small text-body-secondary mb-0">Créé le {{ formatDate(q.createdAt) }} · valable jusqu'au {{ formatDate(q.validUntil) }}</p>
-      }
-    </div>
-    <div class="dl-actions">
-      <a cButton class="dl-btn" routerLink="/devis/liste">← Liste des devis</a>
-    </div>
-  </div>
-
-  <div class="px-3">
-    @if (error()) {
-      <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
-    }
-    @if (success()) {
-      <app-alert-message variant="success" [message]="success()!" [dismissible]="true" (dismissed)="success.set(null)" />
-    }
-  </div>
+<div class="dd">
+  @if (error()) {
+    <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+  }
+  @if (success()) {
+    <app-alert-message variant="success" [message]="success()!" [dismissible]="true" (dismissed)="success.set(null)" />
+  }
 
   @if (loading()) {
-    <p class="dl-empty">Chargement du devis…</p>
+    <p class="dd-empty">Chargement du devis…</p>
   } @else if (quote(); as q) {
-    <div class="row g-3 px-3 pb-3">
-      <div class="col-lg-8">
-        <h3 class="h6 text-uppercase text-body-secondary">Prospect et véhicule</h3>
-        <dl class="row mb-0">
-          <dt class="col-sm-4">Prospect</dt>
-          <dd class="col-sm-8">{{ q.prospectName || '—' }}</dd>
-          <dt class="col-sm-4">Téléphone</dt>
-          <dd class="col-sm-8">
-            {{ smsEnabled ? formatPhone(q.prospectPhone) : (q.prospectPhone || '—') }}
-            @if (smsEnabled && smsCapable(q)) {
-              <span class="dl-chip dl-chip--success ms-1">mobile {{ operatorLabel(q) }}</span>
+    <header class="dd-hero">
+      <div class="dd-hero-top">
+        <div>
+          <a class="dd-back" routerLink="/devis/liste">← Liste des devis</a>
+          <div class="dd-ref">Devis · {{ q.productKey === 'automobile-vtc' ? 'Automobile VTC' : 'Moto' }}</div>
+          <h1>{{ reference() }}</h1>
+          <div class="dd-sub">{{ q.prospectName || '—' }} · {{ q.formulaName }} · {{ q.durationMonths }} mois</div>
+        </div>
+        <div class="dd-badges">
+          <span class="dd-chip"><span class="dd-dot"></span>{{ statusLabel[q.status] }}</span>
+          @if (emailEnabled && q.lastEmailSentAt) {
+            <span class="dd-chip dd-chip--ok">✉ Envoyé</span>
+          }
+          @if (smsEnabled && q.lastSmsSentAt) {
+            <span class="dd-chip dd-chip--ok">💬 SMS envoyé</span>
+          }
+        </div>
+      </div>
+      <div class="dd-validity">
+        <span>Créé le {{ formatDate(q.createdAt) }}</span>
+        <span class="dd-bar"><i [style.width.%]="validityElapsed()"></i></span>
+        <span>Valable jusqu'au {{ formatDate(q.validUntil) }}</span>
+      </div>
+    </header>
+
+    <div class="dd-stepper" aria-label="Avancement du devis">
+      @for (s of steps(); track s.label; let i = $index; let last = $last) {
+        <div class="dd-step" [class.dd-step--done]="s.state === 'done'" [class.dd-step--now]="s.state === 'now'">
+          <span class="dd-step-c">{{ s.state === 'done' ? '✓' : i + 1 }}</span>{{ s.label }}
+        </div>
+        @if (!last) {
+          <span class="dd-line" [class.dd-line--done]="s.state === 'done'"></span>
+        }
+      }
+    </div>
+
+    <div class="dd-grid">
+      <div>
+        <section class="dd-card">
+          <h3><span class="dd-n">1</span>Prospect</h3>
+          <div class="dd-person">
+            <div class="dd-avatar">{{ initials() }}</div>
+            <div>
+              <b>{{ q.prospectName || '—' }}</b>
+              <span>Prospect</span>
+            </div>
+          </div>
+          <div class="dd-fields">
+            <div class="dd-f">
+              <label>Téléphone</label>
+              <div>
+                {{ smsEnabled ? formatPhone(q.prospectPhone) : (q.prospectPhone || '—') }}
+                @if (smsEnabled && smsCapable(q)) {
+                  <span class="dd-tag">Mobile {{ operatorLabel(q) }}</span>
+                }
+              </div>
+            </div>
+            @if (emailEnabled) {
+              <div class="dd-f">
+                <label>E-mail</label>
+                @if (q.prospectEmail) {
+                  <div>{{ q.prospectEmail }}</div>
+                } @else {
+                  <div class="dd-empty-v">Non renseigné</div>
+                }
+              </div>
             }
-          </dd>
-          @if (emailEnabled) {
-            <dt class="col-sm-4">E-mail</dt>
-            <dd class="col-sm-8">{{ q.prospectEmail || '—' }}</dd>
-          }
-          @if (addressEnabled) {
-            <dt class="col-sm-4">Adresse</dt>
-            <dd class="col-sm-8">{{ q.prospectAddress || '—' }}</dd>
-          }
-          <dt class="col-sm-4">Véhicule</dt>
-          @if (q.productKey === 'automobile-vtc') {
-            <dd class="col-sm-8">VTC · {{ q.brand }} {{ q.model }} · {{ q.fiscalPower }} CV · {{ q.seats }} places</dd>
-            <dt class="col-sm-4">Énergie</dt>
-            <dd class="col-sm-8">{{ energyLabel(q.energy) }} · 1re mise en circulation {{ q.firstRegistrationYear ?? '—' }}</dd>
-            <dt class="col-sm-4">Usage VTC</dt>
-            <dd class="col-sm-8">{{ q.vtcDeclared ? 'Déclaré' : 'Non déclaré' }}{{ q.platform ? ' · ' + q.platform : '' }}</dd>
-          } @else {
-            <dd class="col-sm-8">{{ q.vehicleType === 'TRICYCLE' ? 'Tricycle' : 'Moto' }} · {{ q.brand }} {{ q.model }} · {{ q.cylinderCc }} cc</dd>
-          }
-          <dt class="col-sm-4">Immatriculation</dt>
-          <dd class="col-sm-8">{{ q.registrationNumber || '—' }}</dd>
-          <dt class="col-sm-4">N° de châssis</dt>
-          <dd class="col-sm-8">{{ q.chassisNumber || '—' }}</dd>
-          <dt class="col-sm-4">Période</dt>
-          <dd class="col-sm-8">{{ formatDate(q.effectiveDate) }} → {{ formatDate(q.expiryDate) }} ({{ q.durationMonths }} mois)</dd>
-          @if (q.acceptedAt) {
-            <dt class="col-sm-4">Accepté le</dt>
-            <dd class="col-sm-8">{{ formatDate(q.acceptedAt) }}</dd>
-          }
-        </dl>
-        @if (smsEnabled) {
-          <div class="border-top mt-3 pt-3 small text-body-secondary">
-            @if (q.lastSmsSentAt) {
-              <b class="text-body">SMS envoyé le {{ formatDateTime(q.lastSmsSentAt) }}</b>
-              au {{ formatPhone(q.lastSmsTo) }}{{ q.lastSmsSentBy ? ' par ' + q.lastSmsSentBy : '' }}
-              @if (q.publicLinkExpiresAt) {
-                · lien valable jusqu'au {{ formatDate(q.publicLinkExpiresAt) }}
-              }
-              @if (q.status !== 'EXPIRE' && smsCapable(q)) {
-                · <button (click)="smsDialogOpen.set(true)" class="btn btn-link btn-sm p-0 align-baseline" type="button">Renvoyer</button>
-              }
-            } @else {
-              <b class="text-body">Aucun SMS envoyé</b> pour ce devis.
+            @if (addressEnabled) {
+              <div class="dd-f dd-wide">
+                <label>Adresse</label>
+                @if (q.prospectAddress) {
+                  <div>{{ q.prospectAddress }}</div>
+                } @else {
+                  <div class="dd-empty-v">Non renseignée</div>
+                }
+              </div>
             }
           </div>
+        </section>
+
+        <section class="dd-card">
+          <h3><span class="dd-n">2</span>Véhicule</h3>
+          <div class="dd-fields">
+            @if (q.productKey === 'automobile-vtc') {
+              <div class="dd-f"><label>Type</label><div>VTC</div></div>
+              <div class="dd-f"><label>Marque · modèle</label><div>{{ q.brand }} {{ q.model }}</div></div>
+              <div class="dd-f"><label>Puissance · places</label><div>{{ q.fiscalPower }} CV · {{ q.seats }} places</div></div>
+              <div class="dd-f"><label>Énergie</label><div>{{ energyLabel(q.energy) }}</div></div>
+              <div class="dd-f"><label>1re mise en circulation</label><div>{{ q.firstRegistrationYear ?? '—' }}</div></div>
+              <div class="dd-f"><label>Usage VTC</label><div>{{ q.vtcDeclared ? 'Déclaré' : 'Non déclaré' }}{{ q.platform ? ' · ' + q.platform : '' }}</div></div>
+            } @else {
+              <div class="dd-f"><label>Type</label><div>{{ q.vehicleType === 'TRICYCLE' ? 'Tricycle' : 'Moto' }}</div></div>
+              <div class="dd-f"><label>Marque · modèle</label><div>{{ q.brand }} {{ q.model }}</div></div>
+              <div class="dd-f"><label>Cylindrée</label><div>{{ q.cylinderCc }} cc</div></div>
+            }
+            <div class="dd-f">
+              <label>Immatriculation</label>
+              @if (q.registrationNumber) {
+                <div><span class="dd-plate">{{ q.registrationNumber }}</span></div>
+              } @else {
+                <div class="dd-empty-v">Non renseignée</div>
+              }
+            </div>
+            <div class="dd-f">
+              <label>N° de châssis</label>
+              @if (q.chassisNumber) {
+                <div>{{ q.chassisNumber }}</div>
+              } @else {
+                <div class="dd-empty-v">Non renseigné</div>
+              }
+            </div>
+            <div class="dd-f">
+              <label>Période</label>
+              <div>{{ formatDate(q.effectiveDate) }} → {{ formatDate(q.expiryDate) }} <small>({{ q.durationMonths }} mois)</small></div>
+            </div>
+            @if (q.acceptedAt) {
+              <div class="dd-f"><label>Accepté le</label><div>{{ formatDate(q.acceptedAt) }}</div></div>
+            }
+          </div>
+        </section>
+
+        @if (smsEnabled || emailEnabled) {
+          <section class="dd-card">
+            <h3><span class="dd-n">3</span>Envois au prospect</h3>
+            @if (historyError()) {
+              <p class="dd-err">
+                {{ historyError() }}
+                <button (click)="loadHistories()" class="dd-again" type="button">Réessayer</button>
+              </p>
+            }
+            <ul class="dd-tl">
+              @for (e of events(); track e.kind + e.at + e.to; let first = $first) {
+                <li>
+                  <span class="dd-ic" [class.dd-ic--sms]="e.kind === 'sms'" [class.dd-ic--mail]="e.kind === 'email'">{{ e.kind === 'sms' ? '💬' : '✉' }}</span>
+                  <b>{{ e.kind === 'sms' ? 'SMS envoyé' : 'E-mail envoyé' }} · {{ formatDateTime(e.at) }}</b>
+                  <small>
+                    à {{ e.to }}{{ e.by ? ' · par ' + e.by : '' }}@for (n of e.notes; track n) { · {{ n }}}
+                  </small>
+                  @if (first && q.status !== 'EXPIRE' && ((e.kind === 'sms' && smsCapable(q)) || e.kind === 'email')) {
+                    <br />
+                    <button (click)="e.kind === 'sms' ? smsDialogOpen.set(true) : emailDialogOpen.set(true)" class="dd-again" type="button">Renvoyer</button>
+                  }
+                </li>
+              }
+              @if (smsEnabled && !q.lastSmsSentAt) {
+                <li>
+                  <span class="dd-ic dd-ic--sms">💬</span>
+                  <span class="dd-none">Aucun SMS envoyé pour ce devis.</span>
+                </li>
+              }
+              @if (emailEnabled && !q.lastEmailSentAt) {
+                <li>
+                  <span class="dd-ic dd-ic--mail">✉</span>
+                  <span class="dd-none">Aucun e-mail envoyé pour ce devis.</span>
+                </li>
+              }
+            </ul>
+          </section>
         }
-        @if (emailEnabled) {
-          <div class="border-top mt-3 pt-3 small text-body-secondary">
-            @if (q.lastEmailSentAt) {
-              <b class="text-body">Envoyé le {{ formatDateTime(q.lastEmailSentAt) }}</b>
-              à {{ q.lastEmailTo }}{{ q.lastEmailSentBy ? ' par ' + q.lastEmailSentBy : '' }}
-              @if ((q.emailSentCount ?? 0) > 1) {
-                ({{ q.emailSentCount }} envois)
-              }
-              @if (q.status !== 'EXPIRE') {
-                · <button (click)="emailDialogOpen.set(true)" class="btn btn-link btn-sm p-0 align-baseline" type="button">Renvoyer</button>
-              }
-              · <button (click)="toggleHistory()" [attr.aria-expanded]="historyOpen()" class="btn btn-link btn-sm p-0 align-baseline" type="button">
-                {{ historyOpen() ? "Masquer l'historique" : "Historique complet" }}
-              </button>
-              @if (historyOpen()) {
-                <div class="mt-2">
-                  @if (historyLoading()) {
-                    <span>Chargement de l'historique…</span>
-                  } @else if (historyError()) {
-                    <span class="text-danger">{{ historyError() }}</span>
-                    <button (click)="loadHistory()" class="btn btn-link btn-sm p-0 align-baseline ms-1" type="button">Réessayer</button>
-                  } @else {
-                    <ul class="list-unstyled mb-0">
-                      @for (h of history() ?? []; track h.sentAt + h.to) {
-                        <li class="py-1 border-bottom">
-                          <b class="text-body">{{ formatDateTime(h.sentAt) }}</b>
-                          · {{ h.to }}{{ h.sentBy ? ' · par ' + h.sentBy : '' }}
-                          <span class="dl-chip dl-chip--secondary ms-1">{{ h.withPdf ? 'avec PDF' : 'sans PDF' }}</span>
-                          @if (h.copyTo) {
-                            <span class="dl-chip dl-chip--info ms-1">copie à {{ h.copyTo }}</span>
-                          }
-                        </li>
-                      } @empty {
-                        <li>Aucun envoi enregistré.</li>
+      </div>
+
+      <aside class="dd-card dd-price">
+        <h3>Prix du devis</h3>
+        <div class="dd-total">{{ q.premium.total.toLocaleString('fr-FR') }}<small>F CFA</small></div>
+        <div class="dd-formula">{{ q.formulaName }} · {{ q.durationMonths }} mois</div>
+
+        <div class="dd-split" aria-hidden="true">
+          <i [style.width.%]="share(q.premium.netPremium, q.premium.total)" class="dd-c1"></i>
+          <i [style.width.%]="share(q.premium.taxes, q.premium.total)" class="dd-c2"></i>
+          <i [style.width.%]="share(q.premium.accessories + (q.premium.cedeao ?? 0) + (q.premium.attestation ?? 0), q.premium.total)" class="dd-c3"></i>
+          <i [style.width.%]="share(q.premium.fga, q.premium.total)" class="dd-c4"></i>
+        </div>
+        <div class="dd-rows">
+          <div class="dd-r1"><span>Prime nette</span><b>{{ q.premium.netPremium.toLocaleString('fr-FR') }}</b></div>
+          @if ((q.premium.discount ?? 0) > 0) {
+            <div class="dd-disc"><span>Remise{{ q.discountPercent ? ' ' + q.discountPercent + ' %' : '' }}</span><b>− {{ q.premium.discount!.toLocaleString('fr-FR') }}</b></div>
+          }
+          <div class="dd-r2"><span>Taxes</span><b>{{ q.premium.taxes.toLocaleString('fr-FR') }}</b></div>
+          <div class="dd-r3"><span>Accessoires</span><b>{{ q.premium.accessories.toLocaleString('fr-FR') }}</b></div>
+          @if (q.productKey === 'automobile-vtc') {
+            <div class="dd-r3"><span>CEDEAO</span><b>{{ (q.premium.cedeao ?? 0).toLocaleString('fr-FR') }}</b></div>
+            <div class="dd-r3"><span>Attestation</span><b>{{ (q.premium.attestation ?? 0).toLocaleString('fr-FR') }}</b></div>
+          }
+          <div class="dd-r4"><span>FGA</span><b>{{ q.premium.fga.toLocaleString('fr-FR') }}</b></div>
+        </div>
+
+        @if (q.guarantees.length > 0) {
+          <hr />
+          <h3>Garanties incluses</h3>
+          <ul class="dd-guar">
+            @for (g of q.guarantees; track g.label) {
+              <li>
+                <div>
+                  {{ g.label }}
+                  @if ((g.details ?? []).length > 0) {
+                    <div class="dd-gdet">
+                      @for (d of g.details ?? []; track d.label) {
+                        <span>{{ d.label }} : {{ d.amount }}</span>
                       }
-                    </ul>
+                    </div>
                   }
                 </div>
+              </li>
+            }
+          </ul>
+        }
+
+        <div class="dd-actions">
+          @if (q.status !== 'EXPIRE' && (emailEnabled || smsEnabled)) {
+            <div class="dd-two">
+              @if (emailEnabled) {
+                <button (click)="emailDialogOpen.set(true)" class="dd-btn dd-btn--pri" type="button">✉ E-mail</button>
               }
-            } @else {
-              <b class="text-body">Aucun envoi</b> pour ce devis.
-            }
-          </div>
-        }
-      </div>
-      <div class="col-lg-4">
-        <h3 class="h6 text-uppercase text-body-secondary">Prix</h3>
-        <div class="fs-2 fw-bold text-primary">{{ formatAmount(q.premium.total) }}</div>
-        <div class="text-body-secondary mb-2">{{ q.formulaName }} · {{ q.durationMonths }} mois</div>
-        <table class="table table-sm mb-3">
-          <tbody>
-            <tr><td>Prime nette</td><td class="text-end">{{ q.premium.netPremium.toLocaleString('fr-FR') }}</td></tr>
-            @if ((q.premium.discount ?? 0) > 0) {
-              <tr class="text-success">
-                <td>Remise{{ q.discountPercent ? ' ' + q.discountPercent + ' %' : '' }}</td>
-                <td class="text-end">− {{ q.premium.discount!.toLocaleString('fr-FR') }}</td>
-              </tr>
-            }
-            <tr><td>Taxes</td><td class="text-end">{{ q.premium.taxes.toLocaleString('fr-FR') }}</td></tr>
-            <tr><td>Accessoires</td><td class="text-end">{{ q.premium.accessories.toLocaleString('fr-FR') }}</td></tr>
-            @if (q.productKey === 'automobile-vtc') {
-              <tr><td>CEDEAO</td><td class="text-end">{{ (q.premium.cedeao ?? 0).toLocaleString('fr-FR') }}</td></tr>
-              <tr><td>Attestation</td><td class="text-end">{{ (q.premium.attestation ?? 0).toLocaleString('fr-FR') }}</td></tr>
-            }
-            <tr><td>FGA</td><td class="text-end">{{ q.premium.fga.toLocaleString('fr-FR') }}</td></tr>
-          </tbody>
-        </table>
-        @if (q.guarantees.length > 0) {
-          <h3 class="h6 text-uppercase text-body-secondary">Garanties</h3>
-          @for (g of q.guarantees; track g.label) {
-            <div class="fw-semibold">{{ g.label }}</div>
-            @for (d of g.details ?? []; track d.label) {
-              <div class="small text-body-secondary">{{ d.label }} : {{ d.amount }}</div>
+              @if (smsEnabled) {
+                <button (click)="smsDialogOpen.set(true)" [disabled]="!smsCapable(q)" [title]="smsCapable(q) ? '' : 'Numéro non valide pour un SMS'" class="dd-btn dd-btn--pri" type="button">💬 SMS</button>
+              }
+            </div>
+            @if (smsEnabled && !smsCapable(q)) {
+              <p class="dd-warn">Numéro non valide pour un SMS : seul l'envoi par e-mail est proposé.</p>
             }
           }
-        }
-        @if (emailEnabled && q.status !== 'EXPIRE') {
-          <button (click)="emailDialogOpen.set(true)" cButton class="mt-3 w-100" color="primary" type="button">✉ Envoyer par e-mail</button>
-        }
-        @if (smsEnabled && q.status !== 'EXPIRE') {
-          <button (click)="smsDialogOpen.set(true)" [disabled]="!smsCapable(q)" [title]="smsCapable(q) ? '' : 'Numéro non valide pour un SMS'" cButton class="mt-2 w-100" color="primary" type="button">💬 Envoyer par SMS</button>
-          @if (!smsCapable(q)) {
-            <p class="small text-warning mt-1 mb-0">Numéro non valide pour un SMS : seul l'envoi par e-mail est proposé.</p>
+          @if (q.canAccept) {
+            <button (click)="accept()" [disabled]="accepting()" class="dd-btn dd-btn--ghost" type="button">
+              @if (accepting()) {
+                <c-spinner size="sm" />
+              }
+              Marquer comme accepté
+            </button>
+          } @else if (q.status === 'EXPIRE') {
+            <p class="dd-hint">Devis expiré.</p>
           }
+          @if (emailEnabled) {
+            <p class="dd-hint">Le prospect reçoit le devis au nom d'AssurZen, avec le prix et les garanties.</p>
+          }
+        </div>
+      </aside>
+    </div>
+
+    <!-- Barre d'actions sur téléphone -->
+    @if (q.status !== 'EXPIRE') {
+      <div class="dd-mbar">
+        @if (emailEnabled) {
+          <button (click)="emailDialogOpen.set(true)" class="dd-btn dd-btn--pri" type="button">✉ E-mail</button>
+        }
+        @if (smsEnabled) {
+          <button (click)="smsDialogOpen.set(true)" [disabled]="!smsCapable(q)" class="dd-btn dd-btn--pri" type="button">💬 SMS</button>
         }
         @if (q.canAccept) {
-          <button (click)="accept()" [disabled]="accepting()" cButton class="mt-2 w-100" color="primary" variant="outline" type="button">
-            @if (accepting()) {
-              <c-spinner size="sm" />
-            }
-            Marquer comme accepté
-          </button>
-        } @else if (q.status === 'EXPIRE') {
-          <p class="text-body-secondary mt-3 mb-0">Devis expiré.</p>
-        }
-        @if (emailEnabled) {
-          <p class="small text-body-secondary mt-2 mb-0">Le prospect reçoit le devis au nom d'AssurZen, avec le prix et les garanties.</p>
+          <button (click)="accept()" [disabled]="accepting()" class="dd-btn dd-btn--ghost" type="button">Accepter</button>
         }
       </div>
-    </div>
+    }
+
     @if (smsDialogOpen()) {
       <app-send-quote-sms-dialog (closed)="smsDialogOpen.set(false)" (sent)="onSmsSent($event)" [quote]="q" />
     }
@@ -199,4 +269,4 @@
       <app-send-quote-email-dialog (closed)="emailDialogOpen.set(false)" (sent)="onEmailSent($event)" [quote]="q" />
     }
   }
-</section>
+</div>

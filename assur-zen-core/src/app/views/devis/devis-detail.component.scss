@@ -1,0 +1,667 @@
+// Détail d'un devis : en-tête uni, parcours, cartes numérotées, frise des envois, carte prix collante.
+// Couleur unique (bleu AssurZen), aplats sans dégradé ; maquette validée le 2026-11-04.
+:host {
+  display: block;
+  --dd-pri: #1b3b8f;
+  --dd-accent: #ec7c1e;
+  --dd-card: var(--cui-body-bg, #fff);
+  --dd-bd: var(--cui-border-color, #e3e8f4);
+  --dd-mut: var(--cui-secondary-color, #6b7691);
+  --dd-soft: color-mix(in srgb, var(--dd-pri) 9%, var(--dd-card));
+  --dd-soft2: color-mix(in srgb, var(--dd-pri) 24%, var(--dd-card));
+  --dd-ok: #12a150;
+  --dd-ok-soft: color-mix(in srgb, var(--dd-ok) 14%, var(--dd-card));
+  --dd-warn-soft: color-mix(in srgb, var(--dd-accent) 14%, var(--dd-card));
+  --dd-r: 18px;
+  --dd-shadow: 0 1px 2px rgba(20, 38, 92, 0.05), 0 8px 24px rgba(20, 38, 92, 0.07);
+}
+
+.dd {
+  width: 100%;
+  padding-bottom: 5rem;
+}
+
+.dd-empty {
+  padding: 2rem 0;
+  color: var(--dd-mut);
+  text-align: center;
+}
+
+// ---------- En-tête ----------
+.dd-hero {
+  border-radius: 24px;
+  padding: 26px 28px;
+  color: #fff;
+  background: var(--dd-pri);
+  box-shadow: var(--dd-shadow);
+
+  h1 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+}
+
+.dd-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.dd-back {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: #dbe5ff;
+  font-size: 13px;
+  text-decoration: none;
+  opacity: 0.9;
+
+  &:hover {
+    color: #fff;
+    opacity: 1;
+  }
+}
+
+.dd-ref {
+  margin: 14px 0 2px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.dd-sub {
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
+.dd-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dd-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dd-chip--ok {
+  background: rgba(18, 161, 80, 0.35);
+}
+
+.dd-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dd-validity {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+  font-size: 13px;
+}
+
+.dd-bar {
+  flex: 1;
+  max-width: 260px;
+  height: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+
+  i {
+    display: block;
+    height: 100%;
+    border-radius: 6px;
+    background: var(--dd-accent);
+  }
+}
+
+// ---------- Parcours ----------
+.dd-stepper {
+  display: flex;
+  align-items: center;
+  margin: 22px 4px 8px;
+}
+
+.dd-step {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  min-width: 84px;
+  color: var(--dd-mut);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dd-step-c {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--dd-bd);
+  border-radius: 50%;
+  background: var(--dd-card);
+  font-size: 13px;
+}
+
+.dd-step--done {
+  color: var(--dd-ok);
+
+  .dd-step-c {
+    border-color: var(--dd-ok);
+    background: var(--dd-ok);
+    color: #fff;
+  }
+}
+
+.dd-step--now {
+  color: var(--dd-pri);
+
+  .dd-step-c {
+    border-color: var(--dd-pri);
+    box-shadow: 0 0 0 5px var(--dd-soft);
+  }
+}
+
+.dd-line {
+  flex: 1;
+  min-width: 20px;
+  height: 2px;
+  background: var(--dd-bd);
+}
+
+.dd-line--done {
+  background: var(--dd-ok);
+}
+
+// ---------- Grille et cartes ----------
+.dd-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-top: 10px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dd-card {
+  padding: 20px;
+  border: 1px solid var(--dd-bd);
+  border-radius: var(--dd-r);
+  background: var(--dd-card);
+  box-shadow: var(--dd-shadow);
+
+  + .dd-card {
+    margin-top: 18px;
+  }
+
+  h3 {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 14px;
+    color: var(--dd-mut);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+}
+
+.dd-n {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--dd-soft);
+  color: var(--dd-pri);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.dd-person {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 16px;
+
+  b {
+    display: block;
+    font-size: 17px;
+  }
+
+  span {
+    color: var(--dd-mut);
+    font-size: 13px;
+  }
+}
+
+.dd-avatar {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--dd-pri);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.dd-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dd-f {
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: var(--dd-soft);
+
+  label {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--dd-mut);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  div {
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  small {
+    color: var(--dd-mut);
+    font-weight: 400;
+  }
+}
+
+.dd-wide {
+  grid-column: 1 / -1;
+}
+
+.dd-f .dd-empty-v {
+  color: var(--dd-mut);
+  font-weight: 400;
+}
+
+.dd-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--dd-ok-soft);
+  color: var(--dd-ok);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.dd-plate {
+  display: inline-block;
+  padding: 1px 9px;
+  border: 2px solid var(--cui-body-color, #1e2a4c);
+  border-radius: 7px;
+  background: var(--dd-card);
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+// ---------- Frise des envois ----------
+.dd-tl {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 15px;
+    width: 2px;
+    background: var(--dd-bd);
+  }
+
+  li {
+    position: relative;
+    padding: 0 0 18px 46px;
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+  }
+
+  b {
+    display: block;
+  }
+
+  small {
+    color: var(--dd-mut);
+  }
+}
+
+.dd-ic {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--dd-card);
+  border-radius: 50%;
+  background: var(--dd-soft);
+  font-size: 14px;
+}
+
+.dd-ic--sms {
+  background: var(--dd-ok-soft);
+}
+
+.dd-ic--mail {
+  background: var(--dd-warn-soft);
+}
+
+.dd-again {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dd-pri);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dd-none {
+  color: var(--dd-mut);
+  font-style: italic;
+}
+
+.dd-err {
+  color: var(--cui-danger, #e55353);
+}
+
+// ---------- Carte prix ----------
+.dd-price {
+  position: sticky;
+  top: 16px;
+
+  @media (max-width: 900px) {
+    position: static;
+  }
+}
+
+.dd-total {
+  color: var(--dd-pri);
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+
+  small {
+    margin-left: 4px;
+    color: var(--dd-mut);
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.dd-formula {
+  margin: 2px 0 16px;
+  color: var(--dd-mut);
+}
+
+.dd-split {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  overflow: hidden;
+
+  i {
+    display: block;
+  }
+}
+
+.dd-c1 {
+  background: #1b3b8f;
+}
+
+.dd-c2 {
+  background: #4a74e8;
+}
+
+.dd-c3 {
+  background: #ec7c1e;
+}
+
+.dd-c4 {
+  background: #9aa6cc;
+}
+
+.dd-rows {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 16px;
+
+  > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  span {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--dd-mut);
+
+    &::before {
+      content: '';
+      width: 9px;
+      height: 9px;
+      border-radius: 3px;
+      background: var(--c, #9aa6cc);
+    }
+  }
+
+  b {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.dd-r1 span {
+  --c: #1b3b8f;
+}
+
+.dd-r2 span {
+  --c: #4a74e8;
+}
+
+.dd-r3 span {
+  --c: #ec7c1e;
+}
+
+.dd-r4 span {
+  --c: #9aa6cc;
+}
+
+.dd-disc {
+  color: var(--dd-ok);
+
+  span {
+    --c: var(--dd-ok);
+    color: var(--dd-ok);
+  }
+}
+
+hr {
+  margin: 16px 0;
+  border: 0;
+  border-top: 1px solid var(--dd-bd);
+  opacity: 1;
+}
+
+.dd-guar {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 14px;
+    font-weight: 600;
+
+    &::before {
+      content: '✓';
+      display: grid;
+      flex: 0 0 20px;
+      place-items: center;
+      height: 20px;
+      margin-top: 1px;
+      border-radius: 50%;
+      background: var(--dd-ok-soft);
+      color: var(--dd-ok);
+      font-size: 12px;
+    }
+  }
+}
+
+.dd-gdet {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  color: var(--dd-mut);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+// ---------- Actions ----------
+.dd-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.dd-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dd-btn {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 16px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(27, 59, 143, 0.22);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.dd-btn--pri {
+  background: var(--dd-pri);
+  color: #fff;
+}
+
+.dd-btn--ghost {
+  border-color: var(--dd-soft2);
+  background: var(--dd-card);
+  color: var(--dd-pri);
+}
+
+.dd-hint {
+  margin: 2px 0 0;
+  color: var(--dd-mut);
+  font-size: 12px;
+  text-align: center;
+}
+
+.dd-warn {
+  margin: 0;
+  color: var(--dd-accent);
+  font-size: 12px;
+}
+
+// Barre d'actions fixe sur téléphone
+.dd-mbar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .dd-mbar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--dd-bd);
+    background: var(--dd-card);
+
+    .dd-btn {
+      flex: 1;
+      padding: 11px 8px;
+    }
+  }
+
+  .dd-actions .dd-two {
+    display: none;
+  }
+}
