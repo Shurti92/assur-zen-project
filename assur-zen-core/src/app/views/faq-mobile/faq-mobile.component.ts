@@ -2,7 +2,7 @@ import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } fro
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
+import { SpinnerComponent } from '@coreui/angular';
 
 import { MobileFaqService } from '../../core/mobile-admin/mobile-faq.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
@@ -11,6 +11,8 @@ interface FaqDraft {
   question: string;
   answer: string;
   visible: boolean;
+  /** Carte dépliée (affichage seulement, jamais envoyé). */
+  open: boolean;
 }
 
 // Limites du schéma FaqInput du gateway.
@@ -21,7 +23,7 @@ const MAX_ANSWER = 2000;
   selector: 'app-faq-mobile',
   templateUrl: './faq-mobile.component.html',
   styleUrl: './faq-mobile.component.scss',
-  imports: [ButtonDirective, SpinnerComponent, FormsModule, CdkDropList, CdkDrag, CdkDragHandle, AlertMessageComponent],
+  imports: [SpinnerComponent, FormsModule, CdkDropList, CdkDrag, CdkDragHandle, AlertMessageComponent],
 })
 export class FaqMobileComponent {
   private readonly service = inject(MobileFaqService);
@@ -50,7 +52,7 @@ export class FaqMobileComponent {
       next: (items) => {
         // L'ordre d'affichage est celui de la liste renvoyée par le gateway (champ `order`).
         const sorted = [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        this.items = sorted.map((i) => ({ question: i.question, answer: i.answer, visible: i.visible ?? true }));
+        this.items = sorted.map((i) => ({ question: i.question, answer: i.answer, visible: i.visible ?? true, open: false }));
         this.dirty.set(false);
         this.loading.set(false);
       },
@@ -67,7 +69,8 @@ export class FaqMobileComponent {
   }
 
   add(): void {
-    this.items.push({ question: '', answer: '', visible: true });
+    for (const i of this.items) i.open = false;
+    this.items.push({ question: '', answer: '', visible: true, open: true });
     this.markDirty();
   }
 
@@ -109,7 +112,7 @@ export class FaqMobileComponent {
       .subscribe({
         next: (items) => {
           const sorted = [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-          this.items = sorted.map((i) => ({ question: i.question, answer: i.answer, visible: i.visible ?? true }));
+          this.items = sorted.map((i) => ({ question: i.question, answer: i.answer, visible: i.visible ?? true, open: false }));
           this.saving.set(false);
           this.dirty.set(false);
           this.saved.set(true);

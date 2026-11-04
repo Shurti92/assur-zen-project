@@ -280,6 +280,12 @@ export class DemandesMobileComponent {
     );
   }
 
+  /** Classe de la pastille de statut (maquette : ok / mut / warn / info). */
+  pillClass(variant: string): string {
+    const map: Record<string, string> = { warning: 'mb-pill--warn', info: 'mb-pill--info', success: 'mb-pill--ok' };
+    return map[variant] ?? 'mb-pill--mut';
+  }
+
   statusVariant(statut: string): string {
     if (statut === 'EN_ATTENTE') return 'warning';
     if (statut === 'EN_COURS') return 'info';

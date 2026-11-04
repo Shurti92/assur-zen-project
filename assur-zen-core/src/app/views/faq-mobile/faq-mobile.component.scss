@@ -1,25 +1,28 @@
-.fm-card {
-  display: flex;
-  gap: 0.8rem;
-  align-items: flex-start;
-  border: 1px solid var(--cui-border-color);
-  border-radius: 0.7rem;
-  padding: 0.9rem;
-  margin-bottom: 0.8rem;
-  background: var(--cui-tertiary-bg);
+@use '../mobile-shared';
 
-  &--hidden {
-    opacity: 0.75;
+.fm-card--hidden {
+  opacity: 0.75;
+}
+
+.fm-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+
+  .mb-check {
+    margin: 0;
+    color: var(--mb-txt);
+    font-size: 14px;
+    letter-spacing: 0;
+    text-transform: none;
   }
 }
 
-.fm-grip {
-  cursor: grab;
-  color: var(--cui-secondary-color);
-  font-size: 1.2rem;
-  line-height: 1;
-  user-select: none;
-  padding-top: 0.2rem;
+.fm-foot {
+  padding: 14px 4px;
+  border-top: 0;
 }
 
 // Aperçu et emplacement pendant le glisser-déposer (CDK) : l'aperçu est ajouté au <body>.

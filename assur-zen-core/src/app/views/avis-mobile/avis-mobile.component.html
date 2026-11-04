@@ -1,97 +1,88 @@
-<section class="dl-panel">
-  <div class="dl-toolbar">
-    <div class="dl-toolbar-title">
-      <h2>Avis des clients</h2>
+<div class="mb">
+  <header class="mb-hero">
+    <div>
+      <h1>Avis des clients</h1>
+      <p>Notes et commentaires laissés depuis l'application.</p>
     </div>
-    <select (change)="onRatingChange($any($event.target).value)" aria-label="Filtrer par note" class="form-select form-select-sm w-auto">
-      <option value="">Toutes les notes</option>
-      @for (s of stars; track s) {
-        <option [value]="s">{{ s }} étoile{{ s > 1 ? 's' : '' }}</option>
-      }
-    </select>
-    <div class="form-check mb-0">
-      <input (change)="onCommentOnlyChange($any($event.target).checked)" class="form-check-input" id="av-comment" type="checkbox" />
-      <label class="form-check-label small" for="av-comment">Avec commentaire</label>
-    </div>
-    <div class="dl-actions">
-      <button (click)="load()" [disabled]="loading()" cButton class="dl-btn" type="button">
+    <div class="mb-acts">
+      <button (click)="load()" [disabled]="loading()" class="mb-btn mb-btn--glass" type="button">
         @if (loading()) {
           <c-spinner size="sm" />
+        } @else {
+          ↻
         }
         Actualiser
       </button>
     </div>
-  </div>
+  </header>
 
   @if (!loading() && !error() && feedback().length > 0) {
-    <div class="av-summary">
-      <div class="av-average">
-        <div class="av-average-value">{{ average().toFixed(1).replace('.', ',') }}<span class="av-average-max"> / 5</span></div>
-        <div class="av-stars" aria-hidden="true">{{ starsText(average()) }}</div>
-        <div class="small text-body-secondary">{{ feedback().length }} avis</div>
+    <div class="mb-avsum">
+      <div>
+        <div class="mb-avg">{{ average().toFixed(1).replace('.', ',') }}<span> / 5</span></div>
+        <div class="mb-stars" aria-hidden="true">{{ starsText(average()) }}</div>
+        <div class="mb-mut">{{ feedback().length }} avis</div>
       </div>
-      <div class="av-bars">
+      <div>
         @for (d of distribution(); track d.star) {
-          <div class="av-bar-row">
-            <span class="av-bar-label">{{ d.star }} ★</span>
-            <div class="av-bar-track"><div class="av-bar-fill" [style.width.%]="d.percent"></div></div>
-            <span class="av-bar-count">{{ d.count }}</span>
+          <div class="mb-bar">
+            <span>{{ d.star }} ★</span>
+            <i><b [style.width.%]="d.percent"></b></i>
+            <span>{{ d.count }}</span>
           </div>
         }
       </div>
     </div>
   }
 
+  <div class="mb-toolbar">
+    <div class="mb-seg" role="group" aria-label="Filtrer par note">
+      <button (click)="onRatingChange('')" [class.mb-on]="ratingFilter() === null" type="button">Toutes les notes</button>
+      @for (s of stars; track s) {
+        <button (click)="onRatingChange('' + s)" [class.mb-on]="ratingFilter() === s" type="button">{{ s }} ★</button>
+      }
+    </div>
+    <label class="mb-check">
+      <input (change)="onCommentOnlyChange($any($event.target).checked)" [checked]="onlyWithComment()" type="checkbox" />
+      Avec commentaire
+    </label>
+  </div>
+
   @if (error()) {
-    <p class="dl-empty">{{ error() }} <button (click)="load()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    <p class="mb-empty">{{ error() }} <button (click)="load()" class="mb-link" type="button">Réessayer</button></p>
   } @else if (loading()) {
-    <p class="dl-empty">Chargement des avis…</p>
+    <p class="mb-empty">Chargement des avis…</p>
   } @else if (feedback().length === 0) {
-    <p class="dl-empty">Aucun avis pour le moment.</p>
+    <p class="mb-empty">Aucun avis pour le moment.</p>
   } @else if (filtered().length === 0) {
-    <p class="dl-empty">Aucun avis ne correspond à ce filtre.</p>
+    <p class="mb-empty">Aucun avis ne correspond à ce filtre.</p>
   } @else {
-    <div class="dl-table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Reçu le</th>
-            <th scope="col">Note</th>
-            <th scope="col">Commentaire</th>
-            <th scope="col">Téléphone</th>
-            <th scope="col">Contrat</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (f of pageItems(); track f.id) {
-            <tr>
-              <td class="dl-timestamp">{{ formatDateTime(f.createdAt) }}</td>
-              <td>
-                <span [class]="'dl-chip dl-chip--' + ratingVariant(f.rating)" [attr.aria-label]="f.rating + ' sur 5'">{{ starsText(f.rating) }}</span>
-              </td>
-              <td style="max-width: 28rem; white-space: pre-wrap">{{ f.comment?.trim() || '—' }}</td>
-              <td class="dl-timestamp">{{ f.phone || '—' }}</td>
-              <td>
-                @if (f.contractId) {
-                  <a [routerLink]="['/contrats/liste-des-contrats']">Contrat #{{ f.contractId }}</a>
-                } @else {
-                  —
-                }
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+    <div class="mb-cards">
+      @for (f of pageItems(); track f.id) {
+        <div class="mb-rev">
+          <div class="mb-top">
+            <span [attr.aria-label]="f.rating + ' sur 5'" class="mb-stars m-0">{{ starsText(f.rating) }}</span>
+            <small>{{ formatDateTime(f.createdAt) }}</small>
+          </div>
+          <p>{{ f.comment?.trim() || '—' }}</p>
+          <small>
+            {{ f.phone || '—' }} ·
+            @if (f.contractId) {
+              <a [routerLink]="['/contrats/liste-des-contrats']">Contrat #{{ f.contractId }}</a>
+            } @else {
+              —
+            }
+          </small>
+        </div>
+      }
     </div>
   }
 
-  <div class="dl-footnote">
-    <span>
-      <strong>{{ pageItems().length }}</strong> sur {{ filtered().length }} avis (page {{ pageIndex() + 1 }} sur {{ totalPages() }})
-    </span>
-    <div class="d-flex align-items-center gap-2">
-      <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
-      <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
+  <div class="mb-foot av-foot">
+    <span><strong>{{ pageItems().length }}</strong> sur {{ filtered().length }} avis (page {{ pageIndex() + 1 }} sur {{ totalPages() }})</span>
+    <div class="mb-pg">
+      <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Précédent</button>
+      <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Suivant</button>
     </div>
   </div>
-</section>
+</div>

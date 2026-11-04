@@ -1,132 +1,103 @@
-<section class="dl-panel">
-  <div class="dl-toolbar">
-    <div class="dl-toolbar-title">
-      <h2>Comptes mobile</h2>
+<div class="mb">
+  <header class="mb-hero">
+    <div>
+      <h1>Comptes mobile</h1>
+      <p>Comptes clients de l'application, assurés rattachés et demandes de suppression.</p>
     </div>
+    <div class="mb-acts">
+      <button (click)="refresh()" [disabled]="loading()" class="mb-btn mb-btn--glass" type="button">
+        @if (loading()) {
+          <c-spinner size="sm" />
+        } @else {
+          ↻
+        }
+        Actualiser
+      </button>
+      <button (click)="openCreate()" class="mb-btn mb-btn--white" type="button">+ Créer un compte mobile</button>
+    </div>
+  </header>
 
-    <div class="dl-search">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <circle cx="11" cy="11" r="7"></circle>
-        <path d="m21 21-4.3-4.3"></path>
-      </svg>
+  <div class="mb-kpis">
+    <div class="mb-kpi"><small>Comptes</small><b>{{ statTotal() ?? '—' }}</b></div>
+    <div class="mb-kpi"><small><i class="mb-k1"></i>Actifs</small><b>{{ statActive() ?? '—' }}</b></div>
+    <div class="mb-kpi"><small><i class="mb-k2"></i>Désactivés</small><b>{{ statInactive() ?? '—' }}</b></div>
+    <div class="mb-kpi"><small><i class="mb-k3"></i>Suppressions en attente</small><b>{{ statPendingDeletions() ?? '—' }}</b></div>
+  </div>
+
+  <div class="mb-toolbar">
+    <div class="mb-search">
+      <span>🔍</span>
       <input
         (input)="onSearchInput($any($event.target).value)"
         [value]="searchQuery()"
+        aria-label="Rechercher un compte"
         autocomplete="off"
         placeholder="Rechercher par numéro ou nom…"
         type="search"
       />
     </div>
-
-    <select
-      (change)="onStatusFilterChange($any($event.target).value)"
-      [value]="statusFilter()"
-      aria-label="Filtrer par statut"
-      class="form-select form-select-sm w-auto"
-    >
-      <option value="">Tous les statuts</option>
-      <option value="true">Actifs</option>
-      <option value="false">Désactivés</option>
-    </select>
-
-    <div class="dl-actions">
-      <button (click)="refresh()" [disabled]="loading()" cButton class="dl-btn" type="button">
-        @if (loading()) {
-          <c-spinner size="sm" />
-        }
-        Actualiser
-      </button>
-      <button (click)="openCreate()" cButton class="dl-btn dl-btn-primary" type="button">+ Créer un compte mobile</button>
+    <div class="mb-seg" role="group" aria-label="Filtrer par statut">
+      <button (click)="onStatusFilterChange('')" [class.mb-on]="statusFilter() === ''" type="button">Tous</button>
+      <button (click)="onStatusFilterChange('true')" [class.mb-on]="statusFilter() === 'true'" type="button">Actifs</button>
+      <button (click)="onStatusFilterChange('false')" [class.mb-on]="statusFilter() === 'false'" type="button">Désactivés</button>
     </div>
   </div>
 
-  <div class="d-flex flex-wrap gap-4 px-4 py-3" style="border-bottom: 1px solid var(--cui-border-color)">
-    <div>
-      <div class="fs-5 fw-bold">{{ statTotal() ?? '—' }}</div>
-      <div class="small text-body-secondary">comptes</div>
-    </div>
-    <div>
-      <div class="fs-5 fw-bold">{{ statActive() ?? '—' }}</div>
-      <div class="small text-body-secondary">actifs</div>
-    </div>
-    <div>
-      <div class="fs-5 fw-bold">{{ statInactive() ?? '—' }}</div>
-      <div class="small text-body-secondary">désactivés</div>
-    </div>
-    <div>
-      <div class="fs-5 fw-bold" [class.text-warning]="(statPendingDeletions() ?? 0) > 0">{{ statPendingDeletions() ?? '—' }}</div>
-      <div class="small text-body-secondary">suppressions en attente</div>
+  <div class="mb-list">
+    @if (error()) {
+      <p class="mb-empty">{{ error() }} <button (click)="fetch()" class="mb-link" type="button">Réessayer</button></p>
+    } @else if (loading()) {
+      <p class="mb-empty">Chargement des comptes…</p>
+    } @else if (items().length === 0) {
+      <p class="mb-empty">Aucun compte mobile ne correspond à cette recherche.</p>
+    } @else {
+      <div class="mb-head mb-g-acc">
+        <div>Client</div>
+        <div>Téléphone</div>
+        <div>Assurés rattachés</div>
+        <div>Statut</div>
+        <div>Créé le</div>
+        <div></div>
+      </div>
+      @for (item of items(); track item.userId) {
+        <div (click)="openDetail(item)" class="mb-row mb-row--click mb-g-acc">
+          <div class="mb-who">
+            <span class="mb-av">{{ initials(item.fullName) }}</span>
+            <div>
+              <b>{{ displayName(item) }}</b>
+              @if (item.pendingDeletionReference) {
+                <small>Suppression demandée · {{ item.pendingDeletionReference }}</small>
+              }
+            </div>
+          </div>
+          <div class="mb-mut">{{ item.phone || '—' }}</div>
+          <div>{{ item.linkedInsuredCount }} assuré{{ item.linkedInsuredCount > 1 ? 's' : '' }}</div>
+          <div>
+            @if (item.pendingDeletionReference) {
+              <span class="mb-pill mb-pill--warn">Suppression en attente</span>
+            } @else if (item.active) {
+              <span class="mb-pill mb-pill--ok">Actif</span>
+            } @else {
+              <span class="mb-pill mb-pill--mut">Désactivé</span>
+            }
+          </div>
+          <div class="mb-mut">{{ formatDate(item.createdAt) }}</div>
+          <button (click)="openDetail(item); $event.stopPropagation()" class="mb-btn mb-btn--ghost mb-btn--sm mb-go" type="button">Ouvrir</button>
+        </div>
+      }
+    }
+
+    <div class="mb-foot">
+      <span>
+        <strong>{{ items().length }}</strong> sur {{ totalElements() }} comptes (page {{ pageIndex() + 1 }} sur {{ totalPages() || 1 }})
+      </span>
+      <div class="mb-pg">
+        <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Précédent</button>
+        <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Suivant</button>
+      </div>
     </div>
   </div>
-
-  @if (error()) {
-    <p class="dl-empty">{{ error() }} <button (click)="fetch()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
-  } @else if (loading()) {
-    <p class="dl-empty">Chargement des comptes…</p>
-  } @else if (items().length === 0) {
-    <p class="dl-empty">Aucun compte mobile ne correspond à cette recherche.</p>
-  } @else {
-    <div class="dl-table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Client</th>
-            <th scope="col">Téléphone</th>
-            <th scope="col">Assurés rattachés</th>
-            <th scope="col">Statut</th>
-            <th scope="col">Créé le</th>
-            <th scope="col"></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of items(); track item.userId) {
-            <tr (click)="openDetail(item)" style="cursor: pointer">
-              <td>
-                <div class="dl-insured">
-                  <span class="dl-avatar">{{ initials(item.fullName) }}</span>
-                  <div>
-                    <div class="dl-insured-name">{{ displayName(item) }}</div>
-                    @if (item.pendingDeletionReference) {
-                      <div class="dl-insured-meta">Suppression demandée · {{ item.pendingDeletionReference }}</div>
-                    }
-                  </div>
-                </div>
-              </td>
-              <td class="dl-timestamp">{{ item.phone || '—' }}</td>
-              <td>{{ item.linkedInsuredCount }}</td>
-              <td>
-                @if (item.pendingDeletionReference) {
-                  <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>Suppression en attente</span>
-                } @else if (item.active) {
-                  <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Actif</span>
-                } @else {
-                  <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Désactivé</span>
-                }
-              </td>
-              <td class="dl-timestamp">{{ formatDate(item.createdAt) }}</td>
-              <td>
-                <div class="dl-row-actions">
-                  <button (click)="openDetail(item); $event.stopPropagation()" cButton class="dl-btn" size="sm" type="button">Ouvrir</button>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  }
-
-  <div class="dl-footnote">
-    <span>
-      <strong>{{ items().length }}</strong> sur {{ totalElements() }} comptes
-      (page {{ pageIndex() + 1 }} sur {{ totalPages() || 1 }})
-    </span>
-    <div class="d-flex align-items-center gap-2">
-      <button (click)="goToPage(pageIndex() - 1)" [disabled]="loading() || pageIndex() === 0" cButton class="dl-btn" size="sm" type="button">Précédent</button>
-      <button (click)="goToPage(pageIndex() + 1)" [disabled]="loading() || pageIndex() + 1 >= totalPages()" cButton class="dl-btn" size="sm" type="button">Suivant</button>
-    </div>
-  </div>
-</section>
+</div>
 
 <!-- ===== Fiche compte ===== -->
 <app-modal [visible]="detailVisible()" size="lg" title="Compte mobile" (closed)="closeDetail()">

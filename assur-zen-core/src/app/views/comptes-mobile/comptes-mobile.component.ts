@@ -24,6 +24,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 @Component({
   selector: 'app-comptes-mobile',
   templateUrl: './comptes-mobile.component.html',
+  styleUrl: './comptes-mobile.component.scss',
   imports: [ButtonDirective, SpinnerComponent, FormsModule, AlertMessageComponent, ConfirmDialogComponent, ModalComponent],
 })
 export class ComptesMobileComponent {

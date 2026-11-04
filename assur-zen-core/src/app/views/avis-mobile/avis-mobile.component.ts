@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
+import { SpinnerComponent } from '@coreui/angular';
 
 import { MobileFaqService } from '../../core/mobile-admin/mobile-faq.service';
 import { MobileFeedback } from '../../core/mobile-admin/models/mobile-faq.model';
@@ -12,7 +12,7 @@ const STARS = [5, 4, 3, 2, 1];
   selector: 'app-avis-mobile',
   templateUrl: './avis-mobile.component.html',
   styleUrl: './avis-mobile.component.scss',
-  imports: [ButtonDirective, SpinnerComponent, RouterLink],
+  imports: [SpinnerComponent, RouterLink],
 })
 export class AvisMobileComponent {
   private readonly service = inject(MobileFaqService);

@@ -1,48 +1,10 @@
-.dm-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--cui-border-color);
-  padding: 0 1.3rem;
+@use '../mobile-shared';
+
+.mb-seg--tab {
+  margin-bottom: 6px;
 }
 
-.dm-tab {
-  border: 0;
-  background: none;
-  padding: 0.8rem 0.9rem;
-  font-weight: 600;
-  font-size: 0.88rem;
-  color: var(--cui-secondary-color);
-  border-bottom: 2px solid transparent;
-  display: inline-flex;
-  gap: 0.5rem;
-  align-items: center;
-  cursor: pointer;
-
-  &--on {
-    color: var(--cui-primary);
-    border-bottom-color: var(--cui-primary);
-  }
-}
-
-.dm-count {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  background: var(--cui-secondary-bg-subtle);
-  color: var(--cui-secondary-text-emphasis);
-
-  &--hot {
-    background: var(--cui-warning-bg-subtle);
-    color: var(--cui-warning-text-emphasis);
-  }
-
-  .dm-tab--on & {
-    background: var(--cui-primary);
-    color: #fff;
-  }
-}
-
+// Fenêtres de traitement (rappel, contrat, suppression, support)
 .dm-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

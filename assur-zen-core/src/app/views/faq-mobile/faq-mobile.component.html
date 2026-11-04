@@ -1,69 +1,76 @@
-<section class="dl-panel">
-  <div class="dl-toolbar">
-    <div class="dl-toolbar-title">
-      <h2>FAQ de l'application mobile</h2>
+<div class="mb">
+  <header class="mb-hero">
+    <div>
+      <h1>FAQ de l'application mobile</h1>
+      <p>Questions affichées dans l'aide de l'application. Glissez ⠿ pour réordonner ; l'enregistrement remplace toute la FAQ.</p>
     </div>
-    <div class="dl-actions">
-      @if (dirty()) {
-        <span class="dl-chip dl-chip--warning"><span class="dl-chip-dot"></span>Modifications non enregistrées</span>
-      }
-      <button (click)="discard()" [disabled]="loading() || saving() || !dirty()" cButton class="dl-btn" type="button">Annuler les modifications</button>
-      <button (click)="add()" [disabled]="loading()" cButton class="dl-btn" type="button">+ Ajouter une question</button>
-      <button (click)="save()" [disabled]="loading() || saving() || !dirty()" cButton class="dl-btn dl-btn-primary" type="button">
+    <div class="mb-acts">
+      <button (click)="discard()" [disabled]="loading() || saving() || !dirty()" class="mb-btn mb-btn--glass" type="button">Annuler les modifications</button>
+      <button (click)="add()" [disabled]="loading()" class="mb-btn mb-btn--glass" type="button">+ Ajouter une question</button>
+      <button (click)="save()" [disabled]="loading() || saving() || !dirty()" class="mb-btn mb-btn--white" type="button">
         @if (saving()) {
           <c-spinner size="sm" />
         }
         Enregistrer
       </button>
     </div>
-  </div>
+  </header>
 
-  <div class="px-4 pt-3">
-    <div class="alert alert-info small mb-3">
-      Ces questions s'affichent dans l'aide de l'application. Glissez les entrées (ou utilisez les flèches) pour choisir l'ordre d'affichage.
-      L'enregistrement <strong>remplace toute la FAQ</strong>.
+  @if (dirty()) {
+    <div class="mb-dirty">
+      ● Modifications non enregistrées
+      <span class="mb-sp"></span>
+      <span class="mb-mut fw-normal">{{ items.length }} question{{ items.length > 1 ? 's' : '' }}</span>
     </div>
-    @if (saveError(); as message) {
-      <app-alert-message class="d-block mb-3" [message]="message" />
-    }
-    @if (saved()) {
-      <app-alert-message class="d-block mb-3" variant="success" message="FAQ enregistrée." />
-    }
-  </div>
+  }
+  @if (saveError(); as message) {
+    <app-alert-message class="d-block my-3" [message]="message" />
+  }
+  @if (saved()) {
+    <app-alert-message class="d-block my-3" variant="success" message="FAQ enregistrée." />
+  }
 
   @if (error()) {
-    <p class="dl-empty">{{ error() }} <button (click)="load()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
+    <p class="mb-empty">{{ error() }} <button (click)="load()" class="mb-link" type="button">Réessayer</button></p>
   } @else if (loading()) {
-    <p class="dl-empty">Chargement de la FAQ…</p>
+    <p class="mb-empty">Chargement de la FAQ…</p>
   } @else {
-    <div (cdkDropListDropped)="drop($event)" cdkDropList [cdkDropListData]="items" class="fm-list px-4 pb-3">
+    <div (cdkDropListDropped)="drop($event)" cdkDropList [cdkDropListData]="items" class="fm-list mt-3">
       @for (item of items; track $index; let i = $index) {
-        <div cdkDrag class="fm-card" [class.fm-card--hidden]="!item.visible">
-          <span cdkDragHandle class="fm-grip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
-          <div class="flex-grow-1">
-            <label class="form-label small fw-semibold mb-1" [for]="'fm-q-' + i">Question *</label>
-            <input (ngModelChange)="markDirty()" [(ngModel)]="item.question" [id]="'fm-q-' + i" [attr.maxlength]="maxQuestion" class="form-control mb-2" type="text" />
-            <label class="form-label small fw-semibold mb-1" [for]="'fm-a-' + i">Réponse * <span class="text-body-secondary fw-normal">({{ item.answer.length }}/{{ maxAnswer }})</span></label>
-            <textarea (ngModelChange)="markDirty()" [(ngModel)]="item.answer" [id]="'fm-a-' + i" [attr.maxlength]="maxAnswer" class="form-control" rows="3"></textarea>
-            <div class="form-check form-switch mt-2 mb-0">
-              <input (ngModelChange)="markDirty()" [(ngModel)]="item.visible" [id]="'fm-v-' + i" class="form-check-input" role="switch" type="checkbox" />
-              <label class="form-check-label small" [for]="'fm-v-' + i">Visible dans l'application</label>
+        <div [class.mb-item--open]="item.open" [class.fm-card--hidden]="!item.visible" cdkDrag class="mb-item fm-card">
+          <div (click)="item.open = !item.open" class="mb-ihead">
+            <span cdkDragHandle (click)="$event.stopPropagation()" class="mb-grip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
+            <span class="mb-iname">{{ item.question || 'Nouvelle question' }}</span>
+            @if (!item.visible) {
+              <span class="mb-pill mb-pill--mut">Masquée</span>
+            }
+            <span class="mb-sp"></span>
+            <span class="mb-chev">⌄</span>
+          </div>
+          @if (item.open) {
+            <div class="mb-ibody">
+              <label [for]="'fm-q-' + i">Question *</label>
+              <input (ngModelChange)="markDirty()" [(ngModel)]="item.question" [id]="'fm-q-' + i" [attr.maxlength]="maxQuestion" type="text" />
+              <label [for]="'fm-a-' + i">Réponse * <span class="mb-mut">({{ item.answer.length }}/{{ maxAnswer }})</span></label>
+              <textarea (ngModelChange)="markDirty()" [(ngModel)]="item.answer" [id]="'fm-a-' + i" [attr.maxlength]="maxAnswer" rows="3"></textarea>
+              <div class="fm-bottom">
+                <label class="mb-check">
+                  <input (ngModelChange)="markDirty()" [(ngModel)]="item.visible" [id]="'fm-v-' + i" type="checkbox" />
+                  Visible dans l'application
+                </label>
+                <button (click)="remove(i)" class="mb-btn mb-btn--danger mb-btn--sm" type="button">Supprimer cette question</button>
+              </div>
             </div>
-          </div>
-          <div class="d-flex flex-column gap-1">
-            <button (click)="move(i, -1)" [disabled]="i === 0" aria-label="Monter" cButton class="dl-btn" size="sm" type="button">↑</button>
-            <button (click)="move(i, 1)" [disabled]="i === items.length - 1" aria-label="Descendre" cButton class="dl-btn" size="sm" type="button">↓</button>
-            <button (click)="remove(i)" aria-label="Supprimer la question" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">×</button>
-          </div>
+          }
         </div>
       } @empty {
-        <p class="dl-empty">Aucune question. Cliquez sur « Ajouter une question » pour commencer.</p>
+        <p class="mb-empty">Aucune question. Cliquez sur « Ajouter une question » pour commencer.</p>
       }
     </div>
   }
 
-  <div class="dl-footnote">
+  <div class="mb-foot fm-foot">
     <span><strong>{{ items.length }}</strong> question{{ items.length > 1 ? 's' : '' }}, dont {{ visibleCount }} visible{{ visibleCount > 1 ? 's' : '' }}</span>
     <span>Lecture publique : GET /public/support/faq</span>
   </div>
-</section>
+</div>
