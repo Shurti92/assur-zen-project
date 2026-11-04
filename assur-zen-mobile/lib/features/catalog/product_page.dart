@@ -44,6 +44,7 @@ class _ProductPageState extends State<ProductPage> {
                         if (p.benefits.isNotEmpty) _Benefits(benefits: p.benefits),
                         _Guarantees(product: p),
                         _Formulas(formulas: p.formulas),
+                        AssistancePlans(plans: p.assistancePlans),
                         _TextList(title: 'Exclusions', items: p.exclusions, icon: Icons.remove_circle_outline_rounded),
                         _TextList(title: 'Pièces à fournir', items: p.requiredDocuments, icon: Icons.description_outlined),
                         _ProductFaq(faq: p.faq),
@@ -99,13 +100,13 @@ class _ProductPageState extends State<ProductPage> {
                 children: [
                   if (p.howItWorks.isNotEmpty) ...[
                     Expanded(
-                      flex: 4,
+                      flex: 5,
                       child: AzButton.secondary(_more ? 'Moins de détails' : 'En savoir plus', onPressed: () => setState(() => _more = !_more)),
                     ),
                     const SizedBox(width: 10),
                   ],
                   Expanded(
-                    flex: 6,
+                    flex: 5,
                     child: AzButton(
                       // Le devis en ligne moto est servi par la Gateway (prix et garanties du serveur).
                       p.id == 'moto' || p.id == 'automobile-vtc' || p.onlineSubscription ? 'Obtenir un devis' : 'Être rappelé',
@@ -406,6 +407,135 @@ class _ProductFaq extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+/// Libellé du prix d'un niveau : celui du serveur, sinon formaté depuis le montant (« Gratuit » à 0).
+/// L'unité (par an, par contrat…) n'est pas connue : elle n'est jamais ajoutée.
+String assistancePriceLabel(AssistancePlan plan) =>
+    plan.priceLabel ?? (plan.price == 0 ? 'Gratuit' : formatFcfa(plan.price));
+
+/// Éligibilité par âge du véhicule, à titre informatif. `null` : aucune borne, rien à afficher.
+String? assistanceEligibility(AssistancePlan plan) {
+  String years(int n) => n == 1 ? '1 an' : '$n ans';
+  final min = plan.minVehicleAge;
+  final max = plan.maxVehicleAge;
+  if (min == null && max == null) return null;
+  if (min != null && max != null) return min == max ? 'Véhicule de ${years(min)}' : 'Véhicule de $min à ${years(max)}';
+  if (max != null) return 'Véhicule de ${years(max)} maximum';
+  return 'Véhicule de ${years(min!)} minimum';
+}
+
+/// Niveaux d'assistance (Assurance Auto) : une carte comparable par niveau, dans l'ordre du serveur.
+/// Masqués quand le serveur n'en envoie pas.
+class AssistancePlans extends StatelessWidget {
+  const AssistancePlans({super.key, required this.plans});
+
+  final List<AssistancePlan> plans;
+
+  @override
+  Widget build(BuildContext context) {
+    if (plans.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const AzSectionHeader('Niveaux d’assistance'),
+        const SizedBox(height: 8),
+        for (final plan in plans) ...[
+          _AssistancePlanCard(plan: plan),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _AssistancePlanCard extends StatelessWidget {
+  const _AssistancePlanCard({required this.plan});
+
+  final AssistancePlan plan;
+
+  Widget _pill(String text, {required Color fg, required Color bg}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AzRadius.pill)),
+        child: Text(text, style: AzText.caption.copyWith(color: fg, fontWeight: FontWeight.w700)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final eligibility = assistanceEligibility(plan);
+    return AzCard(
+      padding: EdgeInsets.zero,
+      borderColor: plan.recommended ? AzColors.blue700 : AzColors.line,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          expandedAlignment: Alignment.centerLeft,
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          title: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: Text(plan.name, style: AzText.titleSmall)),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  assistancePriceLabel(plan),
+                  textAlign: TextAlign.right,
+                  style: AzText.titleSmall.copyWith(color: AzColors.blue700),
+                ),
+              ),
+            ],
+          ),
+          subtitle: (plan.recommended || plan.benefit || eligibility != null)
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (plan.recommended) _pill('Recommandé', fg: Colors.white, bg: AzColors.blue700),
+                      if (plan.benefit) _pill('Avantage gratuit', fg: AzColors.success, bg: AzColors.successBg),
+                      if (eligibility != null) Text(eligibility, style: AzText.caption.copyWith(color: AzColors.muted)),
+                    ],
+                  ),
+                )
+              : null,
+          children: [
+            for (final section in plan.sections) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 6),
+                child: Text(section.title, style: AzText.bodyMedium.copyWith(fontWeight: FontWeight.w700)),
+              ),
+              for (final item in section.items)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.check_rounded, size: 18, color: AzColors.success),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.text, style: AzText.bodyMedium),
+                            if (item.condition != null)
+                              Text(item.condition!, style: AzText.caption.copyWith(color: AzColors.muted)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

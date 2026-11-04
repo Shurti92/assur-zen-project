@@ -86,7 +86,16 @@ class ApiPaymentRepository implements PaymentRepository {
       failureReason: _nonEmpty(data['failureReason']),
       receiptUrl: _nonEmpty(data['receiptUrl']),
       simulated: data['simulated'] == true,
+      redirectUrl: _httpsUrl(data['redirectUrl']),
+      expiresAt: DateTime.tryParse(data['expiresAt']?.toString() ?? ''),
     );
+  }
+
+  /// Seule une URL HTTPS est ouverte (jamais un autre schéma venu du réseau).
+  static String? _httpsUrl(Object? v) {
+    final s = _nonEmpty(v);
+    final uri = s == null ? null : Uri.tryParse(s);
+    return (uri != null && uri.scheme == 'https' && uri.host.isNotEmpty) ? s : null;
   }
 
   static String? _nonEmpty(Object? v) {
@@ -96,13 +105,16 @@ class ApiPaymentRepository implements PaymentRepository {
 
   static String _shortLabel(String id, String name) => switch (id) {
         'wave' => 'W',
-        'orange_money' => 'OM',
-        'mtn_momo' => 'MTN',
-        'moov_money' => 'MV',
+        'orange' || 'orange_money' => 'OM',
+        'mtn' || 'mtn_momo' => 'MTN',
+        'moov' || 'moov_money' => 'MV',
         _ => name.isEmpty ? '?' : name.substring(0, name.length < 2 ? name.length : 2).toUpperCase(),
       };
 
   static const _brandColors = {
+    'orange': 0xFFE4701E,
+    'mtn': 0xFF8A6D00,
+    'moov': 0xFF1D5BB4,
     'wave': 0xFF1A78C2,
     'orange_money': 0xFFE4701E,
     'mtn_momo': 0xFF8A6D00,

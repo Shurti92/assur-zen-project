@@ -25,6 +25,27 @@ abstract final class MockData {
   static const products = <Product>[
     Product(
       id: 'auto',
+      assistancePlans: [
+        AssistancePlan(
+          key: 'demo-a',
+          name: 'Niveau démo A',
+          price: 0,
+          benefit: true,
+          sections: [
+            AssistanceSection('En cas d’accident', [AssistanceItem('Prestation de démonstration')]),
+          ],
+        ),
+        AssistancePlan(
+          key: 'demo-b',
+          name: 'Niveau démo B',
+          price: 10000,
+          maxVehicleAge: 5,
+          recommended: true,
+          sections: [
+            AssistanceSection('En cas de panne', [AssistanceItem('Prestation de démonstration', condition: 'Condition de démonstration')]),
+          ],
+        ),
+      ],
       title: 'Assurance automobile',
       shortName: 'Automobile',
       description: 'Roulez couvert, avec votre attestation toujours à portée de main.',

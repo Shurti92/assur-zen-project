@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_scope.dart';
 import '../../app/env.dart';
 import '../../app/routes.dart';
-import '../../core/security/biometric.dart';
-import '../../core/ui.dart';
+import '../../core/security/biometric.dart';import '../../core/ui.dart';
 import '../../data/models/models.dart';
 import '../shell/main_shell.dart';
 
@@ -51,6 +50,9 @@ class _PaymentPageState extends State<PaymentPage> {
   PaymentAttempt? _attempt;
   Timer? _poll;
   DateTime? _startedAt;
+  int _failedChecks = 0;
+  bool _checkFailing = false;
+  static const _failedChecksBeforeNotice = 5;
   int _rating = 0;
   bool _ratingSent = false;
 
@@ -100,6 +102,10 @@ class _PaymentPageState extends State<PaymentPage> {
         _startedAt = DateTime.now();
       });
       _poll = Timer.periodic(const Duration(seconds: 3), (_) => _checkStatus());
+      // Jeko : le client valide chez l'opérateur. Le retour sur cette page ne
+      // prouve rien ; seul le statut du serveur (sondé ci-dessus) fait foi.
+      final url = attempt.redirectUrl;
+      if (url != null && mounted) await Launch.url(context, url);
     } catch (e) {
       if (mounted) showAzSnack(context, errorMessage(e));
     } finally {
@@ -110,7 +116,8 @@ class _PaymentPageState extends State<PaymentPage> {
   Future<void> _checkStatus() async {
     final ref = _attempt?.reference;
     if (ref == null) return;
-    if (_startedAt != null && DateTime.now().difference(_startedAt!) > Env.paymentWaitMax) {
+    final limit = _attempt?.expiresAt ?? _startedAt?.add(Env.paymentWaitMax);
+    if (limit != null && DateTime.now().isAfter(limit)) {
       _poll?.cancel();
       if (mounted) setState(() => _stage = _Stage.timeout);
       return;
@@ -118,6 +125,8 @@ class _PaymentPageState extends State<PaymentPage> {
     try {
       final a = await context.repos.payments.status(ref);
       if (!mounted || _stage != _Stage.pending) return;
+      _failedChecks = 0;
+      if (_checkFailing) setState(() => _checkFailing = false);
       if (a.status == PaymentStatus.confirmed) {
         _poll?.cancel();
         if (widget.args.clearDraftOnSuccess) await context.store.clearDraft();
@@ -135,7 +144,12 @@ class _PaymentPageState extends State<PaymentPage> {
         });
       }
     } catch (_) {
-      // Coupure réseau passagère : on réessaie au prochain passage.
+      // Coupure réseau passagère : on réessaie au prochain passage. Après
+      // plusieurs échecs d'affilée, on prévient le client (sans jamais dire « payé »).
+      _failedChecks++;
+      if (mounted && _stage == _Stage.pending && !_checkFailing && _failedChecks >= _failedChecksBeforeNotice) {
+        setState(() => _checkFailing = true);
+      }
     }
   }
 
@@ -334,6 +348,18 @@ class _PaymentPageState extends State<PaymentPage> {
           ('Montant', formatFcfa(widget.args.amount)),
           ('Référence', _attempt?.reference ?? '—'),
         ]),
+        if (_checkFailing) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: AzColors.warningBg, borderRadius: BorderRadius.circular(14)),
+            child: Text(
+              'La confirmation tarde. Ne payez pas une seconde fois : si vous avez déjà validé le paiement, '
+              'vérifiez vos contrats plus tard ou contactez le service client en indiquant la référence ci-dessus.',
+              style: AzText.bodyMedium.copyWith(color: AzColors.warningInk),
+            ),
+          ),
+        ],
         if (Env.useMock) ...[
           const SizedBox(height: 16),
           const AzDemoNote(text: 'Démo : confirmation automatique après 5 s · un numéro finissant par 99 simule un échec'),

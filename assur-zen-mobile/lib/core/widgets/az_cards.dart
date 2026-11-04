@@ -157,19 +157,26 @@ class AzInfoRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: last ? null : const Border(bottom: BorderSide(color: AzColors.lineSoft)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: AzText.bodyMedium.copyWith(color: valueColor ?? AzColors.ink, fontWeight: FontWeight.w700),
+      // Le libellé garde sa largeur naturelle mais ne dépasse pas 60 % de la
+      // ligne : un libellé long passe sur deux lignes au lieu d'écraser la valeur.
+      child: LayoutBuilder(
+        builder: (context, box) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.6),
+              child: Text(label, style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: AzText.bodyMedium.copyWith(color: valueColor ?? AzColors.ink, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

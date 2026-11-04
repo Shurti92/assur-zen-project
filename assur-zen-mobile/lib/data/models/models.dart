@@ -115,7 +115,11 @@ class Product {
     this.requiredDocuments = const [],
     this.faq = const [],
     this.contentVersion,
+    this.assistancePlans = const [],
   });
+
+  /// Niveaux d'assistance (Assurance Auto uniquement), actifs et triés par le serveur. Vide : rubrique masquée.
+  final List<AssistancePlan> assistancePlans;
 
   /// Formules du produit (contenu, sans prix), dans l'ordre du serveur.
   final List<Formula> formulas;
@@ -148,6 +152,61 @@ class Product {
   final String? eligibility;
 
   bool get isVehicle => family == ProductFamily.vehicule;
+}
+
+/// Une prestation d'un niveau d'assistance : texte libre, avec une condition éventuelle.
+class AssistanceItem {
+  const AssistanceItem(this.text, {this.condition});
+
+  final String text;
+  final String? condition;
+}
+
+/// Prestations regroupées par événement (accident, panne, vol, incendie…), titres fournis par le serveur.
+class AssistanceSection {
+  const AssistanceSection(this.title, this.items);
+
+  final String title;
+  final List<AssistanceItem> items;
+}
+
+/// Niveau d'assistance paramétré au back-office (Gratuit, Confort, Relax, Liberté…).
+///
+/// Aucun contenu n'est écrit dans l'application. L'unité du prix (par an, par contrat…) n'est pas
+/// connue : elle n'est donc jamais affichée. Les bornes d'âge du véhicule sont informatives : aucun
+/// niveau n'est masqué ni grisé selon elles.
+class AssistancePlan {
+  const AssistancePlan({
+    required this.key,
+    required this.name,
+    required this.price,
+    this.priceLabel,
+    this.minVehicleAge,
+    this.maxVehicleAge,
+    this.benefit = false,
+    this.recommended = false,
+    this.sections = const [],
+  });
+
+  final String key;
+  final String name;
+
+  /// Entier en F CFA ; 0 pour « Gratuit ».
+  final int price;
+
+  /// Libellé libre du serveur (ex. « +38 000 F »). Absent : formaté depuis [price].
+  final String? priceLabel;
+
+  /// Âge du véhicule en années, `null` = sans borne.
+  final int? minVehicleAge;
+  final int? maxVehicleAge;
+
+  /// « Avantage gratuit » (indicateur du serveur).
+  final bool benefit;
+
+  /// Badge « Recommandé ».
+  final bool recommended;
+  final List<AssistanceSection> sections;
 }
 
 class Formula {
@@ -338,7 +397,15 @@ class PaymentAttempt {
     this.failureReason,
     this.receiptUrl,
     this.simulated = false,
+    this.redirectUrl,
+    this.expiresAt,
   });
+
+  /// Page de l'opérateur (ou de Jeko) où le client valide le paiement.
+  final String? redirectUrl;
+
+  /// Fin de validité de la tentative, fixée par le serveur.
+  final DateTime? expiresAt;
 
   final String reference; // référence unique par tentative (décision 3.4)
   final PaymentStatus status;

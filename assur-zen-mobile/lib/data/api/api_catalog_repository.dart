@@ -57,6 +57,7 @@ class ApiCatalogRepository implements CatalogRepository {
       requiredDocuments: _strings(j['requiredDocuments']),
       faq: _faq(j['faq']),
       contentVersion: _nonEmpty(j['contentVersion']),
+      assistancePlans: _assistancePlans(j['assistancePlans']),
       id: (j['id'] ?? '').toString(),
       title: title,
       shortName: _nonEmpty(j['shortName']) ?? title,
@@ -122,6 +123,39 @@ class ApiCatalogRepository implements CatalogRepository {
           ),
     ];
   }
+
+  /// Niveaux d'assistance : l'ordre du serveur est conservé. Un niveau sans clé ou sans nom, ou une
+  /// section sans titre ni prestation, est ignoré : rien n'est inventé.
+  static List<AssistancePlan> _assistancePlans(Object? v) {
+    if (v is! List) return const [];
+    int? age(Object? x) => x is num ? x.toInt() : null;
+    return [
+      for (final e in v)
+        if (e is Map<String, dynamic> && _nonEmpty(e['key']) != null && _nonEmpty(e['name']) != null)
+          AssistancePlan(
+            key: _nonEmpty(e['key'])!,
+            name: _nonEmpty(e['name'])!,
+            price: (e['price'] as num?)?.toInt() ?? 0,
+            priceLabel: _nonEmpty(e['priceLabel']),
+            minVehicleAge: age(e['minVehicleAge']),
+            maxVehicleAge: age(e['maxVehicleAge']),
+            benefit: e['benefit'] == true,
+            recommended: e['recommended'] == true,
+            sections: [
+              for (final sec in (e['sections'] is List ? e['sections'] as List : const []))
+                if (sec is Map<String, dynamic> && _nonEmpty(sec['title']) != null)
+                  if (_assistanceItems(sec['items']).isNotEmpty)
+                    AssistanceSection(_nonEmpty(sec['title'])!, _assistanceItems(sec['items'])),
+            ],
+          ),
+    ];
+  }
+
+  static List<AssistanceItem> _assistanceItems(Object? v) => [
+        for (final i in (v is List ? v : const []))
+          if (i is Map<String, dynamic> && _nonEmpty(i['text']) != null)
+            AssistanceItem(_nonEmpty(i['text'])!, condition: _nonEmpty(i['condition'])),
+      ];
 
   static List<FaqItem> _faq(Object? v) => [
         for (final e in (v is List ? v : const []))
