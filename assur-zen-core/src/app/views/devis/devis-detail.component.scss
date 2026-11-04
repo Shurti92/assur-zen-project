@@ -56,14 +56,19 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  color: #dbe5ff;
+  padding: 7px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
   font-size: 13px;
+  font-weight: 600;
   text-decoration: none;
-  opacity: 0.9;
+  transition: background 0.12s;
 
   &:hover {
+    background: rgba(255, 255, 255, 0.28);
     color: #fff;
-    opacity: 1;
   }
 }
 
