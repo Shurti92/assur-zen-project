@@ -1,7 +1,7 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
@@ -72,6 +72,20 @@ const MAX_FORMULAS = 10;
 const MAX_EXCLUSIONS = 20;
 const MAX_DOCUMENTS = 20;
 const MAX_FAQ = 30;
+
+/** Emoji du produit d'après son code d'icône (liste, en-tête de la fiche et aperçu). */
+const ICON_GLYPH: Record<string, string> = {
+  car: '🚗',
+  moto: '🏍️',
+  taxi: '🚕',
+  health: '🩺',
+  home: '🏠',
+  plane: '✈️',
+  truck: '🚚',
+  fleet: '🚛',
+  bike: '🚲',
+  shield: '🛡️',
+};
 
 const ERROR_MESSAGES: Record<string, string> = {
   PRODUCT_NOT_FOUND: 'Produit introuvable.',
@@ -147,6 +161,17 @@ export class CatalogueMobileComponent {
       },
     });
   }
+
+  /** Compteurs de l'en-tête : visibles sur l'application, masqués (contenu enregistré), sans contenu. */
+  readonly counts = computed(() => {
+    const list = this.products();
+    const visible = list.filter((p) => p.productActive && p.configured && p.visibleMobile).length;
+    const noContent = list.filter((p) => !p.configured).length;
+    return { total: list.length, visible, hidden: list.length - visible - noContent, noContent };
+  });
+
+  /** Nouvel avantage en cours de saisie (puces de l'onglet Général). */
+  newBenefit = '';
 
   get isAuto(): boolean {
     return this.editProduct()?.productKey === 'auto';
@@ -242,6 +267,7 @@ export class CatalogueMobileComponent {
   openEdit(product: MobileProduct): void {
     this.editProduct.set(product);
     this.assistanceCount.set(null);
+    this.newBenefit = '';
     this.formError.set(null);
     this.editTab.set('general');
     this.draft = {
@@ -420,6 +446,60 @@ export class CatalogueMobileComponent {
 
   familyLabel(family?: ProductFamily | null): string {
     return family ? FAMILY_LABEL[family] : '—';
+  }
+
+  /** Emoji du produit (code d'icône inconnu ou absent : bouclier). */
+  glyph(icon?: string | null): string {
+    return (icon && ICON_GLYPH[icon]) || '🛡️';
+  }
+
+  /** Complétude du contenu mobile en % : 10 rubriques, chacune pèse 10 points (0 si aucun contenu enregistré). */
+  completeness(p: MobileProduct): number {
+    if (!p.configured) return 0;
+    const filled = [
+      p.shortName,
+      p.family,
+      p.icon,
+      p.description,
+      p.howItWorks,
+      p.eligibility,
+      (p.benefits ?? []).length > 0,
+      (p.guarantees ?? []).length > 0,
+      (p.formulas ?? []).length > 0,
+      (p.requiredDocuments ?? []).length > 0,
+    ].filter(Boolean).length;
+    return filled * 10;
+  }
+
+  completenessLabel(p: MobileProduct): string {
+    if (!p.configured) return 'À renseigner';
+    return this.completeness(p) === 100 ? 'Contenu complet' : 'Contenu à compléter';
+  }
+
+  /** Classe de la pastille de statut (maquette : ok / mut / warn). */
+  pillClass(p: MobileProduct): string {
+    const v = this.statusChip(p).variant;
+    return v === 'success' ? 'cm-pill--ok' : v === 'warning' ? 'cm-pill--warn' : 'cm-pill--mut';
+  }
+
+  // ---- Avantages en puces + aperçu téléphone ----
+
+  addBenefit(): void {
+    const d = this.draft;
+    const text = this.newBenefit.trim();
+    if (!d || !text || d.benefits.length >= MAX_BENEFITS) return;
+    d.benefits.push(text);
+    this.newBenefit = '';
+  }
+
+  /** Description de l'aperçu : début du texte saisi. */
+  previewDescription(): string {
+    const text = (this.draft?.description ?? '').trim();
+    return text.length > 110 ? `${text.slice(0, 110).trimEnd()}…` : text;
+  }
+
+  previewBenefits(): string[] {
+    return (this.draft?.benefits ?? []).map((b) => b.trim()).filter(Boolean).slice(0, 5);
   }
 
   statusChip(p: MobileProduct): { label: string; variant: string } {

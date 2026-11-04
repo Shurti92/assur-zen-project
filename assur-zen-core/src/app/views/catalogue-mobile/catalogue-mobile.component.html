@@ -1,105 +1,103 @@
-<section class="dl-panel">
-  <div class="dl-toolbar">
-    <div class="dl-toolbar-title">
-      <h2>Produits sur le mobile</h2>
+<div class="cm">
+  <header class="cm-hero">
+    <div>
+      <h1>Produits sur le mobile</h1>
+      <p>
+        Un produit n'apparaît sur l'application que s'il est actif, marqué visible et qu'un contenu mobile a été enregistré. Glissez les lignes pour
+        choisir l'ordre d'affichage : le premier produit est affiché en premier.
+      </p>
     </div>
-    <div class="dl-actions">
+    <div class="cm-hero-actions">
       @if (savingOrder()) {
-        <span class="small text-body-secondary"><c-spinner size="sm" /> Enregistrement de l'ordre…</span>
+        <span class="cm-saving"><c-spinner size="sm" /> Enregistrement de l'ordre…</span>
       }
-      <button (click)="load()" [disabled]="loading()" cButton class="dl-btn" type="button">
+      <button (click)="load()" [disabled]="loading()" class="cm-btn cm-btn--glass" type="button">
         @if (loading()) {
           <c-spinner size="sm" />
+        } @else {
+          ↻
         }
         Actualiser
       </button>
     </div>
+  </header>
+
+  <div class="cm-kpis">
+    <div class="cm-kpi"><small>Produits</small><b>{{ counts().total }}</b></div>
+    <div class="cm-kpi"><small><i class="cm-k1"></i>Visibles</small><b>{{ counts().visible }}</b></div>
+    <div class="cm-kpi"><small><i class="cm-k2"></i>Masqués</small><b>{{ counts().hidden }}</b></div>
+    <div class="cm-kpi"><small><i class="cm-k3"></i>Sans contenu</small><b>{{ counts().noContent }}</b></div>
   </div>
 
-  <div class="px-4 pt-3">
-    <div class="alert alert-info small mb-3">
-      Un produit n'apparaît sur l'application que s'il est <strong>actif</strong>, <strong>marqué visible</strong> et qu'un
-      <strong>contenu mobile</strong> a été enregistré. Tant qu'aucun produit n'est rendu visible, le catalogue de l'application est vide.
-      Glissez les lignes pour choisir l'ordre d'affichage : le premier produit est affiché en premier.
-    </div>
-    @if (listMessage(); as message) {
-      <app-alert-message class="d-block mb-3" [message]="message" />
-    }
-  </div>
-
-  @if (error()) {
-    <p class="dl-empty">{{ error() }} <button (click)="load()" cButton color="link" class="p-0" type="button">Réessayer</button></p>
-  } @else if (loading()) {
-    <p class="dl-empty">Chargement du catalogue…</p>
-  } @else if (products().length === 0) {
-    <p class="dl-empty">Aucun produit dans le back-office.</p>
-  } @else {
-    <div class="dl-table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col" style="width: 2.5rem"></th>
-            <th scope="col">Produit</th>
-            <th scope="col">Famille</th>
-            <th scope="col">Icône</th>
-            <th scope="col">Statut</th>
-            <th scope="col">Visible sur le mobile</th>
-            <th scope="col"></th>
-          </tr>
-        </thead>
-        <tbody (cdkDropListDropped)="drop($event)" cdkDropList [cdkDropListData]="products()">
-          @for (p of products(); track p.productId) {
-            <tr cdkDrag [cdkDragData]="p">
-              <td>
-                <span cdkDragHandle class="cm-grip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
-              </td>
-              <td>
-                <div class="dl-insured-name">{{ p.title }}</div>
-                @if (p.shortName && p.shortName !== p.title) {
-                  <div class="dl-insured-meta">Nom court : {{ p.shortName }}</div>
-                }
-              </td>
-              <td>{{ familyLabel(p.family) }}</td>
-              <td>@if (p.icon) { <span class="dl-tag">{{ p.icon }}</span> } @else { — }</td>
-              <td>
-                <span [class]="'dl-chip dl-chip--' + statusChip(p).variant"><span class="dl-chip-dot"></span>{{ statusChip(p).label }}</span>
-              </td>
-              <td>
-                <div class="form-check form-switch mb-0">
-                  <input
-                    (change)="toggleVisible(p)"
-                    [attr.aria-label]="'Visible sur le mobile : ' + p.title"
-                    [checked]="p.visibleMobile && p.configured"
-                    [disabled]="!p.configured || !p.productActive || busyProductId() === p.productId"
-                    [title]="p.configured ? '' : 'Renseignez d\'abord le contenu du produit'"
-                    class="form-check-input"
-                    role="switch"
-                    type="checkbox"
-                  />
-                </div>
-              </td>
-              <td>
-                <div class="dl-row-actions">
-                  <button (click)="openEdit(p)" [class.dl-btn-primary]="!p.configured" cButton class="dl-btn" size="sm" type="button">
-                    {{ p.configured ? 'Modifier le contenu' : 'Renseigner le contenu' }}
-                  </button>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+  @if (listMessage(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
   }
 
-  <div class="dl-footnote">
-    <span><strong>{{ visibleCount }}</strong> produit{{ visibleCount > 1 ? 's' : '' }} visible{{ visibleCount > 1 ? 's' : '' }} sur {{ products().length }}</span>
-    <span>Les garanties saisies apparaissent aussi dans le détail de chaque contrat du client.</span>
-  </div>
-</section>
+  @if (error()) {
+    <p class="cm-empty">{{ error() }} <button (click)="load()" class="cm-link" type="button">Réessayer</button></p>
+  } @else if (loading()) {
+    <p class="cm-empty">Chargement du catalogue…</p>
+  } @else if (products().length === 0) {
+    <p class="cm-empty">Aucun produit dans le back-office.</p>
+  } @else {
+    <div (cdkDropListDropped)="drop($event)" [cdkDropListData]="products()" cdkDropList class="cm-plist">
+      @for (p of products(); track p.productId) {
+        <div [cdkDragData]="p" cdkDrag class="cm-prow">
+          <span cdkDragHandle class="cm-grip" title="Glisser pour réordonner" aria-label="Glisser pour réordonner">⠿</span>
+          <span [class.cm-ico--mut]="!p.configured || !p.visibleMobile" class="cm-ico">{{ glyph(p.icon) }}</span>
+          <div class="cm-pn">
+            <b>{{ p.title }}</b>
+            <small>{{ p.shortName && p.shortName !== p.title ? 'Nom court : ' + p.shortName : (p.productActive ? 'Produit actif' : 'Produit inactif') }}</small>
+          </div>
+          <div class="cm-fam">{{ familyLabel(p.family) }}</div>
+          <div class="cm-comp">
+            <span [class]="'cm-pill ' + pillClass(p)">{{ statusChip(p).label }}</span>
+            <div class="cm-bar"><i [style.width.%]="completeness(p)"></i></div>
+            <small>{{ completenessLabel(p) }}</small>
+          </div>
+          <label [class.cm-sw--on]="p.visibleMobile && p.configured" [title]="p.configured ? '' : 'Renseignez d\'abord le contenu du produit'" class="cm-sw">
+            <input
+              (change)="toggleVisible(p)"
+              [attr.aria-label]="'Visible sur le mobile : ' + p.title"
+              [checked]="p.visibleMobile && p.configured"
+              [disabled]="!p.configured || !p.productActive || busyProductId() === p.productId"
+              role="switch"
+              type="checkbox"
+            /><i></i>{{ p.visibleMobile && p.configured ? 'Visible' : 'Masqué' }}
+          </label>
+          <div class="cm-ract">
+            <button (click)="openEdit(p)" [class.cm-btn--pri]="p.configured" [class.cm-btn--ghost]="!p.configured" class="cm-btn cm-btn--sm" type="button">
+              {{ p.configured ? 'Modifier le contenu' : 'Renseigner le contenu' }}
+            </button>
+          </div>
+        </div>
+      }
+      <div class="cm-foot">
+        <span><strong>{{ counts().visible }}</strong> produit{{ counts().visible > 1 ? 's' : '' }} visible{{ counts().visible > 1 ? 's' : '' }} sur {{ counts().total }}</span>
+        <span>Les garanties saisies apparaissent aussi dans le détail de chaque contrat du client.</span>
+      </div>
+    </div>
+  }
+</div>
 
 <!-- ===== Fiche d'édition ===== -->
-<app-modal [visible]="editVisible()" size="xl" title="Contenu mobile · {{ editProduct()?.title }}" (closed)="closeEdit()">
+<app-modal
+  [flat]="true"
+  [glyph]="glyph(draft?.icon || editProduct()?.icon)"
+  [subtitle]="draft?.visibleMobile ? 'Contenu mobile · visible sur l\'application' : 'Contenu mobile · masqué sur l\'application'"
+  [title]="editProduct()?.title ?? ''"
+  [visible]="editVisible()"
+  (closed)="closeEdit()"
+  size="xxl"
+  variant="brand"
+>
+  @if (draft; as d) {
+    <div modalHeaderActions class="cm-head-sw">
+      <label [class.cm-sw--on]="d.visibleMobile" class="cm-sw cm-sw--light">
+        <input [(ngModel)]="d.visibleMobile" id="cm-visible" role="switch" type="checkbox" /><i></i>Visible sur le mobile
+      </label>
+    </div>
+  }
   @if (draft; as d) {
     <div class="cm-tabs" role="tablist">
       <button (click)="editTab.set('general')" [class.cm-tab--on]="editTab() === 'general'" class="cm-tab" role="tab" type="button">Général</button>
@@ -121,6 +119,7 @@
       <button (click)="editTab.set('practical')" [class.cm-tab--on]="editTab() === 'practical'" class="cm-tab" role="tab" type="button">Infos pratiques</button>
     </div>
 
+    <div class="cm-pane">
     @if (formError(); as message) {
       <app-alert-message class="d-block mb-3" [message]="message" />
     }
@@ -142,42 +141,99 @@
 
     @switch (editTab()) {
       @case ('general') {
-        <div class="form-check form-switch mb-3">
-          <input [(ngModel)]="d.visibleMobile" class="form-check-input" id="cm-visible" role="switch" type="checkbox" />
-          <label class="form-check-label fw-semibold" for="cm-visible">Visible sur le mobile</label>
+        <div class="cm-split">
+          <div>
+            <section class="cm-card">
+              <h3><span class="cm-n">1</span>Identité</h3>
+              <div class="cm-grid">
+                <div class="cm-c6">
+                  <label for="cm-short">Nom court</label>
+                  <input [(ngModel)]="d.shortName" id="cm-short" maxlength="100" type="text" />
+                </div>
+                <div class="cm-c3">
+                  <label for="cm-family">Famille</label>
+                  <select [(ngModel)]="d.family" id="cm-family">
+                    <option value="">—</option>
+                    @for (f of familyOptions; track f.value) {
+                      <option [value]="f.value">{{ f.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="cm-c3">
+                  <label for="cm-icon">Icône (code)</label>
+                  <input (input)="onIconInput($any($event.target).value)" [ngModel]="d.icon" id="cm-icon" maxlength="40" placeholder="car, moto, health, home…" type="text" />
+                  <div class="cm-hint">car, moto, health, home…</div>
+                </div>
+              </div>
+            </section>
+
+            <section class="cm-card">
+              <h3><span class="cm-n">2</span>Description</h3>
+              <label for="cm-desc">Description <span>({{ d.description.length }}/2000)</span></label>
+              <textarea [(ngModel)]="d.description" id="cm-desc" maxlength="2000" rows="4"></textarea>
+            </section>
+
+            <section class="cm-card">
+              <h3><span class="cm-n">3</span>Avantages <em>({{ d.benefits.length }}/{{ limits.benefits }})</em></h3>
+              <div class="cm-chips">
+                @for (b of d.benefits; track $index) {
+                  <span class="cm-chip">{{ b }} <button (click)="removeAt(d.benefits, $index)" [attr.aria-label]="'Supprimer : ' + b" type="button">×</button></span>
+                } @empty {
+                  <span class="cm-hint">Aucun avantage.</span>
+                }
+              </div>
+              <div class="cm-addrow">
+                <input
+                  [(ngModel)]="newBenefit"
+                  (keyup.enter)="addBenefit()"
+                  [disabled]="d.benefits.length >= limits.benefits"
+                  aria-label="Nouvel avantage"
+                  maxlength="200"
+                  placeholder="Ex. Assistance 24h/24"
+                  type="text"
+                />
+                <button (click)="addBenefit()" [disabled]="!newBenefit.trim() || d.benefits.length >= limits.benefits" class="cm-btn cm-btn--ghost" type="button">+ Ajouter</button>
+              </div>
+            </section>
+
+            <section class="cm-card">
+              <h3><span class="cm-n">4</span>Fonctionnement et éligibilité</h3>
+              <div class="cm-grid">
+                <div class="cm-c12">
+                  <label for="cm-how">Comment ça marche <span>({{ d.howItWorks.length }}/4000)</span></label>
+                  <textarea [(ngModel)]="d.howItWorks" id="cm-how" maxlength="4000" rows="5"></textarea>
+                </div>
+                <div class="cm-c12">
+                  <label for="cm-elig">Éligibilité <span>({{ d.eligibility.length }}/2000)</span></label>
+                  <textarea [(ngModel)]="d.eligibility" id="cm-elig" maxlength="2000" rows="3"></textarea>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="cm-prev">
+            <div class="cm-prev-t"><span>Aperçu sur le téléphone</span><span>en direct</span></div>
+            <div class="cm-phone">
+              <div class="cm-notch"></div>
+              <div class="cm-pc">
+                <span class="cm-ico cm-ico--sm">{{ glyph(d.icon) }}</span>
+                <b>{{ d.shortName.trim() || editProduct()?.title }}</b>
+                @if (previewDescription()) {
+                  <p>{{ previewDescription() }}</p>
+                }
+                @if (previewBenefits().length > 0) {
+                  <ul>
+                    @for (b of previewBenefits(); track $index) {
+                      <li>{{ b }}</li>
+                    }
+                  </ul>
+                }
+                <div class="cm-cta">Obtenir un devis</div>
+              </div>
+            </div>
+            <div class="cm-hint cm-prev-note">Aperçu indicatif de la carte produit : la mise en page réelle est celle de l'application.</div>
+          </aside>
         </div>
-
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label fw-semibold" for="cm-short">Nom court</label>
-            <input [(ngModel)]="d.shortName" class="form-control" id="cm-short" maxlength="100" type="text" />
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold" for="cm-family">Famille</label>
-            <select [(ngModel)]="d.family" class="form-select" id="cm-family">
-              <option value="">—</option>
-              @for (f of familyOptions; track f.value) {
-                <option [value]="f.value">{{ f.label }}</option>
-              }
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold" for="cm-icon">Icône (code)</label>
-            <input (input)="onIconInput($any($event.target).value)" [ngModel]="d.icon" class="form-control" id="cm-icon" maxlength="40" placeholder="car, moto, health, home…" type="text" />
-          </div>
-        </div>
-
-        <label class="form-label fw-semibold mt-3" for="cm-desc">Description <span class="text-body-secondary fw-normal">({{ d.description.length }}/2000)</span></label>
-        <textarea [(ngModel)]="d.description" class="form-control" id="cm-desc" maxlength="2000" rows="4"></textarea>
-
-        <div class="fw-semibold mt-3 mb-2">Avantages</div>
-        <ng-container *ngTemplateOutlet="textList; context: { list: d.benefits, max: limits.benefits, label: 'Avantage', placeholder: 'Ex. Assistance 24h/24', maxlength: 200 }" />
-
-        <label class="form-label fw-semibold mt-3" for="cm-how">Comment ça marche <span class="text-body-secondary fw-normal">({{ d.howItWorks.length }}/4000)</span></label>
-        <textarea [(ngModel)]="d.howItWorks" class="form-control" id="cm-how" maxlength="4000" rows="5"></textarea>
-
-        <label class="form-label fw-semibold mt-3" for="cm-elig">Éligibilité <span class="text-body-secondary fw-normal">({{ d.eligibility.length }}/2000)</span></label>
-        <textarea [(ngModel)]="d.eligibility" class="form-control" id="cm-elig" maxlength="2000" rows="3"></textarea>
       }
 
       @case ('guarantees') {
@@ -310,24 +366,26 @@
       }
     }
 
+    </div>
+
     <!-- Assistance : composant monté dès l'ouverture (compteur de l'onglet), enregistrement indépendant -->
     @if (isAuto) {
-      <div [hidden]="editTab() !== 'assistance'">
+      <div [hidden]="editTab() !== 'assistance'" class="cm-pane">
         <app-assistance-plans (countChange)="assistanceCount.set($event)" [productId]="editProduct()!.productId" />
       </div>
     }
 
     @if (editTab() !== 'assistance') {
-    <div class="cm-footer">
-      <span class="small text-body-secondary me-auto">L'enregistrement remplace tout le contenu mobile de ce produit.</span>
-      <button (click)="closeEdit()" cButton class="dl-btn" type="button">Annuler</button>
-      <button (click)="save()" [disabled]="saving()" cButton class="dl-btn dl-btn-primary" type="button">
-        @if (saving()) {
-          <c-spinner size="sm" />
-        }
-        Enregistrer
-      </button>
-    </div>
+      <div class="cm-footer">
+        <span class="cm-hint me-auto">L'enregistrement remplace tout le contenu mobile de ce produit.</span>
+        <button (click)="closeEdit()" class="cm-btn cm-btn--ghost" type="button">Annuler</button>
+        <button (click)="save()" [disabled]="saving()" class="cm-btn cm-btn--pri" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Enregistrer
+        </button>
+      </div>
     }
   }
 </app-modal>

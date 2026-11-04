@@ -20,6 +20,10 @@ export class ModalComponent {
   readonly subtitle = input('');
   /** Nom d'icône CoreUI (ex. `cilUser`), affiché dans la pastille de l'en-tête 'brand'. */
   readonly icon = input('');
+  /** 'brand' : en-tête en aplat (couleur unique, sans dégradé) au lieu du dégradé. */
+  readonly flat = input(false);
+  /** 'brand' : texte court (ex. un emoji) affiché dans la pastille à la place de l'icône CoreUI. */
+  readonly glyph = input('');
 
   readonly closed = output<void>();
 

@@ -12,10 +12,12 @@
       role="dialog"
     >
       @if (variant() === 'brand') {
-        <div class="modal-brand-header">
+        <div [class.modal-brand-header--flat]="flat()" class="modal-brand-header">
           <div class="modal-brand-header-row">
             <div class="modal-brand-header-main">
-              @if (icon()) {
+              @if (glyph()) {
+                <span class="modal-brand-icon modal-brand-icon--glyph">{{ glyph() }}</span>
+              } @else if (icon()) {
                 <span class="modal-brand-icon"><svg cIcon [name]="icon()" size="xl"></svg></span>
               }
               <div>

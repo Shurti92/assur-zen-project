@@ -211,3 +211,13 @@
     background: var(--cui-tertiary-bg);
   }
 }
+
+// En-tête 'brand' en aplat : couleur unique AssurZen, sans dégradé (écrans refondus).
+.modal-brand-header--flat {
+  background: var(--cui-primary, #1b3b8f);
+}
+
+.modal-brand-icon--glyph {
+  font-size: 1.5rem;
+  line-height: 1;
+}
