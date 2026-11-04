@@ -7,7 +7,9 @@ import { debounceTime } from 'rxjs';
 import { SpinnerComponent } from '@coreui/angular';
 
 import { QuoteSimulation, VtcEnergy, VtcQuoteForm, VtcVehicleRequest } from '../../core/quotes/models/quote.model';
+import { CI_OPERATOR_LABEL, ciMobileOperator } from '../../core/quotes/ci-phone';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
+import { QUOTE_ADDRESS_ENABLED, QUOTE_SMS_ENABLED } from '../../core/quotes/quote-sms.config';
 import { QuoteService } from '../../core/quotes/quote.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 
@@ -15,6 +17,7 @@ const FIELD_TO_CONTROL: Record<string, string> = {
   prospectName: 'prospectName',
   prospectPhone: 'prospectPhone',
   prospectEmail: 'prospectEmail',
+  prospectAddress: 'prospectAddress',
   fiscalPower: 'fiscalPower',
   energy: 'energy',
   brand: 'brand',
@@ -73,6 +76,7 @@ export class DevisNouveauVtcComponent {
     prospectName: ['', [Validators.required, Validators.maxLength(150)]],
     prospectPhone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
     prospectEmail: ['', [Validators.email, Validators.maxLength(150)]],
+    prospectAddress: ['', [Validators.maxLength(250)]],
     brand: ['', Validators.required],
     model: ['', Validators.required],
     fiscalPower: [null as number | null, [Validators.required, Validators.min(1)]],
@@ -141,6 +145,16 @@ export class DevisNouveauVtcComponent {
   /** Envoi par e-mail : inactif tant que la gateway n'a pas confirmé l'API (QUOTE_EMAIL_ENABLED). */
   readonly emailEnabled = QUOTE_EMAIL_ENABLED;
   readonly sendEmail = signal(false);
+  /** Adresse et SMS : inactifs tant que la gateway n'a pas confirmé l'API (quote-sms.config.ts). */
+  readonly addressEnabled = QUOTE_ADDRESS_ENABLED;
+  readonly smsEnabled = QUOTE_SMS_ENABLED;
+  /** Interrupteur SMS (activé par défaut) : il ne compte que si le numéro est un mobile ivoirien valide. */
+  readonly smsToggle = signal(true);
+  readonly phoneDigits = computed(() => (this.value(), this.form.controls.prospectPhone.value.replace(/D/g, '').length));
+  readonly operator = computed(() => (this.value(), ciMobileOperator(this.form.controls.prospectPhone.value)));
+  readonly smsCapable = computed(() => this.operator() !== null);
+  readonly smsOn = computed(() => this.smsCapable() && this.smsToggle());
+  readonly operatorLabel = computed(() => (this.operator() ? CI_OPERATOR_LABEL[this.operator()!] : ''));
   readonly emailFilled = computed(
     () => (this.value(), !!this.form.controls.prospectEmail.value.trim() && this.form.controls.prospectEmail.valid),
   );
@@ -163,10 +177,14 @@ export class DevisNouveauVtcComponent {
     if (!s) return [];
     const p = s.premium;
     const discount = Math.round((p.netPremium * this.discount()) / 100);
+    // Taxes VTC = taux % de la prime nette : avec une remise, elles sont recalculées sur la prime nette remisée.
+    // Le taux se déduit de la simulation sans remise (14,5 % pour le VTC, 0 si taxes nulles) ; le serveur fait foi.
+    const taxRate = p.netPremium > 0 ? Math.round((p.taxes * 1000) / p.netPremium) / 10 : 0;
+    const taxes = discount > 0 && taxRate > 0 ? Math.round(((p.netPremium - discount) * taxRate) / 100) : p.taxes;
     const rows: { label: string; amount: number; discount?: boolean }[] = [{ label: 'Prime nette', amount: p.netPremium }];
     if (discount > 0) rows.push({ label: `Remise ${this.discount()} %`, amount: -discount, discount: true });
     rows.push(
-      { label: 'Taxes', amount: p.taxes },
+      { label: 'Taxes', amount: taxes },
       { label: 'Accessoires', amount: p.accessories },
       { label: 'CEDEAO', amount: p.cedeao ?? 0 },
       { label: 'Attestation', amount: p.attestation ?? 0 },
@@ -262,11 +280,19 @@ export class DevisNouveauVtcComponent {
       });
   }
 
+  toggleSms(): void {
+    if (this.smsCapable()) this.smsToggle.set(!this.smsToggle());
+  }
+
   /** E-mail du prospect (et envoi à l'enregistrement) : seulement si la fonction est active et l'adresse saisie. */
-  private emailPart(): { prospectEmail?: string; sendEmail?: boolean } {
+  private emailPart(): { prospectEmail?: string; sendEmail?: boolean; prospectAddress?: string; sendSms?: boolean } {
     const email = this.form.controls.prospectEmail.value.trim();
-    if (!this.emailEnabled || !email) return {};
-    return { prospectEmail: email, ...(this.sendEmail() ? { sendEmail: true } : {}) };
+    const address = this.form.controls.prospectAddress.value.trim();
+    return {
+      ...(this.emailEnabled && email ? { prospectEmail: email, ...(this.sendEmail() ? { sendEmail: true } : {}) } : {}),
+      ...(this.addressEnabled && address ? { prospectAddress: address } : {}),
+      ...(this.smsEnabled && this.smsOn() ? { sendSms: true } : {}),
+    };
   }
 
   formatAmount(value: number): string {

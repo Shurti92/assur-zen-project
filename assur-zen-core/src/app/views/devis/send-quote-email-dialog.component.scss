@@ -195,3 +195,13 @@ textarea {
   color: inherit;
   border: 1px solid var(--sq-bd);
 }
+
+// Aperçu du SMS (fenêtre « Envoyer par SMS »).
+.sq-sms {
+  background: #e9edf8;
+  color: #1e2a4c;
+  border-radius: 16px 16px 16px 4px;
+  padding: 0.75rem 0.9rem;
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+}

@@ -4,17 +4,20 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
 import { QuoteEmailHistoryItem } from '../../core/quotes/models/quote.model';
+import { ciMobileOperator, CI_OPERATOR_LABEL, formatCiPhone } from '../../core/quotes/ci-phone';
+import { QUOTE_ADDRESS_ENABLED, QUOTE_SMS_ENABLED } from '../../core/quotes/quote-sms.config';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteView } from '../../core/quotes/models/quote.model';
 import { QuoteService } from '../../core/quotes/quote.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
+import { SendQuoteSmsDialogComponent } from './send-quote-sms-dialog.component';
 import { SendQuoteEmailDialogComponent } from './send-quote-email-dialog.component';
 import { QUOTE_STATUS_LABEL, QUOTE_STATUS_VARIANT } from './devis-liste.component';
 
 @Component({
   selector: 'app-devis-detail',
   templateUrl: './devis-detail.component.html',
-  imports: [AlertMessageComponent, ButtonDirective, RouterLink, SendQuoteEmailDialogComponent, SpinnerComponent],
+  imports: [AlertMessageComponent, ButtonDirective, RouterLink, SendQuoteEmailDialogComponent, SendQuoteSmsDialogComponent, SpinnerComponent],
 })
 export class DevisDetailComponent {
   private readonly service = inject(QuoteService);
@@ -29,6 +32,11 @@ export class DevisDetailComponent {
 
   readonly emailEnabled = QUOTE_EMAIL_ENABLED;
   readonly emailDialogOpen = signal(false);
+
+  /** Adresse et SMS : inactifs tant que la gateway n'a pas confirmé l'API (quote-sms.config.ts). */
+  readonly addressEnabled = QUOTE_ADDRESS_ENABLED;
+  readonly smsEnabled = QUOTE_SMS_ENABLED;
+  readonly smsDialogOpen = signal(false);
 
   /** Historique complet des envois, chargé à l'ouverture du volet. */
   readonly historyOpen = signal(false);
@@ -104,6 +112,25 @@ export class DevisDetailComponent {
         this.historyLoading.set(false);
       },
     });
+  }
+
+  onSmsSent(updated: QuoteView): void {
+    this.quote.set(updated);
+    this.smsDialogOpen.set(false);
+    this.success.set(`SMS envoyé au ${formatCiPhone(updated.lastSmsTo ?? updated.prospectPhone)}.`);
+  }
+
+  smsCapable(q: QuoteView): boolean {
+    return q.prospectPhoneSmsCapable ?? ciMobileOperator(q.prospectPhone) !== null;
+  }
+
+  operatorLabel(q: QuoteView): string {
+    const op = q.prospectPhoneOperator ?? ciMobileOperator(q.prospectPhone);
+    return op ? CI_OPERATOR_LABEL[op] : '';
+  }
+
+  formatPhone(value?: string | null): string {
+    return formatCiPhone(value);
   }
 
   onEmailSent(updated: QuoteView): void {

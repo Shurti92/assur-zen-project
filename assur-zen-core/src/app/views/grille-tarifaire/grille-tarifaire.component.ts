@@ -27,6 +27,8 @@ interface TariffRow {
   minFiscalPower: number | null;
   minSeats: number | null;
   maxSeats: number | null;
+  /** Taux de taxe (% de la prime nette) : conservé et renvoyé tel quel, sinon la ligne le perdrait au PUT. */
+  taxRate: number | null;
   active: boolean;
   updatedAt: string | null;
   updatedBy: string | null;
@@ -241,7 +243,13 @@ export class GrilleTarifaireComponent {
   }
 
   setAmount(row: TariffRow, key: AmountKey | CriteriaKey, value: string): void {
-    this.update(row, { [key]: this.numberOf(value) });
+    const amount = this.numberOf(value);
+    // Ligne à taux de taxe (VTC) : les taxes suivent la prime nette, comme le calcule la gateway.
+    if (key === 'netPremium' && row.taxRate != null && amount !== null) {
+      this.update(row, { netPremium: amount, taxes: Math.round((amount * row.taxRate) / 100) });
+      return;
+    }
+    this.update(row, { [key]: amount });
   }
 
   /** Saisie numérique : champ vide → null, sinon entier positif. */
@@ -273,6 +281,7 @@ export class GrilleTarifaireComponent {
         minFiscalPower: vtc ? (last?.minFiscalPower ?? 3) : null,
         minSeats: vtc ? (last?.minSeats ?? 4) : null,
         maxSeats: vtc ? (last?.maxSeats ?? 8) : null,
+        taxRate: last?.taxRate ?? null,
         active: true,
         updatedAt: null,
         updatedBy: null,
@@ -327,6 +336,7 @@ export class GrilleTarifaireComponent {
         cedeao: r.cedeao ?? 0,
         attestation: r.attestation ?? 0,
         ...(vtc ? { minFiscalPower: r.minFiscalPower, minSeats: r.minSeats, maxSeats: r.maxSeats } : {}),
+        ...(r.taxRate != null ? { taxRate: r.taxRate } : {}),
         total: this.total(r),
         active: r.active,
       };
@@ -392,6 +402,7 @@ export class GrilleTarifaireComponent {
         minFiscalPower: t.minFiscalPower ?? null,
         minSeats: t.minSeats ?? null,
         maxSeats: t.maxSeats ?? null,
+        taxRate: t.taxRate ?? null,
         active: t.active,
         updatedAt: t.updatedAt ?? null,
         updatedBy: t.updatedBy ?? null,

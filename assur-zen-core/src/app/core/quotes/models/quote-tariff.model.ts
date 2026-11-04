@@ -18,6 +18,8 @@ export interface QuoteTariff {
   minFiscalPower?: number | null;
   minSeats?: number | null;
   maxSeats?: number | null;
+  /** Taux de taxe en % de la prime nette (14,5 pour le VTC) ; absent = taxes fixes (moto). À renvoyer tel quel au PUT. */
+  taxRate?: number | null;
   /** = netPremium + taxes + accessories + fga + cedeao + attestation. */
   total: number;
   active: boolean;

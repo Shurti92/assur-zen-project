@@ -25,4 +25,11 @@ export default {
     changeOrigin: true,
     configure: stripOriginHeaders,
   },
+  // Page publique de consultation du devis (lien envoyé par SMS) : servie par le gateway à la racine.
+  '^/d/': {
+    target,
+    secure: false,
+    changeOrigin: true,
+    configure: stripOriginHeaders,
+  },
 };

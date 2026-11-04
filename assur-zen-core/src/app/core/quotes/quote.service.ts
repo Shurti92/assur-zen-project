@@ -8,6 +8,8 @@ import {
   QuoteList,
   QuoteEmailHistoryItem,
   QuoteSendEmailRequest,
+  QuoteSendSmsRequest,
+  QuoteSmsHistoryItem,
   QuoteSimulation,
   QuoteStatus,
   QuoteVehicleRequest,
@@ -51,6 +53,18 @@ export class QuoteService {
   /** Envoie le devis par e-mail au prospect (inactif tant que QUOTE_EMAIL_ENABLED est false). */
   sendEmail(reference: string, request: QuoteSendEmailRequest): Observable<QuoteView> {
     return this.http.post<QuoteView>(`${this.base}/${encodeURIComponent(reference)}/send-email`, request);
+  }
+
+  /** Envoie le lien du devis par SMS (inactif tant que QUOTE_SMS_ENABLED est false). */
+  sendSms(reference: string, request: QuoteSendSmsRequest = {}): Observable<QuoteView> {
+    return this.http.post<QuoteView>(`${this.base}/${encodeURIComponent(reference)}/send-sms`, request);
+  }
+
+  /** Historique des SMS envoyés pour un devis, du plus récent au plus ancien. */
+  smsHistory(reference: string): Observable<QuoteSmsHistoryItem[]> {
+    return this.http
+      .get<{ items: QuoteSmsHistoryItem[] }>(`${this.base}/${encodeURIComponent(reference)}/sms`)
+      .pipe(map((r) => [...r.items].sort((a, b) => b.sentAt.localeCompare(a.sentAt))));
   }
 
   /** Historique complet des envois d'un devis, trié du plus récent au plus ancien. */

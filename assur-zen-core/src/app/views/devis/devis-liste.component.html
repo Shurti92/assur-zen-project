@@ -59,6 +59,9 @@
             @if (emailEnabled) {
               <th scope="col">E-mail</th>
             }
+            @if (smsEnabled) {
+              <th scope="col">SMS</th>
+            }
             <th scope="col"></th>
           </tr>
         </thead>
@@ -78,6 +81,15 @@
                 <td>
                   @if (d.lastEmailSentAt) {
                     <span class="dl-chip dl-chip--warning">✉ Envoyé {{ formatDayMonth(d.lastEmailSentAt) }}</span>
+                  } @else {
+                    —
+                  }
+                </td>
+              }
+              @if (smsEnabled) {
+                <td>
+                  @if (d.lastSmsSentAt) {
+                    <span class="dl-chip dl-chip--success">💬 Envoyé {{ formatDayMonth(d.lastSmsSentAt) }}</span>
                   } @else {
                     —
                   }

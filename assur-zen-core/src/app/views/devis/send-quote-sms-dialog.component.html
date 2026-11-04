@@ -1,0 +1,37 @@
+<div (click)="closed.emit()" (keydown.escape)="closed.emit()" class="sq-ov" role="presentation">
+  <div (click)="$event.stopPropagation()" aria-labelledby="ss-title" aria-modal="true" class="sq-modal" role="dialog">
+    <h2 id="ss-title">Envoyer le lien du devis par SMS</h2>
+    <div class="sq-hint">{{ quote().reference }} · {{ quote().prospectName || '—' }}</div>
+
+    <div class="sq-f">
+      <label for="ss-phone">Numéro de mobile du prospect</label>
+      <div class="sq-in">
+        <i>📞</i>
+        <input [value]="phone()" id="ss-phone" readonly />
+      </div>
+      <div class="sq-hint" style="margin-top: 0.3rem">Numéro du prospect : modifiable dans le devis.</div>
+    </div>
+
+    <div class="sq-sms">
+      AssurZen Assurance : votre devis {{ quote().reference }} de {{ formatAmount(quote().premium.total) }} F est disponible :
+      <b>https://…/d/…</b> Valable jusqu'au {{ linkExpiry() }}.
+    </div>
+    <div class="sq-mini" style="margin-top: 0.75rem">
+      <span>ⓘ Le lien ouvre une page de consultation, valable 14 jours.</span>
+    </div>
+
+    @if (error()) {
+      <div class="sq-fail" role="alert">{{ error() }}</div>
+    }
+
+    <div class="sq-ft">
+      <button (click)="closed.emit()" [disabled]="sending()" class="sq-btn sq-btn--secondary" type="button">Annuler</button>
+      <button (click)="send()" [disabled]="sending()" class="sq-btn" type="button">
+        @if (sending()) {
+          <c-spinner size="sm" />
+        }
+        💬 Envoyer le SMS
+      </button>
+    </div>
+  </div>
+</div>

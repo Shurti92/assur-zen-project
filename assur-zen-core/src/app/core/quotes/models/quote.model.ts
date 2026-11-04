@@ -49,7 +49,24 @@ export interface QuoteCreateRequest {
   prospectEmail?: string;
   /** Enregistre puis envoie le devis par e-mail (nécessite prospectEmail). */
   sendEmail?: boolean;
+  /** Adresse géographique, facultative. */
+  prospectAddress?: string;
+  /** Enregistre puis envoie le lien du devis par SMS (mobile ivoirien valide). */
+  sendSms?: boolean;
   vehicle: QuoteVehicleRequest;
+}
+
+/** Un envoi de GET /admin/quotes/{reference}/sms (plus récent d'abord). */
+export interface QuoteSmsHistoryItem {
+  sentAt: string;
+  to: string;
+  sentBy?: string | null;
+  linkExpiresAt?: string | null;
+}
+
+/** Corps de POST /admin/quotes/{reference}/send-sms (téléphone du devis par défaut). */
+export interface QuoteSendSmsRequest {
+  phone?: string;
 }
 
 /** Un envoi de GET /admin/quotes/{reference}/emails (plus récent d'abord). */
@@ -92,6 +109,8 @@ export interface VtcQuoteCreateRequest {
   prospectPhone: string;
   prospectEmail?: string;
   sendEmail?: boolean;
+  prospectAddress?: string;
+  sendSms?: boolean;
   vehicle: VtcVehicleRequest;
 }
 
@@ -162,6 +181,15 @@ export interface QuoteView {
   lastEmailSentAt?: string | null;
   lastEmailTo?: string | null;
   lastEmailSentBy?: string | null;
+  /** Adresse géographique et envoi du lien par SMS (contrat proposé, à confirmer par la gateway). */
+  prospectAddress?: string | null;
+  prospectPhoneSmsCapable?: boolean | null;
+  prospectPhoneOperator?: 'ORANGE' | 'MTN' | 'MOOV' | null;
+  smsSentCount?: number | null;
+  lastSmsSentAt?: string | null;
+  lastSmsTo?: string | null;
+  lastSmsSentBy?: string | null;
+  publicLinkExpiresAt?: string | null;
   /** VTC uniquement (null pour la moto). */
   fiscalPower?: number | null;
   energy?: VtcEnergy | null;

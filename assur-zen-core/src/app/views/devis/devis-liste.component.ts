@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
 import { QuoteStatus, QuoteView } from '../../core/quotes/models/quote.model';
+import { QUOTE_SMS_ENABLED } from '../../core/quotes/quote-sms.config';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteService } from '../../core/quotes/quote.service';
 
@@ -28,6 +29,7 @@ export class DevisListeComponent {
   private readonly service = inject(QuoteService);
 
   readonly emailEnabled = QUOTE_EMAIL_ENABLED;
+  readonly smsEnabled = QUOTE_SMS_ENABLED;
 
   readonly pageSize = 20;
   readonly statusLabel = QUOTE_STATUS_LABEL;

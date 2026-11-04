@@ -8,6 +8,9 @@
           @if (emailEnabled && q.lastEmailSentAt) {
             <span class="dl-chip dl-chip--warning">✉ Envoyé</span>
           }
+          @if (smsEnabled && q.lastSmsSentAt) {
+            <span class="dl-chip dl-chip--success">💬 SMS envoyé</span>
+          }
         }
       </h2>
       @if (quote(); as q) {
@@ -38,10 +41,19 @@
           <dt class="col-sm-4">Prospect</dt>
           <dd class="col-sm-8">{{ q.prospectName || '—' }}</dd>
           <dt class="col-sm-4">Téléphone</dt>
-          <dd class="col-sm-8">{{ q.prospectPhone || '—' }}</dd>
+          <dd class="col-sm-8">
+            {{ smsEnabled ? formatPhone(q.prospectPhone) : (q.prospectPhone || '—') }}
+            @if (smsEnabled && smsCapable(q)) {
+              <span class="dl-chip dl-chip--success ms-1">mobile {{ operatorLabel(q) }}</span>
+            }
+          </dd>
           @if (emailEnabled) {
             <dt class="col-sm-4">E-mail</dt>
             <dd class="col-sm-8">{{ q.prospectEmail || '—' }}</dd>
+          }
+          @if (addressEnabled) {
+            <dt class="col-sm-4">Adresse</dt>
+            <dd class="col-sm-8">{{ q.prospectAddress || '—' }}</dd>
           }
           <dt class="col-sm-4">Véhicule</dt>
           @if (q.productKey === 'automobile-vtc') {
@@ -64,6 +76,22 @@
             <dd class="col-sm-8">{{ formatDate(q.acceptedAt) }}</dd>
           }
         </dl>
+        @if (smsEnabled) {
+          <div class="border-top mt-3 pt-3 small text-body-secondary">
+            @if (q.lastSmsSentAt) {
+              <b class="text-body">SMS envoyé le {{ formatDateTime(q.lastSmsSentAt) }}</b>
+              au {{ formatPhone(q.lastSmsTo) }}{{ q.lastSmsSentBy ? ' par ' + q.lastSmsSentBy : '' }}
+              @if (q.publicLinkExpiresAt) {
+                · lien valable jusqu'au {{ formatDate(q.publicLinkExpiresAt) }}
+              }
+              @if (q.status !== 'EXPIRE' && smsCapable(q)) {
+                · <button (click)="smsDialogOpen.set(true)" class="btn btn-link btn-sm p-0 align-baseline" type="button">Renvoyer</button>
+              }
+            } @else {
+              <b class="text-body">Aucun SMS envoyé</b> pour ce devis.
+            }
+          </div>
+        }
         @if (emailEnabled) {
           <div class="border-top mt-3 pt-3 small text-body-secondary">
             @if (q.lastEmailSentAt) {
@@ -143,6 +171,12 @@
         @if (emailEnabled && q.status !== 'EXPIRE') {
           <button (click)="emailDialogOpen.set(true)" cButton class="mt-3 w-100" color="primary" type="button">✉ Envoyer par e-mail</button>
         }
+        @if (smsEnabled && q.status !== 'EXPIRE') {
+          <button (click)="smsDialogOpen.set(true)" [disabled]="!smsCapable(q)" [title]="smsCapable(q) ? '' : 'Numéro non valide pour un SMS'" cButton class="mt-2 w-100" color="primary" type="button">💬 Envoyer par SMS</button>
+          @if (!smsCapable(q)) {
+            <p class="small text-warning mt-1 mb-0">Numéro non valide pour un SMS : seul l'envoi par e-mail est proposé.</p>
+          }
+        }
         @if (q.canAccept) {
           <button (click)="accept()" [disabled]="accepting()" cButton class="mt-2 w-100" color="primary" variant="outline" type="button">
             @if (accepting()) {
@@ -158,6 +192,9 @@
         }
       </div>
     </div>
+    @if (smsDialogOpen()) {
+      <app-send-quote-sms-dialog (closed)="smsDialogOpen.set(false)" (sent)="onSmsSent($event)" [quote]="q" />
+    }
     @if (emailDialogOpen()) {
       <app-send-quote-email-dialog (closed)="emailDialogOpen.set(false)" (sent)="onEmailSent($event)" [quote]="q" />
     }

@@ -43,7 +43,7 @@
           @if (fieldError('prospectPhone'); as e) { <div class="df-error">{{ e }}</div> }
         </div>
         @if (emailEnabled) {
-          <div class="df-field df-span2">
+          <div class="df-field">
             <label for="dv-email">E-mail <span class="df-light">(facultatif, pour envoyer le devis)</span></label>
             <div [class.df-in--valid]="emailFilled()" class="df-in">
               <i class="df-ico">✉️</i>
@@ -53,7 +53,19 @@
             @if (form.controls.prospectEmail.invalid) { <div class="df-error">Adresse e-mail invalide.</div> }
             @if (fieldError('prospectEmail'); as e) { <div class="df-error">{{ e }}</div> }
           </div>
-          <div class="df-field df-span2">
+        }
+        @if (addressEnabled) {
+          <div class="df-field">
+            <label for="dv-address">Adresse géographique <span class="df-light">(facultative)</span></label>
+            <div class="df-in">
+              <i class="df-ico">📍</i>
+              <input formControlName="prospectAddress" id="dv-address" maxlength="250" placeholder="Ex. Cocody, Riviera Palmeraie, près de la pharmacie…" [class.df-invalid]="hasError('prospectAddress')" />
+            </div>
+            @if (fieldError('prospectAddress'); as e) { <div class="df-error">{{ e }}</div> }
+          </div>
+        }
+        @if (emailEnabled) {
+          <div class="df-field">
             <button (click)="sendEmail.set(!sendEmail())" [attr.aria-pressed]="sendEmail()" [class.df-on]="sendEmail() && emailFilled()" [disabled]="!emailFilled()" class="df-switch" type="button">
               <span>
                 <b>Envoyer le devis par e-mail dès l'enregistrement</b><br />
@@ -61,6 +73,26 @@
               </span>
               <span class="df-tg"></span>
             </button>
+          </div>
+        }
+        @if (smsEnabled) {
+          <div class="df-field">
+            <button (click)="toggleSms()" [attr.aria-pressed]="smsOn()" [class.df-on]="smsOn()" [disabled]="!smsCapable()" class="df-switch" type="button">
+              <span>
+                <b>Envoyer le lien du devis par SMS dès l'enregistrement</b><br />
+                <span class="df-hint">Disponible si le numéro est un mobile ivoirien valide</span>
+              </span>
+              <span class="df-tg"></span>
+            </button>
+          </div>
+          <div [class.df-ident--ok]="smsCapable()" [class.df-ident--ko]="!smsCapable() && phoneDigits() === 10" class="df-ident df-span2" style="margin-top:0">
+            @if (smsCapable()) {
+              ✓ Numéro mobile valide ({{ operatorLabel() }}) : le SMS partira automatiquement à l'enregistrement.
+            } @else if (phoneDigits() === 10) {
+              ⚠ Numéro non valide pour un SMS (mobile ivoirien : 10 chiffres commençant par 01, 05 ou 07). Seul l'envoi par e-mail est proposé.
+            } @else {
+              ⓘ Saisissez un numéro de mobile ivoirien pour activer l'envoi par SMS.
+            }
           </div>
         }
       </div>
