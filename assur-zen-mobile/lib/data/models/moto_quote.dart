@@ -224,6 +224,7 @@ class MotoQuote {
     this.vtcDeclared,
     this.platform,
     this.discountPercent,
+    this.channel,
   });
 
   final String reference; // DEV-AAAA-NNNNNN
@@ -249,6 +250,12 @@ class MotoQuote {
   final String? platform;
   final num? discountPercent;
 
+  /// Origine du devis : `MOBILE` (fait dans l'application) ou `BACKOFFICE` (établi par un conseiller,
+  /// puis rattaché au compte dont le numéro est identique, vérifié par SMS).
+  final String? channel;
+
+  bool get isFromAdvisor => channel == 'BACKOFFICE';
+
   bool get isVtc => productKey == 'automobile-vtc' || fiscalPower != null;
 
   /// Le même devis une fois accepté (réponse du serveur, ou démonstration).
@@ -273,6 +280,7 @@ class MotoQuote {
         vtcDeclared: vtcDeclared,
         platform: platform,
         discountPercent: discountPercent,
+        channel: channel,
       );
 
   factory MotoQuote.fromJson(Map<String, dynamic> j) => MotoQuote(
@@ -296,6 +304,7 @@ class MotoQuote {
         vtcDeclared: j['vtcDeclared'] as bool?,
         platform: _text(j['platform']),
         discountPercent: j['discountPercent'] as num?,
+        channel: _text(j['channel']),
       );
 }
 

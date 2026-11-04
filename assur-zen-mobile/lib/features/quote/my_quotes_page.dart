@@ -85,6 +85,16 @@ class _QuoteTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text([if (vehicle.isNotEmpty) vehicle, if (id != null) id].join(' · '), style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
           ],
+          if (quote.isFromAdvisor) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.support_agent_outlined, size: 16, color: AzColors.blue700),
+                const SizedBox(width: 6),
+                Expanded(child: Text('Établi par un conseiller', style: AzText.caption.copyWith(color: AzColors.blue700, fontWeight: FontWeight.w700))),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [
@@ -138,6 +148,7 @@ class _MotoQuoteDetailPageState extends State<MotoQuoteDetailPage> {
           children: [
             AzSummaryCard(rows: [
               if (_quote.simulation.formulaName.isNotEmpty) ('Formule', _quote.simulation.formulaName),
+              if (_quote.isFromAdvisor) ('Origine', 'Établi par un conseiller'),
               if (vehicle.isNotEmpty) ('Véhicule', vehicle),
               if (_quote.cylinderCc > 0) ('Cylindrée', '${_quote.cylinderCc} cm³'),
               if (_quote.fiscalPower != null) ('Puissance fiscale', '${_quote.fiscalPower} CV'),

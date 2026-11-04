@@ -111,7 +111,7 @@ coordonnée n'est inventé ici.
 - **Agrégateur de paiement**, son environnement de test, puis son contrat.
 - **Adresse web de suppression de compte** (exigée par Google Play).
 - **Compte développeur Google Play** (en cours d'achat) et ses informations d'entreprise.
-- **Décision sur les devis créés au back-office** : ils ne sont pas rattachés à un compte mobile et n'apparaissent donc pas dans « Mes devis ». Un rapprochement par numéro de téléphone est possible côté Gateway, mais pose une question de consentement et de numéros recyclés.
+- **Devis créés au back-office** : AssurZen a décidé de les rapprocher des comptes mobiles par numéro de téléphone. Le rapprochement est réalisé côté Gateway (en cours). **À inscrire dans le registre des traitements de l'ARTCI** : un devis établi par un conseiller pour un prospect devient visible dans l'application du client qui possède ce numéro. Garde-fou prévu : seuls les comptes dont le numéro a été vérifié par SMS sont concernés, à cause des numéros recyclés par les opérateurs.
 
 ## 6. Déroulement proposé
 1. Essai complet sur la recette (sans publication).
