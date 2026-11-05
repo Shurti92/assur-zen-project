@@ -464,11 +464,17 @@ class MotoQuoteResult extends StatelessWidget {
                   for (final d in g.details)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
+                      // Libellé et montant se partagent la largeur (2/5 et 3/5) et passent à la ligne : un montant long
+                      // (« 300 euros (196 787 F CFA), franchise de 100 euros ») n'écrase plus le libellé ni ne déborde.
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(child: Text(d.label, style: AzText.body.copyWith(color: AzColors.muted))),
+                          Flexible(flex: 2, child: Text(d.label, style: AzText.body.copyWith(color: AzColors.muted))),
                           // Montant déjà formaté par le serveur ; absent = rien d'affiché.
-                          if (d.amount != null) Text(d.amount!, style: AzText.bodyMedium),
+                          if (d.amount != null) ...[
+                            const SizedBox(width: 12),
+                            Expanded(flex: 3, child: Text(keepNumbersTogether(d.amount!), textAlign: TextAlign.right, style: AzText.bodyMedium)),
+                          ],
                         ],
                       ),
                     ),
@@ -477,6 +483,11 @@ class MotoQuoteResult extends StatelessWidget {
               ],
             ),
           ),
+          // Renvoi de l'astérisque des montants : texte du serveur, absent = rien.
+          if (simulation.guaranteesNote != null) ...[
+            const SizedBox(height: 8),
+            Text(simulation.guaranteesNote!, style: AzText.caption.copyWith(fontWeight: FontWeight.w500)),
+          ],
         ],
         const SizedBox(height: 16),
         if (q == null)

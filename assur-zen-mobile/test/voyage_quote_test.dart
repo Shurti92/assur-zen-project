@@ -6,12 +6,14 @@ import 'package:assurzen_mobile/core/network/api_client.dart';
 import 'package:assurzen_mobile/core/network/api_exception.dart';
 import 'package:assurzen_mobile/core/network/endpoints.dart';
 import 'package:assurzen_mobile/core/storage/local_store.dart';
+import 'package:assurzen_mobile/core/utils/formatters.dart';
 import 'package:assurzen_mobile/core/widgets/az_inputs.dart';
 import 'package:assurzen_mobile/data/api/api_moto_quote_repository.dart';
 import 'package:assurzen_mobile/data/mock/mock_data.dart';
 import 'package:assurzen_mobile/data/mock/mock_repositories.dart';
 import 'package:assurzen_mobile/data/models/moto_quote.dart';
 import 'package:assurzen_mobile/data/repositories/repositories.dart';
+import 'package:assurzen_mobile/features/quote/moto_quote_page.dart' show MotoQuoteResult;
 import 'package:assurzen_mobile/features/quote/voyage_quote_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -129,6 +131,27 @@ void main() {
     });
   });
 
+  group('Montants qui ne se coupent pas', () {
+    test('espace entre groupes de chiffres et avant « F CFA » : insécable', () {
+      expect(keepNumbersTogether('30 000 euros (soit 19 678 710 F CFA)'), '30\u00A0000 euros (soit 19\u00A0678\u00A0710\u00A0F\u00A0CFA)');
+      expect(keepNumbersTogether('Jusqu\'à 400 euros (260 000 F CFA)'), 'Jusqu\'à 400 euros (260\u00A0000\u00A0F\u00A0CFA)');
+      expect(keepNumbersTogether('11 000 FCFA'), '11\u00A0000\u00A0FCFA');
+    });
+
+    test('les autres espaces restent normales : le texte peut toujours passer à la ligne', () {
+      expect(keepNumbersTogether('Frais de transport réels'), 'Frais de transport réels');
+      expect(keepNumbersTogether('100 euros par nuit - maximum 5 nuits'), '100 euros par nuit - maximum 5 nuits');
+      expect(keepNumbersTogether('maximum 5 nuits'), 'maximum 5 nuits', reason: 'un chiffre seul n\'est pas lié au mot suivant');
+      expect(keepNumbersTogether('1234 5678'), '1234 5678', reason: 'pas un groupe de trois chiffres');
+      expect(keepNumbersTogether(''), '');
+    });
+
+    test('déjà insécable ou idempotent : un second passage ne change rien', () {
+      final once = keepNumbersTogether('19 678 710 F CFA');
+      expect(keepNumbersTogether(once), once);
+    });
+  });
+
   group('Saisie de la date de naissance', () {
     TextEditingValue type(String before, String typed) =>
         const DateMaskFormatter().formatEditUpdate(TextEditingValue(text: before), TextEditingValue(text: typed));
@@ -236,6 +259,23 @@ void main() {
       expect(q.guarantees.map((g) => g.label), ['Frais médicaux', 'Indemnités pour perte de bagages']);
       expect(q.guarantees.first.details.single.amount, 'Jusqu\'à 30 000 euros');
       expect(MotoQuote.fromJson({..._quoteJson(), 'guarantees': _guaranteesJson()}).simulation.guarantees, hasLength(2));
+    });
+
+    test('note de bas de page des garanties : simulation, devis enregistré, vide ou absente', () {
+      const note = '* Ou le montant équivalent dans la devise du pays du sinistre.';
+
+      final sim = VoyageSimulation.fromJson({..._simJson(), 'guarantees': _guaranteesJson(), 'guaranteesNote': note});
+      expect(sim.toQuoteSimulation().guaranteesNote, note);
+
+      final voyage = {..._quoteJson()['voyage'] as Map<String, dynamic>, 'guaranteesNote': note};
+      final quote = MotoQuote.fromJson({..._quoteJson(voyage: voyage), 'guarantees': _guaranteesJson()});
+      expect(quote.simulation.guaranteesNote, note, reason: 'dans le devis, la note est dans l\'objet voyage');
+
+      for (final empty in [null, '', '   ']) {
+        expect(VoyageSimulation.fromJson({..._simJson(), 'guaranteesNote': empty}).toQuoteSimulation().guaranteesNote, isNull);
+      }
+      expect(MotoQuote.fromJson(_quoteJson()).simulation.guaranteesNote, isNull, reason: 'ancien serveur : aucune note');
+      expect(MotoQuote.fromJson({..._quoteJson(), 'productKey': 'moto', 'voyage': null}).simulation.guaranteesNote, isNull);
     });
 
     test('simulation : prime décomposée, mêmes lignes que les autres produits, aucune garantie', () {
@@ -500,8 +540,92 @@ void main() {
 
       await tester.scrollUntilVisible(find.text('Frais médicaux'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Frais médicaux'), findsOneWidget);
-      expect(find.text('Jusqu\'à 30 000 euros'), findsOneWidget);
+      // Affiché avec une espace insécable : le nombre ne se coupe pas en fin de ligne.
+      expect(find.text('Jusqu\'à 30\u00A0000 euros'), findsOneWidget);
+      expect(find.text('Jusqu\'à 30 000 euros'), findsNothing, reason: 'espace ordinaire remplacée à l\'affichage');
     });
+
+    const guaranteesNote = '* Ou le montant équivalent dans la devise du pays du sinistre.';
+
+    Future<void> calculate(WidgetTester tester, _Fake fake) async {
+      await _show(tester, fake);
+      await tester.tap(find.text('Choisir un pays'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('FRANCE'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'JJ/MM/AAAA'), '01011990');
+      await tester.pump();
+      for (var i = 0; i < 2; i++) {
+        await tester.tap(find.text('Choisir une date').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Valider'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Calculer mon devis'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('note des garanties : affichée sous la rubrique, texte du serveur', (tester) async {
+      await calculate(tester, _Fake()..withGuarantees = true..guaranteesNote = guaranteesNote);
+
+      await tester.scrollUntilVisible(find.text(guaranteesNote), 200, scrollable: find.byType(Scrollable).first);
+      expect(find.text(guaranteesNote), findsOneWidget);
+      expect(tester.getTopLeft(find.text(guaranteesNote)).dy, greaterThan(tester.getTopLeft(find.text('Frais médicaux')).dy), reason: 'sous la rubrique');
+    });
+
+    testWidgets('note des garanties : serveur sans note, rien n\'est ajouté', (tester) async {
+      await calculate(tester, _Fake()..withGuarantees = true);
+
+      expect(find.textContaining('devise du pays', findRichText: true), findsNothing);
+    });
+
+    testWidgets('note des garanties : sans garanties, une note n\'a pas d\'objet', (tester) async {
+      await calculate(tester, _Fake()..guaranteesNote = guaranteesNote);
+
+      expect(find.text(guaranteesNote), findsNothing);
+    });
+
+    for (final scale in [1.0, 1.3]) {
+      for (final size in [const Size(320, 568), const Size(411, 891)]) {
+        testWidgets('garanties aux montants longs : ni débordement ni libellé écrasé (${size.width.round()} dp, texte ${(scale * 100).round()} %)', (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = size;
+          addTearDown(tester.view.reset);
+          final quote = MotoQuote.fromJson({
+            ..._quoteJson(),
+            'guarantees': [
+              {
+                'label': 'Soins dentaires d\'urgence',
+                'details': [
+                  {'label': 'Plafond / prise en charge', 'amount': '300 euros (196 787 F CFA), franchise de 100 euros (65 596 F CFA)'},
+                ],
+              },
+              {
+                'label': 'Frais médicaux',
+                'details': [
+                  {'label': 'Plafond', 'amount': 'Jusqu\'à 30 000 euros'},
+                  {'label': 'Sans montant', 'amount': null},
+                ],
+              },
+            ],
+          });
+          await tester.pumpWidget(MaterialApp(
+            builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)), child: child!),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: MotoQuoteResult(simulation: quote.simulation, quote: null, busy: false, onSave: () {}, onAccept: () {}),
+              ),
+            ),
+          ));
+          await tester.pump();
+
+          expect(tester.takeException(), isNull, reason: 'aucun débordement');
+          // Le libellé garde de la largeur : il n'est pas réduit à une colonne de lettres.
+          expect(tester.getSize(find.text('Plafond / prise en charge')).width, greaterThan(60));
+        });
+      }
+    }
 
     testWidgets('erreur du serveur sur un champ : affichée sous ce champ', (tester) async {
       final fake = _Fake()
@@ -578,6 +702,7 @@ class _Fake implements MotoQuoteRepository {
   final List<VoyageRequest> created = [];
   ApiException? simulateError;
   bool withGuarantees = false;
+  String? guaranteesNote;
 
   @override
   Future<VoyageForm> getVoyageForm() async {
@@ -590,7 +715,7 @@ class _Fake implements MotoQuoteRepository {
     final err = simulateError;
     if (err != null) throw err;
     simulations.add(request);
-    return VoyageSimulation.fromJson({..._simJson(), if (withGuarantees) 'guarantees': _guaranteesJson()});
+    return VoyageSimulation.fromJson({..._simJson(), if (withGuarantees) 'guarantees': _guaranteesJson(), if (guaranteesNote != null) 'guaranteesNote': guaranteesNote});
   }
 
   @override

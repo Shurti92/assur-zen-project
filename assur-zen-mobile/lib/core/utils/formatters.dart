@@ -101,3 +101,11 @@ String firstName(String fullName) {
   // le dernier mot (prénom) s’il y en a plusieurs.
   return parts.length > 1 ? parts.last : parts.first;
 }
+
+/// Empêche un montant de se couper en fin de ligne (« 19 678 / 710 F CFA ») : l'espace entre deux groupes
+/// de chiffres et celles de « F CFA » deviennent insécables. À l'affichage seulement : les textes du
+/// serveur sont modifiables au back-office et restent tels qu'ils ont été saisis.
+String keepNumbersTogether(String text) => text
+    .replaceAllMapped(RegExp(r'(?<=\d) (?=\d{3}(?!\d))'), (_) => '\u00A0')
+    .replaceAll(' F CFA', '\u00A0F\u00A0CFA')
+    .replaceAll(' FCFA', '\u00A0FCFA');

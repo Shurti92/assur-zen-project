@@ -6,7 +6,7 @@ int _int(Object? v) => (v as num?)?.toInt() ?? 0;
 
 DateTime? _date(Object? v) => v == null ? null : DateTime.tryParse(v.toString());
 
-String? _text(Object? v) => (v == null || v.toString().isEmpty) ? null : v.toString();
+String? _text(Object? v) => (v == null || v.toString().trim().isEmpty) ? null : v.toString();
 
 class MotoQuoteDuration {
   const MotoQuoteDuration({required this.months, required this.total});
@@ -168,6 +168,7 @@ class MotoQuoteSimulation {
     required this.guarantees,
     this.effectiveDate,
     this.expiryDate,
+    this.guaranteesNote,
   });
 
   final String formulaId;
@@ -179,6 +180,10 @@ class MotoQuoteSimulation {
   final MotoPremium premium;
   final List<MotoGuarantee> guarantees;
 
+  /// Note de bas de page des garanties (renvoi de l'astérisque des montants), texte du serveur.
+  /// Absente ou vide : aucune note. Voyage : `guaranteesNote` (simulation) ou `voyage.guaranteesNote` (devis).
+  final String? guaranteesNote;
+
   factory MotoQuoteSimulation.fromJson(Map<String, dynamic> j) => MotoQuoteSimulation(
         formulaId: (j['formulaId'] ?? '').toString(),
         formulaName: (j['formulaName'] ?? '').toString(),
@@ -188,6 +193,7 @@ class MotoQuoteSimulation {
         expiryDate: _date(j['expiryDate']),
         premium: MotoPremium.fromJson((j['premium'] as Map?)?.cast<String, dynamic>() ?? const {}),
         guarantees: _guarantees(j['guarantees']),
+        guaranteesNote: _text(j['guaranteesNote']) ?? (j['voyage'] is Map ? _text((j['voyage'] as Map)['guaranteesNote']) : null),
       );
 }
 
@@ -650,6 +656,7 @@ class VoyageSimulation {
     required this.premium,
     this.durationBand,
     this.guarantees = const [],
+    this.guaranteesNote,
   });
 
   final String countryName;
@@ -664,6 +671,7 @@ class VoyageSimulation {
   /// Garanties du produit, fournies par AssurZen via le serveur (absentes d'un ancien serveur : liste vide,
   /// la rubrique est alors masquée).
   final List<MotoGuarantee> guarantees;
+  final String? guaranteesNote;
 
   factory VoyageSimulation.fromJson(Map<String, dynamic> j) {
     final country = (j['country'] as Map?)?.cast<String, dynamic>() ?? const {};
@@ -681,6 +689,7 @@ class VoyageSimulation {
         total: _int(j['totalPremium']),
       ),
       guarantees: _guarantees(j['guarantees']),
+      guaranteesNote: _text(j['guaranteesNote']),
     );
   }
 
@@ -695,5 +704,6 @@ class VoyageSimulation {
         expiryDate: back,
         premium: premium,
         guarantees: guarantees,
+        guaranteesNote: guaranteesNote,
       );
 }
