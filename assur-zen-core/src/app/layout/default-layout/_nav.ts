@@ -167,6 +167,11 @@ const baseNavItems: INavData[] = [
         url: '/mobile/avis',
         icon: 'nav-icon-bullet',
       },
+      {
+        name: 'nav.mobile.engagement',
+        url: '/mobile/engagement',
+        icon: 'nav-icon-bullet',
+      },
     ],
   },
   {

@@ -1,0 +1,396 @@
+<div class="mb">
+  <header class="mb-hero">
+    <div>
+      <h1>Engagement</h1>
+      <p>Score de protection, quiz du jour et badges de l'application mobile. Tout est facultatif pour le client.</p>
+    </div>
+    @if (tab() === 'quiz') {
+      <div class="mb-acts">
+        <button (click)="newQuestion()" class="mb-btn mb-btn--white" type="button">+ Nouvelle question</button>
+      </div>
+    }
+  </header>
+
+  <div class="mb-tabs">
+    <button (click)="setTab('settings')" [class.mb-tab--on]="tab() === 'settings'" class="mb-tab" type="button">Réglages et consentement</button>
+    <button (click)="setTab('criteria')" [class.mb-tab--on]="tab() === 'criteria'" class="mb-tab" type="button">Critères du score</button>
+    <button (click)="setTab('badges')" [class.mb-tab--on]="tab() === 'badges'" class="mb-tab" type="button">Badges</button>
+    <button (click)="setTab('quiz')" [class.mb-tab--on]="tab() === 'quiz'" class="mb-tab" type="button">Questions du quiz</button>
+  </div>
+
+  @if (error()) {
+    <app-alert-message class="d-block my-3" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+  }
+  @if (info()) {
+    <app-alert-message class="d-block my-3" variant="success" [message]="info()!" [dismissible]="true" (dismissed)="info.set(null)" />
+  }
+
+  <!-- ============ A · Réglages ============ -->
+  @if (tab() === 'settings') {
+    <div class="mb-kpis">
+      <div class="mb-kpi"><small><i style="background: #12a150"></i>Consentements</small><b>{{ stats()?.consents ?? '—' }}</b></div>
+      <div class="mb-kpi"><small><i style="background: #e55353"></i>Retraits</small><b>{{ stats()?.withdrawals ?? '—' }}</b></div>
+      <div class="mb-kpi"><small><i style="background: #4a74e8"></i>Réponses au quiz</small><b>{{ stats()?.quizAnswers ?? '—' }}</b></div>
+      <div class="mb-kpi"><small><i style="background: #ec7c1e"></i>Badges obtenus</small><b>{{ stats()?.badgesEarned ?? '—' }}</b></div>
+    </div>
+    <p class="eg-note">Chiffres agrégés et anonymes : aucun client n'est identifiable ici.</p>
+
+    @if (settingsLoading()) {
+      <p class="mb-empty">Chargement des réglages…</p>
+    } @else {
+      <div class="eg-cols">
+        <div>
+          <section class="eg-card">
+            <h3>Fonctions activées</h3>
+            <p class="eg-sub">Désactivé par défaut. L'effet est immédiat dans l'application ; le client doit en plus donner son consentement.</p>
+            <div class="eg-sw">
+              <div><b>Engagement (interrupteur général)</b><small>Coupé : rien n'est visible dans l'application</small></div>
+              <button (click)="settings.enabled = !settings.enabled; markDirty()" [attr.aria-pressed]="settings.enabled" [class.eg-tg--on]="settings.enabled" aria-label="Engagement" class="eg-tg" type="button"></button>
+            </div>
+            <div class="eg-sw">
+              <div><b>Score de protection</b><small>Pourcentage de profil protégé, avec actions conseillées</small></div>
+              <button (click)="settings.features.protectionScore = !settings.features.protectionScore; markDirty()" [attr.aria-pressed]="settings.features.protectionScore" [class.eg-tg--on]="settings.features.protectionScore" aria-label="Score de protection" class="eg-tg" type="button"></button>
+            </div>
+            <div class="eg-sw">
+              <div><b>Quiz du jour</b><small>Une question par jour et par client</small></div>
+              <button (click)="settings.features.dailyQuiz = !settings.features.dailyQuiz; markDirty()" [attr.aria-pressed]="settings.features.dailyQuiz" [class.eg-tg--on]="settings.features.dailyQuiz" aria-label="Quiz du jour" class="eg-tg" type="button"></button>
+            </div>
+            <div class="eg-sw">
+              <div><b>Badges</b><small>Récompenses de bonnes pratiques (sans points ni classement)</small></div>
+              <button (click)="settings.features.badges = !settings.features.badges; markDirty()" [attr.aria-pressed]="settings.features.badges" [class.eg-tg--on]="settings.features.badges" aria-label="Badges" class="eg-tg" type="button"></button>
+            </div>
+          </section>
+          <section class="eg-card">
+            <h3>Texte de consentement</h3>
+            <p class="eg-sub">
+              Affiché au client avant d'activer l'engagement.
+              @if (consentVersion() !== null) {
+                Version actuelle : <span class="mb-pill mb-pill--info">v{{ consentVersion() }}</span>
+              }
+            </p>
+            <div class="eg-fld">
+              <textarea (ngModelChange)="markDirty()" [(ngModel)]="settings.consentText" aria-label="Texte de consentement" name="consent"></textarea>
+              <small>La version est incrémentée automatiquement quand le texte change.</small>
+            </div>
+          </section>
+        </div>
+        <aside>
+          <section class="eg-card">
+            <h3>Règles de fonctionnement</h3>
+            <p class="eg-sub">Décidées côté serveur (à valider avec le conseil juridique ARTCI) : affichées ici à titre d'information.</p>
+            <ul class="eg-rules">
+              <li><span><b>Retrait du consentement</b> : les données d'engagement du client (réponses, badges, événements) sont supprimées immédiatement ; seule reste la trace du consentement.</span></li>
+              <li><span><b>Notification d'un badge</b> : catégorie « Service », une seule fois par badge et par client.</span></li>
+              <li><span><b>Série du quiz</b> : continue si le client a répondu la veille (juste ou fausse), sinon repart à 1.</span></li>
+              <li><span><b>Question du jour</b> : tirée parmi les questions actives et publiées, pas encore répondues ; une question passée n'est pas rattrapable.</span></li>
+              <li><span><b>Score</b> : somme des poids des critères actifs réalisés, ramenée à 100.</span></li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+      @if (settingsDirty()) {
+        <div class="eg-bar">
+          <span>● Modifications non enregistrées</span>
+          <span class="eg-bar-acts">
+            <button (click)="discardSettings()" [disabled]="settingsSaving()" class="mb-btn mb-btn--white mb-btn--sm" type="button">Annuler</button>
+            <button (click)="saveSettings()" [disabled]="settingsSaving()" class="mb-btn mb-btn--sm eg-orange" type="button">
+              @if (settingsSaving()) {
+                <c-spinner size="sm" />
+              }
+              Enregistrer
+            </button>
+          </span>
+        </div>
+      }
+    }
+  }
+
+  <!-- ============ B · Critères ============ -->
+  @if (tab() === 'criteria') {
+    <div class="mb-kpis eg-kpis3">
+      <div class="mb-kpi"><small>Critères actifs</small><b>{{ activeCriteria() }} / {{ criteria().length }}</b></div>
+      <div class="mb-kpi"><small>Total des poids actifs</small><b>{{ activeWeightTotal() }}</b></div>
+      <div class="mb-kpi"><small>Indisponibles</small><b [style.color]="unavailableCriteria() ? '#c25e0a' : ''">{{ unavailableCriteria() }}</b></div>
+    </div>
+    @if (criteriaLoading()) {
+      <p class="mb-empty">Chargement des critères…</p>
+    } @else {
+      <div class="mb-list eg-scroll">
+        <div class="eg-min">
+          <div class="mb-head eg-crit">
+            <div></div>
+            <div>Critère</div>
+            <div>Action proposée</div>
+            <div>Poids</div>
+            <div></div>
+            <div>Actif</div>
+            <div></div>
+          </div>
+          <div (cdkDropListDropped)="dropCriterion($event)" cdkDropList class="eg-dl">
+            @for (c of criteria(); track c.code) {
+              <div [style.opacity]="c.available && c.active ? 1 : 0.8" cdkDrag class="mb-row eg-crit eg-dr">
+                <span cdkDragHandle aria-label="Glisser pour réordonner" class="eg-grip" title="Glisser pour réordonner">⋮⋮</span>
+                <div>
+                  <b>{{ c.label }}</b>
+                  @if (c.hint) {
+                    <small>« {{ c.hint }} »</small>
+                  }
+                  @if (!c.available) {
+                    <span class="eg-na">⚠ Donnée non fournie par le serveur</span>
+                  }
+                </div>
+                <div>{{ actionLabel(c.action) }}</div>
+                <div>
+                  <b>{{ c.weight }}</b>
+                  <div class="eg-w"><i [style.width.%]="c.weight"></i></div>
+                </div>
+                <span class="mb-pill mb-pill--info">{{ c.code }}</span>
+                <button (click)="toggleCriterion(c)" [attr.aria-pressed]="c.active" [class.eg-tg--on]="c.active" [disabled]="!c.available" [attr.aria-label]="'Activer ' + c.label" class="eg-tg" type="button"></button>
+                <button (click)="editCriterion(c)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Modifier</button>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+      <p class="eg-note">Glisser-déposer pour changer l'ordre d'affichage. Un critère « Indisponible » (donnée absente côté serveur) est grisé et ne peut pas être activé.</p>
+      @if (activeWeightTotal() !== 100) {
+        <div class="eg-warn">⚠️ Le total des poids actifs n'est pas 100 : le score est ramené à 100 automatiquement, mais un total de 100 est plus lisible.</div>
+      }
+    }
+  }
+
+  <!-- ============ C · Badges ============ -->
+  @if (tab() === 'badges') {
+    @if (badgesLoading()) {
+      <p class="mb-empty">Chargement des badges…</p>
+    } @else {
+      <div class="mb-list eg-scroll">
+        <div class="eg-min">
+          <div class="mb-head eg-badge">
+            <div></div>
+            <div></div>
+            <div>Badge</div>
+            <div>Description</div>
+            <div>Objectif</div>
+            <div>Actif</div>
+            <div></div>
+          </div>
+          <div (cdkDropListDropped)="dropBadge($event)" cdkDropList class="eg-dl">
+            @for (b of badges(); track b.code) {
+              <div cdkDrag class="mb-row eg-badge eg-dr">
+                <span cdkDragHandle aria-label="Glisser pour réordonner" class="eg-grip" title="Glisser pour réordonner">⋮⋮</span>
+                <div class="eg-ic">{{ badgeIcon(b.code) }}</div>
+                <div>
+                  <b>{{ b.label }}</b>
+                  <small>{{ b.code }}</small>
+                </div>
+                <div>{{ b.description || '—' }}</div>
+                <div>
+                  @if (isStreak(b.code) && b.target) {
+                    <b>{{ b.target }}</b> jours
+                  } @else {
+                    —
+                  }
+                </div>
+                <button (click)="toggleBadge(b)" [attr.aria-pressed]="b.active" [class.eg-tg--on]="b.active" [attr.aria-label]="'Activer ' + b.label" class="eg-tg" type="button"></button>
+                <button (click)="editBadge(b)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Modifier</button>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+      <p class="eg-note">Glisser-déposer pour changer l'ordre. Un badge désactivé n'est plus attribué ; les badges déjà obtenus restent.</p>
+    }
+  }
+
+  <!-- ============ D · Quiz ============ -->
+  @if (tab() === 'quiz') {
+    <div class="mb-toolbar">
+      <div class="mb-seg" role="group" aria-label="Filtrer par statut">
+        <a (click)="quizFilter.set('all')" [class.mb-on]="quizFilter() === 'all'">Toutes · {{ counts().all }}</a>
+        <a (click)="quizFilter.set('active')" [class.mb-on]="quizFilter() === 'active'">Actives · {{ counts().active }}</a>
+        <a (click)="quizFilter.set('inactive')" [class.mb-on]="quizFilter() === 'inactive'">Inactives · {{ counts().inactive }}</a>
+      </div>
+      <select (change)="themeFilter.set($any($event.target).value)" aria-label="Filtrer par thème" class="eg-select">
+        <option value="">Tous les thèmes</option>
+        @for (t of themes(); track t) {
+          <option [value]="t">{{ t }}</option>
+        }
+      </select>
+    </div>
+    @if (quizLoading()) {
+      <p class="mb-empty">Chargement des questions…</p>
+    } @else if (questions().length === 0) {
+      <div class="mb-list">
+        <div class="eg-empty">
+          <b>Aucune question pour le moment.</b><br />
+          Le quiz du jour reste masqué dans l'application tant qu'aucune question n'est active.<br /><br />
+          <button (click)="newQuestion()" class="mb-btn mb-btn--pri" type="button">+ Saisir la première question</button>
+        </div>
+      </div>
+    } @else {
+      <div class="mb-list eg-scroll">
+        <div class="eg-min">
+          <div class="mb-head eg-quiz">
+            <div>Question</div>
+            <div>Thème</div>
+            <div>Statut</div>
+            <div>Publication</div>
+            <div>Réponses</div>
+            <div></div>
+          </div>
+          @for (q of shownQuestions(); track q.id) {
+            <div class="mb-row eg-quiz">
+              <div>
+                <b>{{ q.question }}</b>
+                <small>{{ q.choices.length }} choix · bonne réponse : « {{ goodChoice(q) }} »</small>
+              </div>
+              <div>{{ q.theme }}</div>
+              <div>
+                <span [class]="q.active ? 'mb-pill mb-pill--ok' : 'mb-pill mb-pill--mut'">{{ q.active ? 'Active' : 'Inactive' }}</span>
+              </div>
+              <div>{{ publication(q) }}</div>
+              <div>
+                <b>{{ q.answerCount }}</b>
+                @if (rate(q) !== null) {
+                  <small>{{ rate(q) }} % justes</small>
+                }
+              </div>
+              <div class="eg-btns">
+                <button (click)="editQuestion(q)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Modifier</button>
+                <button (click)="toggleQuestion(q)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">{{ q.active ? 'Désactiver' : 'Activer' }}</button>
+                @if (q.answerCount === 0) {
+                  <button (click)="deleteQuestion(q)" class="mb-btn mb-btn--danger mb-btn--sm" type="button">{{ deleteAsk() === q.id ? 'Confirmer ?' : 'Supprimer' }}</button>
+                }
+              </div>
+            </div>
+          } @empty {
+            <p class="mb-empty">Aucune question ne correspond au filtre.</p>
+          }
+        </div>
+      </div>
+      <p class="eg-note">« Supprimer » n'apparaît que pour une question jamais répondue ; sinon seule la désactivation est possible.</p>
+    }
+  }
+</div>
+
+<!-- ============ Fenêtres ============ -->
+@if (criterionEdit(); as d) {
+  <div (click)="criterionEdit.set(null)" class="eg-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="eg-modal" role="dialog">
+      <h4>Modifier « {{ d.label || d.code }} »</h4>
+      <div class="eg-fld"><label for="cr-label">Nom affiché</label><input [(ngModel)]="d.label" id="cr-label" name="cr-label" /></div>
+      <div class="eg-fld"><label for="cr-hint">Texte d'aide</label><input [(ngModel)]="d.hint" id="cr-hint" name="cr-hint" /></div>
+      <div class="eg-two">
+        <div class="eg-fld"><label for="cr-weight">Poids (0 à 100)</label><input [(ngModel)]="d.weight" id="cr-weight" max="100" min="0" name="cr-weight" type="number" /></div>
+        <div class="eg-fld">
+          <label for="cr-action">Action proposée</label>
+          <select [(ngModel)]="d.action" id="cr-action" name="cr-action">
+            @for (a of actions; track a.value) {
+              <option [ngValue]="a.value">{{ a.label }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="eg-sw"><div><b>Critère actif</b><small>Inactif : ne compte plus dans le score</small></div><button (click)="d.active = !d.active" [attr.aria-pressed]="d.active" [class.eg-tg--on]="d.active" aria-label="Critère actif" class="eg-tg" type="button"></button></div>
+      @if (modalError()) {
+        <div class="eg-err" role="alert">{{ modalError() }}</div>
+      }
+      <div class="eg-two eg-foot">
+        <button (click)="criterionEdit.set(null)" [disabled]="saving()" class="mb-btn mb-btn--ghost" type="button">Annuler</button>
+        <button (click)="submitCriterion()" [disabled]="saving()" class="mb-btn mb-btn--pri" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (badgeEdit(); as d) {
+  <div (click)="badgeEdit.set(null)" class="eg-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="eg-modal" role="dialog">
+      <h4>Modifier « {{ d.label || d.code }} »</h4>
+      <div class="eg-fld"><label for="bd-label">Nom affiché</label><input [(ngModel)]="d.label" id="bd-label" name="bd-label" /></div>
+      <div class="eg-fld"><label for="bd-desc">Description</label><input [(ngModel)]="d.description" id="bd-desc" name="bd-desc" /></div>
+      <div class="eg-two">
+        <div class="eg-fld">
+          <label for="bd-target">Objectif (jours)</label>
+          <input [(ngModel)]="d.target" [disabled]="!isStreak(d.code)" id="bd-target" max="365" min="1" name="bd-target" type="number" />
+          <small>Badges de série uniquement.</small>
+        </div>
+        <div class="eg-fld"><label for="bd-order">Ordre d'affichage</label><input [(ngModel)]="d.displayOrder" id="bd-order" min="1" name="bd-order" type="number" /></div>
+      </div>
+      <div class="eg-sw"><div><b>Badge actif</b><small>Désactivé : plus attribué, les badges déjà obtenus restent</small></div><button (click)="d.active = !d.active" [attr.aria-pressed]="d.active" [class.eg-tg--on]="d.active" aria-label="Badge actif" class="eg-tg" type="button"></button></div>
+      @if (modalError()) {
+        <div class="eg-err" role="alert">{{ modalError() }}</div>
+      }
+      <div class="eg-two eg-foot">
+        <button (click)="badgeEdit.set(null)" [disabled]="saving()" class="mb-btn mb-btn--ghost" type="button">Annuler</button>
+        <button (click)="submitBadge()" [disabled]="saving()" class="mb-btn mb-btn--pri" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (questionEdit(); as d) {
+  <div (click)="questionEdit.set(null)" class="eg-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="eg-modal eg-modal--lg" role="dialog">
+      <h4>{{ d.id === null ? 'Nouvelle question' : 'Modifier la question' }}</h4>
+      <p class="eg-sub">Le client ne voit jamais la bonne réponse avant d'avoir répondu.</p>
+      <div class="eg-fld">
+        <label for="qz-theme">Thème <span class="eg-light">({{ max.theme }} caractères max)</span></label>
+        <input [(ngModel)]="d.theme" [maxlength]="max.theme" id="qz-theme" name="qz-theme" />
+      </div>
+      <div class="eg-fld">
+        <label for="qz-q">Question <span class="eg-light">({{ max.question }} max)</span></label>
+        <textarea [(ngModel)]="d.question" [maxlength]="max.question" class="eg-short" id="qz-q" name="qz-q"></textarea>
+      </div>
+      <div class="eg-fld">
+        <label>Réponses possibles <span class="eg-light">(2 à 4, une seule bonne · {{ max.choice }} caractères max chacune)</span></label>
+        @if (d.locked) {
+          <small class="eg-lock">Cette question a déjà reçu des réponses : ses choix ne peuvent plus changer.</small>
+        }
+        @for (c of d.choices; track $index; let i = $index) {
+          <div class="eg-choice">
+            <button (click)="pickGood(d, i)" [class.eg-radio--on]="c.correct" [disabled]="d.locked" aria-label="Bonne réponse" class="eg-radio" type="button"></button>
+            <input [(ngModel)]="c.label" [attr.aria-label]="'Réponse ' + (i + 1)" [disabled]="d.locked" [maxlength]="max.choice" [name]="'qz-c' + i" type="text" />
+            <span class="eg-good">{{ c.correct ? '✓ Bonne réponse' : '' }}</span>
+            <button (click)="removeChoice(d, i)" [disabled]="d.locked || d.choices.length <= 2" aria-label="Retirer cette réponse" class="eg-x" type="button">✕</button>
+          </div>
+        }
+        @if (!d.locked && d.choices.length < 4) {
+          <button (click)="addChoice(d)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">+ Ajouter une réponse</button>
+        }
+      </div>
+      <div class="eg-fld">
+        <label for="qz-ex">Explication <span class="eg-light">(affichée après la réponse · {{ max.explanation }} max)</span></label>
+        <textarea [(ngModel)]="d.explanation" [maxlength]="max.explanation" class="eg-short" id="qz-ex" name="qz-ex"></textarea>
+      </div>
+      <div class="eg-two">
+        <div class="eg-fld"><label for="qz-from">Publier à partir du</label><input [(ngModel)]="d.publishFrom" id="qz-from" name="qz-from" type="date" /><small>Facultatif.</small></div>
+        <div class="eg-fld"><label for="qz-to">Jusqu'au</label><input [(ngModel)]="d.publishTo" id="qz-to" name="qz-to" type="date" /><small>Facultatif.</small></div>
+      </div>
+      <div class="eg-sw"><div><b>Question active</b><small>Une question inactive n'est jamais proposée aux clients</small></div><button (click)="d.active = !d.active" [attr.aria-pressed]="d.active" [class.eg-tg--on]="d.active" aria-label="Question active" class="eg-tg" type="button"></button></div>
+      @if (modalError()) {
+        <div class="eg-err" role="alert">⛔ {{ modalError() }}</div>
+      }
+      <div class="eg-two eg-foot">
+        <button (click)="questionEdit.set(null)" [disabled]="saving()" class="mb-btn mb-btn--ghost" type="button">Annuler</button>
+        <button (click)="submitQuestion()" [disabled]="saving()" class="mb-btn mb-btn--pri" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Enregistrer la question
+        </button>
+      </div>
+    </div>
+  </div>
+}
