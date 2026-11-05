@@ -480,6 +480,37 @@
   color: var(--df-ok);
 }
 
+.df-glist {
+  margin: 0.75rem 0;
+  font-size: 0.8rem;
+
+  > b {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--df-mut);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  > div {
+    padding: 0.35rem 0;
+    border-top: 1px solid var(--df-bd, rgba(0, 0, 0, 0.08));
+  }
+
+  span {
+    display: block;
+    color: var(--df-ok);
+    font-weight: 600;
+  }
+
+  small {
+    display: block;
+    margin-left: 1.1rem;
+    color: var(--df-mut);
+  }
+}
+
 .df-guarantees {
   display: flex;
   gap: 0.5rem;

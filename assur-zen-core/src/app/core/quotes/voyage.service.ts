@@ -2,6 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
+import { QuoteGuarantee } from './models/quote.model';
+
 export type VoyageSpace = 'AFRIQUE_OUEST' | 'ESPACE_SCHENGEN' | 'MONDE_ENTIER';
 
 export const VOYAGE_SPACES: { code: VoyageSpace; label: string }[] = [
@@ -73,6 +75,8 @@ export interface VoyageSimulation {
   accessories: number;
   taxes: number;
   totalPremium: number;
+  /** Garanties du résumé AssurZen (absentes d'une gateway plus ancienne). */
+  guarantees?: QuoteGuarantee[];
 }
 
 /** Assurance voyage : pays de destination et grille (ADMIN, /admin/quotes/voyage), simulation publique. */

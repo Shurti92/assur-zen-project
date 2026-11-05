@@ -229,6 +229,19 @@
             <div><span>Taxes</span><b>{{ r.taxes.toLocaleString('fr-FR') }}</b></div>
             <div class="vy-sum"><span><b>Prime TTC</b></span><b>{{ r.totalPremium.toLocaleString('fr-FR') }}</b></div>
           </div>
+          @if ((r.guarantees ?? []).length > 0) {
+            <h3 class="vy-gh">Garanties incluses</h3>
+            <ul class="vy-guar">
+              @for (g of r.guarantees ?? []; track g.label) {
+                <li>
+                  {{ g.label }}
+                  @for (d of g.details ?? []; track d.label) {
+                    <small>{{ d.label }} : {{ d.amount }}</small>
+                  }
+                </li>
+              }
+            </ul>
+          }
         } @else {
           <p class="vy-subt">Lancez un calcul pour voir le détail de la prime.</p>
         }

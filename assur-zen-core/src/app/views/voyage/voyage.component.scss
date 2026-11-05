@@ -361,3 +361,39 @@
     font-size: 18px;
   }
 }
+
+.vy-gh {
+  margin: 18px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--mb-bd);
+  font-size: 12px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--mb-mut);
+}
+
+.vy-guar {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+
+    &::before {
+      content: '✓ ';
+      color: var(--mb-ok);
+    }
+  }
+
+  small {
+    display: block;
+    margin-left: 18px;
+    color: var(--mb-mut);
+    font-weight: 400;
+  }
+}
