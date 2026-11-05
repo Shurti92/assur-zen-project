@@ -6,6 +6,7 @@ import '../../app/env.dart';
 import '../../app/routes.dart';
 import '../../core/ui.dart';
 import '../../data/models/models.dart';
+import '../../core/utils/file_viewer.dart';
 import '../payment/payment_page.dart';
 
 /// Détail d’un contrat : synthèse, renouvellement, attestation, documents, garanties.
@@ -46,6 +47,10 @@ class ContractDetailPage extends StatelessWidget {
               if (c.hasDigitalAttestation) ...[
                 const SizedBox(height: 20),
                 _AttestationCard(contract: c),
+              ] else if (c.attestation?.available == true) ...[
+                // Attestation jointe par AssurZen, sans code de vérification : on propose le fichier.
+                const SizedBox(height: 20),
+                _AttestationFileCard(contract: c),
               ],
               const SizedBox(height: 24),
               const AzSectionHeader('Documents'),
@@ -313,11 +318,86 @@ class _AttestationCard extends StatelessWidget {
   }
 }
 
-class _DocumentRow extends StatelessWidget {
+/// Attestation du contrat sous forme de fichier (PDF ou image), sans QR code.
+class _AttestationFileCard extends StatefulWidget {
+  const _AttestationFileCard({required this.contract});
+
+  final Contract contract;
+
+  @override
+  State<_AttestationFileCard> createState() => _AttestationFileCardState();
+}
+
+class _AttestationFileCardState extends State<_AttestationFileCard> {
+  bool _busy = false;
+
+  Future<void> _download() async {
+    setState(() => _busy = true);
+    try {
+      final file = await context.repos.contracts.downloadAttestation(widget.contract.id);
+      if (mounted) await FileViewer.show(context, file, fallbackName: 'attestation');
+    } catch (e) {
+      if (mounted) showAzSnack(context, errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = widget.contract.attestation;
+    final until = a?.validUntil;
+    return AzCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Attestation d’assurance', style: AzText.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            until == null ? 'Document remis par AssurZen.' : 'Valable jusqu’au ${formatDate(until)}.',
+            style: AzText.bodyMedium.copyWith(color: AzColors.muted),
+          ),
+          const SizedBox(height: 12),
+          AzButton('Télécharger l’attestation', height: 46, icon: Icons.download_rounded, loading: _busy, onPressed: _download),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentRow extends StatefulWidget {
   const _DocumentRow({required this.contract, required this.document});
 
   final Contract contract;
   final ContractDocument document;
+
+  @override
+  State<_DocumentRow> createState() => _DocumentRowState();
+}
+
+class _DocumentRowState extends State<_DocumentRow> {
+  bool _busy = false;
+
+  Contract get contract => widget.contract;
+  ContractDocument get document => widget.document;
+
+  Future<void> _download() async {
+    final d = document;
+    // Lien fourni tel quel par un ancien serveur ; sinon téléchargement avec le jeton de session.
+    if (d.url != null) {
+      Launch.url(context, d.url!);
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final file = await context.repos.contracts.downloadDocument(contract.id, d.id);
+      if (mounted) await FileViewer.show(context, file, fallbackName: d.name);
+    } catch (e) {
+      if (mounted) showAzSnack(context, errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -339,17 +419,9 @@ class _DocumentRow extends StatelessWidget {
             ),
           ),
           if (d.isAvailable) ...[
-            _SmallAction(
-              icon: Icons.download_rounded,
-              tooltip: 'Télécharger ${d.name}',
-              onTap: () {
-                if (d.url != null) {
-                  Launch.url(context, d.url!);
-                } else {
-                  showAzSnack(context, 'Le téléchargement sera disponible prochainement.');
-                }
-              },
-            ),
+            _busy
+                ? const SizedBox(width: 44, height: 44, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2.5)))
+                : _SmallAction(icon: Icons.download_rounded, tooltip: 'Télécharger ${d.name}', onTap: _download),
             const SizedBox(width: 6),
             _SmallAction(
               icon: Icons.share_outlined,

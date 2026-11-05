@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../../core/network/api_exception.dart';
+import '../../core/network/downloaded_file.dart';
 import '../../core/utils/formatters.dart';
 import '../models/models.dart';
 import '../models/moto_quote.dart';
@@ -416,6 +417,19 @@ class _MockContracts implements ContractRepository {
   Future<Contract> getContract(String id) async {
     await _latency(400);
     return MockData.contracts.firstWhere((c) => c.id == id, orElse: () => MockData.contracts.first);
+  }
+
+  // Démonstration : aucun fichier réel.
+  @override
+  Future<DownloadedFile> downloadDocument(String contractId, String documentId) async {
+    await _latency(400);
+    throw ApiException.notImplemented('téléchargement de document');
+  }
+
+  @override
+  Future<DownloadedFile> downloadAttestation(String contractId) async {
+    await _latency(400);
+    throw ApiException.notImplemented('téléchargement de l’attestation');
   }
 
   @override

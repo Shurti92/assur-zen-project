@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/network/downloaded_file.dart';
 import '../../core/network/endpoints.dart';
 import '../models/models.dart';
 import '../repositories/repositories.dart';
@@ -30,6 +31,14 @@ class ApiContractRepository implements ContractRepository {
     if (data is! Map<String, dynamic>) throw ApiException.server();
     return contractFromJson(data);
   }
+
+  @override
+  Future<DownloadedFile> downloadDocument(String contractId, String documentId) =>
+      _client.download(Endpoints.contractDocument(contractId, documentId));
+
+  @override
+  Future<DownloadedFile> downloadAttestation(String contractId) =>
+      _client.download(Endpoints.contractAttestationFile(contractId));
 
   @override
   Future<ContractRequestReceipt> requestChange({

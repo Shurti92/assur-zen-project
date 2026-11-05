@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../app/env.dart';
 import 'api_exception.dart';
+import 'downloaded_file.dart';
 import 'endpoints.dart';
 
 /// Client HTTP unique vers le backend Java / Spring Boot.
@@ -50,6 +51,37 @@ class ApiClient {
   Future<dynamic> patch(String path, {Object? body}) => _send('PATCH', path, body: body);
 
   Future<dynamic> delete(String path) => _send('DELETE', path);
+
+  /// Télécharge un fichier protégé : l'en-tête `Authorization` est envoyé (impossible depuis le navigateur).
+  /// Mêmes règles que les autres appels : jeton renouvelé une fois sur 401, erreurs en [ApiException].
+  Future<DownloadedFile> download(String path, {bool retried = false}) async {
+    final request = http.Request('GET', _uri(path));
+    request.headers.addAll(await _headers(path: path));
+    request.headers['Accept'] = 'application/pdf,image/jpeg,image/png,application/json';
+    try {
+      final streamed = await _http.send(request).timeout(const Duration(seconds: 60));
+      final response = await http.Response.fromStream(streamed);
+      if (response.statusCode == 401 && !retried && await _tryRefresh()) {
+        return await download(path, retried: true);
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        _decode(response, path: path); // lève l'ApiException adaptée
+        throw ApiException.server(response.statusCode);
+      }
+      final type = (response.headers['content-type'] ?? '').split(';').first.trim().toLowerCase();
+      return DownloadedFile(
+        bytes: response.bodyBytes,
+        contentType: type,
+        fileName: DownloadedFile.fileNameFromDisposition(response.headers['content-disposition']),
+      );
+    } on SocketException {
+      throw ApiException.network();
+    } on TimeoutException {
+      throw ApiException.timeout();
+    } on http.ClientException {
+      throw ApiException.network();
+    }
+  }
 
   /// Envoi d’un fichier (pièce justificative, photo de sinistre).
   Future<dynamic> upload(String path, {required String filePath, required String field, Map<String, String>? fields}) async {

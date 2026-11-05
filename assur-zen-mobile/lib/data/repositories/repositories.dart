@@ -1,3 +1,4 @@
+import '../../core/network/downloaded_file.dart';
 import '../models/models.dart';
 import '../models/moto_quote.dart';
 
@@ -125,6 +126,12 @@ abstract interface class ContractRepository {
   Future<List<Contract>> getContracts();
 
   Future<Contract> getContract(String id);
+
+  /// Fichier d'un document du contrat (téléchargé avec le jeton de session).
+  Future<DownloadedFile> downloadDocument(String contractId, String documentId);
+
+  /// Fichier de l'attestation du contrat.
+  Future<DownloadedFile> downloadAttestation(String contractId);
 
   /// Demande de modification ou de résiliation, traitée par un conseiller.
   Future<ContractRequestReceipt> requestChange({
