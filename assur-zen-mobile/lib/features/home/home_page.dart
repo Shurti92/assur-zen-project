@@ -329,6 +329,8 @@ class _QuickActions extends StatelessWidget {
     final shell = ShellScope.maybeOf(context);
     final items = <(IconData, String, bool, VoidCallback)>[
       (Icons.calculate_outlined, 'Obtenir un devis', false, () => shell?.goTo(ShellTab.catalog)),
+      // Les devis enregistrés n'existent que pour un client connecté : sans compte, la tuile est masquée.
+      if (context.session.isLoggedIn) (Icons.request_quote_outlined, 'Mes devis', false, () => context.push(AppRoutes.myQuotes)),
       (Icons.add_circle_outline, 'Souscrire', false, () => openProduct(context, 'auto')),
       (Icons.shield_outlined, 'Mes contrats', false, () => shell?.goTo(ShellTab.contracts)),
       (Icons.description_outlined, 'Mes documents', false, () {

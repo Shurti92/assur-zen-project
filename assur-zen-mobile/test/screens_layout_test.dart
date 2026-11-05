@@ -1,4 +1,5 @@
 import 'package:assurzen_mobile/app/app_scope.dart';
+import 'package:assurzen_mobile/app/routes.dart';
 import 'package:assurzen_mobile/app/session_controller.dart';
 import 'package:assurzen_mobile/core/storage/local_store.dart';
 import 'package:assurzen_mobile/core/widgets/az_layout.dart';
@@ -15,6 +16,7 @@ import 'package:assurzen_mobile/features/catalog/product_page.dart';
 import 'package:assurzen_mobile/features/claims/claim_declare_page.dart';
 import 'package:assurzen_mobile/features/notifications/notifications_page.dart';
 import 'package:assurzen_mobile/features/profile/profile_page.dart';
+import 'package:assurzen_mobile/features/quote/my_quotes_page.dart';
 import 'package:assurzen_mobile/features/quote/quote_flow_page.dart';
 import 'package:assurzen_mobile/features/shell/main_shell.dart';
 import 'package:assurzen_mobile/features/support/support_page.dart';
@@ -168,6 +170,49 @@ void main() {
       expect(rects.last.right, closeTo(340, 0.6));
       expect(rects.first.width, closeTo(rects.last.width, 0.6));
       await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
+
+  group('Accueil : accès à Mes devis', () {
+    Future<void> openHome(WidgetTester tester, {required bool loggedIn}) async {
+      _useScreen(tester, const Size(360, 800));
+      SharedPreferences.setMockInitialValues({'lock_choice_done': true});
+      final store = await LocalStore.open();
+      final repos = MockRepositories.create();
+      final session = SessionController(store: store, repos: repos);
+      if (loggedIn) session.updateUser(MockData.demoUser);
+      // Comme l'application : les pages poussées par nom passent par les vraies routes.
+      await tester.pumpWidget(AppScope(
+        repos: repos,
+        session: session,
+        store: store,
+        child: const MaterialApp(onGenerateRoute: AppRoutes.onGenerateRoute, home: MainShell(initialTab: ShellTab.home)),
+      ));
+      await tester.pump(const Duration(milliseconds: 800));
+    }
+
+    testWidgets('client connecté : la tuile « Mes devis » ouvre la liste des devis', (tester) async {
+      await openHome(tester, loggedIn: true);
+
+      // La page d'accueil est une liste : on la fait défiler jusqu'à la tuile.
+      await tester.scrollUntilVisible(find.text('Mes devis'), 200, scrollable: find.byType(Scrollable).first);
+      expect(find.text('Mes devis'), findsOneWidget);
+      await tester.tap(find.text('Mes devis'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 800));
+
+      expect(find.text('Mes devis'), findsWidgets);
+      expect(find.byType(MyQuotesPage), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('sans compte : la tuile « Mes devis » est masquée', (tester) async {
+      await openHome(tester, loggedIn: false);
+
+      expect(find.text('Mes devis'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 5));
     });
   });
 

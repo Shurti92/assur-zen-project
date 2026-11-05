@@ -140,7 +140,8 @@ class ApiContractRepository implements ContractRepository {
   static DocumentType _docType(String? s) => switch (s) {
         'ATTESTATION' => DocumentType.attestation,
         'CEDEAO' => DocumentType.carteBrune,
-        'CONDITIONS' => DocumentType.conditions,
+        'CARTE_GRISE' => DocumentType.carteGrise,
+        'CONDITIONS' || 'CONDITIONS_PARTICULIERES' => DocumentType.conditions,
         'RECEIPT' => DocumentType.recu,
         _ => DocumentType.autre,
       };

@@ -431,7 +431,7 @@ extension ContractStatusLabel on ContractStatus {
       };
 }
 
-enum DocumentType { attestation, carteBrune, conditions, recu, autre }
+enum DocumentType { attestation, carteBrune, carteGrise, conditions, recu, autre }
 
 enum DocumentStatus { disponible, enGeneration, nonDisponible }
 

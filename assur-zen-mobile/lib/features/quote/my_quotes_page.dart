@@ -54,6 +54,7 @@ class MyQuotesPage extends StatelessWidget {
 AzStatusBadge _badge(MotoQuoteStatus s) => switch (s) {
       MotoQuoteStatus.calcule => const AzStatusBadge(label: 'À accepter', foreground: AzColors.warning, background: AzColors.warningBg),
       MotoQuoteStatus.accepte => const AzStatusBadge(label: 'Accepté', foreground: AzColors.success, background: AzColors.successBg),
+      MotoQuoteStatus.paye => const AzStatusBadge(label: 'Payé', foreground: AzColors.success, background: AzColors.successBg),
       MotoQuoteStatus.expire => const AzStatusBadge(label: 'Expiré', foreground: AzColors.neutral, background: AzColors.neutralBg),
       MotoQuoteStatus.converti => const AzStatusBadge(label: 'Souscrit', foreground: AzColors.blue700, background: AzColors.blue50),
       MotoQuoteStatus.inconnu => const AzStatusBadge(label: '—', foreground: AzColors.neutral, background: AzColors.neutralBg, dot: false),

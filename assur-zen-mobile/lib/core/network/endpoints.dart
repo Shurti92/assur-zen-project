@@ -58,6 +58,9 @@ abstract final class Endpoints {
   static const contracts = '$prefix/mobile/contracts';
   static String contract(String id) => '$prefix/mobile/contracts/$id';
   static String contractRequests(String id) => '$prefix/mobile/contracts/$id/requests';
+  // Fichiers d'un contrat : l'en-tête Authorization est obligatoire (jamais d'ouverture par le navigateur).
+  static String contractDocument(String id, String documentId) => '$prefix/mobile/contracts/$id/documents/$documentId';
+  static String contractAttestationFile(String id) => '$prefix/mobile/contracts/$id/attestation';
 
   // Sinistres
   static const claims = '$prefix/mobile/claims';
@@ -97,4 +100,6 @@ abstract final class Endpoints {
   static const vtcQuoteCreate = '$prefix/mobile/quotes/vtc'; // POST
   static String motoQuote(String reference) => '$prefix/mobile/quotes/$reference';
   static String motoQuoteAccept(String reference) => '$prefix/mobile/quotes/$reference/accept';
+  // Paiement Jeko d'un devis accepté : renvoie le même objet Payment que `POST /mobile/payments`.
+  static String motoQuoteConvert(String reference) => '$prefix/mobile/quotes/$reference/convert';
 }

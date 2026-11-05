@@ -191,15 +191,51 @@ class MotoQuoteSimulation {
       );
 }
 
-enum MotoQuoteStatus { calcule, accepte, expire, converti, inconnu }
+/// Cycle de vie : CALCULE, ACCEPTE, (paiement confirmé) PAYE, (finalisé au back-office) CONVERTI.
+enum MotoQuoteStatus { calcule, accepte, paye, expire, converti, inconnu }
 
 MotoQuoteStatus _status(Object? v) => switch (v?.toString()) {
       'CALCULE' => MotoQuoteStatus.calcule,
       'ACCEPTE' => MotoQuoteStatus.accepte,
+      'PAYE' => MotoQuoteStatus.paye, // payé, en attente de souscription par un conseiller
       'EXPIRE' => MotoQuoteStatus.expire,
-      'CONVERTI' => MotoQuoteStatus.converti, // lot 3
+      'CONVERTI' => MotoQuoteStatus.converti,
       _ => MotoQuoteStatus.inconnu,
     };
+
+/// État du paiement du devis, communiqué par le serveur (jamais déduit par l'application).
+enum QuoteConversionStatus { none, pending, confirmed, failed }
+
+QuoteConversionStatus _conversionStatus(Object? v) => switch (v?.toString()) {
+      'PENDING' => QuoteConversionStatus.pending,
+      'CONFIRMED' => QuoteConversionStatus.confirmed,
+      'FAILED' => QuoteConversionStatus.failed,
+      _ => QuoteConversionStatus.none,
+    };
+
+/// Paiement d'un devis accepté : `conversion` de la réponse du serveur.
+class QuoteConversion {
+  const QuoteConversion({required this.status, this.paymentReference, this.paidAt});
+
+  final QuoteConversionStatus status;
+
+  /// Référence `PAY-AAAA-NNNNNN` du paiement (à suivre s'il est en cours).
+  final String? paymentReference;
+  final DateTime? paidAt;
+
+  static const none = QuoteConversion(status: QuoteConversionStatus.none);
+
+  /// Absent ou mal formé : aucun paiement connu.
+  factory QuoteConversion.fromJson(Object? v) {
+    if (v is! Map) return none;
+    final j = v.cast<String, dynamic>();
+    return QuoteConversion(
+      status: _conversionStatus(j['status']),
+      paymentReference: _text(j['paymentReference']),
+      paidAt: _date(j['paidAt']),
+    );
+  }
+}
 
 /// Devis enregistré du client connecté (prix figé).
 class MotoQuote {
@@ -225,6 +261,9 @@ class MotoQuote {
     this.platform,
     this.discountPercent,
     this.channel,
+    this.conversion = QuoteConversion.none,
+    this.contractId,
+    this.policyNumber,
   });
 
   final String reference; // DEV-AAAA-NNNNNN
@@ -253,6 +292,14 @@ class MotoQuote {
   /// Origine du devis : `MOBILE` (fait dans l'application) ou `BACKOFFICE` (établi par un conseiller,
   /// puis rattaché au compte dont le numéro est identique, vérifié par SMS).
   final String? channel;
+
+  /// Paiement du devis et contrat obtenu. `contractId` et `policyNumber` n'existent qu'une fois le devis
+  /// converti : absents, rien n'est affiché.
+  final QuoteConversion conversion;
+  final String? contractId;
+  final String? policyNumber;
+
+  bool get isPaid => status == MotoQuoteStatus.paye || status == MotoQuoteStatus.converti;
 
   bool get isFromAdvisor => channel == 'BACKOFFICE';
 
@@ -305,6 +352,9 @@ class MotoQuote {
         platform: _text(j['platform']),
         discountPercent: j['discountPercent'] as num?,
         channel: _text(j['channel']),
+        conversion: QuoteConversion.fromJson(j['conversion']),
+        contractId: _text(j['contractId']),
+        policyNumber: _text(j['policyNumber']),
       );
 }
 
