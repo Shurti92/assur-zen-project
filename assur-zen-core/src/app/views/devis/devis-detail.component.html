@@ -274,6 +274,9 @@
               </li>
             }
           </ul>
+          @if (q.voyage?.guaranteesNote) {
+            <p class="dd-gnote">{{ q.voyage?.guaranteesNote }}</p>
+          }
         }
 
         <div class="dd-actions">

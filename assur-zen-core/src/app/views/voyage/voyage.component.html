@@ -9,6 +9,7 @@
   <div class="mb-tabs">
     <button (click)="setTab('countries')" [class.mb-tab--on]="tab() === 'countries'" class="mb-tab" type="button">Pays de destination</button>
     <button (click)="setTab('tariffs')" [class.mb-tab--on]="tab() === 'tariffs'" class="mb-tab" type="button">Grille tarifaire</button>
+    <button (click)="setTab('guarantees')" [class.mb-tab--on]="tab() === 'guarantees'" class="mb-tab" type="button">Garanties</button>
     <button (click)="setTab('simulator')" [class.mb-tab--on]="tab() === 'simulator'" class="mb-tab" type="button">Simulateur</button>
   </div>
 
@@ -176,6 +177,64 @@
     }
   }
 
+  <!-- ============ G · Garanties ============ -->
+  @if (tab() === 'guarantees') {
+    <div class="mb-kpis vy-kpis3">
+      <div class="mb-kpi"><small>Garanties</small><b>{{ guarantees().length }}</b></div>
+      <div class="mb-kpi"><small><i style="background: #12a150"></i>Affichées</small><b>{{ shownGuarantees() }}</b></div>
+      <div class="mb-kpi"><small><i style="background: #9aa6cc"></i>Masquées</small><b>{{ guarantees().length - shownGuarantees() }}</b></div>
+    </div>
+    <div class="mb-toolbar">
+      <span class="vy-subt vy-nomb">Identiques pour les trois espaces et toutes les durées. Seules les garanties actives sont affichées aux clients, dans cet ordre (glisser-déposer).</span>
+      <span class="vy-grow"></span>
+      <button (click)="newGuarantee()" class="mb-btn mb-btn--pri" type="button">+ Ajouter une garantie</button>
+    </div>
+    @if (guaranteesLoading()) {
+      <p class="mb-empty">Chargement des garanties…</p>
+    } @else {
+      <div class="mb-list vy-scroll">
+        <div class="vy-gmin">
+          <div class="mb-head vy-g"><div></div><div>Garantie</div><div>Plafond / prise en charge</div><div>Affichée</div><div></div></div>
+          <div (cdkDropListDropped)="dropGuarantee($event)" cdkDropList class="vy-dl">
+            @for (g of guarantees(); track g.id) {
+              <div [style.opacity]="g.active ? 1 : 0.8" cdkDrag class="mb-row vy-g vy-dr">
+                <span cdkDragHandle aria-label="Glisser pour réordonner" class="vy-grip" title="Glisser pour réordonner">⋮⋮</span>
+                <div><b>{{ g.label }}</b></div>
+                <div>{{ g.coverage }}</div>
+                <button (click)="toggleGuarantee(g)" [attr.aria-pressed]="g.active" [class.vy-tg--on]="g.active" [attr.aria-label]="'Afficher ' + g.label" class="vy-tg" type="button"></button>
+                <div class="vy-btns">
+                  <button (click)="editGuarantee(g)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Modifier</button>
+                  <button (click)="guaranteeDelete.set(g)" class="mb-btn mb-btn--danger mb-btn--sm" type="button">Supprimer</button>
+                </div>
+              </div>
+            } @empty {
+              <p class="mb-empty">Aucune garantie. Cliquez sur « Ajouter une garantie ».</p>
+            }
+          </div>
+          <div class="vy-foot">
+            <span>{{ guarantees().length }} garantie{{ guarantees().length > 1 ? 's' : '' }}</span>
+            <span>« Supprimer » demande une confirmation ; masquer (interrupteur) est conseillé pour ne rien perdre.</span>
+          </div>
+        </div>
+      </div>
+      <section class="vy-card vy-mt">
+        <h3>Note de bas de page</h3>
+        <p class="vy-subt">Renvoi de l'astérisque des montants en F CFA, affiché sous les garanties (page publique, PDF). Vide = aucune note.</p>
+        <textarea (input)="note.set($any($event.target).value)" [value]="note()" aria-label="Note de bas de page" class="vy-ta" maxlength="500"></textarea>
+        <div class="vy-notebar">
+          <small>500 caractères au plus.</small>
+          <button (click)="saveNote()" [disabled]="noteSaving() || note().trim() === noteSaved()" class="mb-btn mb-btn--pri mb-btn--sm" type="button">
+            @if (noteSaving()) {
+              <c-spinner size="sm" />
+            }
+            Enregistrer la note
+          </button>
+        </div>
+      </section>
+      <p class="vy-hint">Les garanties affichées sont celles du moment : elles ne sont pas figées dans un devis déjà créé (contrairement au prix). Le même ordre et les mêmes textes sont repris dans le simulateur, la fiche du devis, la page publique, le PDF et l'e-mail.</p>
+    }
+  }
+
   <!-- ============ C · Simulateur ============ -->
   @if (tab() === 'simulator') {
     <div class="vy-cols">
@@ -241,6 +300,9 @@
                 </li>
               }
             </ul>
+            @if (r.guaranteesNote) {
+              <p class="vy-gnote">{{ r.guaranteesNote }}</p>
+            }
           }
         } @else {
           <p class="vy-subt">Lancez un calcul pour voir le détail de la prime.</p>
@@ -283,6 +345,52 @@
           }
           Enregistrer
         </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (guaranteeEdit(); as d) {
+  <div (click)="guaranteeEdit.set(null)" class="vy-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="vy-modal" role="dialog">
+      <h4>{{ d.id === null ? 'Ajouter une garantie' : 'Modifier la garantie' }}</h4>
+      <div class="vy-fld">
+        <label for="gr-label">Garantie <span class="vy-req">*</span> <span class="vy-light">(250 caractères max)</span></label>
+        <input [(ngModel)]="d.label" id="gr-label" maxlength="250" name="gr-label" />
+      </div>
+      <div class="vy-fld">
+        <label for="gr-cov">Plafond / prise en charge <span class="vy-req">*</span> <span class="vy-light">(250 max)</span></label>
+        <input [(ngModel)]="d.coverage" id="gr-cov" maxlength="250" name="gr-cov" />
+        <small>Texte libre, tel qu'il sera affiché au client. Pensez à l'astérisque si le montant est converti.</small>
+      </div>
+      <div class="vy-sw">
+        <div><b>Garantie affichée</b><small>Masquée : n'apparaît plus aux clients, sans être supprimée</small></div>
+        <button (click)="d.active = !d.active" [attr.aria-pressed]="d.active" [class.vy-tg--on]="d.active" aria-label="Garantie affichée" class="vy-tg" type="button"></button>
+      </div>
+      @if (modalError()) {
+        <div class="vy-err" role="alert">⛔ {{ modalError() }}</div>
+      }
+      <div class="vy-two vy-top">
+        <button (click)="guaranteeEdit.set(null)" [disabled]="saving()" class="mb-btn mb-btn--ghost vy-c" type="button">Annuler</button>
+        <button (click)="submitGuarantee()" [disabled]="saving()" class="mb-btn mb-btn--pri vy-c" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (guaranteeDelete(); as g) {
+  <div (click)="guaranteeDelete.set(null)" class="vy-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="vy-modal" role="dialog">
+      <h4>Supprimer « {{ g.label }} » ?</h4>
+      <p class="vy-subt">La garantie sera retirée définitivement. Pour la masquer sans la perdre, désactivez-la plutôt.</p>
+      <div class="vy-two">
+        <button (click)="guaranteeDelete.set(null)" [disabled]="saving()" class="mb-btn mb-btn--ghost vy-c" type="button">Annuler</button>
+        <button (click)="confirmDeleteGuarantee()" [disabled]="saving()" class="mb-btn mb-btn--danger vy-c" type="button">Supprimer</button>
       </div>
     </div>
   </div>

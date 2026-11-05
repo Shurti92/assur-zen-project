@@ -1,11 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { SpinnerComponent } from '@coreui/angular';
 
 import {
   VOYAGE_SPACES,
   VoyageCountry,
+  VoyageGuarantee,
   VoyageForm,
   VoyageService,
   VoyageSimulation,
@@ -14,7 +16,7 @@ import {
 } from '../../core/quotes/voyage.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 
-type Tab = 'countries' | 'tariffs' | 'simulator';
+type Tab = 'countries' | 'tariffs' | 'guarantees' | 'simulator';
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 /** Durées maximales de la grille de départ (jours) ; null = « 1 an » (au-delà de 180 jours). */
@@ -34,6 +36,13 @@ interface Cell {
   tariff: VoyageTariff | null;
 }
 
+interface GuaranteeDraft {
+  id: number | null;
+  label: string;
+  coverage: string;
+  active: boolean;
+}
+
 interface TariffDraft {
   ageMin: number | null;
   ageMax: number | null;
@@ -48,7 +57,7 @@ interface TariffDraft {
   selector: 'app-voyage',
   templateUrl: './voyage.component.html',
   styleUrl: './voyage.component.scss',
-  imports: [AlertMessageComponent, FormsModule, SpinnerComponent],
+  imports: [AlertMessageComponent, CdkDrag, CdkDragHandle, CdkDropList, FormsModule, SpinnerComponent],
 })
 export class VoyageComponent {
   private readonly service = inject(VoyageService);
@@ -123,6 +132,16 @@ export class VoyageComponent {
   );
   readonly missingCells = computed(() => this.rows().flatMap((r) => r.cells).filter((c) => !c.tariff));
 
+  // ---------- Garanties ----------
+  readonly guarantees = signal<VoyageGuarantee[]>([]);
+  readonly guaranteesLoading = signal(true);
+  readonly guaranteeEdit = signal<GuaranteeDraft | null>(null);
+  readonly guaranteeDelete = signal<VoyageGuarantee | null>(null);
+  readonly note = signal('');
+  readonly noteSaved = signal('');
+  readonly noteSaving = signal(false);
+  readonly shownGuarantees = computed(() => this.guarantees().filter((g) => g.active).length);
+
   // ---------- Simulateur ----------
   readonly form = signal<VoyageForm | null>(null);
   readonly simCountryId = signal<number | null>(null);
@@ -135,6 +154,7 @@ export class VoyageComponent {
   constructor() {
     this.loadCountries();
     this.loadTariffs();
+    this.loadGuarantees();
   }
 
   setTab(tab: Tab): void {
@@ -372,6 +392,128 @@ export class VoyageComponent {
           this.modalError.set(this.messageOf(err, "Impossible d'ajouter la tranche."));
         },
       });
+  }
+
+  // ====================== Garanties ======================
+  loadGuarantees(): void {
+    this.guaranteesLoading.set(true);
+    this.service.guarantees().subscribe({
+      next: (r) => {
+        this.guarantees.set([...r.items].sort((a, b) => a.displayOrder - b.displayOrder));
+        this.note.set(r.note ?? '');
+        this.noteSaved.set(r.note ?? '');
+        this.guaranteesLoading.set(false);
+      },
+      error: (err) => {
+        this.error.set(this.messageOf(err, 'Impossible de charger les garanties.'));
+        this.guaranteesLoading.set(false);
+      },
+    });
+  }
+
+  private guaranteeBody(g: VoyageGuarantee, patch: Partial<VoyageGuarantee> = {}) {
+    const m = { ...g, ...patch };
+    return { label: m.label, coverage: m.coverage, active: m.active, displayOrder: m.displayOrder };
+  }
+
+  toggleGuarantee(g: VoyageGuarantee): void {
+    this.error.set(null);
+    this.service.updateGuarantee(g.id, this.guaranteeBody(g, { active: !g.active })).subscribe({
+      next: (saved) => this.guarantees.update((list) => list.map((x) => (x.id === saved.id ? { ...x, ...saved } : x))),
+      error: (err) => this.error.set(this.messageOf(err, 'Impossible de changer le statut de la garantie.')),
+    });
+  }
+
+  dropGuarantee(event: CdkDragDrop<VoyageGuarantee[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const previous = new Map(this.guarantees().map((g) => [g.id, g.displayOrder]));
+    const list = [...this.guarantees()];
+    moveItemInArray(list, event.previousIndex, event.currentIndex);
+    const renumbered = list.map((g, i) => ({ ...g, displayOrder: i + 1 }));
+    this.guarantees.set(renumbered);
+    // Un PUT par garantie dont l'ordre a changé.
+    renumbered
+      .filter((g) => previous.get(g.id) !== g.displayOrder)
+      .forEach((g) =>
+        this.service.updateGuarantee(g.id, this.guaranteeBody(g)).subscribe({ error: (err) => this.error.set(this.messageOf(err, "Impossible d'enregistrer l'ordre.")) }),
+      );
+  }
+
+  newGuarantee(): void {
+    this.modalError.set(null);
+    this.guaranteeEdit.set({ id: null, label: '', coverage: '', active: true });
+  }
+
+  editGuarantee(g: VoyageGuarantee): void {
+    this.modalError.set(null);
+    this.guaranteeEdit.set({ id: g.id, label: g.label, coverage: g.coverage, active: g.active });
+  }
+
+  submitGuarantee(): void {
+    const d = this.guaranteeEdit();
+    if (!d || this.saving()) return;
+    if (!d.label.trim()) {
+      this.modalError.set('Le libellé est obligatoire.');
+      return;
+    }
+    if (!d.coverage.trim()) {
+      this.modalError.set('Le plafond ou la prise en charge est obligatoire.');
+      return;
+    }
+    this.saving.set(true);
+    this.modalError.set(null);
+    const body = { label: d.label.trim(), coverage: d.coverage.trim(), active: d.active };
+    const existing = d.id === null ? null : this.guarantees().find((g) => g.id === d.id);
+    const call = d.id === null ? this.service.createGuarantee(body) : this.service.updateGuarantee(d.id, { ...body, displayOrder: existing?.displayOrder });
+    call.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.guaranteeEdit.set(null);
+        this.info.set(d.id === null ? 'Garantie ajoutée.' : 'Garantie enregistrée.');
+        this.loadGuarantees();
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.modalError.set(this.messageOf(err, "Impossible d'enregistrer la garantie."));
+      },
+    });
+  }
+
+  confirmDeleteGuarantee(): void {
+    const g = this.guaranteeDelete();
+    if (!g || this.saving()) return;
+    this.saving.set(true);
+    this.service.deleteGuarantee(g.id).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.guaranteeDelete.set(null);
+        this.info.set('Garantie supprimée.');
+        this.loadGuarantees();
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.guaranteeDelete.set(null);
+        this.error.set(this.messageOf(err, 'Impossible de supprimer la garantie.'));
+      },
+    });
+  }
+
+  saveNote(): void {
+    if (this.noteSaving()) return;
+    this.noteSaving.set(true);
+    this.error.set(null);
+    this.service.saveGuaranteesNote(this.note().trim()).subscribe({
+      next: (r) => {
+        this.noteSaving.set(false);
+        this.note.set(r.note ?? '');
+        this.noteSaved.set(r.note ?? '');
+        this.info.set('Note enregistrée.');
+      },
+      error: (err) => {
+        this.noteSaving.set(false);
+        this.error.set(this.messageOf(err, "Impossible d'enregistrer la note."));
+      },
+    });
   }
 
   // ====================== Simulateur ======================

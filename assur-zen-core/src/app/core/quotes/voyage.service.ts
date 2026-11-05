@@ -77,6 +77,23 @@ export interface VoyageSimulation {
   totalPremium: number;
   /** Garanties du résumé AssurZen (absentes d'une gateway plus ancienne). */
   guarantees?: QuoteGuarantee[];
+  /** Renvoi de l'astérisque des montants (vide = aucune note). */
+  guaranteesNote?: string | null;
+}
+
+export interface VoyageGuarantee {
+  id: number;
+  label: string;
+  coverage: string;
+  active: boolean;
+  displayOrder: number;
+}
+
+export interface VoyageGuaranteeRequest {
+  label: string;
+  coverage: string;
+  active?: boolean;
+  displayOrder?: number;
 }
 
 /** Assurance voyage : pays de destination et grille (ADMIN, /admin/quotes/voyage), simulation publique. */
@@ -117,6 +134,26 @@ export class VoyageService {
 
   deleteTariff(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/tariffs/${id}`);
+  }
+
+  guarantees(): Observable<{ items: VoyageGuarantee[]; note: string | null }> {
+    return this.http.get<{ items: VoyageGuarantee[]; note: string | null }>(`${this.base}/guarantees`);
+  }
+
+  createGuarantee(payload: VoyageGuaranteeRequest): Observable<VoyageGuarantee> {
+    return this.http.post<VoyageGuarantee>(`${this.base}/guarantees`, payload);
+  }
+
+  updateGuarantee(id: number, payload: VoyageGuaranteeRequest): Observable<VoyageGuarantee> {
+    return this.http.put<VoyageGuarantee>(`${this.base}/guarantees/${id}`, payload);
+  }
+
+  deleteGuarantee(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/guarantees/${id}`);
+  }
+
+  saveGuaranteesNote(note: string): Observable<{ note: string | null }> {
+    return this.http.put<{ note: string | null }>(`${this.base}/guarantees-note`, { note });
   }
 
   form(): Observable<VoyageForm> {

@@ -221,6 +221,8 @@ export interface QuoteVoyage {
   departureDate?: string | null;
   returnDate?: string | null;
   durationDays?: number | null;
+  /** Note de bas de page des garanties (renvoi de l'astérisque). */
+  guaranteesNote?: string | null;
 }
 
 /** Corps de POST /admin/quotes/voyage (devis voyage saisi au back-office). */

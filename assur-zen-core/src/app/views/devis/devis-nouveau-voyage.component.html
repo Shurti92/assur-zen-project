@@ -202,6 +202,9 @@
                 }
               </div>
             }
+            @if (s.guaranteesNote) {
+              <small class="df-gnote">{{ s.guaranteesNote }}</small>
+            }
           </div>
         }
         <button (click)="save()" [disabled]="saving() || simulating() || !simulationUpToDate()" class="df-save" type="button">

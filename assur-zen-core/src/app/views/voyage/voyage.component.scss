@@ -397,3 +397,84 @@
     font-weight: 400;
   }
 }
+
+// ---------- Garanties ----------
+.vy-kpis3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.vy-nomb {
+  margin: 0;
+}
+
+.vy-gmin {
+  min-width: 860px;
+}
+
+.vy-g {
+  grid-template-columns: 28px 1.4fr 1.6fr 90px 210px;
+}
+
+.vy-grip {
+  color: var(--mb-mut);
+  font-size: 18px;
+  cursor: grab;
+}
+
+.vy-mt {
+  margin-top: 18px;
+}
+
+.vy-ta {
+  width: 100%;
+  min-height: 64px;
+  padding: 11px 13px;
+  border: 1px solid var(--mb-bd);
+  border-radius: 12px;
+  background: var(--mb-soft);
+  color: inherit;
+  font: inherit;
+}
+
+.vy-notebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+
+  small {
+    color: var(--mb-mut);
+  }
+}
+
+.vy-light {
+  color: var(--mb-mut);
+  font-weight: 400;
+}
+
+.vy-gnote {
+  margin: 10px 0 0;
+  color: var(--mb-mut);
+  font-size: 12px;
+}
+
+// Glisser-déposer (CDK) : l'aperçu est ajouté au <body>.
+::ng-deep .cdk-drag-preview.vy-dr {
+  display: grid;
+  grid-template-columns: 28px 1.4fr 1.6fr 90px 210px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  background: var(--cui-body-bg, #fff);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+::ng-deep .vy-dr.cdk-drag-placeholder {
+  opacity: 0.35;
+}
+
+::ng-deep .vy-dr.cdk-drag-animating,
+::ng-deep .vy-dl.cdk-drop-list-dragging .vy-dr:not(.cdk-drag-placeholder) {
+  transition: transform 200ms ease;
+}
