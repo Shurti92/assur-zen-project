@@ -222,6 +222,7 @@ export class DevisConversionComponent implements OnInit {
       next: (q) => {
         this.converting.set(false);
         this.ambiguous.set(null);
+        this.service.contract(q.reference).subscribe({ next: (c) => this.contract.set(c), error: () => undefined });
         this.converted.emit(q);
       },
       error: (err) => {
