@@ -20,8 +20,11 @@ import '../features/onboarding/welcome_page.dart';
 import '../features/payment/payment_page.dart';
 import '../data/models/moto_quote.dart';
 import '../features/quote/moto_quote_page.dart';
+import '../features/engagement/badges_page.dart';
 import '../features/engagement/protection_score_page.dart';
+import '../features/engagement/quiz_page.dart';
 import '../features/quote/my_quotes_page.dart';
+import '../features/quote/voyage_quote_page.dart';
 import '../features/quote/quote_flow_page.dart';
 import '../features/quote/vtc_quote_page.dart';
 import '../features/shell/main_shell.dart';
@@ -44,6 +47,7 @@ abstract final class AppRoutes {
   static const quote = '/quote';
   static const motoQuote = '/moto-quote';
   static const vtcQuote = '/vtc-quote';
+  static const voyageQuote = '/voyage-quote';
   static const myQuotes = '/my-quotes';
   static const motoQuoteDetail = '/moto-quote-detail';
   static const payment = '/payment';
@@ -54,6 +58,8 @@ abstract final class AppRoutes {
   static const claim = '/claim';
   static const support = '/support';
   static const protectionScore = '/protection-score';
+  static const badges = '/badges';
+  static const quiz = '/quiz';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final args = settings.arguments;
@@ -73,6 +79,7 @@ abstract final class AppRoutes {
       quote => QuoteFlowPage(args: args as QuoteArgs),
       motoQuote => MotoQuotePage(title: args is String ? args : null),
       vtcQuote => VtcQuotePage(title: args is String ? args : null),
+      voyageQuote => VoyageQuotePage(title: args is String ? args : null),
       myQuotes => const MyQuotesPage(),
       motoQuoteDetail => MotoQuoteDetailPage(quote: args as MotoQuote),
       payment => PaymentPage(args: args as PaymentArgs),
@@ -83,6 +90,8 @@ abstract final class AppRoutes {
       claim => ClaimDetailPage(claimId: args as String),
       support => const SupportPage(),
       protectionScore => const ProtectionScorePage(),
+      badges => const BadgesPage(),
+      quiz => const QuizPage(),
       _ => const SplashPage(),
     };
     final fullscreen = settings.name == lock || settings.name == attestation;

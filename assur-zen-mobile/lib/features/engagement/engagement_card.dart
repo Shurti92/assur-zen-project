@@ -21,6 +21,8 @@ class EngagementCard extends StatefulWidget {
 class _EngagementCardState extends State<EngagementCard> {
   Engagement? _engagement;
   ProtectionScore? _score;
+  List<AppBadge>? _badges;
+  QuizQuestion? _quiz;
   bool _loading = true;
 
   @override
@@ -34,6 +36,7 @@ class _EngagementCardState extends State<EngagementCard> {
       final repo = context.repos.engagement;
       final e = await repo.getEngagement();
       ProtectionScore? score;
+      List<AppBadge>? badges;
       if (e.showsScore && e.consent.accepted) {
         try {
           score = await repo.getProtectionScore();
@@ -41,10 +44,27 @@ class _EngagementCardState extends State<EngagementCard> {
           score = null; // consentement retiré entre-temps, ou fonction coupée : la carte se replie
         }
       }
+      if (e.showsBadges && e.consent.accepted) {
+        try {
+          badges = await repo.getBadges();
+        } on ApiException {
+          badges = null;
+        }
+      }
+      QuizQuestion? quiz;
+      if (e.showsQuiz && e.consent.accepted) {
+        try {
+          quiz = await repo.getQuizToday();
+        } on ApiException {
+          quiz = null; // pas de question, fonction coupée, accord retiré : la carte n'apparaît pas
+        }
+      }
       if (!mounted) return;
       setState(() {
         _engagement = e;
         _score = score;
+        _badges = badges;
+        _quiz = quiz;
         _loading = false;
       });
     } catch (_) {
@@ -70,42 +90,11 @@ class _EngagementCardState extends State<EngagementCard> {
   @override
   Widget build(BuildContext context) {
     final e = _engagement;
-    if (_loading || e == null || !e.showsScore) return const SizedBox.shrink();
-
-    final score = _score;
-    if (e.consent.accepted && score != null) {
-      final next = score.todo.isEmpty ? null : score.todo.first;
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(AzSpace.screen, 24, AzSpace.screen, 0),
-        child: AzCard(
-          onTap: () => context.push(AppRoutes.protectionScore),
-          semanticLabel: 'Ma protection : ${score.score} %',
-          child: Row(
-            children: [
-              ScoreGauge(score: score.score, size: 64),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Ma protection', style: AzText.titleSmall),
-                    const SizedBox(height: 4),
-                    if (next != null)
-                      Text(next.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.bodyMedium.copyWith(color: AzColors.muted))
-                    else
-                      Text('${score.items.length} sur ${score.items.length}', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: AzColors.muted),
-            ],
-          ),
-        ),
-      );
-    }
+    if (_loading || e == null || !e.showsAnything) return const SizedBox.shrink();
 
     // Pas de consentement : on le propose seulement si le serveur fournit son texte.
-    if (!e.consent.accepted && e.canAskConsent) {
+    if (!e.consent.accepted) {
+      if (!e.canAskConsent) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.fromLTRB(AzSpace.screen, 24, AzSpace.screen, 0),
         child: AzCard(
@@ -123,7 +112,109 @@ class _EngagementCardState extends State<EngagementCard> {
         ),
       );
     }
-    return const SizedBox.shrink();
+
+    final cards = <Widget>[
+      if (_score case final score?) _scoreCard(context, score),
+      if (_quiz case final quiz?) _quizCard(context, quiz),
+      if (_badges case final badges? when badges.isNotEmpty) _badgesCard(context, badges),
+    ];
+    if (cards.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AzSpace.screen, 24, AzSpace.screen, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < cards.length; i++) ...[if (i > 0) const SizedBox(height: 10), cards[i]],
+        ],
+      ),
+    );
+  }
+
+  Widget _scoreCard(BuildContext context, ProtectionScore score) {
+    final next = score.todo.isEmpty ? null : score.todo.first;
+    return AzCard(
+      onTap: () => context.push(AppRoutes.protectionScore),
+      semanticLabel: 'Ma protection : ${score.score} %',
+      child: Row(
+        children: [
+          ScoreGauge(score: score.score, size: 64),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Ma protection', style: AzText.titleSmall),
+                const SizedBox(height: 4),
+                if (next != null)
+                  Text(next.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.bodyMedium.copyWith(color: AzColors.muted))
+                else
+                  Text('${score.items.length} sur ${score.items.length}', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: AzColors.muted),
+        ],
+      ),
+    );
+  }
+
+  Widget _quizCard(BuildContext context, QuizQuestion quiz) {
+    // Pas encore répondu : on invite ; déjà répondu : on rappelle la série (rien d'écrit en dur sur demain).
+    final streak = quiz.streak.current;
+    return AzCard(
+      onTap: () async {
+        await context.push(AppRoutes.quiz);
+        if (mounted) _load();
+      },
+      semanticLabel: 'Quiz du jour',
+      child: Row(
+        children: [
+          const AzIconTile(icon: Icons.quiz_outlined, size: 44),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Quiz du jour', style: AzText.titleSmall),
+                if (!quiz.answered)
+                  Text(quiz.theme ?? quiz.question, maxLines: 1, overflow: TextOverflow.ellipsis, style: AzText.bodyMedium.copyWith(color: AzColors.muted))
+                else if (streak > 0)
+                  Text('$streak ${streak > 1 ? 'jours' : 'jour'} de suite', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
+              ],
+            ),
+          ),
+          if (!quiz.answered)
+            Text('Jouer', style: AzText.label.copyWith(color: AzColors.blue700, fontWeight: FontWeight.w800))
+          else
+            const Icon(Icons.check_circle_rounded, color: AzColors.success),
+          const Icon(Icons.chevron_right_rounded, color: AzColors.muted),
+        ],
+      ),
+    );
+  }
+
+  Widget _badgesCard(BuildContext context, List<AppBadge> badges) {
+    final earned = badges.where((b) => b.earned).length;
+    return AzCard(
+      onTap: () => context.push(AppRoutes.badges),
+      semanticLabel: 'Mes badges : $earned sur ${badges.length}',
+      child: Row(
+        children: [
+          const AzIconTile(icon: Icons.military_tech_outlined, size: 44),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Mes badges', style: AzText.titleSmall),
+                Text('$earned sur ${badges.length}', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: AzColors.muted),
+        ],
+      ),
+    );
   }
 }
 

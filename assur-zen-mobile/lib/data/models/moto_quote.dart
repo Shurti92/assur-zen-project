@@ -264,6 +264,7 @@ class MotoQuote {
     this.conversion = QuoteConversion.none,
     this.contractId,
     this.policyNumber,
+    this.voyage,
   });
 
   final String reference; // DEV-AAAA-NNNNNN
@@ -299,6 +300,12 @@ class MotoQuote {
   final String? contractId;
   final String? policyNumber;
 
+  /// Détail d'un devis Assurance Voyage ; null pour la moto et le VTC. Pour un voyage, les champs
+  /// du véhicule (marque, modèle, cylindrée…) sont vides et ne s'affichent pas.
+  final VoyageInfo? voyage;
+
+  bool get isVoyage => voyage != null || productKey == 'voyage';
+
   bool get isPaid => status == MotoQuoteStatus.paye || status == MotoQuoteStatus.converti;
 
   bool get isFromAdvisor => channel == 'BACKOFFICE';
@@ -328,6 +335,10 @@ class MotoQuote {
         platform: platform,
         discountPercent: discountPercent,
         channel: channel,
+        conversion: conversion,
+        contractId: contractId,
+        policyNumber: policyNumber,
+        voyage: voyage,
       );
 
   factory MotoQuote.fromJson(Map<String, dynamic> j) => MotoQuote(
@@ -355,6 +366,7 @@ class MotoQuote {
         conversion: QuoteConversion.fromJson(j['conversion']),
         contractId: _text(j['contractId']),
         policyNumber: _text(j['policyNumber']),
+        voyage: VoyageInfo.fromJson(j['voyage']),
       );
 }
 
@@ -459,4 +471,229 @@ class VtcQuoteRequest {
         if (chassisNumber != null && chassisNumber!.trim().isNotEmpty) 'chassisNumber': chassisNumber!.trim(),
         if (formulaId != null && formulaId!.isNotEmpty) 'formulaId': formulaId,
       };
+}
+
+// ---------------------------------------------------------------------------
+// Assurance Voyage
+// ---------------------------------------------------------------------------
+
+String _ymd(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// Âge en années entières à la date [on] (anniversaire inclus). Même règle que le serveur, utilisée
+/// seulement pour la simulation publique, qui attend un âge ; le devis enregistré est calculé par le serveur.
+int ageAt(DateTime birth, DateTime on) {
+  var age = on.year - birth.year;
+  if (on.month < birth.month || (on.month == birth.month && on.day < birth.day)) age--;
+  return age < 0 ? 0 : age;
+}
+
+/// Nombre de jours du départ au retour, les deux jours inclus (du 1er au 7 : 7 jours).
+int inclusiveDays(DateTime departure, DateTime back) {
+  final a = DateTime.utc(departure.year, departure.month, departure.day);
+  final b = DateTime.utc(back.year, back.month, back.day);
+  return b.difference(a).inDays + 1;
+}
+
+/// Un pays de destination. `name` et `spaceLabel` sont affichables ; `space` est un code technique.
+class VoyageCountry {
+  const VoyageCountry({required this.id, required this.name, required this.space, required this.spaceLabel});
+
+  final String id;
+  final String name;
+  final String space;
+  final String spaceLabel;
+
+  static VoyageCountry? fromJson(Object? v) {
+    if (v is! Map) return null;
+    final id = _text(v['id']);
+    final name = _text(v['name']);
+    if (id == null || name == null) return null;
+    return VoyageCountry(id: id, name: name, space: (_text(v['space']) ?? ''), spaceLabel: _text(v['spaceLabel']) ?? '');
+  }
+}
+
+/// Paramètres du formulaire Voyage, pilotés par le serveur (`GET /public/quotes/voyage/form`).
+class VoyageForm {
+  const VoyageForm({
+    required this.countries,
+    required this.minAge,
+    required this.maxAge,
+    required this.maxDurationDays,
+    this.minDepartureDate,
+  });
+
+  final List<VoyageCountry> countries;
+  final int minAge;
+  final int maxAge;
+  final int maxDurationDays;
+
+  /// Premier départ possible : date du jour du serveur (Abidjan), pas l'horloge du téléphone.
+  final DateTime? minDepartureDate;
+
+  /// Pays regroupés par espace, dans l'ordre alphabétique des libellés d'espace puis des noms.
+  Map<String, List<VoyageCountry>> get bySpace {
+    final map = <String, List<VoyageCountry>>{};
+    for (final c in countries) {
+      (map[c.spaceLabel.isEmpty ? c.space : c.spaceLabel] ??= []).add(c);
+    }
+    final keys = map.keys.toList()..sort();
+    return {for (final k in keys) k: map[k]!..sort((a, b) => a.name.compareTo(b.name))};
+  }
+
+  factory VoyageForm.fromJson(Map<String, dynamic> j) => VoyageForm(
+        countries: [
+          for (final c in (j['countries'] as List? ?? const []))
+            if (VoyageCountry.fromJson(c) case final country?) country,
+        ],
+        minAge: _int(j['minAge']),
+        maxAge: _int(j['maxAge']),
+        maxDurationDays: _int(j['maxDurationDays']),
+        minDepartureDate: _date(j['minDepartureDate']),
+      );
+}
+
+/// Saisie du client pour un devis Voyage enregistré.
+class VoyageRequest {
+  const VoyageRequest({
+    required this.countryId,
+    required this.birthDate,
+    required this.departureDate,
+    required this.returnDate,
+    this.travelerName,
+    this.passportNumber,
+  });
+
+  final String countryId;
+  final DateTime birthDate;
+  final DateTime departureDate;
+  final DateTime returnDate;
+
+  /// Seulement si le voyageur n'est pas le titulaire du compte.
+  final String? travelerName;
+  final String? passportNumber;
+
+  /// Âge au départ et durée : pour la simulation publique uniquement.
+  int get age => ageAt(birthDate, departureDate);
+  int get durationDays => inclusiveDays(departureDate, returnDate);
+
+  Map<String, Object?> toJson() => {
+        'countryId': int.tryParse(countryId) ?? countryId,
+        'birthDate': _ymd(birthDate),
+        'departureDate': _ymd(departureDate),
+        'returnDate': _ymd(returnDate),
+        if (travelerName != null && travelerName!.trim().isNotEmpty) 'travelerName': travelerName!.trim(),
+        if (passportNumber != null && passportNumber!.trim().isNotEmpty) 'passportNumber': passportNumber!.trim(),
+      };
+
+  /// Corps de la simulation publique : le serveur attend un âge et une durée.
+  Map<String, Object?> toSimulationJson() => {
+        'countryId': int.tryParse(countryId) ?? countryId,
+        'age': age,
+        'durationDays': durationDays,
+      };
+}
+
+/// Détail d'un devis Voyage (objet `voyage` de la réponse).
+class VoyageInfo {
+  const VoyageInfo({
+    required this.countryName,
+    this.spaceLabel,
+    this.travelerBirthDate,
+    this.travelerAge,
+    this.passportNumber,
+    this.departureDate,
+    this.returnDate,
+    this.durationDays,
+  });
+
+  final String countryName;
+  final String? spaceLabel;
+  final DateTime? travelerBirthDate;
+  final int? travelerAge;
+
+  /// Masqué par le serveur dans les listes (« ****4567 ») ; affiché tel quel.
+  final String? passportNumber;
+  final DateTime? departureDate;
+  final DateTime? returnDate;
+
+  /// LA durée à afficher (la durée en mois du devis est technique et n'est jamais montrée).
+  final int? durationDays;
+
+  static VoyageInfo? fromJson(Object? v) {
+    if (v is! Map) return null;
+    final name = _text(v['countryName']);
+    if (name == null) return null;
+    return VoyageInfo(
+      countryName: name,
+      spaceLabel: _text(v['spaceLabel']),
+      travelerBirthDate: _date(v['travelerBirthDate']),
+      travelerAge: (v['travelerAge'] as num?)?.toInt(),
+      passportNumber: _text(v['passportNumber']),
+      departureDate: _date(v['departureDate']),
+      returnDate: _date(v['returnDate']),
+      durationDays: (v['durationDays'] as num?)?.toInt(),
+    );
+  }
+
+  /// « 7 jours » ; null si le serveur ne donne pas la durée.
+  String? get durationLabel => durationDays == null ? null : '$durationDays ${durationDays! > 1 ? 'jours' : 'jour'}';
+}
+
+/// Résultat de `POST /public/quotes/voyage/simulate` (rien n'est enregistré).
+class VoyageSimulation {
+  const VoyageSimulation({
+    required this.countryName,
+    required this.spaceLabel,
+    required this.age,
+    required this.durationDays,
+    required this.premium,
+    this.durationBand,
+    this.guarantees = const [],
+  });
+
+  final String countryName;
+  final String spaceLabel;
+  final int age;
+  final int durationDays;
+
+  /// Tranche tarifaire, texte du serveur (« jusqu'à 15 jours »).
+  final String? durationBand;
+  final MotoPremium premium;
+
+  /// Garanties du produit, fournies par AssurZen via le serveur (absentes d'un ancien serveur : liste vide,
+  /// la rubrique est alors masquée).
+  final List<MotoGuarantee> guarantees;
+
+  factory VoyageSimulation.fromJson(Map<String, dynamic> j) {
+    final country = (j['country'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return VoyageSimulation(
+      countryName: (country['name'] ?? '').toString(),
+      spaceLabel: (country['spaceLabel'] ?? '').toString(),
+      age: _int(j['age']),
+      durationDays: _int(j['durationDays']),
+      durationBand: _text(j['durationBand']),
+      premium: MotoPremium(
+        netPremium: _int(j['netPremium']),
+        taxes: _int(j['taxes']),
+        accessories: _int(j['accessories']),
+        fga: 0,
+        total: _int(j['totalPremium']),
+      ),
+      guarantees: _guarantees(j['guarantees']),
+    );
+  }
+
+  /// Même forme que les autres produits, pour réutiliser l'affichage du résultat. Aucune garantie
+  /// n'est inventée : seules celles du serveur sont montrées.
+  MotoQuoteSimulation toQuoteSimulation({DateTime? departure, DateTime? back}) => MotoQuoteSimulation(
+        formulaId: '',
+        formulaName: spaceLabel.isEmpty ? '' : 'Assurance Voyage - $spaceLabel',
+        vehicleType: '',
+        durationMonths: 0,
+        effectiveDate: departure,
+        expiryDate: back,
+        premium: premium,
+        guarantees: guarantees,
+      );
 }

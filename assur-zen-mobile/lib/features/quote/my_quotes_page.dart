@@ -5,6 +5,7 @@ import '../../app/routes.dart';
 import '../../core/ui.dart';
 import '../../data/models/moto_quote.dart';
 import 'moto_quote_page.dart';
+import 'voyage_quote_page.dart' show voyageRows;
 import 'vtc_quote_page.dart' show vtcEnergyLabel;
 
 /// Liste des devis enregistrés du client connecté (`GET /mobile/quotes`).
@@ -70,6 +71,14 @@ class _QuoteTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final vehicle = [quote.brand, quote.model].where((s) => s.isNotEmpty).join(' ');
     final id = quote.registrationNumber ?? quote.chassisNumber;
+    // Voyage : destination et dates à la place du véhicule.
+    final v = quote.voyage;
+    final trip = v == null
+        ? null
+        : [
+            v.countryName,
+            if (v.departureDate != null && v.returnDate != null) '${formatDate(v.departureDate)} – ${formatDate(v.returnDate)}',
+          ].join(' · ');
     return AzCard(
       onTap: onTap,
       semanticLabel: 'Devis ${quote.reference}',
@@ -82,7 +91,10 @@ class _QuoteTile extends StatelessWidget {
               _badge(quote.status),
             ],
           ),
-          if (vehicle.isNotEmpty || id != null) ...[
+          if (trip != null) ...[
+            const SizedBox(height: 4),
+            Text(trip, style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
+          ] else if (vehicle.isNotEmpty || id != null) ...[
             const SizedBox(height: 4),
             Text([if (vehicle.isNotEmpty) vehicle, if (id != null) id].join(' · '), style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
           ],
@@ -150,7 +162,9 @@ class _MotoQuoteDetailPageState extends State<MotoQuoteDetailPage> {
             AzSummaryCard(rows: [
               if (_quote.simulation.formulaName.isNotEmpty) ('Formule', _quote.simulation.formulaName),
               if (_quote.isFromAdvisor) ('Origine', 'Établi par un conseiller'),
-              if (vehicle.isNotEmpty) ('Véhicule', vehicle),
+              // Voyage : récapitulatif du voyage ; sinon les lignes du véhicule.
+              if (_quote.voyage != null) ...voyageRows(_quote.voyage, null),
+              if (_quote.voyage == null && vehicle.isNotEmpty) ('Véhicule', vehicle),
               if (_quote.cylinderCc > 0) ('Cylindrée', '${_quote.cylinderCc} cm³'),
               if (_quote.fiscalPower != null) ('Puissance fiscale', '${_quote.fiscalPower} CV'),
               if (_quote.energy != null) ('Énergie', vtcEnergyLabel(_quote.energy!)),

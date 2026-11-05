@@ -280,9 +280,12 @@ class AzDateField extends StatelessWidget {
         placeholder: value == null,
         hasError: error != null,
         onTap: () async {
+          // Sans cela, le champ texte précédent reprend le focus à la fermeture du calendrier et rouvre le clavier.
+          FocusManager.instance.primaryFocus?.unfocus();
           final picked = await showDatePicker(
             context: context,
-            initialDate: value ?? DateTime.now(),
+            // Toujours dans les bornes : l'horloge du téléphone peut être en retard sur celle du serveur.
+            initialDate: _within(value ?? DateTime.now(), firstDate, lastDate),
             firstDate: firstDate,
             lastDate: lastDate,
             locale: const Locale('fr'),
@@ -293,6 +296,59 @@ class AzDateField extends StatelessWidget {
           if (picked != null) onChanged(picked);
         },
       ),
+    );
+  }
+}
+
+/// Saisie « JJ/MM/AAAA » au clavier numérique : les barres obliques s'ajoutent toutes seules
+/// (le clavier numérique n'en a pas) et seuls les chiffres sont acceptés.
+class DateMaskFormatter extends TextInputFormatter {
+  const DateMaskFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    var digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length > 8) digits = digits.substring(0, 8);
+    final b = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i == 2 || i == 4) b.write('/');
+      b.write(digits[i]);
+    }
+    final text = b.toString();
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+}
+
+/// Lit « JJ/MM/AAAA ». Renvoie null si la date est incomplète ou n'existe pas (31/02, 00/05…).
+DateTime? parseDateFr(String text) {
+  final m = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(text.trim());
+  if (m == null) return null;
+  final d = int.parse(m.group(1)!);
+  final mo = int.parse(m.group(2)!);
+  final y = int.parse(m.group(3)!);
+  if (y < 1000) return null;
+  final date = DateTime(y, mo, d);
+  return (date.year == y && date.month == mo && date.day == d) ? date : null;
+}
+
+DateTime _within(DateTime d, DateTime first, DateTime last) => d.isBefore(first) ? first : (d.isAfter(last) ? last : d);
+
+/// Champ qui ouvre une liste de choix (feuille) : même aspect que les champs date.
+class AzSelectField extends StatelessWidget {
+  const AzSelectField({super.key, required this.label, required this.text, required this.onTap, this.placeholder = false, this.error});
+
+  final String label;
+  final String text;
+  final bool placeholder;
+  final VoidCallback onTap;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FieldFrame(
+      label: label,
+      error: error,
+      child: _PickerBox(text: text, icon: Icons.expand_more_rounded, placeholder: placeholder, hasError: error != null, onTap: onTap),
     );
   }
 }

@@ -12,6 +12,7 @@ import 'package:assurzen_mobile/data/mock/mock_data.dart';
 import 'package:assurzen_mobile/data/mock/mock_repositories.dart';
 import 'package:assurzen_mobile/data/models/engagement.dart';
 import 'package:assurzen_mobile/data/repositories/repositories.dart';
+import 'package:assurzen_mobile/features/engagement/badges_page.dart';
 import 'package:assurzen_mobile/features/engagement/engagement_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,13 +35,14 @@ Map<String, dynamic> _engagement({
   Object? text = 'Texte de consentement du serveur.',
   Object? version = 4,
   bool score = true,
+  bool badges = false,
 }) =>
     {
       'enabled': enabled,
       'consent': {'accepted': accepted, 'acceptedAt': accepted ? '2026-11-05T10:00:00Z' : null, 'acceptedVersion': acceptedVersion},
       'consentText': text,
       'consentVersion': version,
-      'features': {'protectionScore': score, 'dailyQuiz': false, 'badges': false},
+      'features': {'protectionScore': score, 'dailyQuiz': false, 'badges': badges},
     };
 
 Map<String, dynamic> _score({int score = 45}) => {
@@ -324,11 +326,189 @@ void main() {
       expect(find.text('page ${AppRoutes.protectionScore}'), findsOneWidget);
     });
   });
+
+  group('Badges', () {
+    test('lecture : obtenus, à gagner avec progression, badge sans libellé ignoré', () {
+      final list = AppBadge.listFromJson({
+        'items': [
+          {'id': 'PHONE_VERIFIED', 'label': 'Numéro vérifié', 'description': 'Confirmé par SMS.', 'earned': true, 'earnedAt': '2026-11-01T08:00:00Z'},
+          {'id': 'QUIZ_STREAK_7', 'label': '7 jours de suite', 'earned': false, 'progress': {'current': 2, 'target': 7}},
+          {'id': 'X', 'label': '  ', 'earned': true},
+        ],
+      });
+
+      expect(list.map((b) => b.id), ['PHONE_VERIFIED', 'QUIZ_STREAK_7']);
+      expect(list[0].earned, isTrue);
+      expect(list[0].earnedAt, isNotNull);
+      expect(list[0].description, 'Confirmé par SMS.');
+      expect(list[1].description, isNull);
+      expect(list[1].progress?.current, 2);
+      expect(list[1].progress?.target, 7);
+      expect(list[1].progress?.ratio, closeTo(2 / 7, 0.001));
+    });
+
+    test('progression : absente ou sans cible = aucune barre, valeur bornée à la cible', () {
+      expect(BadgeProgress.fromJson(null), isNull);
+      expect(BadgeProgress.fromJson({'current': 3}), isNull);
+      expect(BadgeProgress.fromJson({'current': 3, 'target': 0}), isNull);
+      expect(BadgeProgress.fromJson({'current': 12, 'target': 7})?.current, 7);
+      expect(BadgeProgress.fromJson({'current': -4, 'target': 7})?.ratio, 0);
+    });
+
+    test('réponses mal formées : liste vide, aucune exception', () {
+      expect(AppBadge.listFromJson(null), isEmpty);
+      expect(AppBadge.listFromJson('oups'), isEmpty);
+      expect(AppBadge.listFromJson({'items': 3}), isEmpty);
+    });
+
+    test('icône : un code inconnu reçoit une icône générique', () {
+      expect(badgeIcon('QUIZ_STREAK_7'), isNot(badgeIcon('CODE_FUTUR')));
+      expect(badgeIcon('CODE_FUTUR'), badgeIcon('AUTRE_CODE_FUTUR'));
+    });
+
+    test('appel : GET /mobile/badges avec le jeton', () async {
+      final calls = <http.Request>[];
+      final repo = ApiEngagementRepository(ApiClient(
+        baseUrl: 'http://gw.test',
+        tokenProvider: () async => 'jeton',
+        httpClient: MockClient((req) async {
+          calls.add(req);
+          return _json(200, {
+            'items': [
+              {'id': 'PHONE_VERIFIED', 'label': 'Numéro vérifié', 'earned': true},
+            ],
+          });
+        }),
+      ));
+
+      final list = await repo.getBadges();
+
+      expect(calls.single.url.path, endsWith('/mobile/badges'));
+      expect(calls.single.headers['Authorization'], 'Bearer jeton');
+      expect(list.single.label, 'Numéro vérifié');
+      expect(Endpoints.badges, endsWith('/mobile/badges'));
+    });
+
+    testWidgets('page : obtenus d\'abord, puis à gagner avec leur progression', (tester) async {
+      await _showBadges(tester, [
+        const AppBadge(id: 'QUIZ_STREAK_7', label: '7 jours de suite', earned: false, progress: BadgeProgress(current: 2, target: 7)),
+        AppBadge(id: 'PHONE_VERIFIED', label: 'Numéro vérifié', description: 'Confirmé par SMS.', earned: true, earnedAt: DateTime(2026, 11, 1)),
+      ]);
+
+      expect(find.text('1 sur 2'), findsOneWidget);
+      final earnedY = tester.getTopLeft(find.text('Numéro vérifié')).dy;
+      final todoY = tester.getTopLeft(find.text('7 jours de suite')).dy;
+      expect(earnedY, lessThan(todoY), reason: 'le badge obtenu passe avant celui à gagner');
+      expect(find.textContaining('Obtenu le'), findsOneWidget);
+      expect(find.text('2 sur 7'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('carte d\'accueil : « Mes badges » avec le compte, seulement si le serveur l\'active', (tester) async {
+      await _showCard(tester, _Fake(
+        engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, score: false, badges: true)),
+        badges: const [
+          AppBadge(id: 'A', label: 'Un', earned: true),
+          AppBadge(id: 'B', label: 'Deux', earned: false),
+          AppBadge(id: 'C', label: 'Trois', earned: false),
+        ],
+      ));
+
+      expect(find.text('Mes badges'), findsOneWidget);
+      expect(find.text('1 sur 3'), findsOneWidget);
+      expect(find.text('Ma protection'), findsNothing, reason: 'score coupé par le serveur');
+    });
+
+    testWidgets('carte d\'accueil : fonction badges coupée ou aucun badge = rien', (tester) async {
+      await _showCard(tester, _Fake(
+        engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, score: false, badges: false)),
+        badges: const [AppBadge(id: 'A', label: 'Un', earned: true)],
+      ));
+      expect(find.text('Mes badges'), findsNothing);
+
+      await _showCard(tester, _Fake(
+        engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, score: false, badges: true)),
+      ));
+      expect(find.text('Mes badges'), findsNothing);
+    });
+
+    testWidgets('score et badges ensemble : deux cartes l\'une sous l\'autre', (tester) async {
+      await _showCard(tester, _Fake(
+        engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, badges: true)),
+        badges: const [AppBadge(id: 'A', label: 'Un', earned: true)],
+      ));
+
+      expect(find.text('Ma protection'), findsOneWidget);
+      expect(find.text('Mes badges'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Ma protection')).dy, lessThan(tester.getTopLeft(find.text('Mes badges')).dy));
+    });
+
+    testWidgets('sans consentement, la seule fonction « badges » propose aussi l\'accord', (tester) async {
+      await _showCard(tester, _Fake(engagement: Engagement.fromJson(_engagement(score: false, badges: true))));
+
+      expect(find.text('Activer'), findsOneWidget);
+    });
+
+    testWidgets('toucher « Mes badges » ouvre la page des badges', (tester) async {
+      await _showCard(tester, _Fake(
+        engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, score: false, badges: true)),
+        badges: const [AppBadge(id: 'A', label: 'Un', earned: true)],
+      ));
+
+      await tester.tap(find.text('Mes badges'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('page ${AppRoutes.badges}'), findsOneWidget);
+    });
+  });
 }
+
+Future<void> _setup(WidgetTester tester, _Fake fake, Widget Function(Widget) wrap) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(411, 891);
+  addTearDown(tester.view.reset);
+  SharedPreferences.setMockInitialValues({'lock_choice_done': true});
+  final store = await LocalStore.open();
+  final base = MockRepositories.create();
+  final repos = Repositories(
+    auth: base.auth,
+    catalog: base.catalog,
+    quotes: base.quotes,
+    motoQuotes: base.motoQuotes,
+    payments: base.payments,
+    contracts: base.contracts,
+    claims: base.claims,
+    notifications: base.notifications,
+    support: base.support,
+    engagement: fake,
+  );
+  final session = SessionController(store: store, repos: repos)..updateUser(MockData.demoUser);
+  await tester.pumpWidget(AppScope(repos: repos, session: session, store: store, child: wrap(const SizedBox.shrink())));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
+Future<void> _showCard(WidgetTester tester, _Fake fake) => _setup(
+      tester,
+      fake,
+      (_) => MaterialApp(
+        onGenerateRoute: (s) => MaterialPageRoute<void>(settings: s, builder: (_) => Scaffold(body: Text('page ${s.name}'))),
+        home: const Scaffold(body: SingleChildScrollView(child: EngagementCard())),
+      ),
+    );
+
+Future<void> _showBadges(WidgetTester tester, List<AppBadge> badges) => _setup(
+      tester,
+      _Fake(engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, score: false, badges: true)), badges: badges),
+      (_) => const MaterialApp(home: BadgesPage()),
+    );
 
 /// Dépôt d'engagement de test : il répond ce qu'on lui demande et note les appels.
 class _Fake implements EngagementRepository {
-  _Fake({Engagement? engagement, this.failEngagement = false, this.scoreError = false}) : engagement = engagement ?? Engagement.disabled;
+  _Fake({Engagement? engagement, this.failEngagement = false, this.scoreError = false, this.badges = const []})
+      : engagement = engagement ?? Engagement.disabled;
+
+  final List<AppBadge> badges;
 
   Engagement engagement;
   final bool failEngagement;
@@ -361,4 +541,18 @@ class _Fake implements EngagementRepository {
     }
     return ProtectionScore.fromJson(_score());
   }
+
+  @override
+  Future<List<AppBadge>> getBadges() async {
+    if (!engagement.consent.accepted) {
+      throw const ApiException(kind: ApiErrorKind.business, statusCode: 403, code: 'ENGAGEMENT_CONSENT_REQUIRED', message: 'Accord requis.');
+    }
+    return badges;
+  }
+
+  @override
+  Future<QuizQuestion?> getQuizToday() async => null;
+
+  @override
+  Future<QuizAnswer> answerQuiz({required String questionId, required String choiceId}) async => throw UnimplementedError();
 }

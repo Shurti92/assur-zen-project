@@ -72,6 +72,15 @@ class Engagement {
   /// Le score est proposé : engagement actif, fonction active.
   bool get showsScore => enabled && features.protectionScore;
 
+  /// Les badges sont proposés : engagement actif, fonction active.
+  bool get showsBadges => enabled && features.badges;
+
+  /// Le quiz est proposé : engagement actif, fonction active.
+  bool get showsQuiz => enabled && features.dailyQuiz;
+
+  /// Au moins une fonction visible : sinon l'accueil n'affiche rien.
+  bool get showsAnything => showsScore || showsBadges || showsQuiz;
+
   /// On peut demander le consentement : le texte et sa version existent.
   bool get canAskConsent => consentText != null && consentVersion != null;
 
@@ -139,6 +148,169 @@ class ProtectionScore {
           if (e is Map<String, dynamic> && (e['label'] ?? '').toString().trim().isNotEmpty) ScoreItem.fromJson(e),
       ],
       updatedAt: _date(j['updatedAt']),
+    );
+  }
+}
+
+/// Progression vers un badge (série de jours, par exemple).
+class BadgeProgress {
+  const BadgeProgress({required this.current, required this.target});
+
+  final int current;
+  final int target;
+
+  /// Part réalisée, entre 0 et 1 ; une cible nulle ne donne aucune barre.
+  double get ratio => target <= 0 ? 0 : (current / target).clamp(0, 1).toDouble();
+
+  static BadgeProgress? fromJson(Object? v) {
+    if (v is! Map) return null;
+    final target = (v['target'] as num?)?.toInt();
+    if (target == null || target <= 0) return null;
+    return BadgeProgress(current: ((v['current'] as num?)?.toInt() ?? 0).clamp(0, target), target: target);
+  }
+}
+
+/// Un badge. Libellé et description viennent du serveur ; l'icône est choisie par le code (présentation).
+class AppBadge {
+  const AppBadge({required this.id, required this.label, required this.earned, this.description, this.earnedAt, this.progress});
+
+  final String id; // code stable (PROFILE_COMPLETE, QUIZ_STREAK_7...)
+  final String label;
+  final String? description;
+  final bool earned;
+  final DateTime? earnedAt;
+  final BadgeProgress? progress;
+
+  factory AppBadge.fromJson(Map<String, dynamic> j) => AppBadge(
+        id: (j['id'] ?? '').toString(),
+        label: (j['label'] ?? '').toString(),
+        description: _text(j['description']),
+        earned: j['earned'] == true,
+        earnedAt: _date(j['earnedAt']),
+        progress: BadgeProgress.fromJson(j['progress']),
+      );
+
+  /// Réponse de `GET /mobile/badges` : un badge sans libellé est ignoré, jamais de texte de remplacement.
+  static List<AppBadge> listFromJson(Object? v) {
+    final items = v is Map ? v['items'] : v;
+    if (items is! List) return const [];
+    return [
+      for (final e in items)
+        if (e is Map<String, dynamic> && (e['label'] ?? '').toString().trim().isNotEmpty) AppBadge.fromJson(e),
+    ];
+  }
+}
+
+/// Série de jours de réponse au quiz, calculée par le serveur.
+class QuizStreak {
+  const QuizStreak({this.current = 0, this.best = 0});
+
+  final int current;
+  final int best;
+
+  static const none = QuizStreak();
+
+  factory QuizStreak.fromJson(Object? v) {
+    if (v is! Map) return none;
+    return QuizStreak(
+      current: ((v['current'] as num?)?.toInt() ?? 0).clamp(0, 100000),
+      best: ((v['best'] as num?)?.toInt() ?? 0).clamp(0, 100000),
+    );
+  }
+}
+
+/// Un choix de réponse. L'identifiant est une chaîne (celle du serveur), jamais un indice local.
+class QuizChoice {
+  const QuizChoice({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
+/// Résultat d'une réponse : la bonne réponse et l'explication viennent du serveur.
+class QuizResult {
+  const QuizResult({required this.choiceId, required this.correct, required this.correctChoiceId, this.explanation});
+
+  /// Choix du client ; peut être absent si le serveur ne le rappelle pas.
+  final String? choiceId;
+  final bool correct;
+  final String? correctChoiceId;
+  final String? explanation;
+
+  static QuizResult? fromJson(Object? v) {
+    if (v is! Map) return null;
+    return QuizResult(
+      choiceId: _text(v['choiceId']),
+      correct: v['correct'] == true,
+      correctChoiceId: _text(v['correctChoiceId']),
+      explanation: _text(v['explanation']),
+    );
+  }
+}
+
+/// Question du jour (`GET /mobile/quiz/today`). Le contenu est celui du back-office.
+class QuizQuestion {
+  const QuizQuestion({
+    required this.id,
+    required this.question,
+    required this.choices,
+    required this.answered,
+    this.theme,
+    this.result,
+    this.streak = QuizStreak.none,
+  });
+
+  final String id;
+  final String? theme;
+  final String question;
+  final List<QuizChoice> choices;
+
+  /// Déjà répondu aujourd'hui : [result] redonne SON résultat, sans nouvelle réponse.
+  final bool answered;
+  final QuizResult? result;
+  final QuizStreak streak;
+
+  /// Une question sans texte ou avec moins de deux choix ne se joue pas : on la masque.
+  bool get isPlayable => question.trim().isNotEmpty && choices.length >= 2;
+
+  /// Identifiants ET textes viennent du serveur ; un choix sans identifiant ou sans texte est écarté.
+  static QuizQuestion? fromJson(Object? v) {
+    if (v is! Map<String, dynamic>) return null;
+    final id = _text(v['id']);
+    if (id == null) return null;
+    final q = QuizQuestion(
+      id: id,
+      theme: _text(v['theme']),
+      question: (v['question'] ?? '').toString(),
+      choices: [
+        for (final c in (v['choices'] as List? ?? const []))
+          if (c is Map && _text(c['id']) != null && _text(c['label']) != null) QuizChoice(id: _text(c['id'])!, label: _text(c['label'])!),
+      ],
+      answered: v['answered'] == true,
+      result: QuizResult.fromJson(v['result']),
+      streak: QuizStreak.fromJson(v['streak']),
+    );
+    return q.isPlayable ? q : null;
+  }
+}
+
+/// Réponse de `POST /mobile/quiz/{id}/answer`.
+class QuizAnswer {
+  const QuizAnswer({required this.result, required this.streak});
+
+  final QuizResult result;
+  final QuizStreak streak;
+
+  static QuizAnswer? fromJson(Object? v, {String? choiceId}) {
+    if (v is! Map) return null;
+    return QuizAnswer(
+      result: QuizResult(
+        choiceId: choiceId,
+        correct: v['correct'] == true,
+        correctChoiceId: _text(v['correctChoiceId']),
+        explanation: _text(v['explanation']),
+      ),
+      streak: QuizStreak.fromJson(v['streak']),
     );
   }
 }

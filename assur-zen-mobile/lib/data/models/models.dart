@@ -434,7 +434,7 @@ extension ContractStatusLabel on ContractStatus {
       };
 }
 
-enum DocumentType { attestation, carteBrune, carteGrise, conditions, recu, autre }
+enum DocumentType { attestation, carteBrune, carteGrise, conditions, recu, contrat, autre }
 
 enum DocumentStatus { disponible, enGeneration, nonDisponible }
 
@@ -688,6 +688,7 @@ class AppNotification {
     this.contractId,
     this.claimId,
     this.quoteReference,
+    this.target,
   });
 
   final String id;
@@ -702,6 +703,9 @@ class AppNotification {
   /// Devis concerné (« Paiement reçu ») : à la touche, ouvre ce devis tant que le contrat n'existe pas.
   final String? quoteReference;
 
+  /// Écran visé par la notification quand elle n'a ni contrat, ni sinistre, ni devis (ex. `BADGES`).
+  final String? target;
+
   AppNotification markRead() => AppNotification(
       id: id,
       category: category,
@@ -711,7 +715,8 @@ class AppNotification {
       read: true,
       contractId: contractId,
       claimId: claimId,
-      quoteReference: quoteReference);
+      quoteReference: quoteReference,
+      target: target);
 }
 
 /// Préférence de notification push par catégorie, tenue par le serveur. La

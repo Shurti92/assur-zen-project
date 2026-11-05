@@ -48,6 +48,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
       context.push(AppRoutes.contract, n.contractId);
     } else if (n.claimId != null) {
       context.push(AppRoutes.claim, n.claimId);
+    } else if (n.target == 'BADGES') {
+      // Nouveau badge : on ouvre la liste des badges (liste fermée de cibles connues).
+      context.push(AppRoutes.badges);
     } else if (n.quoteReference != null) {
       // « Paiement reçu » : le contrat n'existe pas encore, on ouvre le devis.
       try {

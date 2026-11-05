@@ -96,6 +96,13 @@ abstract interface class MotoQuoteRepository {
   Future<MotoQuoteSimulation> simulateVtc(VtcQuoteRequest request);
 
   Future<MotoQuote> createVtc(VtcQuoteRequest request);
+
+  /// Assurance Voyage : formulaire (pays, bornes, date du jour du serveur), simulation publique puis devis enregistré.
+  Future<VoyageForm> getVoyageForm();
+
+  Future<VoyageSimulation> simulateVoyage(VoyageRequest request);
+
+  Future<MotoQuote> createVoyage(VoyageRequest request);
 }
 
 abstract interface class PaymentRepository {
@@ -135,6 +142,16 @@ abstract interface class EngagementRepository {
   /// Score de protection. Sans consentement : `ApiException` de code `ENGAGEMENT_CONSENT_REQUIRED` ;
   /// fonction coupée : `FEATURE_DISABLED`.
   Future<ProtectionScore> getProtectionScore();
+
+  /// Badges du client, obtenus ou non (`GET /mobile/badges`). Mêmes erreurs que le score.
+  Future<List<AppBadge>> getBadges();
+
+  /// Question du jour. `null` : le serveur n'a rien à proposer (204, aucune question active ou toutes répondues).
+  Future<QuizQuestion?> getQuizToday();
+
+  /// Répond à la question du jour. Une 2e réponse à la même question renvoie le résultat déjà enregistré.
+  /// 409 `QUIZ_QUESTION_NOT_CURRENT` : la question n'est plus celle du jour.
+  Future<QuizAnswer> answerQuiz({required String questionId, required String choiceId});
 }
 
 abstract interface class ContractRepository {

@@ -152,6 +152,7 @@ class ApiContractRepository implements ContractRepository {
         'CARTE_GRISE' => DocumentType.carteGrise,
         'CONDITIONS' || 'CONDITIONS_PARTICULIERES' => DocumentType.conditions,
         'RECEIPT' => DocumentType.recu,
+        'CONTRAT' => DocumentType.contrat,
         _ => DocumentType.autre,
       };
 

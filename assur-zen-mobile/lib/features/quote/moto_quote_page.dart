@@ -312,13 +312,15 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
 /// Ouvre le paiement d'un devis accepté. Le montant et les contrôles viennent du serveur ; la page de
 /// paiement ne dit « reçu » qu'après la confirmation du serveur.
 Future<void> payQuote(BuildContext context, MotoQuote quote) async {
+  final v = quote.voyage;
   await context.push(
     AppRoutes.payment,
     PaymentArgs(
       payableReference: quote.reference,
       amount: quote.simulation.premium.total,
-      caption: 'Paiement du devis · ${quote.simulation.durationMonths} mois',
-      objectLabel: '${quote.brand} ${quote.model} · ${quote.reference}',
+      // Voyage : la durée est en jours et l'objet est la destination (jamais de « mois » technique).
+      caption: v != null ? 'Paiement du devis${v.durationLabel == null ? '' : ' · ${v.durationLabel}'}' : 'Paiement du devis · ${quote.simulation.durationMonths} mois',
+      objectLabel: v != null ? '${v.countryName} · ${quote.reference}' : '${quote.brand} ${quote.model} · ${quote.reference}',
       isQuotePayment: true,
     ),
   );

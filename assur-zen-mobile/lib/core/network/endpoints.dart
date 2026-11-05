@@ -56,6 +56,9 @@ abstract final class Endpoints {
   static const engagement = '$prefix/mobile/engagement';
   static const engagementConsent = '$prefix/mobile/engagement/consent';
   static const protectionScore = '$prefix/mobile/protection-score';
+  static const badges = '$prefix/mobile/badges';
+  static const quizToday = '$prefix/mobile/quiz/today';
+  static String quizAnswer(String id) => '$prefix/mobile/quiz/$id/answer';
   static String payment(String reference) => '$prefix/mobile/payments/$reference';
 
   // Contrats
@@ -102,6 +105,10 @@ abstract final class Endpoints {
   static const vtcQuoteForm = '$prefix/public/quotes/vtc/form';
   static const vtcQuoteSimulate = '$prefix/public/quotes/vtc/simulate';
   static const vtcQuoteCreate = '$prefix/mobile/quotes/vtc'; // POST
+  // Assurance Voyage : formulaire et simulation publics, devis enregistré pour le client connecté.
+  static const voyageQuoteForm = '$prefix/public/quotes/voyage/form';
+  static const voyageQuoteSimulate = '$prefix/public/quotes/voyage/simulate';
+  static const voyageQuoteCreate = '$prefix/mobile/quotes/voyage'; // POST
   static String motoQuote(String reference) => '$prefix/mobile/quotes/$reference';
   static String motoQuoteAccept(String reference) => '$prefix/mobile/quotes/$reference/accept';
   // Paiement Jeko d'un devis accepté : renvoie le même objet Payment que `POST /mobile/payments`.

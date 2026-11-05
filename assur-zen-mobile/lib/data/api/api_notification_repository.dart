@@ -118,6 +118,7 @@ class ApiNotificationRepository implements NotificationRepository {
       contractId: id(j['contractId']),
       claimId: id(j['claimId']),
       quoteReference: id(j['quoteReference']),
+      target: id(j['target']),
     );
   }
 }

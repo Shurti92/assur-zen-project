@@ -365,6 +365,72 @@ class _MockMotoQuotes implements MotoQuoteRepository {
     _saved.insert(0, quote);
     return quote;
   }
+
+  // Démonstration : pays et montants fictifs, marqués « Démo ». En service réel, tout vient de la Gateway.
+  @override
+  Future<VoyageForm> getVoyageForm() async {
+    await _latency(300);
+    final today = DateTime.now();
+    return VoyageForm(
+      countries: const [
+        VoyageCountry(id: '1', name: '[Démo] Mali', space: 'AFRIQUE_OUEST', spaceLabel: 'Afrique de l’Ouest'),
+        VoyageCountry(id: '2', name: '[Démo] France', space: 'ESPACE_SCHENGEN', spaceLabel: 'Schengen et Afrique du Nord'),
+      ],
+      minAge: 0,
+      maxAge: 80,
+      maxDurationDays: 365,
+      minDepartureDate: DateTime(today.year, today.month, today.day),
+    );
+  }
+
+  MotoQuoteSimulation _voyageSimulation(VoyageRequest r) => VoyageSimulation(
+        countryName: '[Démo] Pays',
+        spaceLabel: 'Démo',
+        age: r.age,
+        durationDays: r.durationDays,
+        premium: const MotoPremium(netPremium: 20000, taxes: 3000, accessories: 500, fga: 0, total: 23500),
+      ).toQuoteSimulation(departure: r.departureDate, back: r.returnDate);
+
+  @override
+  Future<VoyageSimulation> simulateVoyage(VoyageRequest request) async {
+    await _latency(400);
+    return VoyageSimulation(
+      countryName: '[Démo] Pays',
+      spaceLabel: 'Démo',
+      age: request.age,
+      durationDays: request.durationDays,
+      premium: const MotoPremium(netPremium: 20000, taxes: 3000, accessories: 500, fga: 0, total: 23500),
+    );
+  }
+
+  @override
+  Future<MotoQuote> createVoyage(VoyageRequest request) async {
+    await _latency(500);
+    final quote = MotoQuote(
+      reference: 'DEV-DEMO-${(_saved.length + 1).toString().padLeft(6, '0')}',
+      status: MotoQuoteStatus.calcule,
+      canAccept: true,
+      simulation: _voyageSimulation(request),
+      cylinderCc: 0,
+      brand: '',
+      model: '',
+      validUntil: request.departureDate,
+      createdAt: DateTime.now(),
+      productKey: 'voyage',
+      voyage: VoyageInfo(
+        countryName: '[Démo] Pays',
+        spaceLabel: 'Démo',
+        travelerBirthDate: request.birthDate,
+        travelerAge: request.age,
+        passportNumber: request.passportNumber,
+        departureDate: request.departureDate,
+        returnDate: request.returnDate,
+        durationDays: request.durationDays,
+      ),
+    );
+    _saved.insert(0, quote);
+    return quote;
+  }
 }
 
 class _MockPayments implements PaymentRepository {
@@ -411,7 +477,7 @@ class _MockEngagement implements EngagementRepository {
   Engagement get _current => Engagement(
         enabled: true,
         consent: EngagementConsent(accepted: _accepted, acceptedAt: _accepted ? DateTime.now() : null, acceptedVersion: _accepted ? 1 : null),
-        features: const EngagementFeatures(protectionScore: true),
+        features: const EngagementFeatures(protectionScore: true, badges: true, dailyQuiz: true),
         consentText: '[Démo] J’accepte qu’AssurZen enregistre mes actions dans l’application pour calculer mon score de protection.',
         consentVersion: 1,
       );
@@ -444,6 +510,59 @@ class _MockEngagement implements EngagementRepository {
         ScoreItem(id: 'ATTESTATION_DOWNLOADED', label: '[Démo] Attestation téléchargée', done: false, hint: 'Ouvrez votre attestation.', action: ScoreAction.documents),
       ],
     );
+  }
+
+  @override
+  Future<List<AppBadge>> getBadges() async {
+    await _latency(400);
+    if (!_accepted) {
+      throw const ApiException(kind: ApiErrorKind.business, statusCode: 403, code: 'ENGAGEMENT_CONSENT_REQUIRED', message: 'Consentement requis.');
+    }
+    return [
+      AppBadge(id: 'PHONE_VERIFIED', label: '[Démo] Numéro vérifié', description: 'Votre numéro est confirmé.', earned: true, earnedAt: DateTime(2026, 11, 1)),
+      const AppBadge(
+        id: 'QUIZ_STREAK_7',
+        label: '[Démo] 7 jours de suite',
+        description: 'Répondez au quiz 7 jours de suite.',
+        earned: false,
+        progress: BadgeProgress(current: 2, target: 7),
+      ),
+    ];
+  }
+
+  QuizResult? _quizResult;
+
+  @override
+  Future<QuizQuestion?> getQuizToday() async {
+    await _latency(300);
+    if (!_accepted) {
+      throw const ApiException(kind: ApiErrorKind.business, statusCode: 403, code: 'ENGAGEMENT_CONSENT_REQUIRED', message: 'Consentement requis.');
+    }
+    return QuizQuestion(
+      id: 'demo-1',
+      theme: 'Démo',
+      question: '[Démo] Que faire en premier après un accrochage ?',
+      choices: const [
+        QuizChoice(id: 'a', label: 'Sécuriser les lieux'),
+        QuizChoice(id: 'b', label: 'Quitter les lieux'),
+        QuizChoice(id: 'c', label: 'Attendre une semaine'),
+      ],
+      answered: _quizResult != null,
+      result: _quizResult,
+      streak: QuizStreak(current: _quizResult == null ? 1 : 2, best: 3),
+    );
+  }
+
+  @override
+  Future<QuizAnswer> answerQuiz({required String questionId, required String choiceId}) async {
+    await _latency(300);
+    _quizResult ??= QuizResult(
+      choiceId: choiceId,
+      correct: choiceId == 'a',
+      correctChoiceId: 'a',
+      explanation: 'Démo : on sécurise d\'abord les lieux.',
+    );
+    return QuizAnswer(result: _quizResult!, streak: const QuizStreak(current: 2, best: 3));
   }
 }
 
