@@ -93,12 +93,17 @@
 // ---------- Grille ----------
 .vy-grid {
   width: 100%;
-  min-width: 940px;
+  table-layout: fixed;
   border-collapse: separate;
-  border-spacing: 6px;
+  border-spacing: 4px;
+
+  // Téléphone : la grille garde une largeur lisible et défile dans sa carte.
+  @media (max-width: 900px) {
+    min-width: 760px;
+  }
 
   th {
-    padding: 6px 8px;
+    padding: 6px 2px;
     color: var(--mb-mut);
     font-size: 11px;
     font-weight: 700;
@@ -108,8 +113,9 @@
   }
 
   td {
-    padding: 12px 8px;
+    padding: 12px 2px;
     border: 2px solid transparent;
+    font-size: 13px;
     border-radius: 12px;
     background: var(--mb-soft);
     font-variant-numeric: tabular-nums;
@@ -123,8 +129,14 @@
   text-align: left !important;
 }
 
+.vy-grid th:first-child,
+.vy-grid td.vy-age {
+  width: 96px;
+}
+
 .vy-grid td.vy-age {
   padding-left: 4px;
+  font-size: 14px;
   background: none;
   text-align: left;
   cursor: default;
