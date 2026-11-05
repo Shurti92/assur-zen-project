@@ -5,7 +5,7 @@ export type QuoteStatus = 'CALCULE' | 'ACCEPTE' | 'PAYE' | 'CONVERTI' | 'EXPIRE'
 /** Filtre `payment` de la liste (devis acceptés). */
 export type QuotePaymentFilter = 'AUCUN' | 'EN_ATTENTE' | 'ECHOUE';
 
-export type QuoteProduct = 'moto' | 'automobile-vtc';
+export type QuoteProduct = 'moto' | 'automobile-vtc' | 'voyage';
 
 export type VtcEnergy = 'ESSENCE' | 'DIESEL' | 'HYBRIDE' | 'ELECTRIQUE';
 
@@ -201,10 +201,45 @@ export interface QuoteView {
   vtcDeclared?: boolean | null;
   platform?: string | null;
   discountPercent?: number | null;
+  /** Voyage uniquement (null pour la moto et le VTC). */
+  voyage?: QuoteVoyage | null;
   /** Paiement et conversion en contrat (absent sur une gateway plus ancienne). */
   conversion?: QuoteConversion | null;
   contractId?: number | string | null;
   policyNumber?: string | null;
+}
+
+export interface QuoteVoyage {
+  /** `countryName` sur les gateways récentes ; `country` en repli. */
+  countryName?: string | null;
+  country?: string | null;
+  space?: string | null;
+  spaceLabel?: string | null;
+  travelerBirthDate?: string | null;
+  travelerAge?: number | null;
+  passportNumber?: string | null;
+  departureDate?: string | null;
+  returnDate?: string | null;
+  durationDays?: number | null;
+}
+
+/** Corps de POST /admin/quotes/voyage (devis voyage saisi au back-office). */
+export interface VoyageQuoteCreateRequest {
+  /** Nom du voyageur. */
+  prospectName: string;
+  prospectPhone: string;
+  prospectEmail?: string;
+  sendEmail?: boolean;
+  prospectAddress?: string;
+  sendSms?: boolean;
+  voyage: {
+    countryId: number;
+    birthDate: string;
+    departureDate: string;
+    returnDate: string;
+    travelerName?: string;
+    passportNumber?: string;
+  };
 }
 
 export interface QuoteConversion {
@@ -215,7 +250,7 @@ export interface QuoteConversion {
   lastReminderAt?: string | null;
 }
 
-export type QuoteDocumentType = 'ATTESTATION' | 'CONDITIONS_PARTICULIERES' | 'CARTE_GRISE' | 'AUTRE';
+export type QuoteDocumentType = 'ATTESTATION' | 'CONDITIONS_PARTICULIERES' | 'CARTE_GRISE' | 'CONTRAT' | 'PIECE_IDENTITE' | 'AUTRE';
 
 /** Un document joint à un devis payé (GET /admin/quotes/{reference}/documents). */
 export interface QuoteDocument {

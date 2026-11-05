@@ -198,8 +198,8 @@
           </div>
           <div class="vy-fld">
             <label for="vy-days">Durée du séjour (jours)</label>
-            <input (input)="simDays.set($any($event.target).value === '' ? null : +$any($event.target).value)" [value]="simDays() ?? ''" id="vy-days" min="1" type="number" />
-            <small>1 jour minimum ; au-delà de 180 jours : tarif « 1 an ».</small>
+            <input (input)="simDays.set($any($event.target).value === '' ? null : +$any($event.target).value)" [value]="simDays() ?? ''" [max]="form()?.maxDurationDays ?? 365" id="vy-days" min="1" type="number" />
+            <small>1 à {{ form()?.maxDurationDays ?? 365 }} jours ; au-delà de 180 jours : tarif « 1 an ».</small>
           </div>
         </div>
         <button (click)="simulate()" [disabled]="simulating() || simCountryId() === null || simAge() === null || simDays() === null" class="mb-btn mb-btn--pri" type="button">

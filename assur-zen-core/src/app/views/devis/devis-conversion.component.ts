@@ -20,6 +20,8 @@ export const DOCUMENT_TYPE_LABEL: Record<QuoteDocumentType, string> = {
   ATTESTATION: "Attestation d'assurance",
   CONDITIONS_PARTICULIERES: 'Conditions particulières',
   CARTE_GRISE: 'Carte grise',
+  CONTRAT: 'Contrat / police de la plateforme externe',
+  PIECE_IDENTITE: "Pièce d'identité (ex. passeport)",
   AUTRE: 'Autre document',
 };
 

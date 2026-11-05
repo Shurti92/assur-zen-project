@@ -526,3 +526,30 @@
   color: var(--cui-warning, #b45309);
   margin-bottom: 0.5rem;
 }
+
+// ---------- Voyage : durée, âge et espace calculés ----------
+.df-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+
+  div {
+    min-width: 150px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: color-mix(in srgb, #12a150 14%, var(--cui-body-bg, #fff));
+  }
+
+  small {
+    display: block;
+    color: var(--cui-secondary-color, #6b7691);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  b {
+    font-size: 16px;
+  }
+}

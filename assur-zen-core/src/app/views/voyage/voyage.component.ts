@@ -388,6 +388,12 @@ export class VoyageComponent {
   simulate(): void {
     const id = this.simCountryId();
     if (id === null || this.simAge() === null || this.simDays() === null || this.simulating()) return;
+    const max = this.form()?.maxDurationDays ?? 365;
+    if (Number(this.simDays()) > max) {
+      this.simResult.set(null);
+      this.simError.set(`La durée ne peut pas dépasser ${max} jours (1 an).`);
+      return;
+    }
     this.simulating.set(true);
     this.simError.set(null);
     this.service.simulate({ countryId: id, age: Number(this.simAge()), durationDays: Number(this.simDays()) }).subscribe({

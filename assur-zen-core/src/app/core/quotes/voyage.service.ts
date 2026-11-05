@@ -57,6 +57,10 @@ export interface VoyageForm {
   countries: { id: number; name: string; space: VoyageSpace; spaceLabel: string }[];
   minAge: number;
   maxAge: number;
+  /** Plafond de durée (365 jours). */
+  maxDurationDays?: number;
+  /** Date du jour à Abidjan : pas de départ antérieur. */
+  minDepartureDate?: string;
 }
 
 export interface VoyageSimulation {

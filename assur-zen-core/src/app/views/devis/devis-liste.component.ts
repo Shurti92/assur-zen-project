@@ -26,7 +26,7 @@ export const QUOTE_STATUS_VARIANT: Record<QuoteStatus, string> = {
   EXPIRE: 'secondary',
 };
 
-type ProductFilter = 'moto' | 'automobile-vtc' | null;
+type ProductFilter = 'moto' | 'automobile-vtc' | 'voyage' | null;
 
 @Component({
   selector: 'app-devis-liste',
@@ -151,12 +151,27 @@ export class DevisListeComponent {
     this.pageIndex.set(0);
   }
 
-  productOf(q: QuoteView): 'moto' | 'automobile-vtc' {
-    return q.productKey === 'automobile-vtc' ? 'automobile-vtc' : 'moto';
+  productOf(q: QuoteView): 'moto' | 'automobile-vtc' | 'voyage' {
+    return q.productKey === 'automobile-vtc' ? 'automobile-vtc' : q.productKey === 'voyage' ? 'voyage' : 'moto';
   }
 
   productLabel(q: QuoteView): string {
-    return this.productOf(q) === 'automobile-vtc' ? 'VTC' : 'Moto';
+    const p = this.productOf(q);
+    return p === 'automobile-vtc' ? 'VTC' : p === 'voyage' ? 'Voyage' : 'Moto';
+  }
+
+  /** Voyage : pays de destination, période et durée (à la place du véhicule). */
+  voyageCountry(q: QuoteView): string {
+    return q.voyage?.countryName ?? q.voyage?.country ?? '—';
+  }
+
+  voyagePeriod(q: QuoteView): string {
+    const v = q.voyage;
+    if (!v?.departureDate) return '';
+    const f = (d?: string | null) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '');
+    const year = (v.returnDate ?? v.departureDate).slice(0, 4);
+    const days = v.durationDays ? ` · ${v.durationDays} jour${v.durationDays > 1 ? 's' : ''}` : '';
+    return `${f(v.departureDate)} → ${f(v.returnDate)}/${year}${days}`;
   }
 
   vehicleLabel(q: QuoteView): string {

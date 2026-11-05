@@ -13,9 +13,9 @@
       <div class="dd-hero-top">
         <div>
           <a class="dd-back" routerLink="/devis/liste">← Liste des devis</a>
-          <div class="dd-ref">Devis · {{ q.productKey === 'automobile-vtc' ? 'Automobile VTC' : 'Moto' }}</div>
+          <div class="dd-ref">Devis · {{ q.productKey === 'automobile-vtc' ? 'Automobile VTC' : q.productKey === 'voyage' ? 'Voyage' : 'Moto' }}</div>
           <h1>{{ reference() }}</h1>
-          <div class="dd-sub">{{ q.prospectName || '—' }} · {{ q.formulaName }} · {{ q.durationMonths }} mois</div>
+          <div class="dd-sub">{{ q.prospectName || '—' }} · {{ q.formulaName }} · {{ q.productKey === 'voyage' ? (q.voyage?.durationDays ?? '—') + ' jours' : q.durationMonths + ' mois' }}</div>
         </div>
         <div class="dd-badges">
           <span [class.dd-chip--ok]="q.status === 'CONVERTI'" class="dd-chip"><span class="dd-dot"></span>{{ q.status === 'CONVERTI' ? '✓ ' : '' }}{{ statusLabel[q.status] }}</span>
@@ -77,12 +77,12 @@
     <div class="dd-grid">
       <div>
         <section class="dd-card">
-          <h3><span class="dd-n">1</span>Prospect</h3>
+          <h3><span class="dd-n">1</span>{{ q.productKey === 'voyage' ? 'Voyageur' : 'Prospect' }}</h3>
           <div class="dd-person">
             <div class="dd-avatar">{{ initials() }}</div>
             <div>
               <b>{{ q.prospectName || '—' }}</b>
-              <span>Prospect</span>
+              <span>{{ q.productKey === 'voyage' ? 'Voyageur' : 'Prospect' }}</span>
             </div>
           </div>
           <div class="dd-fields">
@@ -115,9 +115,37 @@
                 }
               </div>
             }
+            @if (q.productKey === 'voyage' && q.voyage; as v) {
+              <div class="dd-f">
+                <label>Né(e) le</label>
+                <div>{{ formatDate(v.travelerBirthDate) }}@if (v.travelerAge !== null && v.travelerAge !== undefined) { <small class="dd-light"> · {{ v.travelerAge }} an{{ v.travelerAge > 1 ? 's' : '' }} au départ</small> }</div>
+              </div>
+              <div class="dd-f">
+                <label>N° de passeport</label>
+                @if (v.passportNumber) {
+                  <div>{{ v.passportNumber }}</div>
+                } @else {
+                  <div class="dd-empty-v">Non renseigné</div>
+                }
+              </div>
+            }
           </div>
         </section>
 
+        @if (q.productKey === 'voyage') {
+          <section class="dd-card">
+            <h3><span class="dd-n">2</span>Voyage</h3>
+            <div class="dd-fields">
+              <div class="dd-f"><label>Pays de destination</label><div>{{ q.voyage?.countryName ?? q.voyage?.country ?? '—' }}</div></div>
+              <div class="dd-f"><label>Espace</label><div>{{ q.voyage?.spaceLabel ?? '—' }}</div></div>
+              <div class="dd-f"><label>Période</label><div>{{ formatDate(q.voyage?.departureDate) }} → {{ formatDate(q.voyage?.returnDate) }}</div></div>
+              <div class="dd-f"><label>Durée</label><div>{{ q.voyage?.durationDays ?? '—' }} jours <small class="dd-light">(jours de départ et de retour inclus)</small></div></div>
+              @if (q.acceptedAt) {
+                <div class="dd-f"><label>Accepté le</label><div>{{ formatDate(q.acceptedAt) }}</div></div>
+              }
+            </div>
+          </section>
+        } @else {
         <section class="dd-card">
           <h3><span class="dd-n">2</span>Véhicule</h3>
           <div class="dd-fields">
@@ -158,6 +186,7 @@
             }
           </div>
         </section>
+        }
 
         @if (smsEnabled || emailEnabled) {
           <section class="dd-card">
@@ -202,7 +231,7 @@
       <aside class="dd-card dd-price">
         <h3>Prix du devis</h3>
         <div class="dd-total">{{ q.premium.total.toLocaleString('fr-FR') }}<small>F CFA</small></div>
-        <div class="dd-formula">{{ q.formulaName }} · {{ q.durationMonths }} mois</div>
+        <div class="dd-formula">{{ q.formulaName }} · {{ q.productKey === 'voyage' ? (q.voyage?.durationDays ?? '—') + ' jours' : q.durationMonths + ' mois' }}</div>
 
         <div class="dd-split" aria-hidden="true">
           <i [style.width.%]="share(q.premium.netPremium, q.premium.total)" class="dd-c1"></i>
@@ -221,7 +250,9 @@
             <div class="dd-r3"><span>CEDEAO</span><b>{{ (q.premium.cedeao ?? 0).toLocaleString('fr-FR') }}</b></div>
             <div class="dd-r3"><span>Attestation</span><b>{{ (q.premium.attestation ?? 0).toLocaleString('fr-FR') }}</b></div>
           }
+          @if (q.productKey !== 'voyage') {
           <div class="dd-r4"><span>FGA</span><b>{{ q.premium.fga.toLocaleString('fr-FR') }}</b></div>
+          }
         </div>
 
         @if (q.guarantees.length > 0) {

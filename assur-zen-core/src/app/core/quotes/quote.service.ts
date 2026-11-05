@@ -22,6 +22,7 @@ import {
   QuoteStatus,
   QuoteVehicleRequest,
   QuoteView,
+  VoyageQuoteCreateRequest,
   VtcQuoteCreateRequest,
   VtcQuoteForm,
   VtcVehicleRequest,
@@ -52,6 +53,10 @@ export class QuoteService {
 
   createVtc(request: VtcQuoteCreateRequest): Observable<QuoteView> {
     return this.http.post<QuoteView>(`${this.base}/vtc`, request);
+  }
+
+  createVoyage(request: VoyageQuoteCreateRequest): Observable<QuoteView> {
+    return this.http.post<QuoteView>(`${this.base}/voyage`, request);
   }
 
   /** Accord du prospect (409 QUOTE_EXPIRED si le devis est périmé). */

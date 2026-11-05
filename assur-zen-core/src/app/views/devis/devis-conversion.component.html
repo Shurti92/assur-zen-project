@@ -177,7 +177,7 @@
         <div class="dc-fld">
           <label for="dc-produit">Produit</label>
           <select (change)="productId.set($any($event.target).value ? +$any($event.target).value : null)" id="dc-produit">
-            <option value="">Automatique — {{ q.productKey === 'automobile-vtc' ? 'Assurance Automobile VTC' : 'Assurance Moto' }}</option>
+            <option value="">Automatique — {{ q.productKey === 'automobile-vtc' ? 'Assurance Automobile VTC' : q.productKey === 'voyage' ? 'Assurance Voyage' : 'Assurance Moto' }}</option>
             @for (p of products(); track p.id) {
               <option [value]="p.id">{{ p.name }}</option>
             }

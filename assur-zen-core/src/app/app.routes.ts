@@ -472,6 +472,13 @@ export const routes: Routes = [
         data: { title: 'Nouveau devis VTC', section: 'Devis' },
       },
       {
+        path: 'devis/nouveau-voyage',
+        canActivate: [quoteGuard],
+        loadComponent: () =>
+          import('./views/devis/devis-nouveau-voyage.component').then((m) => m.DevisNouveauVoyageComponent),
+        data: { title: 'Nouveau devis voyage', section: 'Devis' },
+      },
+      {
         path: 'devis/liste',
         canActivate: [quoteGuard],
         loadComponent: () => import('./views/devis/devis-liste.component').then((m) => m.DevisListeComponent),

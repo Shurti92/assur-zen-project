@@ -1,0 +1,210 @@
+<div class="df-top">
+  <div>
+    <h1>Nouveau devis</h1>
+    <p class="df-sub">Le prix se calcule dès que le formulaire est complet.</p>
+  </div>
+  <div class="df-top-right">
+    <div class="df-seg" aria-label="Produit">
+      <a routerLink="/devis/nouveau">🏍️ Moto</a>
+      <a routerLink="/devis/nouveau-vtc">🚕 Automobile VTC</a>
+      <a class="df-seg-on" aria-current="page" routerLink="/devis/nouveau-voyage">✈️ Voyage</a>
+    </div>
+    <a class="df-link" routerLink="/devis/liste">← Liste des devis</a>
+  </div>
+</div>
+
+@if (error()) {
+  <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+}
+
+<form [formGroup]="form" class="df-layout">
+  <div>
+    <section class="df-card">
+      <div class="df-hd">
+        <span [class.df-num--done]="step1Done()" class="df-num">1</span>
+        <h2>Voyageur<small>Qui voyage ?</small></h2>
+      </div>
+      <div class="df-grid">
+        <div class="df-field">
+          <label for="dv-name">Nom complet du voyageur *</label>
+          <div [class.df-in--valid]="nameOk()" class="df-in">
+            <i class="df-ico">👤</i>
+            <input formControlName="prospectName" id="dv-name" placeholder="Aminata Koné" [class.df-invalid]="hasError('prospectName')" />
+            <span class="df-check">✓</span>
+          </div>
+          @if (fieldError('prospectName'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
+        <div class="df-field">
+          <label for="dv-phone">Téléphone * <span class="df-light">(10 chiffres)</span></label>
+          <div [class.df-in--valid]="phoneOk()" class="df-in">
+            <i class="df-ico">📞</i>
+            <input formControlName="prospectPhone" id="dv-phone" inputmode="numeric" maxlength="10" placeholder="0701020304" [class.df-invalid]="hasError('prospectPhone')" />
+            <span class="df-check">✓</span>
+          </div>
+          @if (fieldError('prospectPhone'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
+        <div class="df-field">
+          <label for="dv-birth">Date de naissance *</label>
+          <div [class.df-in--valid]="birthOk()" class="df-in">
+            <i class="df-ico">🎂</i>
+            <input formControlName="birthDate" id="dv-birth" [max]="minDeparture()" type="date" [class.df-invalid]="hasError('birthDate') || !!birthProblem()" />
+            <span class="df-check">✓</span>
+          </div>
+          @if (birthProblem(); as e) { <div class="df-error">{{ e }}</div> }
+          @if (fieldError('birthDate'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
+        <div class="df-field">
+          <label for="dv-passport">N° de passeport <span class="df-light">(facultatif)</span></label>
+          <div class="df-in">
+            <i class="df-ico">🛂</i>
+            <input formControlName="passportNumber" id="dv-passport" maxlength="40" placeholder="Ex. 21AB12345" [class.df-invalid]="hasError('passportNumber')" />
+          </div>
+          @if (fieldError('passportNumber'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
+        @if (emailEnabled) {
+          <div class="df-field">
+            <label for="dv-email">E-mail <span class="df-light">(facultatif, pour envoyer le devis)</span></label>
+            <div [class.df-in--valid]="emailFilled()" class="df-in">
+              <i class="df-ico">✉️</i>
+              <input formControlName="prospectEmail" id="dv-email" placeholder="prenom.nom@exemple.com" type="email" [class.df-invalid]="hasError('prospectEmail') || form.controls.prospectEmail.invalid" />
+              <span class="df-check">✓</span>
+            </div>
+            @if (form.controls.prospectEmail.invalid) { <div class="df-error">Adresse e-mail invalide.</div> }
+            @if (fieldError('prospectEmail'); as e) { <div class="df-error">{{ e }}</div> }
+          </div>
+        }
+        @if (addressEnabled) {
+          <div class="df-field">
+            <label for="dv-address">Adresse géographique <span class="df-light">(facultative)</span></label>
+            <div class="df-in">
+              <i class="df-ico">📍</i>
+              <input formControlName="prospectAddress" id="dv-address" maxlength="250" placeholder="Ex. Cocody, Riviera Palmeraie, près de la pharmacie…" [class.df-invalid]="hasError('prospectAddress')" />
+            </div>
+            @if (fieldError('prospectAddress'); as e) { <div class="df-error">{{ e }}</div> }
+          </div>
+        }
+        @if (emailEnabled) {
+          <div class="df-field">
+            <button (click)="sendEmail.set(!sendEmail())" [attr.aria-pressed]="sendEmail()" [class.df-on]="sendEmail() && emailFilled()" [disabled]="!emailFilled()" class="df-switch" type="button">
+              <span>
+                <b>Envoyer le devis par e-mail dès l'enregistrement</b><br />
+                <span class="df-hint">Disponible si une adresse e-mail est renseignée</span>
+              </span>
+              <span class="df-tg"></span>
+            </button>
+          </div>
+        }
+        @if (smsEnabled) {
+          <div class="df-field">
+            <button (click)="toggleSms()" [attr.aria-pressed]="smsOn()" [class.df-on]="smsOn()" [disabled]="!smsCapable()" class="df-switch" type="button">
+              <span>
+                <b>Envoyer le lien du devis par SMS dès l'enregistrement</b><br />
+                <span class="df-hint">Disponible si le numéro est un mobile ivoirien valide</span>
+              </span>
+              <span class="df-tg"></span>
+            </button>
+          </div>
+          <div [class.df-ident--ok]="smsCapable()" [class.df-ident--ko]="!smsCapable() && phoneDigits() === 10" class="df-ident df-span2" style="margin-top: 0">
+            @if (smsCapable()) {
+              ✓ Numéro mobile valide ({{ operatorLabel() }}) : le SMS partira automatiquement à l'enregistrement.
+            } @else if (phoneDigits() === 10) {
+              ⚠ Numéro non valide pour un SMS (mobile ivoirien : 10 chiffres commençant par 01, 05 ou 07). Seul l'envoi par e-mail est proposé.
+            } @else {
+              ⓘ Saisissez un numéro de mobile ivoirien pour activer l'envoi par SMS.
+            }
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="df-card">
+      <div class="df-hd">
+        <span [class.df-num--done]="step2Done()" class="df-num">2</span>
+        <h2>Voyage<small>Destination et dates</small></h2>
+      </div>
+      <div class="df-field">
+        <label for="dv-country">Pays de destination *</label>
+        <select formControlName="countryId" id="dv-country" [class.df-invalid]="hasError('countryId')">
+          <option [ngValue]="null">Choisir…</option>
+          @for (c of countries(); track c.id) {
+            <option [ngValue]="c.id">{{ c.name }} · {{ c.spaceLabel }}</option>
+          }
+        </select>
+        @if (fieldError('countryId'); as e) { <div class="df-error">{{ e }}</div> }
+      </div>
+      <div class="df-grid df-mt">
+        <div class="df-field">
+          <label for="dv-dep">Date de départ *</label>
+          <div [class.df-in--valid]="!!form.controls.departureDate.value && !departureProblem()" class="df-in">
+            <i class="df-ico">🛫</i>
+            <input formControlName="departureDate" id="dv-dep" [min]="minDeparture()" type="date" [class.df-invalid]="hasError('departureDate') || !!departureProblem()" />
+            <span class="df-check">✓</span>
+          </div>
+          @if (departureProblem(); as e) { <div class="df-error">{{ e }}</div> }
+          @if (fieldError('departureDate'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
+        <div class="df-field">
+          <label for="dv-ret">Date de retour *</label>
+          <div [class.df-in--valid]="datesOk()" class="df-in">
+            <i class="df-ico">🛬</i>
+            <input formControlName="returnDate" id="dv-ret" [min]="form.controls.departureDate.value || minDeparture()" type="date" [class.df-invalid]="hasError('returnDate') || !!returnProblem()" />
+            <span class="df-check">✓</span>
+          </div>
+          <div class="df-hint" style="margin-top: 4px">Le jour de départ et le jour de retour sont comptés.</div>
+          @if (returnProblem(); as e) { <div class="df-error">{{ e }}</div> }
+          @if (fieldError('returnDate'); as e) { <div class="df-error">{{ e }}</div> }
+        </div>
+      </div>
+      @if (datesOk() && birthOk() && countryOk()) {
+        <div class="df-facts">
+          <div><small>Durée du séjour</small><b>{{ durationDays() }} jour{{ durationDays()! > 1 ? 's' : '' }}</b></div>
+          <div><small>Âge au départ</small><b>{{ age() }} an{{ age()! > 1 ? 's' : '' }}</b></div>
+          <div><small>Espace</small><b>{{ selectedCountry()?.spaceLabel }}</b></div>
+        </div>
+      }
+    </section>
+  </div>
+
+  <aside class="df-sticky">
+    <div class="df-card" style="margin: 0">
+      <div class="df-panel-hd"><b>Prix du devis</b><span>{{ progress() }} %</span></div>
+      <div class="df-prog"><div [style.width.%]="progress()"></div></div>
+
+      @if (simError()) {
+        <p class="df-error" role="alert">⛔ {{ simError() }}</p>
+      }
+      @if (shownSimulation(); as s) {
+        @if (!simulationUpToDate()) {
+          <p class="df-warn">Mise à jour du prix…</p>
+        }
+        <span class="df-badge">{{ s.country.name }} · {{ s.ageBand }} ans · {{ s.durationBand }}</span>
+        <div class="df-price">{{ formatAmount(s.totalPremium) }}</div>
+        <div class="df-bar" aria-hidden="true">
+          @for (b of bars(); track $index) {
+            <div [style.background]="b.color" [style.width.%]="b.percent"></div>
+          }
+        </div>
+        <table class="df-table">
+          <tbody>
+            @for (r of rows(); track r.label) {
+              <tr><td>{{ r.label }}</td><td>{{ formatAmount(r.amount) }}</td></tr>
+            }
+          </tbody>
+        </table>
+        <button (click)="save()" [disabled]="saving() || simulating() || !simulationUpToDate()" class="df-save" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Enregistrer le devis
+        </button>
+        <div class="df-note">L'enregistrement fige le prix. Un devis sans prix calculé ne peut pas être enregistré.</div>
+      } @else {
+        <div class="df-empty">
+          <b>🧮</b>Complétez le formulaire pour voir le prix
+          <div class="df-sk"></div><div class="df-sk" style="width: 50%"></div><div class="df-sk" style="width: 60%"></div>
+        </div>
+        <button class="df-save" disabled type="button">Enregistrer le devis</button>
+      }
+    </div>
+  </aside>
+</form>

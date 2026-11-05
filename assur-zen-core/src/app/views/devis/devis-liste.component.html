@@ -68,6 +68,7 @@
       <a (click)="onProductChange(null)" [class.dq-on]="product() === null">Tous</a>
       <a (click)="onProductChange('moto')" [class.dq-on]="product() === 'moto'">🏍️ Moto</a>
       <a (click)="onProductChange('automobile-vtc')" [class.dq-on]="product() === 'automobile-vtc'">🚕 VTC</a>
+      <a (click)="onProductChange('voyage')" [class.dq-on]="product() === 'voyage'">✈️ Voyage</a>
     </div>
   </div>
 
@@ -82,7 +83,7 @@
       <div class="dq-head">
         <div>Référence</div>
         <div>Prospect</div>
-        <div>Véhicule</div>
+        <div>{{ product() === 'voyage' ? 'Voyage' : 'Véhicule' }}</div>
         <div>Total</div>
         <div>Statut</div>
         <div>Envois</div>
@@ -102,9 +103,14 @@
             </div>
           </div>
           <div class="dq-veh">
-            <b>{{ vehicleLabel(d) }}</b>
+            @if (productOf(d) === 'voyage') {
+              <b>{{ voyageCountry(d) }}</b>
+              <small class="dq-sub">{{ voyagePeriod(d) }}</small>
+            } @else {
+                      <b>{{ vehicleLabel(d) }}</b>
             @if (d.registrationNumber) {
               <span class="dq-plate">{{ d.registrationNumber }}</span>
+            }
             }
           </div>
           <div class="dq-total">{{ formatAmount(d.premium.total) }}</div>
