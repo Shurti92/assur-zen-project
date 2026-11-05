@@ -199,7 +199,12 @@
             @for (g of guarantees(); track g.id) {
               <div [style.opacity]="g.active ? 1 : 0.8" cdkDrag class="mb-row vy-g vy-dr">
                 <span cdkDragHandle aria-label="Glisser pour réordonner" class="vy-grip" title="Glisser pour réordonner">⋮⋮</span>
-                <div><b>{{ g.label }}</b></div>
+                <div>
+                  <b>{{ g.label }}</b>
+                  @if (g.group) {
+                    <span class="mb-pill mb-pill--info vy-grp">{{ g.group }}</span>
+                  }
+                </div>
                 <div>{{ g.coverage }}</div>
                 <button (click)="toggleGuarantee(g)" [attr.aria-pressed]="g.active" [class.vy-tg--on]="g.active" [attr.aria-label]="'Afficher ' + g.label" class="vy-tg" type="button"></button>
                 <div class="vy-btns">
@@ -362,6 +367,18 @@
         <label for="gr-cov">Plafond / prise en charge <span class="vy-req">*</span> <span class="vy-light">(250 max)</span></label>
         <input [(ngModel)]="d.coverage" id="gr-cov" maxlength="250" name="gr-cov" />
         <small>Texte libre, tel qu'il sera affiché au client. Pensez à l'astérisque si le montant est converti.</small>
+      </div>
+      <div class="vy-fld">
+        <label for="gr-group">Groupe <span class="vy-light">(facultatif · 100 caractères max)</span></label>
+        <input [(ngModel)]="d.group" [attr.list]="groups().length ? 'gr-groups' : null" id="gr-group" maxlength="100" name="gr-group" placeholder="Ex. Frais médicaux, Rapatriement, Bagages…" />
+        @if (groups().length) {
+          <datalist id="gr-groups">
+            @for (g of groups(); track g) {
+              <option [value]="g"></option>
+            }
+          </datalist>
+        }
+        <small>Rubrique sous laquelle la garantie est regroupée dans l'application mobile. Vide : pas de regroupement.</small>
       </div>
       <div class="vy-sw">
         <div><b>Garantie affichée</b><small>Masquée : n'apparaît plus aux clients, sans être supprimée</small></div>

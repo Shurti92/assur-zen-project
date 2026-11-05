@@ -478,3 +478,9 @@
 ::ng-deep .vy-dl.cdk-drop-list-dragging .vy-dr:not(.cdk-drag-placeholder) {
   transition: transform 200ms ease;
 }
+
+.vy-grp {
+  display: inline-flex;
+  margin-top: 4px;
+  font-size: 11px;
+}

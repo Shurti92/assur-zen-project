@@ -85,6 +85,8 @@ export interface VoyageGuarantee {
   id: number;
   label: string;
   coverage: string;
+  /** Rubrique d'affichage (facultative, 100 caractères au plus). */
+  group?: string | null;
   active: boolean;
   displayOrder: number;
 }
@@ -92,6 +94,7 @@ export interface VoyageGuarantee {
 export interface VoyageGuaranteeRequest {
   label: string;
   coverage: string;
+  group?: string;
   active?: boolean;
   displayOrder?: number;
 }
@@ -136,8 +139,8 @@ export class VoyageService {
     return this.http.delete<void>(`${this.base}/tariffs/${id}`);
   }
 
-  guarantees(): Observable<{ items: VoyageGuarantee[]; note: string | null }> {
-    return this.http.get<{ items: VoyageGuarantee[]; note: string | null }>(`${this.base}/guarantees`);
+  guarantees(): Observable<{ items: VoyageGuarantee[]; note: string | null; groups?: string[] }> {
+    return this.http.get<{ items: VoyageGuarantee[]; note: string | null; groups?: string[] }>(`${this.base}/guarantees`);
   }
 
   createGuarantee(payload: VoyageGuaranteeRequest): Observable<VoyageGuarantee> {

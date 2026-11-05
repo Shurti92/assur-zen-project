@@ -40,6 +40,7 @@ interface GuaranteeDraft {
   id: number | null;
   label: string;
   coverage: string;
+  group: string;
   active: boolean;
 }
 
@@ -137,6 +138,8 @@ export class VoyageComponent {
   readonly guaranteesLoading = signal(true);
   readonly guaranteeEdit = signal<GuaranteeDraft | null>(null);
   readonly guaranteeDelete = signal<VoyageGuarantee | null>(null);
+  /** Rubriques déjà utilisées (suggestions du champ « Groupe »). */
+  readonly groups = signal<string[]>([]);
   readonly note = signal('');
   readonly noteSaved = signal('');
   readonly noteSaving = signal(false);
@@ -400,6 +403,7 @@ export class VoyageComponent {
     this.service.guarantees().subscribe({
       next: (r) => {
         this.guarantees.set([...r.items].sort((a, b) => a.displayOrder - b.displayOrder));
+        this.groups.set(r.groups ?? []);
         this.note.set(r.note ?? '');
         this.noteSaved.set(r.note ?? '');
         this.guaranteesLoading.set(false);
@@ -413,7 +417,7 @@ export class VoyageComponent {
 
   private guaranteeBody(g: VoyageGuarantee, patch: Partial<VoyageGuarantee> = {}) {
     const m = { ...g, ...patch };
-    return { label: m.label, coverage: m.coverage, active: m.active, displayOrder: m.displayOrder };
+    return { label: m.label, coverage: m.coverage, group: m.group ?? '', active: m.active, displayOrder: m.displayOrder };
   }
 
   toggleGuarantee(g: VoyageGuarantee): void {
@@ -441,12 +445,12 @@ export class VoyageComponent {
 
   newGuarantee(): void {
     this.modalError.set(null);
-    this.guaranteeEdit.set({ id: null, label: '', coverage: '', active: true });
+    this.guaranteeEdit.set({ id: null, label: '', coverage: '', group: '', active: true });
   }
 
   editGuarantee(g: VoyageGuarantee): void {
     this.modalError.set(null);
-    this.guaranteeEdit.set({ id: g.id, label: g.label, coverage: g.coverage, active: g.active });
+    this.guaranteeEdit.set({ id: g.id, label: g.label, coverage: g.coverage, group: g.group ?? '', active: g.active });
   }
 
   submitGuarantee(): void {
@@ -462,7 +466,7 @@ export class VoyageComponent {
     }
     this.saving.set(true);
     this.modalError.set(null);
-    const body = { label: d.label.trim(), coverage: d.coverage.trim(), active: d.active };
+    const body = { label: d.label.trim(), coverage: d.coverage.trim(), group: d.group.trim(), active: d.active };
     const existing = d.id === null ? null : this.guarantees().find((g) => g.id === d.id);
     const call = d.id === null ? this.service.createGuarantee(body) : this.service.updateGuarantee(d.id, { ...body, displayOrder: existing?.displayOrder });
     call.subscribe({
