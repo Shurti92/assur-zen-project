@@ -1,0 +1,351 @@
+@use '../mobile-shared';
+
+// Assurance voyage : pays, grille tarifaire, simulateur. Maquette validée le 2026-11-05.
+.vy-scroll {
+  overflow-x: auto;
+}
+
+.vy-min {
+  min-width: 760px;
+}
+
+.vy-grow {
+  flex: 1;
+}
+
+.vy-cty {
+  grid-template-columns: 1.6fr 1.4fr 150px 270px;
+}
+
+.vy-sub {
+  display: block;
+  color: var(--mb-mut);
+  font-size: 12px;
+}
+
+.vy-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.vy-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-top: 1px solid var(--mb-bd);
+  color: var(--mb-mut);
+  font-size: 13px;
+}
+
+.vy-hint {
+  margin: 4px 0 14px;
+  color: var(--mb-mut);
+  font-size: 13px;
+}
+
+.vy-alert {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--mb-accent);
+  border-radius: 14px;
+  background: var(--mb-warn-soft);
+  font-size: 14px;
+}
+
+.vy-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+
+  @media (max-width: 1000px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vy-card {
+  margin-bottom: 18px;
+  padding: 20px;
+  border: 1px solid var(--mb-bd);
+  border-radius: var(--mb-r);
+  background: var(--mb-card);
+  box-shadow: var(--mb-shadow);
+
+  h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+  }
+}
+
+.vy-subt {
+  margin: 0 0 14px;
+  color: var(--mb-mut);
+  font-size: 13px;
+}
+
+.vy-tight {
+  margin: 2px 0 0;
+}
+
+// ---------- Grille ----------
+.vy-grid {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: separate;
+  border-spacing: 6px;
+
+  th {
+    padding: 6px 8px;
+    color: var(--mb-mut);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  td {
+    padding: 12px 8px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    background: var(--mb-soft);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+  }
+}
+
+.vy-l {
+  text-align: left !important;
+}
+
+.vy-grid td.vy-age {
+  padding-left: 4px;
+  background: none;
+  text-align: left;
+  cursor: default;
+}
+
+.vy-grid td.vy-sel {
+  border-color: var(--mb-pri);
+  background: var(--mb-card);
+  box-shadow: 0 0 0 3px var(--mb-soft);
+}
+
+.vy-grid td.vy-miss {
+  border: 2px dashed var(--mb-accent);
+  background: var(--mb-warn-soft);
+  color: #c25e0a;
+  font-size: 12px;
+}
+
+// ---------- Champs ----------
+.vy-fld {
+  margin-bottom: 14px;
+
+  label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  input,
+  select {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1px solid var(--mb-bd);
+    border-radius: 12px;
+    background: var(--mb-soft);
+    color: inherit;
+    font: inherit;
+  }
+
+  small {
+    display: block;
+    margin-top: 4px;
+    color: var(--mb-mut);
+    font-size: 12px;
+  }
+}
+
+.vy-req {
+  color: var(--mb-ko);
+}
+
+.vy-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.vy-top {
+  margin-top: 14px;
+}
+
+.vy-c {
+  justify-content: center;
+}
+
+.vy-calc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--mb-soft);
+
+  small {
+    display: block;
+    color: var(--mb-mut);
+  }
+
+  b {
+    color: var(--mb-pri);
+    font-size: 22px;
+  }
+}
+
+.vy-err {
+  margin: 12px 0 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--mb-ko);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--mb-ko) 12%, var(--mb-card));
+  color: var(--mb-ko);
+  font-size: 14px;
+}
+
+.vy-sw {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid var(--mb-bd);
+
+  small {
+    display: block;
+    color: var(--mb-mut);
+  }
+}
+
+.vy-tg {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mb-soft2);
+  cursor: pointer;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: left 0.12s;
+  }
+}
+
+.vy-tg--on {
+  background: var(--mb-ok);
+
+  &::after {
+    left: 23px;
+  }
+}
+
+// ---------- Simulateur ----------
+.vy-total {
+  color: var(--mb-pri);
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+
+  small {
+    margin-left: 4px;
+    color: var(--mb-mut);
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.vy-split {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin: 12px 0;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.vy-s1 {
+  background: #1b3b8f;
+}
+
+.vy-s2 {
+  background: #ec7c1e;
+}
+
+.vy-s3 {
+  background: #4a74e8;
+}
+
+.vy-res {
+  display: grid;
+  gap: 8px;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  span {
+    color: var(--mb-mut);
+  }
+}
+
+.vy-sum {
+  padding-top: 8px;
+  border-top: 1px solid var(--mb-bd);
+}
+
+// ---------- Fenêtres ----------
+.vy-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 18, 30, 0.55);
+}
+
+.vy-modal {
+  width: min(35rem, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--mb-card);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+
+  h4 {
+    margin: 0 0 10px;
+    font-size: 18px;
+  }
+}

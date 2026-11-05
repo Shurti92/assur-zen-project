@@ -1,0 +1,324 @@
+<div class="mb">
+  <header class="mb-hero">
+    <div>
+      <h1>Assurance voyage</h1>
+      <p>Pays de destination, grille tarifaire par espace, âge et durée. Les montants sont en F CFA.</p>
+    </div>
+  </header>
+
+  <div class="mb-tabs">
+    <button (click)="setTab('countries')" [class.mb-tab--on]="tab() === 'countries'" class="mb-tab" type="button">Pays de destination</button>
+    <button (click)="setTab('tariffs')" [class.mb-tab--on]="tab() === 'tariffs'" class="mb-tab" type="button">Grille tarifaire</button>
+    <button (click)="setTab('simulator')" [class.mb-tab--on]="tab() === 'simulator'" class="mb-tab" type="button">Simulateur</button>
+  </div>
+
+  @if (error()) {
+    <app-alert-message class="d-block my-3" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+  }
+  @if (info()) {
+    <app-alert-message class="d-block my-3" variant="success" [message]="info()!" [dismissible]="true" (dismissed)="info.set(null)" />
+  }
+
+  <!-- ============ A · Pays ============ -->
+  @if (tab() === 'countries') {
+    <div class="mb-kpis">
+      <button (click)="pickSpace(null)" [class.mb-kpi--on]="spaceFilter() === null" class="mb-kpi" type="button"><small>Tous les pays</small><b>{{ spaceCounts().all }}</b></button>
+      <button (click)="pickSpace('AFRIQUE_OUEST')" [class.mb-kpi--on]="spaceFilter() === 'AFRIQUE_OUEST'" class="mb-kpi" type="button"><small><i style="background: #12a150"></i>Afrique de l'Ouest</small><b>{{ spaceCounts().AFRIQUE_OUEST }}</b></button>
+      <button (click)="pickSpace('ESPACE_SCHENGEN')" [class.mb-kpi--on]="spaceFilter() === 'ESPACE_SCHENGEN'" class="mb-kpi" type="button"><small><i style="background: #4a74e8"></i>Schengen et Afrique du Nord</small><b>{{ spaceCounts().ESPACE_SCHENGEN }}</b></button>
+      <button (click)="pickSpace('MONDE_ENTIER')" [class.mb-kpi--on]="spaceFilter() === 'MONDE_ENTIER'" class="mb-kpi" type="button"><small><i style="background: #ec7c1e"></i>Monde entier</small><b>{{ spaceCounts().MONDE_ENTIER }}</b></button>
+    </div>
+    <div class="mb-toolbar">
+      <div class="mb-search">
+        <span>🔍</span>
+        <input (input)="search.set($any($event.target).value)" aria-label="Rechercher un pays" placeholder="Rechercher un pays" type="search" />
+      </div>
+      <div class="mb-seg" role="group" aria-label="Filtrer par statut">
+        <a (click)="statusFilter.set('all')" [class.mb-on]="statusFilter() === 'all'">Tous</a>
+        <a (click)="statusFilter.set('active')" [class.mb-on]="statusFilter() === 'active'">Actifs · {{ statusCounts().active }}</a>
+        <a (click)="statusFilter.set('inactive')" [class.mb-on]="statusFilter() === 'inactive'">Inactifs · {{ statusCounts().inactive }}</a>
+      </div>
+      <button (click)="newCountry()" class="mb-btn mb-btn--pri" type="button">+ Ajouter un pays</button>
+    </div>
+    @if (countriesLoading()) {
+      <p class="mb-empty">Chargement des pays…</p>
+    } @else {
+      <div class="mb-list vy-scroll">
+        <div class="vy-min">
+          <div class="mb-head vy-cty"><div>Pays</div><div>Espace</div><div>Statut</div><div></div></div>
+          @for (c of shownCountries(); track c.id) {
+            <div class="mb-row vy-cty">
+              <div><b>{{ c.name }}</b></div>
+              <div>{{ c.spaceLabel || spaceLabel(c.space) }}</div>
+              <div>
+                <span [class]="c.active ? 'mb-pill mb-pill--ok' : 'mb-pill mb-pill--mut'">{{ c.active ? 'Actif' : 'Inactif' }}</span>
+                @if (!c.active) {
+                  <small class="vy-sub">Masqué dans le formulaire</small>
+                }
+              </div>
+              <div class="vy-btns">
+                <button (click)="editCountry(c)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Modifier</button>
+                <button (click)="toggleCountry(c)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">{{ c.active ? 'Désactiver' : 'Activer' }}</button>
+                <button (click)="countryDelete.set(c)" class="mb-btn mb-btn--danger mb-btn--sm" type="button">Supprimer</button>
+              </div>
+            </div>
+          } @empty {
+            <p class="mb-empty">Aucun pays ne correspond.</p>
+          }
+          <div class="vy-foot">
+            <span><b>{{ shownCountries().length }}</b> sur {{ countries().length }} pays</span>
+            <span>Un pays inactif disparaît du formulaire sans être perdu.</span>
+          </div>
+        </div>
+      </div>
+      <p class="vy-hint">« Supprimer » demande une confirmation ; « Désactiver » est conseillé pour retirer un pays sans le perdre.</p>
+    }
+  }
+
+  <!-- ============ B · Grille ============ -->
+  @if (tab() === 'tariffs') {
+    <div class="mb-toolbar">
+      <div class="mb-seg" role="group" aria-label="Espace">
+        @for (s of spaces; track s.code) {
+          <a (click)="pickTariffSpace(s.code)" [class.mb-on]="tariffSpace() === s.code">{{ s.label }}</a>
+        }
+      </div>
+      <span class="vy-grow"></span>
+      <button (click)="newTariff()" class="mb-btn mb-btn--ghost" type="button">+ Nouvelle tranche</button>
+    </div>
+
+    @if (tariffsLoading()) {
+      <p class="mb-empty">Chargement de la grille…</p>
+    } @else {
+      @if (missingCells().length > 0) {
+        <div class="vy-alert">
+          ⚠️ @if (missingCells().length > 1) {
+            <b>{{ missingCells().length }} combinaisons ne sont plus couvertes</b>
+          } @else {
+            <b>1 combinaison n'est plus couverte</b>
+          }
+          dans cet espace : une simulation répondrait « tarif non disponible ». Voir les cellules en pointillés.
+        </div>
+      }
+      <div class="vy-cols">
+        <section class="vy-card">
+          <h3>Prime TTC par âge et par durée</h3>
+          <p class="vy-subt">Cliquez sur une cellule pour voir et modifier le détail. « 1 an » s'applique au-delà de 180 jours.</p>
+          <div class="vy-scroll">
+            <table class="vy-grid">
+              <thead>
+                <tr>
+                  <th class="vy-l">Âge</th>
+                  @for (d of durations(); track d) {
+                    <th>{{ durationLabel(d) }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of rows(); track r.band.min + '-' + r.band.max) {
+                  <tr>
+                    <td class="vy-age">{{ bandLabel(r.band) }}</td>
+                    @for (c of r.cells; track c.maxDays) {
+                      @if (c.tariff) {
+                        <td (click)="select(c)" [class.vy-sel]="isSelected(c)">{{ c.tariff.totalPremium.toLocaleString('fr-FR') }}</td>
+                      } @else {
+                        <td (click)="select(c)" [class.vy-sel]="isSelected(c)" class="vy-miss">Non couvert</td>
+                      }
+                    }
+                  </tr>
+                } @empty {
+                  <tr><td class="vy-age" colspan="11">Aucune tranche pour cet espace : ajoutez-en une.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside>
+          @if (selected(); as s) {
+            @if (s.tariff && detail(); as d) {
+              <section class="vy-card">
+                <h3>Détail · {{ bandLabel({ min: s.ageMin, max: s.ageMax }) }} · {{ durationLong(s.maxDays) }}</h3>
+                <p class="vy-subt">{{ spaceLabel(tariffSpace()) }}</p>
+                <div class="vy-fld"><label for="vy-net">Prime nette HT</label><input [(ngModel)]="d.net" id="vy-net" min="0" name="vy-net" type="number" /></div>
+                <div class="vy-two">
+                  <div class="vy-fld"><label for="vy-acc">Accessoires</label><input [(ngModel)]="d.accessories" id="vy-acc" min="0" name="vy-acc" type="number" /></div>
+                  <div class="vy-fld"><label for="vy-tax">Taxes</label><input [(ngModel)]="d.taxes" id="vy-tax" min="0" name="vy-tax" type="number" /></div>
+                </div>
+                <div class="vy-calc">
+                  <span>Prime TTC <small>= nette + accessoires + taxes (calculé)</small></span>
+                  <b>{{ total(d).toLocaleString('fr-FR') }} F</b>
+                </div>
+                <div class="vy-two vy-top">
+                  <button (click)="deleteTariff()" class="mb-btn mb-btn--danger vy-c" type="button">{{ deleteAsk() ? 'Confirmer la suppression ?' : 'Supprimer la tranche' }}</button>
+                  <button (click)="saveTariff()" [disabled]="saving()" class="mb-btn mb-btn--pri vy-c" type="button">
+                    @if (saving()) {
+                      <c-spinner size="sm" />
+                    }
+                    Enregistrer
+                  </button>
+                </div>
+              </section>
+            } @else {
+              <section class="vy-card">
+                <h3>Cellule non couverte · {{ bandLabel({ min: s.ageMin, max: s.ageMax }) }} · {{ durationLong(s.maxDays) }}</h3>
+                <p class="vy-subt">Aucune tranche ne correspond : le formulaire ne pourra pas calculer ce tarif.</p>
+                <button (click)="newTariff(s)" class="mb-btn mb-btn--pri" type="button">+ Ajouter cette tranche</button>
+              </section>
+            }
+          } @else {
+            <section class="vy-card">
+              <h3>Détail d'un tarif</h3>
+              <p class="vy-subt">Sélectionnez une cellule du tableau.</p>
+            </section>
+          }
+        </aside>
+      </div>
+    }
+  }
+
+  <!-- ============ C · Simulateur ============ -->
+  @if (tab() === 'simulator') {
+    <div class="vy-cols">
+      <section class="vy-card">
+        <h3>Simulateur de prime</h3>
+        <p class="vy-subt">Contrôlez la grille comme le ferait un client. Rien n'est enregistré.</p>
+        <div class="vy-fld">
+          <label for="vy-country">Pays de destination</label>
+          <select (change)="simCountryId.set(+$any($event.target).value)" [value]="simCountryId()" id="vy-country">
+            @for (c of form()?.countries ?? []; track c.id) {
+              <option [value]="c.id" [selected]="c.id === simCountryId()">{{ c.name }} · {{ c.spaceLabel }}</option>
+            }
+          </select>
+        </div>
+        <div class="vy-two">
+          <div class="vy-fld">
+            <label for="vy-age">Âge de l'assuré (ans)</label>
+            <input (input)="simAge.set($any($event.target).value === '' ? null : +$any($event.target).value)" [value]="simAge() ?? ''" id="vy-age" max="80" min="0" type="number" />
+            <small>{{ form()?.minAge ?? 0 }} à {{ form()?.maxAge ?? 80 }} ans.</small>
+          </div>
+          <div class="vy-fld">
+            <label for="vy-days">Durée du séjour (jours)</label>
+            <input (input)="simDays.set($any($event.target).value === '' ? null : +$any($event.target).value)" [value]="simDays() ?? ''" id="vy-days" min="1" type="number" />
+            <small>1 jour minimum ; au-delà de 180 jours : tarif « 1 an ».</small>
+          </div>
+        </div>
+        <button (click)="simulate()" [disabled]="simulating() || simCountryId() === null || simAge() === null || simDays() === null" class="mb-btn mb-btn--pri" type="button">
+          @if (simulating()) {
+            <c-spinner size="sm" />
+          }
+          Calculer la prime
+        </button>
+        @if (simError()) {
+          <div class="vy-err" role="alert">⛔ {{ simError() }}</div>
+        }
+      </section>
+      <aside class="vy-card">
+        <h3>Résultat</h3>
+        @if (simResult(); as r) {
+          <p class="vy-subt">{{ r.country.name }} · {{ r.country.spaceLabel }}</p>
+          <div class="vy-total">{{ r.totalPremium.toLocaleString('fr-FR') }}<small>F CFA</small></div>
+          <div class="vy-subt vy-tight">{{ r.ageBand }} ans · séjour de {{ r.durationDays }} jour{{ r.durationDays > 1 ? 's' : '' }} : tranche « {{ r.durationBand }} »</div>
+          <div class="vy-split" aria-hidden="true">
+            <i [style.width.%]="share(r.netPremium, r.totalPremium)" class="vy-s1"></i>
+            <i [style.width.%]="share(r.accessories, r.totalPremium)" class="vy-s2"></i>
+            <i [style.width.%]="share(r.taxes, r.totalPremium)" class="vy-s3"></i>
+          </div>
+          <div class="vy-res">
+            <div><span>Prime nette HT</span><b>{{ r.netPremium.toLocaleString('fr-FR') }}</b></div>
+            <div><span>Accessoires</span><b>{{ r.accessories.toLocaleString('fr-FR') }}</b></div>
+            <div><span>Taxes</span><b>{{ r.taxes.toLocaleString('fr-FR') }}</b></div>
+            <div class="vy-sum"><span><b>Prime TTC</b></span><b>{{ r.totalPremium.toLocaleString('fr-FR') }}</b></div>
+          </div>
+        } @else {
+          <p class="vy-subt">Lancez un calcul pour voir le détail de la prime.</p>
+        }
+      </aside>
+    </div>
+  }
+</div>
+
+<!-- ============ Fenêtres ============ -->
+@if (countryEdit(); as d) {
+  <div (click)="countryEdit.set(null)" class="vy-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="vy-modal" role="dialog">
+      <h4>{{ d.id === null ? 'Ajouter un pays' : 'Modifier le pays' }}</h4>
+      <div class="vy-fld">
+        <label for="cn-name">Nom du pays <span class="vy-req">*</span></label>
+        <input [(ngModel)]="d.name" id="cn-name" name="cn-name" />
+        <small>Enregistré en majuscules. Les doublons sont refusés (sans tenir compte des accents ni de la casse).</small>
+      </div>
+      <div class="vy-fld">
+        <label for="cn-space">Espace <span class="vy-req">*</span></label>
+        <select [(ngModel)]="d.space" id="cn-space" name="cn-space">
+          @for (s of spaces; track s.code) {
+            <option [ngValue]="s.code">{{ s.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="vy-sw">
+        <div><b>Pays actif</b><small>Inactif : n'apparaît pas dans le formulaire de voyage</small></div>
+        <button (click)="d.active = !d.active" [attr.aria-pressed]="d.active" [class.vy-tg--on]="d.active" aria-label="Pays actif" class="vy-tg" type="button"></button>
+      </div>
+      @if (modalError()) {
+        <div class="vy-err" role="alert">⛔ {{ modalError() }}</div>
+      }
+      <div class="vy-two vy-top">
+        <button (click)="countryEdit.set(null)" [disabled]="saving()" class="mb-btn mb-btn--ghost vy-c" type="button">Annuler</button>
+        <button (click)="submitCountry()" [disabled]="saving()" class="mb-btn mb-btn--pri vy-c" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (countryDelete(); as c) {
+  <div (click)="countryDelete.set(null)" class="vy-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="vy-modal" role="dialog">
+      <h4>Supprimer « {{ c.name }} » ?</h4>
+      <p class="vy-subt">Le pays sera retiré définitivement. Pour le masquer sans le perdre, désactivez-le plutôt.</p>
+      <div class="vy-two">
+        <button (click)="countryDelete.set(null)" [disabled]="saving()" class="mb-btn mb-btn--ghost vy-c" type="button">Annuler</button>
+        <button (click)="confirmDeleteCountry()" [disabled]="saving()" class="mb-btn mb-btn--danger vy-c" type="button">Supprimer</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (tariffNew(); as d) {
+  <div (click)="tariffNew.set(null)" class="vy-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="vy-modal" role="dialog">
+      <h4>Nouvelle tranche · {{ spaceLabel(tariffSpace()) }}</h4>
+      <div class="vy-two">
+        <div class="vy-fld"><label for="tn-min">Âge minimum</label><input [(ngModel)]="d.ageMin" id="tn-min" min="0" name="tn-min" type="number" /></div>
+        <div class="vy-fld"><label for="tn-max">Âge maximum</label><input [(ngModel)]="d.ageMax" id="tn-max" min="0" name="tn-max" type="number" /></div>
+      </div>
+      <div class="vy-fld">
+        <label for="tn-days">Durée maximale (jours)</label>
+        <input [(ngModel)]="d.maxDays" id="tn-days" min="1" name="tn-days" placeholder="Vide = plus de 180 jours (1 an)" type="number" />
+        <small>Laissez vide pour la tranche ouverte « 1 an » (au-delà de la dernière durée).</small>
+      </div>
+      <div class="vy-fld"><label for="tn-net">Prime nette HT</label><input [(ngModel)]="d.net" id="tn-net" min="0" name="tn-net" type="number" /></div>
+      <div class="vy-two">
+        <div class="vy-fld"><label for="tn-acc">Accessoires</label><input [(ngModel)]="d.accessories" id="tn-acc" min="0" name="tn-acc" type="number" /></div>
+        <div class="vy-fld"><label for="tn-tax">Taxes</label><input [(ngModel)]="d.taxes" id="tn-tax" min="0" name="tn-tax" type="number" /></div>
+      </div>
+      <div class="vy-calc"><span>Prime TTC</span><b>{{ total({ net: d.net, accessories: d.accessories, taxes: d.taxes }).toLocaleString('fr-FR') }} F</b></div>
+      @if (modalError()) {
+        <div class="vy-err" role="alert">⛔ {{ modalError() }}</div>
+      }
+      <div class="vy-two vy-top">
+        <button (click)="tariffNew.set(null)" [disabled]="saving()" class="mb-btn mb-btn--ghost vy-c" type="button">Annuler</button>
+        <button (click)="submitTariff()" [disabled]="saving()" class="mb-btn mb-btn--pri vy-c" type="button">
+          @if (saving()) {
+            <c-spinner size="sm" />
+          }
+          Ajouter la tranche
+        </button>
+      </div>
+    </div>
+  </div>
+}

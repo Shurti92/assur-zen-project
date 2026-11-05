@@ -459,6 +459,12 @@ export const routes: Routes = [
         data: { title: 'Paramétrage VTC', section: 'Devis' },
       },
       {
+        path: 'devis/voyage',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./views/voyage/voyage.component').then((m) => m.VoyageComponent),
+        data: { title: 'Assurance voyage', section: 'Devis' },
+      },
+      {
         path: 'devis/nouveau-vtc',
         canActivate: [quoteGuard],
         loadComponent: () =>
