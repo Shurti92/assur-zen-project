@@ -3,6 +3,7 @@ import 'dart:math';
 import '../../core/network/api_exception.dart';
 import '../../core/network/downloaded_file.dart';
 import '../../core/utils/formatters.dart';
+import '../models/engagement.dart';
 import '../models/models.dart';
 import '../models/moto_quote.dart';
 import '../repositories/repositories.dart';
@@ -29,6 +30,7 @@ abstract final class MockRepositories {
       claims: _MockClaims(state),
       notifications: _MockNotifications(state),
       support: _MockSupport(),
+      engagement: _MockEngagement(),
     );
   }
 }
@@ -399,6 +401,49 @@ class _MockPayments implements PaymentRepository {
       return PaymentAttempt(reference: reference, status: PaymentStatus.failed, failureReason: 'Solde insuffisant ou opération refusée.');
     }
     return PaymentAttempt(reference: reference, status: PaymentStatus.confirmed);
+  }
+}
+
+/// Démonstration : textes clairement marqués « Démo ». En service réel, tout vient de la Gateway.
+class _MockEngagement implements EngagementRepository {
+  bool _accepted = false;
+
+  Engagement get _current => Engagement(
+        enabled: true,
+        consent: EngagementConsent(accepted: _accepted, acceptedAt: _accepted ? DateTime.now() : null, acceptedVersion: _accepted ? 1 : null),
+        features: const EngagementFeatures(protectionScore: true),
+        consentText: '[Démo] J’accepte qu’AssurZen enregistre mes actions dans l’application pour calculer mon score de protection.',
+        consentVersion: 1,
+      );
+
+  @override
+  Future<Engagement> getEngagement() async {
+    await _latency(300);
+    return _current;
+  }
+
+  @override
+  Future<Engagement> setConsent({required bool accepted, int? consentVersion}) async {
+    await _latency(400);
+    _accepted = accepted;
+    return _current;
+  }
+
+  @override
+  Future<ProtectionScore> getProtectionScore() async {
+    await _latency(400);
+    if (!_accepted) {
+      throw const ApiException(kind: ApiErrorKind.business, statusCode: 403, code: 'ENGAGEMENT_CONSENT_REQUIRED', message: 'Consentement requis.');
+    }
+    return ProtectionScore(
+      score: 60,
+      updatedAt: DateTime.now(),
+      items: const [
+        ScoreItem(id: 'PROFILE_COMPLETE', label: '[Démo] Profil complet', done: true),
+        ScoreItem(id: 'ACTIVE_CONTRACT', label: '[Démo] Un contrat actif', done: true),
+        ScoreItem(id: 'ATTESTATION_DOWNLOADED', label: '[Démo] Attestation téléchargée', done: false, hint: 'Ouvrez votre attestation.', action: ScoreAction.documents),
+      ],
+    );
   }
 }
 

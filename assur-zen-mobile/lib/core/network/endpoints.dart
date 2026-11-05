@@ -52,6 +52,10 @@ abstract final class Endpoints {
   // Paiement
   static const paymentMethods = '$prefix/mobile/payments/methods';
   static const payments = '$prefix/mobile/payments';
+  // Engagement (vague 1) : consentement et score de protection.
+  static const engagement = '$prefix/mobile/engagement';
+  static const engagementConsent = '$prefix/mobile/engagement/consent';
+  static const protectionScore = '$prefix/mobile/protection-score';
   static String payment(String reference) => '$prefix/mobile/payments/$reference';
 
   // Contrats

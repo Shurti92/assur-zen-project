@@ -1,4 +1,5 @@
 import '../../core/network/downloaded_file.dart';
+import '../models/engagement.dart';
 import '../models/models.dart';
 import '../models/moto_quote.dart';
 
@@ -122,6 +123,20 @@ abstract interface class PaymentRepository {
   Future<PaymentAttempt> status(String reference);
 }
 
+/// Engagement : le serveur décide de tout (activation, texte, score) ; l'application affiche.
+abstract interface class EngagementRepository {
+  /// Réglages et consentement du client (`GET /mobile/engagement`).
+  Future<Engagement> getEngagement();
+
+  /// Accepte ou retire le consentement. [consentVersion] = version du texte que le client a lue.
+  /// Retirer le consentement efface les données d'engagement du client côté serveur.
+  Future<Engagement> setConsent({required bool accepted, int? consentVersion});
+
+  /// Score de protection. Sans consentement : `ApiException` de code `ENGAGEMENT_CONSENT_REQUIRED` ;
+  /// fonction coupée : `FEATURE_DISABLED`.
+  Future<ProtectionScore> getProtectionScore();
+}
+
 abstract interface class ContractRepository {
   Future<List<Contract>> getContracts();
 
@@ -211,6 +226,7 @@ class Repositories {
     required this.claims,
     required this.notifications,
     required this.support,
+    required this.engagement,
   });
 
   final AuthRepository auth;
@@ -222,4 +238,5 @@ class Repositories {
   final ClaimRepository claims;
   final NotificationRepository notifications;
   final SupportRepository support;
+  final EngagementRepository engagement;
 }

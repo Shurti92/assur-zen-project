@@ -64,6 +64,7 @@ Future<Widget> _app(MotoQuoteRepository quotes) async {
     claims: base.claims,
     notifications: base.notifications,
     support: base.support,
+    engagement: base.engagement,
   );
   final session = SessionController(store: store, repos: repos)..updateUser(MockData.demoUser);
   return AppScope(repos: repos, session: session, store: store, child: const MaterialApp(home: MyQuotesPage()));

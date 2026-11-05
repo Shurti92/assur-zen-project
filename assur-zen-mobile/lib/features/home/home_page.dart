@@ -7,6 +7,7 @@ import '../../core/network/api_exception.dart';
 import '../../core/ui.dart';
 import '../../data/models/models.dart';
 import '../catalog/catalog_page.dart' show openProduct;
+import '../engagement/engagement_card.dart';
 import '../quote/quote_flow_page.dart';
 import '../shell/main_shell.dart';
 
@@ -28,6 +29,7 @@ class _HomeData {
 
 class _HomePageState extends State<HomePage> {
   late Future<_HomeData> _future = _load();
+  int _engagementVersion = 0;
 
   Future<_HomeData> _load() async {
     final repos = context.repos;
@@ -48,6 +50,7 @@ class _HomePageState extends State<HomePage> {
     // Corps en bloc : une flèche renverrait le Future assigné, ce que setState refuse.
     setState(() {
       _future = next;
+      _engagementVersion++;
     });
     await next.catchError((_) => const _HomeData([], [], null));
     if (mounted) await context.session.refreshUnread();
@@ -148,6 +151,8 @@ class _HomePageState extends State<HomePage> {
       const Padding(padding: pad, child: AzSectionHeader('Que souhaitez-vous faire ?')),
       const SizedBox(height: 10),
       Padding(padding: pad, child: _QuickActions(hasContracts: active.isNotEmpty, firstContract: active.isEmpty ? null : active.first)),
+      // Invisible tant que le serveur n'active pas l'engagement ; ne gêne jamais l'accueil.
+      EngagementCard(key: ValueKey(_engagementVersion)),
       if (active.isNotEmpty) ...[
         const SizedBox(height: 24),
         Padding(

@@ -20,6 +20,7 @@ import '../features/onboarding/welcome_page.dart';
 import '../features/payment/payment_page.dart';
 import '../data/models/moto_quote.dart';
 import '../features/quote/moto_quote_page.dart';
+import '../features/engagement/protection_score_page.dart';
 import '../features/quote/my_quotes_page.dart';
 import '../features/quote/quote_flow_page.dart';
 import '../features/quote/vtc_quote_page.dart';
@@ -52,6 +53,7 @@ abstract final class AppRoutes {
   static const claimDone = '/claim-done';
   static const claim = '/claim';
   static const support = '/support';
+  static const protectionScore = '/protection-score';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final args = settings.arguments;
@@ -80,6 +82,7 @@ abstract final class AppRoutes {
       claimDone => ClaimDonePage(claim: args as Claim),
       claim => ClaimDetailPage(claimId: args as String),
       support => const SupportPage(),
+      protectionScore => const ProtectionScorePage(),
       _ => const SplashPage(),
     };
     final fullscreen = settings.name == lock || settings.name == attestation;

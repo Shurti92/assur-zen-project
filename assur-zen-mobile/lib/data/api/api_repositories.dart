@@ -8,6 +8,7 @@ import 'api_catalog_repository.dart';
 import 'api_claim_repository.dart';
 import 'api_contract_repository.dart';
 import 'api_moto_quote_repository.dart';
+import 'api_engagement_repository.dart';
 import 'api_notification_repository.dart';
 import 'api_payment_repository.dart';
 import 'api_support_repository.dart';
@@ -36,6 +37,7 @@ abstract final class ApiRepositories {
         claims: ApiClaimRepository(client),
         notifications: ApiNotificationRepository(client),
         support: ApiSupportRepository(client),
+        engagement: ApiEngagementRepository(client),
       );
 }
 
