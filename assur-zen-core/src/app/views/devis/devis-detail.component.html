@@ -18,7 +18,7 @@
           <div class="dd-sub">{{ q.prospectName || '—' }} · {{ q.formulaName }} · {{ q.durationMonths }} mois</div>
         </div>
         <div class="dd-badges">
-          <span class="dd-chip"><span class="dd-dot"></span>{{ statusLabel[q.status] }}</span>
+          <span [class.dd-chip--ok]="q.status === 'CONVERTI'" class="dd-chip"><span class="dd-dot"></span>{{ q.status === 'CONVERTI' ? '✓ ' : '' }}{{ statusLabel[q.status] }}</span>
           @if (emailEnabled && q.lastEmailSentAt) {
             <span class="dd-chip dd-chip--ok">✉ Envoyé</span>
           }
@@ -45,6 +45,35 @@
       }
     </div>
 
+    @if (q.status === 'PAYE' || q.status === 'CONVERTI') {
+      <app-devis-conversion (converted)="onConverted($event)" [quote]="q" />
+    } @else {
+    @if (canRemind()) {
+      <section class="dd-card dd-remind">
+        <h3><span class="dd-n">!</span>Relance de paiement</h3>
+        <div class="dd-fields">
+          <div class="dd-f"><label>Paiement</label><div>{{ paymentLabel() }}</div></div>
+          <div class="dd-f">
+            <label>Relances envoyées</label>
+            <div>{{ q.conversion?.reminderCount ?? 0 }}{{ q.conversion?.lastReminderAt ? ' · dernière le ' + formatDateTime(q.conversion?.lastReminderAt) : '' }}</div>
+          </div>
+        </div>
+        <button (click)="reminderDialogOpen.set(true)" [disabled]="!smsCapable(q)" class="dd-btn dd-btn--pri dd-remind-btn" type="button">📲 Relancer le client par SMS</button>
+        <p class="dd-hint">Le SMS invite le client à payer dans l'application AssurZen (rubrique Mes devis). Aucun lien de paiement.</p>
+        @if (reminders().length > 0) {
+          <h3 class="dd-remind-h">Historique des relances</h3>
+          <ul class="dd-tl">
+            @for (r of reminders(); track r.sentAt) {
+              <li>
+                <span class="dd-ic dd-ic--sms">💬</span>
+                <b>{{ formatDateTime(r.sentAt) }}</b>
+                <small>à {{ formatPhone(r.to) }}{{ r.sentBy ? ' · envoyé par ' + r.sentBy : '' }}</small>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
     <div class="dd-grid">
       <div>
         <section class="dd-card">
@@ -246,9 +275,10 @@
         </div>
       </aside>
     </div>
+    }
 
     <!-- Barre d'actions sur téléphone -->
-    @if (q.status !== 'EXPIRE') {
+    @if (q.status !== 'EXPIRE' && q.status !== 'PAYE' && q.status !== 'CONVERTI') {
       <div class="dd-mbar">
         @if (emailEnabled) {
           <button (click)="emailDialogOpen.set(true)" class="dd-btn dd-btn--pri" type="button">✉ E-mail</button>
@@ -264,6 +294,9 @@
 
     @if (smsDialogOpen()) {
       <app-send-quote-sms-dialog (closed)="smsDialogOpen.set(false)" (sent)="onSmsSent($event)" [quote]="q" />
+    }
+    @if (reminderDialogOpen()) {
+      <app-quote-reminder-dialog (closed)="reminderDialogOpen.set(false)" (sent)="onReminderSent($event)" [quote]="q" />
     }
     @if (emailDialogOpen()) {
       <app-send-quote-email-dialog (closed)="emailDialogOpen.set(false)" (sent)="onEmailSent($event)" [quote]="q" />

@@ -1,0 +1,37 @@
+<div (click)="closed.emit()" (keydown.escape)="closed.emit()" class="sq-ov" role="presentation">
+  <div (click)="$event.stopPropagation()" aria-labelledby="qr-title" aria-modal="true" class="sq-modal" role="dialog">
+    <h2 id="qr-title">Relancer {{ quote().prospectName || 'le client' }}</h2>
+    <div class="sq-hint">
+      Un SMS lui rappellera de payer son devis {{ quote().reference }} ({{ formatAmount(quote().premium.total) }} F) dans l'application.
+      5 envois maximum par devis et par 24 h.
+    </div>
+
+    <div class="sq-f">
+      <label for="qr-phone">Téléphone</label>
+      <div class="sq-in">
+        <i>📞</i>
+        <input (input)="edited.set($any($event.target).value)" [class.sq-invalid]="!valid()" [value]="phone()" id="qr-phone" inputmode="tel" />
+      </div>
+      <div class="sq-hint" style="margin-top: 0.3rem">Numéro du devis, modifiable (mobile ivoirien : 01, 05 ou 07).</div>
+    </div>
+
+    <div class="sq-sms">
+      « AssurZen Assurance : votre devis {{ quote().reference }} de {{ formatAmount(quote().premium.total) }} F est accepté. Pour obtenir votre
+      contrat, payez-le dans l'application AssurZen (rubrique Mes devis). »
+    </div>
+
+    @if (error()) {
+      <div class="sq-fail" role="alert">{{ error() }}</div>
+    }
+
+    <div class="sq-ft">
+      <button (click)="closed.emit()" [disabled]="sending()" class="sq-btn sq-btn--secondary" type="button">Annuler</button>
+      <button (click)="send()" [disabled]="sending() || !valid()" class="sq-btn" type="button">
+        @if (sending()) {
+          <c-spinner size="sm" />
+        }
+        Envoyer le SMS
+      </button>
+    </div>
+  </div>
+</div>

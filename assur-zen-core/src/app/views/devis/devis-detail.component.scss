@@ -18,6 +18,8 @@
 
 .dd {
   width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
   padding-bottom: 5rem;
 }
 
@@ -686,4 +688,22 @@ hr {
   .dd-actions .dd-two {
     display: none;
   }
+}
+
+// ---------- Relance de paiement (devis accepté non payé) ----------
+.dd-remind {
+  margin-top: 10px;
+  max-width: 640px;
+
+  .dd-fields {
+    margin-bottom: 14px;
+  }
+}
+
+.dd-remind-btn {
+  width: 100%;
+}
+
+.dd-remind-h {
+  margin-top: 18px;
 }

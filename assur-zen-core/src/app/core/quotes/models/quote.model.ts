@@ -1,6 +1,9 @@
 import { VehicleCategory } from './quote-tariff.model';
 
-export type QuoteStatus = 'CALCULE' | 'ACCEPTE' | 'EXPIRE';
+export type QuoteStatus = 'CALCULE' | 'ACCEPTE' | 'PAYE' | 'CONVERTI' | 'EXPIRE';
+
+/** Filtre `payment` de la liste (devis acceptés). */
+export type QuotePaymentFilter = 'AUCUN' | 'EN_ATTENTE' | 'ECHOUE';
 
 export type QuoteProduct = 'moto' | 'automobile-vtc';
 
@@ -198,6 +201,85 @@ export interface QuoteView {
   vtcDeclared?: boolean | null;
   platform?: string | null;
   discountPercent?: number | null;
+  /** Paiement et conversion en contrat (absent sur une gateway plus ancienne). */
+  conversion?: QuoteConversion | null;
+  contractId?: number | string | null;
+  policyNumber?: string | null;
+}
+
+export interface QuoteConversion {
+  status: 'NONE' | 'PENDING' | 'CONFIRMED' | 'FAILED';
+  paymentReference?: string | null;
+  paidAt?: string | null;
+  reminderCount?: number | null;
+  lastReminderAt?: string | null;
+}
+
+export type QuoteDocumentType = 'ATTESTATION' | 'CONDITIONS_PARTICULIERES' | 'CARTE_GRISE' | 'AUTRE';
+
+/** Un document joint à un devis payé (GET /admin/quotes/{reference}/documents). */
+export interface QuoteDocument {
+  id: number | string;
+  type: QuoteDocumentType;
+  fileName: string;
+  contentType?: string | null;
+  sizeBytes: number;
+  uploadedBy?: string | null;
+  uploadedAt: string;
+}
+
+/** Corps de POST /admin/quotes/{reference}/convert. */
+export interface QuoteConvertRequest {
+  policyNumber?: string;
+  companyId: number;
+  partnerId?: number;
+  commissionRate?: number;
+  insuredId?: number;
+  createInsured?: boolean;
+  productId?: number;
+}
+
+/** Entrée des listes légères du formulaire de finalisation. */
+export interface QuoteLookup {
+  id: number;
+  code?: string | null;
+  name: string;
+}
+
+export interface QuoteInsuredCandidate {
+  id: number;
+  nom: string;
+  prenoms: string;
+  clientPhone?: string | null;
+  clientCity?: string | null;
+  source?: 'LIE_AU_COMPTE' | 'TELEPHONE_DU_COMPTE' | 'RECHERCHE';
+}
+
+/** GET /admin/quotes/{reference}/contract : contrat créé à partir du devis (409 QUOTE_NOT_CONVERTED sinon). */
+export interface QuoteContract {
+  contractId: number | string;
+  policyNumber: string;
+  provisionalPolicyNumber?: boolean | null;
+  status?: string | null;
+  productId?: number | null;
+  productName?: string | null;
+  companyId?: number | null;
+  companyName?: string | null;
+  partnerId?: number | null;
+  partnerName?: string | null;
+  commissionRate?: number | null;
+  commissionAmount?: number | null;
+  insuredId?: number | null;
+  insuredName?: string | null;
+  dateEffet?: string | null;
+  dateEcheance?: string | null;
+  premium?: number | null;
+}
+
+export interface QuotePaymentReminderItem {
+  sentAt: string;
+  to: string;
+  sentBy?: string | null;
 }
 
 export interface QuoteList {

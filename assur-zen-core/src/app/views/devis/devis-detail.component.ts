@@ -3,7 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SpinnerComponent } from '@coreui/angular';
 
-import { QuoteEmailHistoryItem, QuoteSmsHistoryItem } from '../../core/quotes/models/quote.model';
+import { QuotePaymentReminderItem, QuoteEmailHistoryItem, QuoteSmsHistoryItem } from '../../core/quotes/models/quote.model';
 import { ciMobileOperator, CI_OPERATOR_LABEL, formatCiPhone } from '../../core/quotes/ci-phone';
 import { QUOTE_ADDRESS_ENABLED, QUOTE_SMS_ENABLED } from '../../core/quotes/quote-sms.config';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
@@ -13,6 +13,8 @@ import { AlertMessageComponent } from '../../shared/alert-message/alert-message.
 import { SendQuoteSmsDialogComponent } from './send-quote-sms-dialog.component';
 import { SendQuoteEmailDialogComponent } from './send-quote-email-dialog.component';
 import { QUOTE_STATUS_LABEL } from './devis-liste.component';
+import { DevisConversionComponent } from './devis-conversion.component';
+import { QuoteReminderDialogComponent } from './quote-reminder-dialog.component';
 
 /** Un envoi (SMS ou e-mail) de la frise « Envois au prospect ». */
 interface SendEvent {
@@ -33,7 +35,7 @@ interface Step {
   selector: 'app-devis-detail',
   templateUrl: './devis-detail.component.html',
   styleUrl: './devis-detail.component.scss',
-  imports: [AlertMessageComponent, RouterLink, SendQuoteEmailDialogComponent, SendQuoteSmsDialogComponent, SpinnerComponent],
+  imports: [AlertMessageComponent, DevisConversionComponent, QuoteReminderDialogComponent, RouterLink, SendQuoteEmailDialogComponent, SendQuoteSmsDialogComponent, SpinnerComponent],
 })
 export class DevisDetailComponent {
   private readonly service = inject(QuoteService);
@@ -57,6 +59,17 @@ export class DevisDetailComponent {
   readonly emailHistory = signal<QuoteEmailHistoryItem[]>([]);
   readonly smsHistory = signal<QuoteSmsHistoryItem[]>([]);
   readonly historyError = signal<string | null>(null);
+
+  /** Relance de paiement (devis accepté non payé). */
+  readonly reminderDialogOpen = signal(false);
+  readonly reminders = signal<QuotePaymentReminderItem[]>([]);
+
+  /** Devis accepté et pas encore payé : la relance par SMS est proposée. */
+  readonly canRemind = computed(() => this.quote()?.status === 'ACCEPTE');
+  readonly paymentLabel = computed(() => {
+    const s = this.quote()?.conversion?.status;
+    return s === 'PENDING' ? 'En attente' : s === 'FAILED' ? 'Échoué' : 'Aucun paiement';
+  });
 
   readonly quote = signal<QuoteView | null>(null);
   readonly loading = signal(true);
@@ -83,17 +96,21 @@ export class DevisDetailComponent {
     return [...sms, ...emails].sort((a, b) => b.at.localeCompare(a.at));
   });
 
-  /** Parcours du devis : créé → calculé → envoyé → accepté. */
+  /** Parcours du devis : créé → calculé → envoyé → accepté → payé → contrat. */
   readonly steps = computed<Step[]>(() => {
     const q = this.quote();
     if (!q) return [];
     const sent = (q.smsSentCount ?? 0) > 0 || (q.emailSentCount ?? 0) > 0 || !!q.lastSmsSentAt || !!q.lastEmailSentAt;
-    const accepted = q.status === 'ACCEPTE';
+    const converted = q.status === 'CONVERTI';
+    const paid = q.status === 'PAYE' || converted;
+    const accepted = q.status === 'ACCEPTE' || paid;
     return [
       { label: 'Créé', state: 'done' },
       { label: 'Calculé', state: 'done' },
       { label: 'Envoyé', state: sent || accepted ? 'done' : 'now' },
       { label: 'Accepté', state: accepted ? 'done' : sent ? 'now' : 'todo' },
+      { label: 'Payé', state: paid ? 'done' : accepted ? 'now' : 'todo' },
+      { label: 'Contrat', state: converted ? 'done' : paid ? 'now' : 'todo' },
     ];
   });
 
@@ -139,6 +156,28 @@ export class DevisDetailComponent {
     this.historyError.set(null);
     if (this.smsEnabled) this.loadSmsHistory();
     if (this.emailEnabled) this.loadEmailHistory();
+    if (this.canRemind()) this.loadReminders();
+  }
+
+  private loadReminders(): void {
+    this.service.paymentReminders(this.reference()).subscribe({
+      next: (items) => this.reminders.set(items),
+      error: () => this.historyError.set("Impossible de charger l'historique des relances."),
+    });
+  }
+
+  onReminderSent(updated: QuoteView): void {
+    this.quote.set(updated);
+    this.reminderDialogOpen.set(false);
+    this.loadReminders();
+    this.success.set('SMS de relance envoyé.');
+  }
+
+  /** Le devis vient d'être converti : on affiche le contrat créé. */
+  onConverted(updated: QuoteView): void {
+    this.quote.set(updated);
+    this.success.set(updated.status === 'CONVERTI' ? `Contrat créé${updated.policyNumber ? ' : police ' + updated.policyNumber : ''}.` : null);
+    if (updated.status !== 'CONVERTI') this.load();
   }
 
   private loadSmsHistory(): void {

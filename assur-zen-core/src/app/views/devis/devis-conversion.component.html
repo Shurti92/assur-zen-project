@@ -1,0 +1,228 @@
+@let q = quote();
+<div class="dc-grid">
+  <div>
+    @if (isConverted()) {
+      <section class="dc-card">
+        <h3><span class="dc-n">1</span>Contrat créé</h3>
+        <div class="dc-fields">
+          <div class="dc-f">
+            <label>Numéro de police</label>
+            <div class="dc-mono">{{ q.policyNumber || '—' }}@if (contract()?.provisionalPolicyNumber) { <em class="dc-tag dc-tag--mut">Provisoire</em> }</div>
+          </div>
+          @if (contract(); as k) {
+            <div class="dc-f"><label>Compagnie</label><div>{{ k.companyName || '—' }}</div></div>
+            <div class="dc-f"><label>Partenaire</label><div>{{ k.partnerName || 'Contrat direct' }}</div></div>
+            <div class="dc-f"><label>Commission</label><div>{{ k.commissionRate ?? 0 }} %</div></div>
+          }
+        </div>
+        <div class="dc-mt">
+          <a [queryParams]="{ q: q.policyNumber }" class="dc-btn dc-btn--pri dc-btn--sm" routerLink="/contrats/liste-des-contrats">Ouvrir le contrat →</a>
+        </div>
+      </section>
+    } @else {
+      <section class="dc-card">
+        <h3><span class="dc-n">1</span>Paiement reçu</h3>
+        <div class="dc-fields">
+          <div class="dc-f"><label>Montant</label><div>{{ q.premium.total.toLocaleString('fr-FR') }} F CFA</div></div>
+          <div class="dc-f"><label>Payé le</label><div>{{ formatDateTime(q.conversion?.paidAt) }}</div></div>
+          <div class="dc-f"><label>Référence de paiement</label><div class="dc-mono">{{ q.conversion?.paymentReference || '—' }}</div></div>
+          <div class="dc-f"><label>Moyen</label><div>Application mobile · Jeko</div></div>
+        </div>
+      </section>
+    }
+
+    <section class="dc-card">
+      <h3><span class="dc-n">2</span>{{ isConverted() ? 'Documents' : 'Documents du contrat' }}</h3>
+
+      @if (docError()) {
+        <app-alert-message variant="danger" [message]="docError()!" [dismissible]="true" (dismissed)="docError.set(null)" />
+      }
+
+      @if (!isConverted() && !docsLoading() && !hasAttestation()) {
+        <div class="dc-missing"><span>⚠️</span><span><b>Attestation d'assurance</b> — obligatoire pour finaliser. Pas encore jointe.</span></div>
+      }
+
+      @for (d of documents(); track d.id) {
+        <div class="dc-doc">
+          <div class="dc-ico">{{ ext(d) }}</div>
+          <div class="dc-mid">
+            <b>{{ typeLabel[d.type] }}</b>
+            <small>{{ d.fileName }} · {{ formatSize(d.sizeBytes) }}{{ d.uploadedBy ? ' · ajouté par ' + d.uploadedBy : '' }} · {{ formatDateTime(d.uploadedAt) }}</small>
+          </div>
+          <div class="dc-acts">
+            <button (click)="preview(d)" type="button">Aperçu</button>
+            @if (!isConverted()) {
+              <button (click)="remove(d)" class="dc-del" type="button">Retirer</button>
+            }
+          </div>
+        </div>
+      }
+      @if (docsLoading()) {
+        <p class="dc-hint dc-left">Chargement des documents…</p>
+      }
+
+      @if (isConverted()) {
+        <p class="dc-hint dc-left">Documents figés : on ne peut plus les retirer une fois le contrat créé.</p>
+      } @else {
+        <div class="dc-drop">
+          <div>
+            <div class="dc-sel">
+              <select (change)="docType.set($any($event.target).value)" [value]="docType()" aria-label="Type de document">
+                @for (t of types; track t) {
+                  <option [value]="t">{{ typeLabel[t] }}{{ t === 'ATTESTATION' ? ' (obligatoire)' : '' }}</option>
+                }
+              </select>
+              <input #fileInput (change)="onFile($event)" accept=".pdf,.jpg,.jpeg,.png" aria-label="Choisir un fichier" type="file" />
+            </div>
+            <p>PDF, JPG ou PNG · 5 Mo maximum par fichier. Un document peut être retiré tant que le contrat n'est pas créé.</p>
+          </div>
+          <button (click)="upload(fileInput)" [disabled]="!file() || uploading()" class="dc-btn dc-btn--pri dc-btn--sm" type="button">
+            @if (uploading()) {
+              <c-spinner size="sm" />
+            }
+            Ajouter
+          </button>
+        </div>
+      }
+    </section>
+  </div>
+
+  <aside>
+    @if (isConverted()) {
+      <section class="dc-card">
+        <h3><span class="dc-n">3</span>Paiement</h3>
+        <div class="dc-fields dc-fields--one">
+          <div class="dc-f"><label>Montant</label><div>{{ q.premium.total.toLocaleString('fr-FR') }} F CFA</div></div>
+          <div class="dc-f"><label>Référence</label><div class="dc-mono">{{ q.conversion?.paymentReference || '—' }}</div></div>
+          <div class="dc-f"><label>Payé le</label><div>{{ formatDateTime(q.conversion?.paidAt) }}</div></div>
+        </div>
+      </section>
+    } @else {
+      <section class="dc-card dc-sticky">
+        <h3><span class="dc-n">3</span>Créer le contrat</h3>
+
+        @if (error()) {
+          <app-alert-message variant="danger" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+        }
+
+        <div class="dc-fld">
+          <label for="dc-police">Numéro de police</label>
+          <input (input)="policyNumber.set($any($event.target).value)" [placeholder]="'PROV-' + q.reference" id="dc-police" />
+          <small>Facultatif. Laissé vide : numéro provisoire PROV-{{ q.reference }}, modifiable ensuite.</small>
+        </div>
+        <div class="dc-fld">
+          <label for="dc-compagnie">Compagnie <em>*</em></label>
+          <select (change)="companyId.set($any($event.target).value ? +$any($event.target).value : null)" id="dc-compagnie">
+            <option value="">Choisir une compagnie…</option>
+            @for (c of companies(); track c.id) {
+              <option [value]="c.id">{{ c.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="dc-fld">
+          <label for="dc-partenaire">Partenaire</label>
+          <select (change)="partnerId.set($any($event.target).value ? +$any($event.target).value : null)" id="dc-partenaire">
+            <option value="">Aucun — contrat direct</option>
+            @for (p of partners(); track p.id) {
+              <option [value]="p.id">{{ p.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="dc-fld">
+          <label for="dc-commission">Taux de commission (%)</label>
+          <input (input)="commissionRate.set($any($event.target).value)" [disabled]="!isAdmin" [value]="commissionRate()" id="dc-commission" inputmode="decimal" />
+          <small>Réservé à l'administrateur.</small>
+        </div>
+
+        <div class="dc-fld">
+          <label>Assuré</label>
+          <div class="dc-radios">
+            <button (click)="setMode('auto')" [class.dc-sel-on]="insuredMode() === 'auto'" class="dc-radio" type="button">
+              <i></i>
+              <span><b>Reconnaître automatiquement</b><small>Assuré lié au compte du client ou portant son téléphone ; créé à partir du devis s'il n'existe pas</small></span>
+            </button>
+            <button (click)="setMode('choose')" [class.dc-sel-on]="insuredMode() === 'choose'" class="dc-radio" type="button">
+              <i></i>
+              <span><b>Choisir un assuré existant</b><small>Candidats proposés ci-dessous</small></span>
+            </button>
+            <button (click)="setMode('create')" [class.dc-sel-on]="insuredMode() === 'create'" class="dc-radio" type="button">
+              <i></i>
+              <span><b>Créer un nouvel assuré</b><small>À partir des informations du devis</small></span>
+            </button>
+          </div>
+          @if (insuredMode() === 'choose') {
+            <div class="dc-cands">
+              <div class="dc-cap">Si « Choisir un assuré existant »</div>
+              <input (keyup.enter)="searchCandidates($any($event.target).value)" (search)="searchCandidates($any($event.target).value)" aria-label="Rechercher un assuré" placeholder="Rechercher (3 caractères minimum)… (Entrée)" type="search" />
+              <div class="dc-radios">
+                @for (c of candidates(); track c.id) {
+                  <button (click)="insuredId.set(c.id)" [class.dc-sel-on]="insuredId() === c.id" class="dc-radio" type="button">
+                    <i></i>
+                    <span>
+                      <b>#{{ c.id }} · {{ c.nom }} {{ c.prenoms }}</b>
+                      @if (sourceLabel(c)) {
+                        <em class="dc-tag dc-tag--{{ c.source === 'LIE_AU_COMPTE' ? 'ok' : c.source === 'TELEPHONE_DU_COMPTE' ? 'info' : 'mut' }}">{{ sourceLabel(c) }}</em>
+                      }
+                      <small>{{ c.clientPhone || '—' }}{{ c.clientCity ? ' · ' + c.clientCity : '' }}</small>
+                    </span>
+                  </button>
+                } @empty {
+                  <p class="dc-hint dc-left">{{ candidatesLoading() ? 'Recherche…' : 'Aucun assuré trouvé.' }}</p>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="dc-fld">
+          <label for="dc-produit">Produit</label>
+          <select (change)="productId.set($any($event.target).value ? +$any($event.target).value : null)" id="dc-produit">
+            <option value="">Automatique — {{ q.productKey === 'automobile-vtc' ? 'Assurance Automobile VTC' : 'Assurance Moto' }}</option>
+            @for (p of products(); track p.id) {
+              <option [value]="p.id">{{ p.name }}</option>
+            }
+          </select>
+          <small>À changer seulement si le produit par défaut est introuvable.</small>
+        </div>
+
+        <button (click)="convert()" [disabled]="!canConvert()" class="dc-btn dc-btn--pri" type="button">
+          @if (converting()) {
+            <c-spinner size="sm" />
+          }
+          Finaliser et créer le contrat
+        </button>
+        <p class="dc-hint">Bouton actif dès que l'attestation est jointe et la compagnie choisie.</p>
+      </section>
+    }
+  </aside>
+</div>
+
+@if (ambiguous(); as list) {
+  <div (click)="ambiguous.set(null)" class="dc-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="dc-modal" role="dialog">
+      <h4>Plusieurs assurés correspondent</h4>
+      <p>Plusieurs assurés possibles pour ce client (liste renvoyée par la gateway).</p>
+      <div class="dc-radios">
+        @for (c of list; track c.id) {
+          <button (click)="ambiguousPick.set(c.id)" [class.dc-sel-on]="ambiguousPick() === c.id" class="dc-radio" type="button">
+            <i></i>
+            <span><b>#{{ c.id }} · {{ c.nom }} {{ c.prenoms }}</b><small>{{ c.clientPhone || '—' }}{{ c.clientCity ? ' · ' + c.clientCity : '' }}</small></span>
+          </button>
+        }
+        <button (click)="ambiguousPick.set('new')" [class.dc-sel-on]="ambiguousPick() === 'new'" class="dc-radio" type="button">
+          <i></i>
+          <span><b>Créer un nouvel assuré</b><small>Ne rattache pas ce contrat aux fiches ci-dessus</small></span>
+        </button>
+      </div>
+      <div class="dc-two">
+        <button (click)="ambiguous.set(null)" class="dc-btn dc-btn--ghost" type="button">Annuler</button>
+        <button (click)="confirmAmbiguous()" [disabled]="ambiguousPick() === null || converting()" class="dc-btn dc-btn--pri" type="button">
+          @if (converting()) {
+            <c-spinner size="sm" />
+          }
+          Confirmer et finaliser
+        </button>
+      </div>
+    </div>
+  </div>
+}

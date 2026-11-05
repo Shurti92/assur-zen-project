@@ -3,21 +3,26 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SpinnerComponent } from '@coreui/angular';
 
-import { QuoteStatus, QuoteView } from '../../core/quotes/models/quote.model';
+import { QuotePaymentFilter, QuoteStatus, QuoteView } from '../../core/quotes/models/quote.model';
 import { formatCiPhone } from '../../core/quotes/ci-phone';
 import { QUOTE_SMS_ENABLED } from '../../core/quotes/quote-sms.config';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteService } from '../../core/quotes/quote.service';
+import { QuoteReminderDialogComponent } from './quote-reminder-dialog.component';
 
 export const QUOTE_STATUS_LABEL: Record<QuoteStatus, string> = {
   CALCULE: 'Calculé',
   ACCEPTE: 'Accepté',
+  PAYE: 'Payé · à souscrire',
+  CONVERTI: 'Contrat créé',
   EXPIRE: 'Expiré',
 };
 
 export const QUOTE_STATUS_VARIANT: Record<QuoteStatus, string> = {
   CALCULE: 'info',
   ACCEPTE: 'success',
+  PAYE: 'warning',
+  CONVERTI: 'success',
   EXPIRE: 'secondary',
 };
 
@@ -27,7 +32,7 @@ type ProductFilter = 'moto' | 'automobile-vtc' | null;
   selector: 'app-devis-liste',
   templateUrl: './devis-liste.component.html',
   styleUrl: './devis-liste.component.scss',
-  imports: [RouterLink, SpinnerComponent],
+  imports: [QuoteReminderDialogComponent, RouterLink, SpinnerComponent],
 })
 export class DevisListeComponent {
   private readonly service = inject(QuoteService);
@@ -47,6 +52,10 @@ export class DevisListeComponent {
   readonly search = signal('');
   readonly pageIndex = signal(0);
   readonly product = signal<ProductFilter>(null);
+  /** Filtre de paiement (serveur) : devis acceptés seulement. */
+  readonly payment = signal<QuotePaymentFilter | null>(null);
+  readonly remindFor = signal<QuoteView | null>(null);
+  readonly success = signal<string | null>(null);
 
   /** Compteurs cliquables : calculés sur les devis chargés, produit compris, statut exclu. */
   private readonly byProduct = computed(() => {
@@ -56,7 +65,7 @@ export class DevisListeComponent {
   readonly counts = computed(() => {
     const list = this.byProduct();
     const count = (s: QuoteStatus) => list.filter((q) => q.status === s).length;
-    return { all: list.length, CALCULE: count('CALCULE'), ACCEPTE: count('ACCEPTE'), EXPIRE: count('EXPIRE') };
+    return { all: list.length, CALCULE: count('CALCULE'), ACCEPTE: count('ACCEPTE'), PAYE: count('PAYE'), CONVERTI: count('CONVERTI'), EXPIRE: count('EXPIRE') };
   });
 
   readonly filtered = computed(() => {
@@ -77,7 +86,7 @@ export class DevisListeComponent {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.service.list(null, this.search()).subscribe({
+    this.service.list(null, this.search(), this.payment()).subscribe({
       next: (list) => {
         this.quotes.set(list);
         this.pageIndex.set(0);
@@ -94,6 +103,37 @@ export class DevisListeComponent {
   onStatusChange(value: QuoteStatus | null): void {
     this.status.set(value && value === this.status() ? null : value);
     this.pageIndex.set(0);
+  }
+
+  /** Filtre de paiement : recharge côté serveur et se place sur les devis acceptés. */
+  onPaymentChange(value: QuotePaymentFilter | null): void {
+    const next = value && value === this.payment() ? null : value;
+    this.payment.set(next);
+    this.status.set(next ? 'ACCEPTE' : null);
+    this.load();
+  }
+
+  /** Un devis accepté sans paiement renvoyé par la gateway est « Aucun paiement ». */
+  paymentLabel(q: QuoteView): string {
+    const s = q.conversion?.status;
+    return s === 'PENDING' ? 'En attente' : s === 'FAILED' ? 'Échoué' : 'Aucun paiement';
+  }
+
+  paymentVariant(q: QuoteView): string {
+    const s = q.conversion?.status;
+    return s === 'PENDING' ? 'warning' : s === 'FAILED' ? 'danger' : 'secondary';
+  }
+
+  formatDateTime(value?: string | null): string {
+    if (!value) return '—';
+    const d = new Date(value);
+    return `${d.toLocaleDateString('fr-FR')} ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  onReminderSent(updated: QuoteView): void {
+    this.quotes.update((list) => list.map((q) => (q.reference === updated.reference ? updated : q)));
+    this.remindFor.set(null);
+    this.success.set(`SMS de relance envoyé pour ${updated.reference}.`);
   }
 
   onSearch(value: string): void {

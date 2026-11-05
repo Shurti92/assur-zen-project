@@ -1,0 +1,450 @@
+// Finalisation d'un devis payé et devis converti. Maquette validée le 2026-11-05 (devis payé -> contrat).
+:host {
+  display: block;
+  --dc-pri: #1b3b8f;
+  --dc-accent: #ec7c1e;
+  --dc-card: var(--cui-body-bg, #fff);
+  --dc-bd: var(--cui-border-color, #e3e8f4);
+  --dc-mut: var(--cui-secondary-color, #6b7691);
+  --dc-soft: color-mix(in srgb, var(--dc-pri) 9%, var(--dc-card));
+  --dc-soft2: color-mix(in srgb, var(--dc-pri) 24%, var(--dc-card));
+  --dc-ok: #12a150;
+  --dc-ok-soft: color-mix(in srgb, var(--dc-ok) 14%, var(--dc-card));
+  --dc-warn-soft: color-mix(in srgb, var(--dc-accent) 14%, var(--dc-card));
+  --dc-err: #c62828;
+  --dc-r: 18px;
+  --dc-shadow: 0 1px 2px rgba(20, 38, 92, 0.05), 0 8px 24px rgba(20, 38, 92, 0.07);
+}
+
+.dc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-top: 10px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dc-card {
+  padding: 20px;
+  border: 1px solid var(--dc-bd);
+  border-radius: var(--dc-r);
+  background: var(--dc-card);
+  box-shadow: var(--dc-shadow);
+
+  + .dc-card {
+    margin-top: 18px;
+  }
+
+  h3 {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 14px;
+    color: var(--dc-mut);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+}
+
+.dc-sticky {
+  position: sticky;
+  top: 16px;
+}
+
+.dc-n {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--dc-soft);
+  color: var(--dc-pri);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.dc-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dc-fields--one {
+  grid-template-columns: 1fr;
+}
+
+.dc-f {
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: var(--dc-soft);
+
+  label {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--dc-mut);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  div {
+    font-weight: 600;
+    word-break: break-word;
+  }
+}
+
+.dc-mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+}
+
+.dc-mt {
+  margin-top: 14px;
+}
+
+// ---------- Formulaire ----------
+.dc-fld {
+  margin-bottom: 14px;
+
+  > label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  em {
+    color: var(--dc-err);
+    font-style: normal;
+  }
+
+  input,
+  select {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1px solid var(--dc-bd);
+    border-radius: 12px;
+    background: var(--dc-soft);
+    color: inherit;
+    font: inherit;
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+
+  > small {
+    display: block;
+    margin-top: 4px;
+    color: var(--dc-mut);
+    font-size: 12px;
+  }
+}
+
+.dc-radios {
+  display: grid;
+  gap: 8px;
+}
+
+.dc-radio {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--dc-bd);
+  border-radius: 12px;
+  background: var(--dc-soft);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+
+  i {
+    flex: 0 0 16px;
+    height: 16px;
+    margin-top: 3px;
+    border: 2px solid var(--dc-soft2);
+    border-radius: 50%;
+    background: var(--dc-card);
+  }
+
+  b {
+    display: inline;
+  }
+
+  small {
+    display: block;
+    color: var(--dc-mut);
+  }
+}
+
+.dc-sel-on {
+  border-color: var(--dc-pri);
+  background: var(--dc-card);
+  box-shadow: 0 0 0 3px var(--dc-soft);
+
+  i {
+    border-color: var(--dc-pri);
+    background: radial-gradient(var(--dc-pri) 45%, var(--dc-card) 50%);
+  }
+}
+
+.dc-cands {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--dc-bd);
+  border-radius: 12px;
+
+  input {
+    margin-bottom: 8px;
+  }
+}
+
+.dc-cap {
+  margin-bottom: 8px;
+  color: var(--dc-mut);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dc-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.dc-tag--ok {
+  background: var(--dc-ok-soft);
+  color: var(--dc-ok);
+}
+
+.dc-tag--info {
+  background: var(--dc-soft);
+  color: var(--dc-pri);
+}
+
+.dc-tag--mut {
+  background: var(--dc-soft);
+  color: var(--dc-mut);
+}
+
+// ---------- Boutons ----------
+.dc-btn {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:disabled {
+    background: var(--dc-soft);
+    color: var(--dc-mut);
+    cursor: not-allowed;
+  }
+}
+
+.dc-btn--pri {
+  background: var(--dc-pri);
+  color: #fff;
+}
+
+.dc-btn--ghost {
+  border-color: var(--dc-soft2);
+  background: var(--dc-card);
+  color: var(--dc-pri);
+}
+
+.dc-btn--sm {
+  display: inline-flex;
+  width: auto;
+  padding: 7px 13px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.dc-hint {
+  margin: 6px 0 0;
+  color: var(--dc-mut);
+  font-size: 12px;
+  text-align: center;
+}
+
+.dc-left {
+  text-align: left;
+}
+
+// ---------- Documents ----------
+.dc-drop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 16px;
+  border: 2px dashed var(--dc-soft2);
+  border-radius: 16px;
+  background: var(--dc-soft);
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: var(--dc-mut);
+    font-size: 12px;
+  }
+
+  select,
+  input[type='file'] {
+    padding: 8px 10px;
+    border: 1px solid var(--dc-bd);
+    border-radius: 10px;
+    background: var(--dc-card);
+    color: inherit;
+    font: inherit;
+  }
+}
+
+.dc-sel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dc-doc {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--dc-bd);
+  border-radius: 14px;
+}
+
+.dc-ico {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--dc-soft);
+  color: var(--dc-pri);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dc-mid {
+  flex: 1;
+  min-width: 0;
+
+  b {
+    display: block;
+    font-size: 14px;
+  }
+
+  small {
+    color: var(--dc-mut);
+  }
+}
+
+.dc-acts {
+  display: flex;
+  gap: 6px;
+
+  button {
+    padding: 5px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--dc-soft);
+    color: var(--dc-pri);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .dc-del {
+    color: var(--dc-err);
+  }
+}
+
+.dc-missing {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 11px 12px;
+  border: 1px dashed var(--dc-accent);
+  border-radius: 14px;
+  background: var(--dc-warn-soft);
+  font-size: 14px;
+}
+
+// ---------- Fenêtre « assuré ambigu » ----------
+.dc-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 18, 30, 0.55);
+}
+
+.dc-modal {
+  width: min(32.5rem, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--dc-card);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+
+  h4 {
+    margin: 0 0 6px;
+    font-size: 18px;
+  }
+
+  p {
+    margin: 0 0 14px;
+    color: var(--dc-mut);
+  }
+
+  .dc-radios {
+    margin-bottom: 16px;
+  }
+}
+
+.dc-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}

@@ -22,19 +22,35 @@
       <small>Tous les devis</small>
       <b>{{ counts().all }}</b>
     </button>
-    <button (click)="onStatusChange('CALCULE')" [class.dq-kpi--on]="status() === 'CALCULE'" class="dq-kpi" type="button">
-      <small><i class="dq-k1"></i>Calculés</small>
-      <b>{{ counts().CALCULE }}</b>
-    </button>
     <button (click)="onStatusChange('ACCEPTE')" [class.dq-kpi--on]="status() === 'ACCEPTE'" class="dq-kpi" type="button">
-      <small><i class="dq-k2"></i>Acceptés</small>
+      <small><i class="dq-k2"></i>Accepté</small>
       <b>{{ counts().ACCEPTE }}</b>
     </button>
-    <button (click)="onStatusChange('EXPIRE')" [class.dq-kpi--on]="status() === 'EXPIRE'" class="dq-kpi" type="button">
-      <small><i class="dq-k3"></i>Expirés</small>
-      <b>{{ counts().EXPIRE }}</b>
+    <button (click)="onStatusChange('PAYE')" [class.dq-kpi--on]="status() === 'PAYE'" class="dq-kpi dq-kpi--hl" type="button">
+      <small><i class="dq-k4"></i>💳 Payés, à souscrire</small>
+      <b>{{ counts().PAYE }}</b>
+    </button>
+    <button (click)="onStatusChange('CONVERTI')" [class.dq-kpi--on]="status() === 'CONVERTI'" class="dq-kpi" type="button">
+      <small><i class="dq-k2"></i>Contrat créé</small>
+      <b>{{ counts().CONVERTI }}</b>
     </button>
   </div>
+
+  <div class="dq-filters">
+    <button (click)="onStatusChange(null)" [class.dq-on]="status() === null" class="dq-fpill" type="button">Tous</button>
+    <button (click)="onStatusChange('CALCULE')" [class.dq-on]="status() === 'CALCULE'" class="dq-fpill" type="button">Calculé</button>
+    <button (click)="onStatusChange('ACCEPTE')" [class.dq-on]="status() === 'ACCEPTE'" class="dq-fpill" type="button">Accepté</button>
+    <button (click)="onStatusChange('PAYE')" [class.dq-on]="status() === 'PAYE'" class="dq-fpill" type="button">Payé · {{ counts().PAYE }}</button>
+    <button (click)="onStatusChange('CONVERTI')" [class.dq-on]="status() === 'CONVERTI'" class="dq-fpill" type="button">Contrat</button>
+    <button (click)="onStatusChange('EXPIRE')" [class.dq-on]="status() === 'EXPIRE'" class="dq-fpill" type="button">Expiré</button>
+    <span class="dq-fsep">Paiement (devis acceptés) :</span>
+    <button (click)="onPaymentChange('AUCUN')" [class.dq-on]="payment() === 'AUCUN'" class="dq-fpill" type="button">Aucun</button>
+    <button (click)="onPaymentChange('EN_ATTENTE')" [class.dq-on]="payment() === 'EN_ATTENTE'" class="dq-fpill" type="button">En attente</button>
+    <button (click)="onPaymentChange('ECHOUE')" [class.dq-on]="payment() === 'ECHOUE'" class="dq-fpill" type="button">Échoué</button>
+  </div>
+  @if (success()) {
+    <p class="dq-ok" role="status">{{ success() }} <button (click)="success.set(null)" class="dq-link" type="button">Fermer</button></p>
+  }
 
   <div class="dq-toolbar">
     <div class="dq-search">
@@ -94,9 +110,23 @@
           <div class="dq-total">{{ formatAmount(d.premium.total) }}</div>
           <div>
             <span [class]="'dq-pill dq-pill--' + statusVariant[d.status]">{{ statusLabel[d.status] }}</span>
+            @if (d.status === 'ACCEPTE') {
+              <span [class]="'dq-pill dq-pill--' + paymentVariant(d) + ' dq-pill--sub'">{{ paymentLabel(d) }}</span>
+            }
+            @if (d.status === 'CONVERTI' && d.policyNumber) {
+              <small class="dq-sub">Police {{ d.policyNumber }}</small>
+            }
           </div>
           <div class="dq-sends">
-            @if (smsEnabled) {
+            @if (d.status === 'PAYE' || d.status === 'CONVERTI') {
+              <span class="dq-send dq-send--sms">💳 {{ d.conversion?.paymentReference || '—' }}</span>
+              <small class="dq-sub">Payé le {{ formatDateTime(d.conversion?.paidAt) }}</small>
+            } @else if (d.status === 'ACCEPTE') {
+              <span class="dq-send dq-send--none">Relances : {{ d.conversion?.reminderCount ?? 0 }}</span>
+              @if (d.conversion?.lastReminderAt) {
+                <small class="dq-sub">dernière {{ formatDayMonth(d.conversion?.lastReminderAt) }}</small>
+              }
+            } @else if (smsEnabled) {
               @if (d.lastSmsSentAt) {
                 <span class="dq-send dq-send--sms">💬 SMS {{ formatDayMonth(d.lastSmsSentAt) }}</span>
               } @else {
@@ -111,7 +141,12 @@
               }
             }
           </div>
-          <a [routerLink]="['/devis/liste', d.reference]" class="dq-go">Voir</a>
+          <div class="dq-acts">
+            @if (d.status === 'ACCEPTE') {
+              <button (click)="remindFor.set(d)" class="dq-go dq-go--btn" type="button">Relancer par SMS</button>
+            }
+            <a [routerLink]="['/devis/liste', d.reference]" class="dq-go">{{ d.status === 'PAYE' ? 'Finaliser →' : 'Voir' }}</a>
+          </div>
         </div>
       }
     }
@@ -126,4 +161,8 @@
       </div>
     </div>
   </div>
+
+  @if (remindFor(); as r) {
+    <app-quote-reminder-dialog (closed)="remindFor.set(null)" (sent)="onReminderSent($event)" [quote]="r" />
+  }
 </div>

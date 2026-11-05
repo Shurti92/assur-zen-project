@@ -3,7 +3,15 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import {
+  QuoteContract,
+  QuoteConvertRequest,
   QuoteCreateRequest,
+  QuoteDocument,
+  QuoteDocumentType,
+  QuoteInsuredCandidate,
+  QuoteLookup,
+  QuotePaymentFilter,
+  QuotePaymentReminderItem,
   QuoteForm,
   QuoteList,
   QuoteEmailHistoryItem,
@@ -26,9 +34,10 @@ export class QuoteService {
   private readonly base = '/admin/quotes';
 
   /** Un commercial ne voit que ses devis, un administrateur voit tous les devis. */
-  list(status?: QuoteStatus | null, q?: string | null): Observable<QuoteView[]> {
+  list(status?: QuoteStatus | null, q?: string | null, payment?: QuotePaymentFilter | null): Observable<QuoteView[]> {
     let params = new HttpParams();
     if (status) params = params.set('statut', status);
+    if (payment) params = params.set('payment', payment);
     if (q?.trim()) params = params.set('q', q.trim());
     return this.http.get<QuoteList>(this.base, { params }).pipe(map((r) => r.items));
   }
@@ -97,5 +106,60 @@ export class QuoteService {
   /** Calcul du prix VTC sans aucune écriture (sans remise : elle est estimée à l'écran). */
   simulateVtc(vehicle: VtcVehicleRequest): Observable<QuoteSimulation> {
     return this.http.post<QuoteSimulation>('/public/quotes/vtc/simulate', vehicle);
+  }
+
+  // ---------- Conversion d'un devis payé en contrat ----------
+
+  private ref(reference: string): string {
+    return `${this.base}/${encodeURIComponent(reference)}`;
+  }
+
+  documents(reference: string): Observable<QuoteDocument[]> {
+    return this.http.get<{ items: QuoteDocument[] }>(`${this.ref(reference)}/documents`).pipe(map((r) => r.items));
+  }
+
+  uploadDocument(reference: string, type: QuoteDocumentType, file: File): Observable<QuoteDocument> {
+    const form = new FormData();
+    form.append('type', type);
+    form.append('file', file);
+    return this.http.post<QuoteDocument>(`${this.ref(reference)}/documents`, form);
+  }
+
+  /** Aperçu : le fichier brut (PDF, JPEG ou PNG). */
+  documentBlob(reference: string, id: number | string): Observable<Blob> {
+    return this.http.get(`${this.ref(reference)}/documents/${id}`, { responseType: 'blob' });
+  }
+
+  deleteDocument(reference: string, id: number | string): Observable<void> {
+    return this.http.delete<void>(`${this.ref(reference)}/documents/${id}`);
+  }
+
+  convert(reference: string, request: QuoteConvertRequest): Observable<QuoteView> {
+    return this.http.post<QuoteView>(`${this.ref(reference)}/convert`, request);
+  }
+
+  contract(reference: string): Observable<QuoteContract> {
+    return this.http.get<QuoteContract>(`${this.ref(reference)}/contract`);
+  }
+
+  lookup(kind: 'companies' | 'partners' | 'products'): Observable<QuoteLookup[]> {
+    return this.http.get<{ items: QuoteLookup[] }>(`${this.base}/lookups/${kind}`).pipe(map((r) => r.items));
+  }
+
+  insuredCandidates(reference: string, q?: string): Observable<QuoteInsuredCandidate[]> {
+    let params = new HttpParams();
+    if (q?.trim()) params = params.set('q', q.trim());
+    return this.http.get<{ items: QuoteInsuredCandidate[] }>(`${this.ref(reference)}/insured-candidates`, { params }).pipe(map((r) => r.items));
+  }
+
+  /** Rappel SMS « payez dans l'application » (devis accepté non payé). */
+  sendPaymentReminder(reference: string, phone?: string): Observable<QuoteView> {
+    return this.http.post<QuoteView>(`${this.ref(reference)}/payment-reminder`, phone ? { phone } : {});
+  }
+
+  paymentReminders(reference: string): Observable<QuotePaymentReminderItem[]> {
+    return this.http
+      .get<{ items: QuotePaymentReminderItem[] }>(`${this.ref(reference)}/payment-reminders`)
+      .pipe(map((r) => [...r.items].sort((a, b) => b.sentAt.localeCompare(a.sentAt))));
   }
 }

@@ -229,7 +229,7 @@
 .dq-head,
 .dq-row {
   display: grid;
-  grid-template-columns: 1.25fr 1.7fr 1.5fr 0.9fr 1fr 1.2fr 80px;
+  grid-template-columns: 1.25fr 1.6fr 1.4fr 0.9fr 1.2fr 1.3fr 170px;
   gap: 12px;
   align-items: center;
   padding: 14px 20px;
@@ -430,6 +430,94 @@
   }
 }
 
+// ---------- Conversion en contrat ----------
+.dq-k4 {
+  background: #ec7c1e;
+}
+
+.dq-kpi--hl {
+  border-color: #ec7c1e;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #ec7c1e 14%, var(--dq-card));
+
+  b {
+    color: #ec7c1e;
+  }
+}
+
+.dq-pill--warning {
+  background: color-mix(in srgb, #ec7c1e 16%, var(--dq-card));
+  color: #c25e0a;
+}
+
+.dq-pill--danger {
+  background: color-mix(in srgb, #c62828 14%, var(--dq-card));
+  color: #c62828;
+}
+
+.dq-pill--sub {
+  margin-top: 4px;
+}
+
+.dq-sub {
+  display: block;
+  color: var(--dq-mut);
+  font-size: 12px;
+}
+
+.dq-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.dq-fpill {
+  padding: 7px 14px;
+  border: 1px solid var(--dq-soft2);
+  border-radius: 999px;
+  background: var(--dq-card);
+  color: var(--dq-pri);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &.dq-on {
+    border-color: var(--dq-pri);
+    background: var(--dq-pri);
+    color: #fff;
+  }
+}
+
+.dq-fsep {
+  margin-left: 6px;
+  color: var(--dq-mut);
+  font-size: 12px;
+}
+
+.dq-ok {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--dq-ok-soft);
+  color: var(--dq-ok);
+}
+
+.dq-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.dq-go--btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 // Téléphone : chaque ligne devient une carte
 @media (max-width: 900px) {
   .dq-head {
@@ -445,7 +533,13 @@
     }
   }
 
+  .dq-acts {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
   .dq-go {
+    flex: 1;
     grid-column: 1 / -1;
     justify-self: stretch;
     text-align: center;
