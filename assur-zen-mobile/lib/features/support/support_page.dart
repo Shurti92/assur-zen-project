@@ -51,7 +51,8 @@ class _SupportPageState extends State<SupportPage> {
     return Scaffold(
       appBar: const AzTopBar(title: 'Contact et assistance'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(AzSpace.screen, 4, AzSpace.screen, 32),
+        // + barre de navigation Android : sans cela, le bas de la FAQ reste caché.
+        padding: EdgeInsets.fromLTRB(AzSpace.screen, 4, AzSpace.screen, 32 + MediaQuery.viewPaddingOf(context).bottom),
         children: [
           // Coordonnées, horaires et disponibilité : fournis par le serveur, rubriques absentes masquées.
           ValueListenableBuilder<ContactInfo>(

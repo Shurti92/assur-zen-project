@@ -31,7 +31,8 @@ class ContractDetailPage extends StatelessWidget {
         builder: (context, c, reload) => RefreshIndicator(
           onRefresh: reload,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(AzSpace.screen, 4, AzSpace.screen, 32),
+            // + barre de navigation Android : sans cela, « Demander la résiliation » reste cachée.
+            padding: EdgeInsets.fromLTRB(AzSpace.screen, 4, AzSpace.screen, 32 + MediaQuery.viewPaddingOf(context).bottom),
             children: [
               _Summary(contract: c),
               ..._renewal(context, c),

@@ -170,7 +170,8 @@ lib/
 | `AzColors.orange700` | `#B84500` | Orange lisible pour du texte |
 | `AzColors.ink` | `#0F1B33` | Texte principal |
 | `AzColors.background` | `#F5F7FB` | Fond des écrans |
-| Police | Manrope 400 à 800 | Embarquée, aucun téléchargement |
+| Police | Sora 600 à 800 (titres, montants) et Plus Jakarta Sans 400 à 800 (texte) | Embarquées, aucun téléchargement |
+| Tailles de texte | 30 / 22 / 19 / 16 / 15 / 14 / 13 / 12 | Titre à légende ; titres en Sora 700 |
 | Marges | 20 dp | Bords d’écran |
 | Rayons | 12 / 14 / 16 / 22 / 24 | Champs / boutons / cartes / héros / feuilles |
 
@@ -194,4 +195,4 @@ Les couleurs sont mesurées sur le logo fourni (JPG). Un logo vectoriel permettr
 
 ---
 
-Polices : Manrope, sous licence SIL Open Font License (`assets/fonts/OFL.txt`).
+Polices : Sora et Plus Jakarta Sans, sous licence SIL Open Font License (`assets/fonts/OFL-Sora.txt` et `assets/fonts/OFL-PlusJakartaSans.txt`).

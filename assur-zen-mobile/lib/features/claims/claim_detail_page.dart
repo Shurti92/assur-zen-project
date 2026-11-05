@@ -20,7 +20,7 @@ class ClaimDetailPage extends StatelessWidget {
         builder: (context, k, reload) => RefreshIndicator(
           onRefresh: reload,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(AzSpace.screen, 4, AzSpace.screen, 32),
+            padding: EdgeInsets.fromLTRB(AzSpace.screen, 4, AzSpace.screen, 32 + MediaQuery.viewPaddingOf(context).bottom),
             children: [
               AzCard(
                 child: Column(

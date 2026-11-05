@@ -170,4 +170,30 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   });
+
+  group('Barre de navigation Android', () {
+    testWidgets('assistance : le bas de la page défile au-dessus de la barre de navigation', (tester) async {
+      _useScreen(tester, const Size(360, 640));
+      const navBar = 48.0;
+      tester.view.padding = const FakeViewPadding(bottom: navBar);
+      tester.view.viewPadding = const FakeViewPadding(bottom: navBar);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewPadding);
+      SharedPreferences.setMockInitialValues({'lock_choice_done': true});
+      final store = await LocalStore.open();
+      final repos = MockRepositories.create();
+      final session = SessionController(store: store, repos: repos)..updateUser(MockData.demoUser);
+      await tester.pumpWidget(AppScope(repos: repos, session: session, store: store, child: _app(1, const SupportPage())));
+      await tester.pump(const Duration(milliseconds: 800));
+
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -5000), warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Sans le correctif, la dernière rubrique s'arrêtait sous la barre (bas de l'écran = 640).
+      final lastBottom = tester.getRect(find.byType(ExpansionTile).last).bottom;
+      expect(lastBottom, lessThanOrEqualTo(640 - navBar + 0.6));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 5));
+    });
+  });
 }
