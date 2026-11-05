@@ -373,6 +373,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
             busy: _busy,
             onSave: _save,
             onAccept: _accept,
+            onPay: _saved == null ? null : () => payQuote(context, _saved!),
           ),
         const SizedBox(height: 12),
         AzButton.secondary('Être rappelé par un conseiller', onPressed: () => showAdvisorSheet(context)),

@@ -59,6 +59,27 @@ void main() {
       expect(list[0].title, 'Dossier mis à jour');
     });
 
+    test('devis : « Paiement reçu » porte la référence du devis, « Contrat émis » le contrat et le devis', () {
+      final received = ApiNotificationRepository.notificationFromJson({
+        'id': '41', 'category': 'PAYMENT', 'title': 'Paiement reçu', 'body': "Votre contrat est en cours d'émission.",
+        'createdAt': '2026-11-05T02:56:51Z', 'read': false, 'contractId': null, 'claimId': null, 'quoteReference': 'DEV-2026-000019',
+      });
+      final issued = ApiNotificationRepository.notificationFromJson({
+        'id': '42', 'category': 'SUBSCRIPTION', 'title': 'Votre contrat est émis', 'body': 'Contrat POL-2026-0001.',
+        'createdAt': '2026-11-05T09:00:00Z', 'read': false, 'contractId': '901', 'claimId': null, 'quoteReference': 'DEV-2026-000019',
+      });
+      final old = ApiNotificationRepository.notificationFromJson({'id': '7', 'category': 'CLAIM', 'title': 'x', 'body': '', 'createdAt': '2026-11-03T08:00:00Z'});
+
+      expect(received.category, NotificationCategory.paiement);
+      expect(received.quoteReference, 'DEV-2026-000019');
+      expect(received.contractId, isNull, reason: "le contrat n'existe pas encore");
+      expect(issued.category, NotificationCategory.souscription);
+      expect(issued.contractId, '901');
+      expect(issued.quoteReference, 'DEV-2026-000019');
+      expect(old.quoteReference, isNull, reason: 'anciennes notifications : aucun devis');
+      expect(received.markRead().quoteReference, 'DEV-2026-000019');
+    });
+
     test('compteur de non lues, lu, tout lu', () async {
       final repo = ApiNotificationRepository(_client((req) async {
         if (req.url.path.endsWith('unread-count')) return _json(200, {'unreadCount': 3});

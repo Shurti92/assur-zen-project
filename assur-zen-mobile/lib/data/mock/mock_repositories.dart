@@ -384,6 +384,10 @@ class _MockPayments implements PaymentRepository {
   }
 
   @override
+  Future<PaymentAttempt> convertQuote({required String quoteReference, required int amount, required String methodId, String? phone}) =>
+      initiate(payableReference: quoteReference, amount: amount, methodId: methodId, phone: phone);
+
+  @override
   Future<PaymentAttempt> status(String reference) async {
     await _latency(400);
     final started = _startedAt[reference] ?? DateTime.now();

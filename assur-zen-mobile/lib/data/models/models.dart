@@ -390,6 +390,9 @@ class PaymentMethod {
 
 enum PaymentStatus { pending, confirmed, failed }
 
+/// Référence `PAY-AAAA-NNNNNN` citée dans un message du serveur (`PAYMENT_IN_PROGRESS`), ou null.
+String? paymentReferenceIn(String? text) => RegExp(r'PAY-\d{4}-\d{6}').firstMatch(text ?? '')?.group(0);
+
 class PaymentAttempt {
   const PaymentAttempt({
     required this.reference,
@@ -684,6 +687,7 @@ class AppNotification {
     this.read = false,
     this.contractId,
     this.claimId,
+    this.quoteReference,
   });
 
   final String id;
@@ -695,8 +699,19 @@ class AppNotification {
   final String? contractId; // lien profond
   final String? claimId;
 
+  /// Devis concerné (« Paiement reçu ») : à la touche, ouvre ce devis tant que le contrat n'existe pas.
+  final String? quoteReference;
+
   AppNotification markRead() => AppNotification(
-      id: id, category: category, title: title, body: body, date: date, read: true, contractId: contractId, claimId: claimId);
+      id: id,
+      category: category,
+      title: title,
+      body: body,
+      date: date,
+      read: true,
+      contractId: contractId,
+      claimId: claimId,
+      quoteReference: quoteReference);
 }
 
 /// Préférence de notification push par catégorie, tenue par le serveur. La

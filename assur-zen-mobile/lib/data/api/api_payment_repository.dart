@@ -52,6 +52,25 @@ class ApiPaymentRepository implements PaymentRepository {
   }
 
   @override
+  Future<PaymentAttempt> convertQuote({
+    required String quoteReference,
+    required int amount,
+    required String methodId,
+    String? phone,
+  }) async {
+    final data = await _client.post(
+      Endpoints.motoQuoteConvert(quoteReference),
+      body: {
+        'methodId': methodId,
+        'amount': amount,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        'idempotencyKey': _newKey(),
+      },
+    );
+    return _attempt(data);
+  }
+
+  @override
   Future<PaymentAttempt> status(String reference) async => _attempt(await _client.get(Endpoints.payment(reference)));
 
   // Conversion JSON (publique pour les tests) ---------------------------------

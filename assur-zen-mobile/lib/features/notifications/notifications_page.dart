@@ -48,6 +48,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
       context.push(AppRoutes.contract, n.contractId);
     } else if (n.claimId != null) {
       context.push(AppRoutes.claim, n.claimId);
+    } else if (n.quoteReference != null) {
+      // « Paiement reçu » : le contrat n'existe pas encore, on ouvre le devis.
+      try {
+        final quote = await context.repos.motoQuotes.get(n.quoteReference!);
+        if (mounted) context.push(AppRoutes.motoQuoteDetail, quote);
+      } catch (e) {
+        if (mounted) showAzSnack(context, errorMessage(e));
+      }
     }
   }
 

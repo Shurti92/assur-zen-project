@@ -9,6 +9,7 @@ import '../../core/ui.dart';
 import '../../data/models/moto_quote.dart';
 import '../auth/register_page.dart';
 import '../catalog/advisor_sheet.dart';
+import '../payment/payment_page.dart';
 
 /// Devis en ligne moto. Tout vient du serveur : types de véhicule, durées, prix,
 /// formule et garanties. Rien n'est calculé ni écrit en dur ici.
@@ -299,11 +300,72 @@ class _MotoQuoteBodyState extends State<_MotoQuoteBody> {
             busy: _busy,
             onSave: _save,
             onAccept: _accept,
+            onPay: _saved == null ? null : () => payQuote(context, _saved!),
           ),
         const SizedBox(height: 12),
         AzButton.secondary('Être rappelé par un conseiller', onPressed: () => showAdvisorSheet(context)),
       ],
     );
+  }
+}
+
+/// Ouvre le paiement d'un devis accepté. Le montant et les contrôles viennent du serveur ; la page de
+/// paiement ne dit « reçu » qu'après la confirmation du serveur.
+Future<void> payQuote(BuildContext context, MotoQuote quote) async {
+  await context.push(
+    AppRoutes.payment,
+    PaymentArgs(
+      payableReference: quote.reference,
+      amount: quote.simulation.premium.total,
+      caption: 'Paiement du devis · ${quote.simulation.durationMonths} mois',
+      objectLabel: '${quote.brand} ${quote.model} · ${quote.reference}',
+      isQuotePayment: true,
+    ),
+  );
+}
+
+/// État du paiement et du contrat d'un devis : tout vient du serveur, rien n'est supposé.
+List<Widget> _conversion(BuildContext context, MotoQuote q, VoidCallback? onPay) {
+  final ref = q.conversion.paymentReference;
+  switch (q.status) {
+    case MotoQuoteStatus.paye:
+      return [
+        const SizedBox(height: 12),
+        AzBanner(
+          kind: AzBannerKind.success,
+          title: 'Paiement reçu.',
+          text: 'Votre contrat est en cours d’émission.${q.conversion.paidAt == null ? '' : ' Payé le ${formatDate(q.conversion.paidAt)}.'}',
+        ),
+      ];
+    case MotoQuoteStatus.converti:
+      return [
+        const SizedBox(height: 12),
+        AzBanner(
+          kind: AzBannerKind.success,
+          title: 'Votre contrat est émis.',
+          text: q.policyNumber == null ? 'Retrouvez-le dans « Mes assurances ».' : 'Contrat ${q.policyNumber}.',
+        ),
+        if (q.contractId != null) ...[
+          const SizedBox(height: 12),
+          AzButton('Voir mon contrat', onPressed: () => context.push(AppRoutes.contract, q.contractId)),
+        ],
+      ];
+    case MotoQuoteStatus.accepte:
+      return [
+        if (q.conversion.status == QuoteConversionStatus.pending) ...[
+          const SizedBox(height: 12),
+          AzBanner(kind: AzBannerKind.info, text: ref == null ? 'Un paiement est en cours.' : 'Un paiement est en cours ($ref).'),
+        ] else if (q.conversion.status == QuoteConversionStatus.failed) ...[
+          const SizedBox(height: 12),
+          const AzBanner(kind: AzBannerKind.warning, text: 'Le dernier paiement n’a pas abouti. Vous pouvez réessayer.'),
+        ],
+        if (onPay != null) ...[
+          const SizedBox(height: 12),
+          AzButton('Payer et obtenir mon contrat', onPressed: onPay),
+        ],
+      ];
+    case MotoQuoteStatus.calcule || MotoQuoteStatus.expire || MotoQuoteStatus.inconnu:
+      return const [];
   }
 }
 
@@ -339,6 +401,7 @@ class MotoQuoteResult extends StatelessWidget {
     required this.busy,
     required this.onSave,
     required this.onAccept,
+    this.onPay,
   });
 
   final MotoQuoteSimulation simulation;
@@ -346,6 +409,9 @@ class MotoQuoteResult extends StatelessWidget {
   final bool busy;
   final VoidCallback onSave;
   final VoidCallback onAccept;
+
+  /// Paiement d'un devis accepté. Absent : aucun bouton de paiement.
+  final VoidCallback? onPay;
 
   @override
   Widget build(BuildContext context) {
@@ -424,6 +490,7 @@ class MotoQuoteResult extends StatelessWidget {
             const SizedBox(height: 12),
             AzButton('Accepter ce devis', loading: busy, onPressed: onAccept),
           ],
+          ..._conversion(context, q, onPay),
         ],
       ],
     );

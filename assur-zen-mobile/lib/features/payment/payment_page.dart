@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_scope.dart';
 import '../../app/env.dart';
 import '../../app/routes.dart';
+import '../../core/network/api_exception.dart';
 import '../../core/security/biometric.dart';import '../../core/ui.dart';
 import '../../data/models/models.dart';
 import '../shell/main_shell.dart';
@@ -16,14 +17,19 @@ class PaymentArgs {
     required this.caption,
     required this.objectLabel,
     this.isRenewal = false,
+    this.isQuotePayment = false,
     this.clearDraftOnSuccess = false,
   });
 
-  final String payableReference; // n° de devis ou de contrat
+  /// N° de devis (paiement d'un devis accepté) ou de contrat (renouvellement).
+  final String payableReference;
   final int amount;
   final String caption; // « Prime totale · 12 mois »…
   final String objectLabel;
   final bool isRenewal;
+
+  /// Paiement d'un devis accepté : le contrat est émis ensuite par un conseiller, jamais tout de suite.
+  final bool isQuotePayment;
   final bool clearDraftOnSuccess;
 }
 
@@ -82,12 +88,20 @@ class _PaymentPageState extends State<PaymentPage> {
 
     setState(() => _starting = true);
     try {
-      final attempt = await context.repos.payments.initiate(
-        payableReference: widget.args.payableReference,
-        amount: widget.args.amount,
-        methodId: method.id,
-        phone: method.needsPhoneNumber ? phoneDigits(_number.text) : null,
-      );
+      final phone = method.needsPhoneNumber ? phoneDigits(_number.text) : null;
+      final attempt = widget.args.isQuotePayment
+          ? await context.repos.payments.convertQuote(
+              quoteReference: widget.args.payableReference,
+              amount: widget.args.amount,
+              methodId: method.id,
+              phone: phone,
+            )
+          : await context.repos.payments.initiate(
+              payableReference: widget.args.payableReference,
+              amount: widget.args.amount,
+              methodId: method.id,
+              phone: phone,
+            );
       if (!mounted) return;
       if (method.id == 'agence') {
         setState(() {
@@ -107,7 +121,22 @@ class _PaymentPageState extends State<PaymentPage> {
       final url = attempt.redirectUrl;
       if (url != null && mounted) await Launch.url(context, url);
     } catch (e) {
-      if (mounted) showAzSnack(context, errorMessage(e));
+      if (!mounted) return;
+      // Un paiement de ce devis est déjà en cours : le serveur en donne la référence, on la suit
+      // au lieu d'en lancer un second.
+      final running = e is ApiException && e.code == 'PAYMENT_IN_PROGRESS' ? paymentReferenceIn(e.message) : null;
+      if (running != null) {
+        showAzSnack(context, errorMessage(e));
+        setState(() {
+          _attempt = PaymentAttempt(reference: running, status: PaymentStatus.pending);
+          _stage = _Stage.pending;
+          _startedAt = DateTime.now();
+        });
+        _poll?.cancel();
+        _poll = Timer.periodic(const Duration(seconds: 3), (_) => _checkStatus());
+      } else {
+        showAzSnack(context, errorMessage(e));
+      }
     } finally {
       if (mounted) setState(() => _starting = false);
     }
@@ -187,6 +216,14 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 
   void _finish() {
+    if (widget.args.isQuotePayment) {
+      // Retour à l'accueil puis à « Mes devis », rechargé : le devis y apparaît payé.
+      final nav = Navigator.of(context);
+      nav.pushNamedAndRemoveUntil(AppRoutes.shell, (_) => false, arguments: ShellTab.home);
+      nav.pushNamed(AppRoutes.myQuotes);
+      showAzSnack(context, 'Merci ! Votre paiement est reçu, votre contrat est en cours d’émission.');
+      return;
+    }
     context.resetTo(AppRoutes.shell, widget.args.isRenewal ? ShellTab.contracts : ShellTab.home);
     showAzSnack(context, 'Merci ! Votre contrat apparaîtra dès sa validation par AssurZen.');
   }
@@ -389,9 +426,11 @@ class _PaymentPageState extends State<PaymentPage> {
               const Text('Paiement confirmé', textAlign: TextAlign.center, style: AzText.headline),
               const SizedBox(height: 8),
               Text(
-                widget.args.isRenewal
-                    ? 'Votre contrat est renouvelé dès réception de la confirmation définitive par AssurZen.'
-                    : 'Votre souscription est enregistrée. Le contrat sera actif après validation par AssurZen.',
+                widget.args.isQuotePayment
+                    ? 'Paiement reçu. Votre contrat est en cours d’émission.'
+                    : widget.args.isRenewal
+                        ? 'Votre contrat est renouvelé dès réception de la confirmation définitive par AssurZen.'
+                        : 'Votre souscription est enregistrée. Le contrat sera actif après validation par AssurZen.',
                 textAlign: TextAlign.center,
                 style: AzText.body.copyWith(color: AzColors.muted),
               ),
@@ -409,11 +448,13 @@ class _PaymentPageState extends State<PaymentPage> {
                 ),
                 const SizedBox(height: 10),
               ],
-              const AzBanner(
+              AzBanner(
                 kind: AzBannerKind.info,
                 text: Env.useMock
                     ? 'Reçu envoyé par SMS. Vous serez notifié dès que l’attestation est disponible dans « Mes assurances ».'
-                    : 'Retrouvez votre contrat dans « Mes assurances ».',
+                    : widget.args.isQuotePayment
+                        ? 'Suivez l’avancement de votre devis dans « Mes devis ». Vous serez notifié dès que votre contrat est émis.'
+                        : 'Retrouvez votre contrat dans « Mes assurances ».',
               ),
               const SizedBox(height: 16),
               AzCard(

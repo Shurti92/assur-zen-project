@@ -168,6 +168,7 @@ class _MotoQuoteDetailPageState extends State<MotoQuoteDetailPage> {
               busy: _busy,
               onSave: () {},
               onAccept: _accept,
+              onPay: () => payQuote(context, _quote),
             ),
           ],
         ),

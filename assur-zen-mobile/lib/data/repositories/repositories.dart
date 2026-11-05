@@ -107,6 +107,16 @@ abstract interface class PaymentRepository {
     String? phone,
   });
 
+  /// Paie un devis accepté (`POST /mobile/quotes/{reference}/convert`) : même tentative que
+  /// [initiate] (page de l'opérateur à ouvrir, statut PENDING, expiration). Le montant vient du serveur ;
+  /// [amount] n'est envoyé que pour contrôle.
+  Future<PaymentAttempt> convertQuote({
+    required String quoteReference,
+    required int amount,
+    required String methodId,
+    String? phone,
+  });
+
   /// Statut confirmé par le serveur (webhook de l’agrégateur côté backend).
   Future<PaymentAttempt> status(String reference);
 }

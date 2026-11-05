@@ -116,6 +116,80 @@ void main() {
     );
   });
 
+  group("paiement d'un devis accepté", () {
+    Map<String, dynamic> quotePayment({String status = 'PENDING'}) => {
+          ..._attempt(status, simulated: false),
+          'payableReference': 'DV-DEV-2026-000019',
+          'amount': 8000,
+          'redirectUrl': 'https://pay.wave.com/c/abc',
+          'expiresAt': '2026-11-05T05:30:00Z',
+        };
+
+    test('POST /mobile/quotes/{référence}/convert : moyen, téléphone, montant de contrôle, clé', () async {
+      final repo = build((req) async => _json(201, quotePayment()));
+
+      final a = await repo.convertQuote(quoteReference: 'DEV-2026-000019', amount: 8000, methodId: 'wave', phone: '0701020304');
+
+      expect(calls.single.method, 'POST');
+      expect(calls.single.url.path, endsWith('/mobile/quotes/DEV-2026-000019/convert'));
+      expect(calls.single.headers['Authorization'], 'Bearer tok');
+      expect(jsonDecode(calls.single.body), {
+        'methodId': 'wave',
+        'amount': 8000,
+        'phone': '0701020304',
+        'idempotencyKey': 'cle-fixe',
+      });
+      expect(a.reference, 'PAY-2026-000007');
+      expect(a.status, PaymentStatus.pending);
+      expect(a.redirectUrl, 'https://pay.wave.com/c/abc');
+      expect(a.expiresAt, DateTime.utc(2026, 11, 5, 5, 30));
+    });
+
+    test('devis payé ou non accepté : le message du serveur est conservé', () async {
+      for (final code in ['QUOTE_NOT_ACCEPTED', 'QUOTE_EXPIRED', 'QUOTE_ALREADY_PAID', 'METHOD_DISABLED', 'AMOUNT_MISMATCH']) {
+        final repo = build((req) async => _json(409, {'code': code, 'message': 'Message $code'}));
+        await expectLater(
+          repo.convertQuote(quoteReference: 'DEV-2026-000019', amount: 8000, methodId: 'wave', phone: '0701020304'),
+          throwsA(isA<ApiException>().having((e) => e.code, 'code', code).having((e) => e.message, 'message', 'Message $code')),
+          reason: code,
+        );
+      }
+    });
+
+    test('paiement déjà en cours : la référence PAY-… à suivre est dans le message', () async {
+      final repo = build((req) async => _json(409, {
+            'code': 'PAYMENT_IN_PROGRESS',
+            'message': 'Un paiement est déjà en cours pour ce devis : PAY-2026-000031.',
+          }));
+
+      try {
+        await repo.convertQuote(quoteReference: 'DEV-2026-000019', amount: 8000, methodId: 'wave', phone: '0701020304');
+        fail('une ApiException était attendue');
+      } on ApiException catch (e) {
+        expect(e.code, 'PAYMENT_IN_PROGRESS');
+        expect(paymentReferenceIn(e.message), 'PAY-2026-000031');
+      }
+    });
+
+    test('Jeko injoignable : 502, message générique invitant à réessayer, aucun paiement supposé', () async {
+      final repo = build((req) async => _json(502, {'code': 'PROVIDER_UNAVAILABLE', 'message': 'Réessayez.'}));
+      await expectLater(
+        repo.convertQuote(quoteReference: 'DEV-2026-000019', amount: 8000, methodId: 'wave', phone: '0701020304'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.statusCode, 'statusCode', 502)
+            .having((e) => e.kind, 'kind', ApiErrorKind.server)
+            .having((e) => e.message, 'message', contains('Réessayez'))),
+      );
+    });
+
+    test('référence de paiement : extraite seulement si elle a le bon format', () {
+      expect(paymentReferenceIn('voir PAY-2026-000031 svp'), 'PAY-2026-000031');
+      expect(paymentReferenceIn('PAY-26-1'), isNull);
+      expect(paymentReferenceIn('rien'), isNull);
+      expect(paymentReferenceIn(null), isNull);
+    });
+  });
+
   test('trop de tentatives : 429 avec délai', () async {
     final repo = build((req) async => _json(429, {'code': 'RATE_LIMITED', 'message': 'Trop de tentatives.', 'retryAfterSeconds': 1800}));
     await expectLater(
