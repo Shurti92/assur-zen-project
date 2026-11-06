@@ -4,7 +4,7 @@ import '../theme/az_colors.dart';
 import '../theme/az_spacing.dart';
 import '../theme/az_typography.dart';
 
-enum AzButtonVariant { primary, secondary, ghost, danger, dangerOutline, accent }
+enum AzButtonVariant { primary, secondary, ghost, danger, dangerOutline, accent, tonal }
 
 /// Bouton AssurZen. Hauteur 52 dp, zone tactile ≥ 48 dp.
 class AzButton extends StatelessWidget {
@@ -17,12 +17,14 @@ class AzButton extends StatelessWidget {
     this.loading = false,
     this.expand = true,
     this.height = 52,
+    this.radius = AzRadius.button,
+    this.horizontalPadding = 18,
   });
 
-  const AzButton.secondary(this.label, {super.key, this.onPressed, this.icon, this.loading = false, this.expand = true, this.height = 52})
+  const AzButton.secondary(this.label, {super.key, this.onPressed, this.icon, this.loading = false, this.expand = true, this.height = 52, this.radius = AzRadius.button, this.horizontalPadding = 18})
       : variant = AzButtonVariant.secondary;
 
-  const AzButton.ghost(this.label, {super.key, this.onPressed, this.icon, this.loading = false, this.expand = true, this.height = 48})
+  const AzButton.ghost(this.label, {super.key, this.onPressed, this.icon, this.loading = false, this.expand = true, this.height = 48, this.radius = AzRadius.button, this.horizontalPadding = 18})
       : variant = AzButtonVariant.ghost;
 
   final String label;
@@ -32,6 +34,10 @@ class AzButton extends StatelessWidget {
   final bool loading;
   final bool expand;
   final double height;
+  final double radius;
+
+  /// Marge intérieure gauche et droite (réduite quand deux boutons se partagent la largeur).
+  final double horizontalPadding;
 
   Widget _label(Color fg) => Text(
         label,
@@ -47,6 +53,7 @@ class AzButton extends StatelessWidget {
       AzButtonVariant.primary => (enabled || loading ? AzColors.blue700 : AzColors.disabled, Colors.white, null),
       AzButtonVariant.accent => (enabled || loading ? AzColors.orange500 : AzColors.disabled, Colors.white, null),
       AzButtonVariant.secondary => (Colors.white, enabled ? AzColors.blue700 : AzColors.disabled, enabled ? AzColors.blue700 : AzColors.fieldBorder),
+      AzButtonVariant.tonal => (enabled ? AzColors.blue50 : AzColors.disabled, enabled ? AzColors.blue700 : Colors.white, null),
       AzButtonVariant.ghost => (Colors.transparent, enabled ? AzColors.blue700 : AzColors.disabled, null),
       AzButtonVariant.danger => (enabled ? AzColors.errorStrong : AzColors.disabled, Colors.white, null),
       AzButtonVariant.dangerOutline => (Colors.white, AzColors.errorStrong, AzColors.errorStrong),
@@ -83,14 +90,14 @@ class AzButton extends StatelessWidget {
         child: Material(
           color: bg,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AzRadius.button),
+            borderRadius: BorderRadius.circular(radius),
             side: border == null ? BorderSide.none : BorderSide(color: border, width: 1.5),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: enabled ? onPressed : null,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               child: Center(widthFactor: 1, child: content),
             ),
           ),

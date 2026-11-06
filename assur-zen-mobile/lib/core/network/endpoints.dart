@@ -87,6 +87,8 @@ abstract final class Endpoints {
   static const supportRequests = '$prefix/mobile/support/requests';
   static const supportTopics = '$prefix/public/support/topics';
   static const faq = '$prefix/public/support/faq';
+  static const promoPopups = '$prefix/public/promotions/popups';
+  static String promoPopupEvent(String id) => '$prefix/public/promotions/popups/$id/events';
   static const legal = '$prefix/public/legal';
   static const feedback = '$prefix/mobile/feedback';
 

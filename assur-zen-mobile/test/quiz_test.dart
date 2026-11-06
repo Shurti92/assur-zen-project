@@ -309,8 +309,8 @@ void main() {
       await _show(tester, _Fake(engagement: Engagement.fromJson(_engagement()), today: QuizQuestion.fromJson(_question())), const EngagementCard());
 
       expect(find.text('Quiz du jour'), findsOneWidget);
-      expect(find.text('Prévention'), findsOneWidget);
-      expect(find.text('Jouer'), findsOneWidget);
+      expect(find.textContaining('Prévention', findRichText: true), findsOneWidget);
+      expect(find.textContaining('Jouer', findRichText: true), findsOneWidget);
     });
 
     testWidgets('déjà répondu : la série est rappelée, pas de « Jouer »', (tester) async {
@@ -321,7 +321,7 @@ void main() {
       );
 
       expect(find.text('2 jours de suite'), findsOneWidget);
-      expect(find.text('Jouer'), findsNothing);
+      expect(find.textContaining('Jouer', findRichText: true), findsNothing);
     });
 
     testWidgets('aucune question, fonction coupée ou erreur : rien ne s\'affiche', (tester) async {

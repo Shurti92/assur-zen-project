@@ -8,6 +8,7 @@ import '../../core/network/api_exception.dart';
 import '../../core/ui.dart';
 import '../../data/repositories/repositories.dart';
 import '../shell/main_shell.dart';
+import 'auth_layout.dart';
 
 /// Contexte de l’écran : double authentification à la connexion, inscription ou PIN oublié.
 enum OtpFlow { login, register, resetPin }
@@ -192,25 +193,23 @@ class _OtpPageState extends State<OtpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: const AzTopBar(),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
-          children: _verified ? _pinStep() : _codeStep(),
-        ),
-      ),
+    // Étapes affichées : PIN oublié (1 numéro, 2 code, 3 nouveau PIN), création de compte (1 formulaire, 2 code).
+    final int? steps = _isReset ? 3 : (widget.args.purpose == OtpFlow.register ? 2 : null);
+    final int? step = steps == null ? null : (_verified ? 3 : 2);
+    return AuthLayout(
+      title: _verified ? 'Nouveau code PIN' : 'Vérifiez votre numéro',
+      subtitle: _verified
+          ? 'Choisissez un code à 6 chiffres que vous seul connaissez.'
+          : 'Saisissez le code à 6 chiffres envoyé par SMS au $_destination.',
+      showBack: true,
+      step: step,
+      steps: steps,
+      titleSize: 28,
+      children: _verified ? _pinStep() : _codeStep(),
     );
   }
 
   List<Widget> _codeStep() => [
-        Text('Vérifiez votre numéro', style: AzText.display.copyWith(fontSize: 28)),
-        const SizedBox(height: 8),
-        Text('Saisissez le code à 6 chiffres envoyé par SMS au $_destination.',
-            style: AzText.body.copyWith(color: AzColors.muted)),
-        const SizedBox(height: 24),
         AzCodeField(
           controller: _code,
           label: 'Code de vérification',
@@ -219,7 +218,6 @@ class _OtpPageState extends State<OtpPage> {
           error: _error,
           onCompleted: (_) => _verify(),
         ),
-        const SizedBox(height: 8),
         // Wrap : avec le texte agrandi, le décompte ou le lien passe à la ligne au lieu de déborder.
         Wrap(
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -232,19 +230,12 @@ class _OtpPageState extends State<OtpPage> {
               AzTextLink('Renvoyer le code', onPressed: _resend),
           ],
         ),
-        const SizedBox(height: 24),
-        AzButton('Valider', loading: _loading, onPressed: _verify),
+        AuthPrimaryButton('Valider', loading: _loading, onPressed: _verify),
       ];
 
   List<Widget> _pinStep() => [
-        Text('Nouveau code PIN', style: AzText.display.copyWith(fontSize: 28)),
-        const SizedBox(height: 8),
-        Text('Choisissez un code à 6 chiffres que vous seul connaissez.', style: AzText.body.copyWith(color: AzColors.muted)),
-        const SizedBox(height: 24),
         AzCodeField(controller: _newPin, label: 'Nouveau code PIN', autofocus: true),
-        const SizedBox(height: 16),
         AzCodeField(controller: _confirmPin, label: 'Confirmez le code PIN', error: _pinError),
-        const SizedBox(height: 24),
-        AzButton('Enregistrer', loading: _loading, onPressed: _savePin),
+        AuthPrimaryButton('Enregistrer', loading: _loading, onPressed: _savePin),
       ];
 }

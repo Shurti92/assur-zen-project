@@ -2,6 +2,7 @@ import '../../core/network/downloaded_file.dart';
 import '../models/engagement.dart';
 import '../models/models.dart';
 import '../models/moto_quote.dart';
+import '../models/promo_popup.dart';
 
 /// Contrats des dépôts de données.
 ///
@@ -244,6 +245,7 @@ class Repositories {
     required this.notifications,
     required this.support,
     required this.engagement,
+    this.promotions = const NoPromotions(),
   });
 
   final AuthRepository auth;
@@ -256,4 +258,25 @@ class Repositories {
   final NotificationRepository notifications;
   final SupportRepository support;
   final EngagementRepository engagement;
+  final PromotionRepository promotions;
+}
+
+/// Pop-up publicitaires paramétrés au back-office.
+abstract class PromotionRepository {
+  /// Campagnes actives pour un emplacement, triées par priorité. Erreur ou rien : liste vide.
+  Future<List<PromoPopup>> getPopups({String placement = 'HOME'});
+
+  /// Mesure anonyme (VIEW, CLICK, CLOSE) ; n'échoue jamais.
+  Future<void> sendPopupEvent(String id, String type);
+}
+
+/// Aucune campagne (tests, démonstration).
+class NoPromotions implements PromotionRepository {
+  const NoPromotions();
+
+  @override
+  Future<List<PromoPopup>> getPopups({String placement = 'HOME'}) async => const [];
+
+  @override
+  Future<void> sendPopupEvent(String id, String type) async {}
 }

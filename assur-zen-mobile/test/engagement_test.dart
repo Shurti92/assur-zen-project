@@ -320,7 +320,7 @@ void main() {
     testWidgets('toucher la carte ouvre le détail du score', (tester) async {
       await show(tester, _Fake(engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4))));
 
-      await tester.tap(find.text('Ma protection'));
+      await tester.tap(find.textContaining('sur 100'));
       await tester.pumpAndSettle();
 
       expect(find.text('page ${AppRoutes.protectionScore}'), findsOneWidget);
@@ -414,9 +414,8 @@ void main() {
         ],
       ));
 
-      expect(find.text('Mes badges'), findsOneWidget);
-      expect(find.text('1 sur 3'), findsOneWidget);
-      expect(find.text('Ma protection'), findsNothing, reason: 'score coupé par le serveur');
+      expect(find.text('Mes badges · 1 sur 3'), findsOneWidget);
+      expect(find.textContaining('sur 100'), findsNothing, reason: 'score coupé par le serveur : pas de ligne de score');
     });
 
     testWidgets('carte d\'accueil : fonction badges coupée ou aucun badge = rien', (tester) async {
@@ -424,23 +423,23 @@ void main() {
         engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, score: false, badges: false)),
         badges: const [AppBadge(id: 'A', label: 'Un', earned: true)],
       ));
-      expect(find.text('Mes badges'), findsNothing);
+      expect(find.textContaining('Mes badges'), findsNothing);
 
       await _showCard(tester, _Fake(
         engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, score: false, badges: true)),
       ));
-      expect(find.text('Mes badges'), findsNothing);
+      expect(find.textContaining('Mes badges'), findsNothing);
     });
 
-    testWidgets('score et badges ensemble : deux cartes l\'une sous l\'autre', (tester) async {
+    testWidgets('score et badges ensemble : une seule carte, les badges sous le score', (tester) async {
       await _showCard(tester, _Fake(
         engagement: Engagement.fromJson(_engagement(accepted: true, acceptedVersion: 4, badges: true)),
         badges: const [AppBadge(id: 'A', label: 'Un', earned: true)],
       ));
 
       expect(find.text('Ma protection'), findsOneWidget);
-      expect(find.text('Mes badges'), findsOneWidget);
-      expect(tester.getTopLeft(find.text('Ma protection')).dy, lessThan(tester.getTopLeft(find.text('Mes badges')).dy));
+      expect(find.textContaining('Mes badges'), findsOneWidget);
+      expect(tester.getTopLeft(find.textContaining('Mes badges')).dy, greaterThan(tester.getTopLeft(find.textContaining('sur 100')).dy), reason: 'badges sous le score');
     });
 
     testWidgets('sans consentement, la seule fonction « badges » propose aussi l\'accord', (tester) async {
@@ -455,7 +454,7 @@ void main() {
         badges: const [AppBadge(id: 'A', label: 'Un', earned: true)],
       ));
 
-      await tester.tap(find.text('Mes badges'));
+      await tester.tap(find.textContaining('Mes badges'));
       await tester.pumpAndSettle();
 
       expect(find.text('page ${AppRoutes.badges}'), findsOneWidget);

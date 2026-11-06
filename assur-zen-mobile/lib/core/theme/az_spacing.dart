@@ -21,6 +21,7 @@ abstract final class AzRadius {
   static const double button = 14;
   static const double card = 16;
   static const double hero = 22;
+  static const double bento = 24; // blocs de l'accueil et des onglets
   static const double sheet = 24;
   static const double pill = 999;
 }

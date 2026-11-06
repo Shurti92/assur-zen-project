@@ -184,13 +184,15 @@ class AzInfoRow extends StatelessWidget {
 
 /// Carte de récapitulatif contenant des [AzInfoRow].
 class AzSummaryCard extends StatelessWidget {
-  const AzSummaryCard({super.key, required this.rows});
+  const AzSummaryCard({super.key, required this.rows, this.radius = AzRadius.card});
 
   final List<(String, String)> rows;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
     return AzCard(
+      radius: radius,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Column(
         children: [

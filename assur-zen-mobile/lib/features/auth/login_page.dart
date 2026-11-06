@@ -5,6 +5,7 @@ import '../../app/routes.dart';
 import '../../core/security/biometric.dart';
 import '../../core/ui.dart';
 import '../../data/models/models.dart';
+import 'auth_layout.dart';
 import 'otp_page.dart';
 import '../shell/main_shell.dart';
 
@@ -116,54 +117,37 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final canGoBack = Navigator.of(context).canPop();
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AzTopBar(showBack: canGoBack, onBack: canGoBack ? null : () => context.resetTo(AppRoutes.welcome)),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+    return AuthLayout(
+      title: 'Bon retour',
+      subtitle: 'Saisissez le numéro associé à votre compte AssurZen.',
+      showMark: true,
+      showBack: canGoBack,
+      children: [
+        AzPhoneField(controller: _phone, error: _phoneError, onChanged: (_) => setState(() => _phoneError = null)),
+        AzCodeField(
+          controller: _pin,
+          label: 'Code PIN (6 chiffres)',
+          error: _pinError,
+          onChanged: (_) => setState(() => _pinError = null),
+          onCompleted: (_) => _submit(),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: AzTextLink('Code PIN oublié ?', onPressed: () => context.push(AppRoutes.forgotPin)),
+        ),
+        if (_formError != null) AzBanner(kind: AzBannerKind.error, text: _formError!),
+        AuthPrimaryButton('Se connecter', loading: _loading, onPressed: _submit),
+        if (_bioAvailable) AuthSecondaryButton('Se connecter avec l’empreinte', icon: Icons.fingerprint, onPressed: _loading ? null : _biometric),
+        // Wrap : avec le texte agrandi, le lien passe à la ligne au lieu de déborder.
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text('Connexion', style: AzText.display.copyWith(fontSize: 28)),
-            const SizedBox(height: 8),
-            Text('Saisissez le numéro associé à votre compte AssurZen.', style: AzText.body.copyWith(color: AzColors.muted)),
-            const SizedBox(height: 24),
-            AzPhoneField(controller: _phone, error: _phoneError, onChanged: (_) => setState(() => _phoneError = null)),
-            const SizedBox(height: 18),
-            AzCodeField(
-              controller: _pin,
-              label: 'Code PIN (6 chiffres)',
-              error: _pinError,
-              onChanged: (_) => setState(() => _pinError = null),
-              onCompleted: (_) => _submit(),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: AzTextLink('Code PIN oublié ?', onPressed: () => context.push(AppRoutes.forgotPin)),
-            ),
-            if (_formError != null) ...[
-              const SizedBox(height: 4),
-              AzBanner(kind: AzBannerKind.error, text: _formError!),
-            ],
-            const SizedBox(height: 20),
-            AzButton('Se connecter', loading: _loading, onPressed: _submit),
-            if (_bioAvailable) ...[
-              const SizedBox(height: 12),
-              AzButton.secondary('Se connecter avec l’empreinte', icon: Icons.fingerprint, onPressed: _loading ? null : _biometric),
-            ],
-            const SizedBox(height: 20),
-            // Wrap : avec le texte agrandi, le lien passe à la ligne au lieu de déborder.
-            Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text('Pas encore de compte ?', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
-                AzTextLink('Créer un compte', onPressed: () => context.push(AppRoutes.register)),
-              ],
-            ),
+            Text('Pas encore de compte ?', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
+            AzTextLink('Créer un compte', onPressed: () => context.push(AppRoutes.register)),
           ],
         ),
-      ),
+      ],
     );
   }
 }

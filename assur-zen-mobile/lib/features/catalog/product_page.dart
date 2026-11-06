@@ -7,7 +7,6 @@ import '../../core/ui.dart';
 import '../../data/models/models.dart';
 import '../quote/quote_flow_page.dart';
 import 'advisor_sheet.dart';
-import 'catalog_page.dart';
 
 /// Fiche produit : avantages, garanties validées, éligibilité, devis ou rappel.
 class ProductPage extends StatefulWidget {
@@ -25,112 +24,132 @@ class _ProductPageState extends State<ProductPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AzColors.background,
       body: AsyncView<Product>(
         load: () => context.repos.catalog.getProduct(widget.productId),
         loading: const AzLoader(),
-        builder: (context, p, _) => Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  _Hero(product: p),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(AzSpace.screen, 24, AzSpace.screen, 24),
-                    child: AzGap(
-                      gap: 24,
-                      children: [
-                        if (p.benefits.isNotEmpty) _Benefits(benefits: p.benefits),
-                        _Guarantees(product: p),
-                        _Formulas(formulas: p.formulas),
-                        AssistancePlans(plans: p.assistancePlans),
-                        _TextList(title: 'Exclusions', items: p.exclusions, icon: Icons.remove_circle_outline_rounded),
-                        _TextList(title: 'Pièces à fournir', items: p.requiredDocuments, icon: Icons.description_outlined),
-                        _ProductFaq(faq: p.faq),
-                        // Contenu fourni par le back-office : une rubrique vide n'est pas affichée.
-                        if (p.eligibility != null || Env.useMock)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const AzSectionHeader('Conditions d’éligibilité'),
-                              const SizedBox(height: 6),
-                              Text(
-                                p.eligibility ?? 'Les conditions (pièces requises, âge, usage du bien) vous sont indiquées lors du devis.',
-                                style: AzText.bodyMedium.copyWith(color: AzColors.muted),
-                              ),
-                            ],
-                          ),
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 220),
-                          child: _more && p.howItWorks.isNotEmpty
-                              ? AzCard(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('Comment ça marche ?', style: AzText.titleSmall),
-                                      const SizedBox(height: 6),
-                                      Text(p.howItWorks, style: AzText.bodyMedium),
-                                    ],
+        builder: (context, p, _) {
+          // Produit professionnel : le parcours s'arrête au devis (la suite se fait avec un conseiller).
+          final professional = p.family == ProductFamily.professionnel;
+          return Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _Hero(product: p),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AzSpace.screen, 12, AzSpace.screen, 24),
+                      child: AzGap(
+                        gap: 22,
+                        children: [
+                          if (professional)
+                            AzCard(
+                              color: AzColors.orange50,
+                              borderColor: null,
+                              radius: 22,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 2),
+                                    child: Icon(Icons.info_outline_rounded, size: 18, color: AzColors.orange700),
                                   ),
-                                )
-                              : const SizedBox(width: double.infinity),
-                        ),
-                        // Le tarif n'existe que pour les produits souscrits en ligne (devis).
-                        if (p.onlineSubscription)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                            decoration: BoxDecoration(color: AzColors.background, borderRadius: BorderRadius.circular(14)),
-                            child: Row(
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Pour ce produit, l’application vous donne un devis. La souscription se poursuit avec un conseiller.',
+                                      style: AzText.bodyMedium.copyWith(color: AzColors.warningInk, fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (p.benefits.isNotEmpty) _Benefits(benefits: p.benefits),
+                          if (p.formulas.isNotEmpty) _Formulas(formulas: p.formulas),
+                          if (p.guarantees.isNotEmpty) _Guarantees(product: p),
+                          if (p.assistancePlans.isNotEmpty) AssistancePlans(plans: p.assistancePlans),
+                          if (p.requiredDocuments.isNotEmpty) _TextList(title: 'Pièces à fournir', items: p.requiredDocuments, icon: Icons.description_outlined),
+                          if (p.exclusions.isNotEmpty) _TextList(title: 'Exclusions', items: p.exclusions, icon: Icons.remove_circle_outline_rounded),
+                          if (p.faq.isNotEmpty) _ProductFaq(faq: p.faq),
+                          // Contenu fourni par le back-office : une rubrique vide n'est pas affichée.
+                          if (p.eligibility != null || Env.useMock)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Tarif', style: AzText.label.copyWith(color: AzColors.muted)),
-                                const SizedBox(width: 12),
-                                const Expanded(child: Text('Calculé selon votre profil', textAlign: TextAlign.right, style: AzText.titleSmall)),
+                                const AzSectionHeader('Conditions d’éligibilité'),
+                                const SizedBox(height: 6),
+                                Text(
+                                  p.eligibility ?? 'Les conditions (pièces requises, âge, usage du bien) vous sont indiquées lors du devis.',
+                                  style: AzText.bodyMedium.copyWith(color: AzColors.muted),
+                                ),
                               ],
                             ),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 220),
+                            child: _more && p.howItWorks.isNotEmpty
+                                ? AzCard(
+                                    radius: 26,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Comment ça marche ?', style: AzText.titleSmall),
+                                        const SizedBox(height: 6),
+                                        Text(p.howItWorks, style: AzText.bodyMedium),
+                                      ],
+                                    ),
+                                  )
+                                : const SizedBox(width: double.infinity),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            AzBottomBar(children: [
-              Row(
-                children: [
-                  if (p.howItWorks.isNotEmpty) ...[
+              AzBottomBar(children: [
+                Row(
+                  children: [
+                    if (p.howItWorks.isNotEmpty) ...[
+                      Expanded(
+                        flex: 5,
+                        child: AzButton.secondary(_more ? 'Moins de détails' : 'En savoir plus', height: 52, radius: 16, horizontalPadding: 8, onPressed: () => setState(() => _more = !_more)),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
                     Expanded(
                       flex: 5,
-                      child: AzButton.secondary(_more ? 'Moins de détails' : 'En savoir plus', onPressed: () => setState(() => _more = !_more)),
+                      child: AzButton(
+                        // Le devis en ligne moto est servi par la Gateway (prix et garanties du serveur).
+                        p.id == 'moto' || p.id == 'automobile-vtc' || p.id == 'voyage' || p.onlineSubscription || professional ? 'Obtenir un devis' : 'Être rappelé',
+                        variant: AzButtonVariant.accent,
+                        height: 52,
+                        radius: 16,
+                        horizontalPadding: 8,
+                        onPressed: () => p.id == 'moto'
+                            ? context.push(AppRoutes.motoQuote, p.title)
+                            : p.id == 'automobile-vtc'
+                                ? context.push(AppRoutes.vtcQuote, p.title)
+                                : p.id == 'voyage'
+                                    ? context.push(AppRoutes.voyageQuote, p.title)
+                                    : p.onlineSubscription
+                                        ? context.push(AppRoutes.quote, QuoteArgs(productId: p.id))
+                                        : showAdvisorSheet(context, product: p),
+                      ),
                     ),
-                    const SizedBox(width: 10),
                   ],
-                  Expanded(
-                    flex: 5,
-                    child: AzButton(
-                      // Le devis en ligne moto est servi par la Gateway (prix et garanties du serveur).
-                      p.id == 'moto' || p.id == 'automobile-vtc' || p.id == 'voyage' || p.onlineSubscription ? 'Obtenir un devis' : 'Être rappelé',
-                      onPressed: () => p.id == 'moto'
-                          ? context.push(AppRoutes.motoQuote, p.title)
-                          : p.id == 'automobile-vtc'
-                              ? context.push(AppRoutes.vtcQuote, p.title)
-                              : p.id == 'voyage'
-                              ? context.push(AppRoutes.voyageQuote, p.title)
-                              : p.onlineSubscription
-                              ? context.push(AppRoutes.quote, QuoteArgs(productId: p.id))
-                              : showAdvisorSheet(context, product: p),
-                    ),
-                  ),
-                ],
-              ),
-            ]),
-          ],
-        ),
+                ),
+              ]),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
+/// Carte bleue d'identité du produit : icône, mode de souscription, nom, description, deux repères.
 class _Hero extends StatelessWidget {
   const _Hero({required this.product});
 
@@ -138,57 +157,91 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: productTint(product.id),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -60,
-            top: -40,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0x1F033892), width: 1.5)),
-            ),
-          ),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, AzSpace.screen, 28),
+    final professional = product.family == ProductFamily.professionnel;
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AzSpace.screen, 8, AzSpace.screen, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AzIconButton(icon: Icons.arrow_back_ios_new_rounded, tooltip: 'Retour', onPressed: () => Navigator.of(context).maybePop()),
+            const SizedBox(height: 10),
+            AzCard(
+              color: AzColors.blue700,
+              borderColor: null,
+              radius: 28,
+              padding: const EdgeInsets.all(18),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AzIconButton(icon: Icons.arrow_back_ios_new_rounded, tooltip: 'Retour', onPressed: () => Navigator.of(context).maybePop()),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 16, 0, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 84,
-                          height: 84,
-                          decoration: BoxDecoration(
-                            color: AzColors.blue700,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: const [BoxShadow(color: Color(0x40033892), blurRadius: 28, offset: Offset(0, 12))],
-                          ),
-                          child: Icon(productIcon(product.id, code: product.iconCode), size: 42, color: Colors.white),
+                  Row(
+                    children: [
+                      AzIconTile(
+                        icon: productIcon(product.id, code: product.iconCode),
+                        size: 52,
+                        iconSize: 28,
+                        background: const Color(0x29FFFFFF),
+                        color: Colors.white,
+                        radius: 18,
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: professional ? AzColors.orange500 : Colors.white, borderRadius: BorderRadius.circular(AzRadius.pill)),
+                        child: Text(
+                          professional ? 'Sur devis' : (product.onlineSubscription ? 'Souscription en ligne' : 'Avec un conseiller'),
+                          style: AzText.caption.copyWith(color: professional ? Colors.white : AzColors.blue700, fontWeight: FontWeight.w700),
                         ),
-                        const SizedBox(height: 14),
-                        Semantics(header: true, child: Text(product.title, style: AzText.headline.copyWith(fontSize: 28, height: 34 / 28))),
-                        if (product.description.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(product.description, style: AzText.body.copyWith(fontSize: 15, color: AzColors.ink2)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Semantics(header: true, child: Text(product.title, style: AzText.display.copyWith(color: Colors.white, fontSize: 26, height: 1.12, letterSpacing: -0.3))),
+                  if (product.description.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _HeroDescription(text: product.description),
+                  ],
+                  // Repères : le tarif n'existe que pour les produits en ligne ou sur devis.
+                  if (product.onlineSubscription || professional) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(child: _HeroFact('Tarif', professional ? 'Établi sur devis' : 'Calculé selon votre profil')),
+                        if (professional) ...[
+                          const SizedBox(width: 8),
+                          const Expanded(child: _HeroFact('Suite', 'Avec un conseiller')),
                         ],
-                        const SizedBox(height: 10),
-                        SubscriptionModeBadge(online: product.onlineSubscription),
                       ],
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroFact extends StatelessWidget {
+  const _HeroFact(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(color: const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AzText.caption.copyWith(color: AzColors.blue100, fontSize: 11.5, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 2),
+          Text(value, style: AzText.label.copyWith(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
         ],
       ),
     );
@@ -207,29 +260,110 @@ class _Benefits extends StatelessWidget {
       children: [
         const AzSectionHeader('Les avantages'),
         const SizedBox(height: 8),
-        for (final b in benefits)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: const BoxDecoration(color: AzColors.successBg, shape: BoxShape.circle),
-                  child: const Icon(Icons.check_rounded, size: 16, color: AzColors.success),
+        AzCard(
+          radius: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Column(
+            children: [
+              for (var i = 0; i < benefits.length; i++) ...[
+                if (i > 0) const Divider(height: 1, color: AzColors.lineSoft),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: const BoxDecoration(color: AzColors.successBg, shape: BoxShape.circle),
+                        child: const Icon(Icons.check_rounded, size: 17, color: AzColors.success),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(benefits[i], style: AzText.body.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600, height: 21 / 14.5))),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(child: Text(b, style: AzText.body.copyWith(fontSize: 15, height: 22 / 15))),
               ],
-            ),
+            ],
           ),
+        ),
       ],
     );
   }
 }
 
-/// Garanties du produit, dans l'ordre du serveur. Rubrique masquée si vide ;
+/// Accordéon en carte arrondie : titre, résumé et pastille, contenu qui se déplie. Encadré en bleu quand il est ouvert.
+/// Sans contenu à déplier, la ligne reste une carte simple (pas de flèche).
+class _Accordion extends StatefulWidget {
+  const _Accordion({required this.title, this.subtitle, this.pill, this.body = const [], this.initiallyOpen = false});
+
+  final String title;
+  final String? subtitle;
+  final Widget? pill;
+  final List<Widget> body;
+  final bool initiallyOpen;
+
+  @override
+  State<_Accordion> createState() => _AccordionState();
+}
+
+class _AccordionState extends State<_Accordion> {
+  late bool _open = widget.initiallyOpen && widget.body.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final head = Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.title, style: AzText.titleSmall.copyWith(fontSize: 15, height: 1.3)),
+              if (widget.subtitle != null)
+                Text(widget.subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.caption.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        if (widget.pill != null) ...[const SizedBox(width: 8), widget.pill!],
+      ],
+    );
+    Widget card(Widget child) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _open ? AzColors.blue700 : AzColors.line, width: _open ? 2 : 1),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: child,
+        );
+    if (widget.body.isEmpty) {
+      return card(Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), child: head));
+    }
+    return card(
+      Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: _open,
+          onExpansionChanged: (v) => setState(() => _open = v),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          expandedAlignment: Alignment.centerLeft,
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          iconColor: AzColors.blue700,
+          collapsedIconColor: AzColors.muted,
+          title: head,
+          children: [
+            const Divider(height: 1, color: AzColors.lineSoft),
+            const SizedBox(height: 10),
+            ...widget.body,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Garanties du produit, en accordéons, dans l'ordre du serveur. Rubrique masquée si vide ;
 /// description et plafond/franchise affichés seulement s'ils sont communiqués.
 class _Guarantees extends StatelessWidget {
   const _Guarantees({required this.product});
@@ -245,54 +379,41 @@ class _Guarantees extends StatelessWidget {
       children: [
         const AzSectionHeader('Garanties'),
         const SizedBox(height: 8),
-        AzCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Column(
-            children: [
-              for (var i = 0; i < list.length; i++)
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(border: i == list.length - 1 ? null : const Border(bottom: BorderSide(color: AzColors.lineSoft))),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: Text(list[i].name, style: AzText.body.copyWith(fontWeight: FontWeight.w700))),
-                          const SizedBox(width: 12),
-                          Text(
-                            list[i].kindLabel,
-                            style: AzText.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: switch (list[i].kind) {
-                                GuaranteeKind.obligatoire || GuaranteeKind.incluse => AzColors.success,
-                                _ => AzColors.warning,
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (list[i].description != null) ...[
-                        const SizedBox(height: 4),
-                        Text(list[i].description!, style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
-                      ],
-                      if (list[i].limit != null) ...[
-                        const SizedBox(height: 4),
-                        Text('Plafond / franchise : ${list[i].limit}', style: AzText.caption.copyWith(fontSize: 13, color: AzColors.ink2)),
-                      ],
-                    ],
-                  ),
+        for (var i = 0; i < list.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _Accordion(
+            initiallyOpen: i == 0,
+            title: list[i].name,
+            pill: _kindPill(list[i]),
+            body: [
+              if (list[i].description != null) Text(list[i].description!, style: AzText.bodyMedium.copyWith(color: AzColors.ink2, fontSize: 13)),
+              if (list[i].limit != null) ...[
+                const SizedBox(height: 8),
+                Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: 'Plafond / franchise  ', style: AzText.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w500)),
+                    TextSpan(text: list[i].limit, style: AzText.caption.copyWith(fontSize: 13, color: AzColors.ink, fontWeight: FontWeight.w700)),
+                  ]),
                 ),
+              ],
             ],
           ),
-        ),
+        ],
       ],
     );
   }
+
+  static Widget _kindPill(Guarantee g) {
+    final (Color fg, Color bg) = switch (g.kind) {
+      GuaranteeKind.obligatoire => (AzColors.success, AzColors.successBg),
+      GuaranteeKind.incluse => (AzColors.blue700, AzColors.blue50),
+      _ => (AzColors.warning, AzColors.warningBg),
+    };
+    return AzStatusBadge(label: g.kindLabel, foreground: fg, background: bg, dot: false);
+  }
 }
 
-/// Formules du produit (contenu, sans prix). Rubrique masquée si vide.
+/// Formules du produit (contenu, sans prix), en accordéons. Rubrique masquée si vide.
 class _Formulas extends StatelessWidget {
   const _Formulas({required this.formulas});
 
@@ -306,42 +427,34 @@ class _Formulas extends StatelessWidget {
       children: [
         const AzSectionHeader('Formules'),
         const SizedBox(height: 8),
-        for (final f in formulas) ...[
-          AzCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(f.name, style: AzText.titleSmall),
-                if (f.description.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(f.description, style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
-                ],
-                if (f.guarantees.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  for (final g in f.guarantees)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.check_rounded, size: 18, color: AzColors.success),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(g, style: AzText.bodyMedium)),
-                        ],
-                      ),
-                    ),
-                ],
-              ],
-            ),
+        for (var i = 0; i < formulas.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _Accordion(
+            initiallyOpen: i == 0,
+            title: formulas[i].name,
+            subtitle: formulas[i].description.isEmpty ? null : formulas[i].description,
+            body: [
+              for (final g in formulas[i].guarantees)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(padding: EdgeInsets.only(top: 1), child: Icon(Icons.check_rounded, size: 18, color: AzColors.success)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(g, style: AzText.bodyMedium.copyWith(color: AzColors.ink, fontWeight: FontWeight.w600, fontSize: 13.5))),
+                    ],
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 10),
         ],
       ],
     );
   }
 }
 
-/// Liste de textes du back-office (exclusions, pièces à fournir). Masquée si vide.
+/// Liste de textes du back-office (exclusions, pièces à fournir), en carte arrondie. Masquée si vide.
 class _TextList extends StatelessWidget {
   const _TextList({required this.title, required this.items, required this.icon});
 
@@ -352,29 +465,43 @@ class _TextList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
+    final danger = icon == Icons.remove_circle_outline_rounded;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AzSectionHeader(title),
         const SizedBox(height: 8),
-        for (final t in items)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 18, color: AzColors.muted),
-                const SizedBox(width: 10),
-                Expanded(child: Text(t, style: AzText.bodyMedium)),
+        AzCard(
+          radius: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Column(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const Divider(height: 1, color: AzColors.lineSoft),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (danger)
+                        Icon(icon, size: 20, color: AzColors.error)
+                      else
+                        AzIconTile(icon: icon, size: 34, iconSize: 18, radius: 12),
+                      const SizedBox(width: 10),
+                      Expanded(child: Padding(padding: EdgeInsets.only(top: danger ? 1 : 6), child: Text(items[i], style: AzText.bodyMedium.copyWith(color: AzColors.ink, fontWeight: FontWeight.w600)))),
+                    ],
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
+        ),
       ],
     );
   }
 }
 
-/// Questions fréquentes du produit. Masquée si vide.
+/// Questions fréquentes du produit, en carte arrondie. Masquée si vide.
 class _ProductFaq extends StatelessWidget {
   const _ProductFaq({required this.faq});
 
@@ -389,6 +516,7 @@ class _ProductFaq extends StatelessWidget {
         const AzSectionHeader('Questions fréquentes'),
         const SizedBox(height: 8),
         AzCard(
+          radius: 26,
           padding: EdgeInsets.zero,
           child: Column(
             children: [
@@ -397,7 +525,7 @@ class _ProductFaq extends StatelessWidget {
                 Theme(
                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
-                    title: Text(faq[i].question, style: AzText.body.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
+                    title: Text(faq[i].question, style: AzText.body.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
                     tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                     childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     expandedAlignment: Alignment.centerLeft,
@@ -412,7 +540,6 @@ class _ProductFaq extends StatelessWidget {
     );
   }
 }
-
 
 /// Libellé du prix d'un niveau : celui du serveur, sinon formaté depuis le montant (« Gratuit » à 0).
 /// L'unité (par an, par contrat…) n'est pas connue : elle n'est jamais ajoutée.
@@ -470,6 +597,7 @@ class _AssistancePlanCard extends StatelessWidget {
     final eligibility = assistanceEligibility(plan);
     return AzCard(
       padding: EdgeInsets.zero,
+      radius: 26,
       borderColor: plan.recommended ? AzColors.blue700 : AzColors.line,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -539,5 +667,43 @@ class _AssistancePlanCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Description du produit dans le bandeau : quatre lignes, puis « Lire la suite » si le texte est plus long.
+class _HeroDescription extends StatefulWidget {
+  const _HeroDescription({required this.text});
+
+  final String text;
+
+  @override
+  State<_HeroDescription> createState() => _HeroDescriptionState();
+}
+
+class _HeroDescriptionState extends State<_HeroDescription> {
+  bool _all = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AzText.bodyMedium.copyWith(color: AzColors.blue100);
+    return LayoutBuilder(builder: (context, box) {
+      final painter = TextPainter(text: TextSpan(text: widget.text, style: style), maxLines: 4, textDirection: TextDirection.ltr, textScaler: MediaQuery.textScalerOf(context))
+        ..layout(maxWidth: box.maxWidth);
+      final long = painter.didExceedMaxLines;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.text, maxLines: _all ? null : 4, overflow: _all ? TextOverflow.visible : TextOverflow.ellipsis, style: style),
+          if (long)
+            InkWell(
+              onTap: () => setState(() => _all = !_all),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(_all ? 'Réduire' : 'Lire la suite', style: AzText.label.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+              ),
+            ),
+        ],
+      );
+    });
   }
 }

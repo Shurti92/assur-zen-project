@@ -11,6 +11,7 @@ export 'utils/contact_directory.dart';
 export 'utils/formatters.dart';
 export 'utils/launch.dart';
 export 'utils/validators.dart';
+export 'widgets/az_bento.dart';
 export 'widgets/az_buttons.dart';
 export 'widgets/az_cards.dart';
 export 'widgets/az_feedback.dart';

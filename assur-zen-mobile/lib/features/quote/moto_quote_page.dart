@@ -349,7 +349,7 @@ List<Widget> _conversion(BuildContext context, MotoQuote q, VoidCallback? onPay)
         ),
         if (q.contractId != null) ...[
           const SizedBox(height: 12),
-          AzButton('Voir mon contrat', onPressed: () => context.push(AppRoutes.contract, q.contractId)),
+          AzButton('Voir mon contrat', height: 52, radius: 16, onPressed: () => context.push(AppRoutes.contract, q.contractId)),
         ],
       ];
     case MotoQuoteStatus.accepte:
@@ -363,7 +363,7 @@ List<Widget> _conversion(BuildContext context, MotoQuote q, VoidCallback? onPay)
         ],
         if (onPay != null) ...[
           const SizedBox(height: 12),
-          AzButton('Payer et obtenir mon contrat', onPressed: onPay),
+          AzButton('Payer et obtenir mon contrat', variant: AzButtonVariant.accent, height: 52, radius: 16, icon: Icons.arrow_forward_rounded, onPressed: onPay),
         ],
       ];
     case MotoQuoteStatus.calcule || MotoQuoteStatus.expire || MotoQuoteStatus.inconnu:
@@ -422,18 +422,28 @@ class MotoQuoteResult extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AzHeroCard(
+        // Carte bleue unie : référence ou intitulé, prime en grand, période.
+        AzCard(
+          color: AzColors.blue700,
+          borderColor: null,
+          radius: 28,
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(q == null ? 'Votre prime' : 'Devis ${q.reference}', style: AzText.bodyMedium.copyWith(color: Colors.white70)),
-              const SizedBox(height: 4),
-              Text(formatFcfa(p.total), style: AzText.headline.copyWith(color: Colors.white)),
+              Row(
+                children: [
+                  Expanded(child: Text(q == null ? 'Votre prime' : 'Devis ${q.reference}', style: AzText.bodyMedium.copyWith(color: AzColors.blue100))),
+                  if (q != null) _statusPill(q.status),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(formatFcfa(p.total), style: AzText.display.copyWith(color: Colors.white, fontSize: 32, height: 1.1)),
               if (simulation.effectiveDate != null && simulation.expiryDate != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   'Du ${formatDate(simulation.effectiveDate)} au ${formatDate(simulation.expiryDate)}',
-                  style: AzText.bodyMedium.copyWith(color: Colors.white70),
+                  style: AzText.bodyMedium.copyWith(color: AzColors.blue100),
                 ),
               ],
             ],
@@ -441,7 +451,7 @@ class MotoQuoteResult extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         // Une ligne à 0 n'est pas affichée (ex. taxes non communiquées, CEDEAO propre au VTC).
-        AzSummaryCard(rows: [
+        AzSummaryCard(radius: 26, rows: [
           ('Prime nette', formatFcfa(p.netPremium)),
           if (p.discount > 0) ('Remise', '- ${formatFcfa(p.discount)}'),
           if (p.taxes > 0) ('Taxes', formatFcfa(p.taxes)),
@@ -460,6 +470,7 @@ class MotoQuoteResult extends StatelessWidget {
             // Aucune rubrique fournie par le serveur : liste à plat.
             if (groups.isEmpty) {
               return AzCard(
+                radius: 26,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [for (final g in simulation.guarantees) ..._guaranteeWidgets(g)],
@@ -468,6 +479,7 @@ class MotoQuoteResult extends StatelessWidget {
             }
             // Rubriques repliables ; la première est dépliée.
             return AzCard(
+              radius: 26,
               child: Theme(
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                 child: Column(
@@ -499,7 +511,7 @@ class MotoQuoteResult extends StatelessWidget {
         ],
         const SizedBox(height: 16),
         if (q == null)
-          AzButton('Enregistrer mon devis', loading: busy, onPressed: onSave)
+          AzButton('Enregistrer mon devis', variant: AzButtonVariant.accent, height: 52, radius: 16, loading: busy, onPressed: onSave)
         else ...[
           if (q.validUntil != null && q.status == MotoQuoteStatus.calcule)
             AzBanner(kind: AzBannerKind.info, text: 'Prix garanti jusqu’au ${formatDate(q.validUntil)}.'),
@@ -509,7 +521,7 @@ class MotoQuoteResult extends StatelessWidget {
             const AzBanner(kind: AzBannerKind.warning, text: 'Ce devis a expiré. Modifiez la saisie pour en calculer un nouveau.'),
           if (q.canAccept) ...[
             const SizedBox(height: 12),
-            AzButton('Accepter ce devis', loading: busy, onPressed: onAccept),
+            AzButton('Accepter ce devis', variant: AzButtonVariant.accent, height: 52, radius: 16, icon: Icons.arrow_forward_rounded, loading: busy, onPressed: onAccept),
           ],
           ..._conversion(context, q, onPay),
         ],
@@ -540,3 +552,20 @@ List<Widget> _guaranteeWidgets(MotoGuarantee g) => [
         ),
       const SizedBox(height: 10),
     ];
+
+/// Pastille blanche d'état du devis, sur la carte bleue.
+Widget _statusPill(MotoQuoteStatus s) {
+  final (String label, Color color) = switch (s) {
+    MotoQuoteStatus.calcule => ('À accepter', AzColors.warning),
+    MotoQuoteStatus.accepte => ('Accepté', AzColors.success),
+    MotoQuoteStatus.paye => ('Payé', AzColors.success),
+    MotoQuoteStatus.expire => ('Expiré', AzColors.ink2),
+    MotoQuoteStatus.converti => ('Souscrit', AzColors.blue700),
+    MotoQuoteStatus.inconnu => ('—', AzColors.ink2),
+  };
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AzRadius.pill)),
+    child: Text(label, style: AzText.caption.copyWith(color: color, fontWeight: FontWeight.w700)),
+  );
+}

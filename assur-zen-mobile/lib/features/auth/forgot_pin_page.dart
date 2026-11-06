@@ -5,6 +5,7 @@ import '../../app/routes.dart';
 import '../../core/ui.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/repositories.dart';
+import 'auth_layout.dart';
 import 'otp_page.dart';
 
 /// Code PIN oublié : envoi d’un code SMS, puis création d’un nouveau PIN.
@@ -51,39 +52,32 @@ class _ForgotPinPageState extends State<ForgotPinPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: const AzTopBar(),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
-          children: [
-            Text('Code PIN oublié', style: AzText.display.copyWith(fontSize: 28)),
-            const SizedBox(height: 8),
-            Text('Nous vous envoyons un code par SMS pour créer un nouveau code PIN.', style: AzText.body.copyWith(color: AzColors.muted)),
-            const SizedBox(height: 24),
-            AzPhoneField(controller: _phone, error: _error),
-            const SizedBox(height: 24),
-            AzButton('Recevoir le code', loading: _loading, onPressed: _send),
-            const SizedBox(height: 16),
-            // Numéro et horaires fournis par le serveur : absents = bandeau masqué.
-            ValueListenableBuilder<ContactInfo>(
-              valueListenable: ContactDirectory.info,
-              builder: (context, info, _) {
-                final phone = info.primaryPhone;
-                if (phone == null) return const SizedBox.shrink();
-                final hours = info.availabilityText;
-                return AzBanner(
-                  kind: AzBannerKind.info,
-                  text: 'Besoin d’aide ? Contactez notre service client au ${formatPhone(phone)}${hours == null ? '.' : ' ($hours).'}',
-                  onTap: () => Launch.phone(context),
-                );
-              },
-            ),
-          ],
+    return AuthLayout(
+      title: 'Code PIN oublié',
+      subtitle: 'Nous vous envoyons un code par SMS pour créer un nouveau code PIN.',
+      showBack: true,
+      step: 1,
+      steps: 3,
+      titleSize: 28,
+      children: [
+        AzPhoneField(controller: _phone, error: _error),
+        AuthPrimaryButton('Recevoir le code', loading: _loading, onPressed: _send),
+        // Numéro et horaires fournis par le serveur : absents = bandeau masqué.
+        ValueListenableBuilder<ContactInfo>(
+          valueListenable: ContactDirectory.info,
+          builder: (context, info, _) {
+            final phone = info.primaryPhone;
+            if (phone == null) return const SizedBox.shrink();
+            final hours = info.availabilityText;
+            return AzBanner(
+              kind: AzBannerKind.warning,
+              icon: Icons.help_outline_rounded,
+              text: 'Besoin d’aide ? Contactez notre service client au ${formatPhone(phone)}${hours == null ? '.' : ' ($hours).'}',
+              onTap: () => Launch.phone(context),
+            );
+          },
         ),
-      ),
+      ],
     );
   }
 }

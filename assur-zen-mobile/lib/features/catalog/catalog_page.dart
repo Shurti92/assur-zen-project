@@ -48,7 +48,9 @@ class _CatalogPageState extends State<CatalogPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Semantics(header: true, child: const Text('Nos solutions d’assurance', style: AzText.headline)),
+                      Semantics(header: true, child: Text('Nos solutions d’assurance', style: AzText.display.copyWith(fontSize: 28, height: 1.1))),
+                      const SizedBox(height: 4),
+                      Text('Choisissez votre protection.', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
                       const SizedBox(height: 14),
                       TextField(
                         controller: _search,
@@ -69,11 +71,11 @@ class _CatalogPageState extends State<CatalogPage> {
                           fillColor: Colors.white,
                           contentPadding: const EdgeInsets.symmetric(vertical: 14),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(18),
                             borderSide: const BorderSide(color: AzColors.line),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(18),
                             borderSide: const BorderSide(color: AzColors.blue700, width: 2),
                           ),
                         ),
@@ -103,29 +105,47 @@ class _CatalogPageState extends State<CatalogPage> {
                       AzCard(
                         color: AzColors.orange50,
                         borderColor: null,
+                        radius: 22,
                         onTap: () => context.push(AppRoutes.finder),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         child: Row(
                           children: [
-                            const AzIconTile(icon: Icons.help_outline_rounded, size: 48, background: AzColors.orange500, color: Colors.white),
-                            const SizedBox(width: 14),
+                            const AzIconTile(icon: Icons.help_outline_rounded, size: 44, background: Colors.white, color: AzColors.orange700),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text('Pas sûr de votre choix ?', style: AzText.titleSmall),
                                   Text('Trouvez la bonne assurance en 2 questions.',
-                                      style: AzText.caption.copyWith(color: AzColors.warningInk, fontSize: 13, fontWeight: FontWeight.w500)),
+                                      style: AzText.caption.copyWith(color: AzColors.warningInk, fontSize: 12.5, fontWeight: FontWeight.w500)),
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded, color: AzColors.orange700),
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: const BoxDecoration(color: AzColors.orange500, shape: BoxShape.circle),
+                              child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 10),
-                      for (final p in list) ...[
-                        ProductTile(product: p),
-                        const SizedBox(height: 10),
+                      // Grille de deux colonnes : les deux cartes d'une ligne ont la même hauteur.
+                      for (var i = 0; i < list.length; i += 2) ...[
+                        if (i > 0) const SizedBox(height: 10),
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: ProductTile(product: list[i])),
+                              const SizedBox(width: 10),
+                              Expanded(child: i + 1 < list.length ? ProductTile(product: list[i + 1]) : const SizedBox.shrink()),
+                            ],
+                          ),
+                        ),
                       ],
                       if (list.isEmpty)
                         Padding(
@@ -145,7 +165,7 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 }
 
-/// Carte produit du catalogue.
+/// Carte produit du catalogue (grille de deux colonnes) : pastille d'icône, nom, description, mode de souscription.
 class ProductTile extends StatelessWidget {
   const ProductTile({super.key, required this.product});
 
@@ -154,28 +174,28 @@ class ProductTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AzCard(
+      radius: 26,
       onTap: () => openProduct(context, product.id),
       semanticLabel: product.title,
       padding: const EdgeInsets.all(14),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AzIconTile(icon: productIcon(product.id, code: product.iconCode), size: 60, background: productTint(product.id), iconSize: 30, radius: 16),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(product.title, style: AzText.body.copyWith(fontWeight: FontWeight.w800)),
-                if (product.description.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(product.description, style: AzText.caption.copyWith(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w500)),
-                ],
-                const SizedBox(height: 6),
-                SubscriptionModeBadge(online: product.onlineSubscription),
-              ],
+          AzIconTile(icon: productIcon(product.id, code: product.iconCode), size: 48, background: productTint(product.id), iconSize: 26, radius: 17),
+          const SizedBox(height: 10),
+          Text(product.title, style: AzText.titleSmall.copyWith(fontSize: 15.5, height: 1.2)),
+          if (product.description.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              product.description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: AzText.caption.copyWith(fontSize: 12.5, height: 17 / 12.5, fontWeight: FontWeight.w500),
             ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AzColors.muted),
+          ],
+          const Spacer(),
+          const SizedBox(height: 8),
+          SubscriptionModeBadge(online: product.onlineSubscription, quoteOnly: product.family == ProductFamily.professionnel),
         ],
       ),
     );
@@ -184,12 +204,16 @@ class ProductTile extends StatelessWidget {
 
 /// « Souscription en ligne » ou « Avec un conseiller » (décision 1.2).
 class SubscriptionModeBadge extends StatelessWidget {
-  const SubscriptionModeBadge({super.key, required this.online});
+  const SubscriptionModeBadge({super.key, required this.online, this.quoteOnly = false});
 
   final bool online;
 
+  /// Produit professionnel : le parcours s'arrête au devis.
+  final bool quoteOnly;
+
   @override
   Widget build(BuildContext context) {
+    if (quoteOnly) return const AzStatusBadge(label: 'Sur devis', foreground: AzColors.info, background: AzColors.infoBg, dot: false);
     return online
         ? const AzStatusBadge(label: 'Souscription en ligne', foreground: AzColors.success, background: AzColors.successBg, dot: false)
         : const AzStatusBadge(label: 'Avec un conseiller', foreground: AzColors.info, background: AzColors.infoBg, dot: false);

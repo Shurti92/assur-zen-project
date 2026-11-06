@@ -4,6 +4,7 @@ import '../../app/app_scope.dart';
 import '../../app/routes.dart';
 import '../../core/ui.dart';
 import '../../data/repositories/repositories.dart';
+import 'auth_layout.dart';
 import 'otp_page.dart';
 
 class RegisterArgs {
@@ -77,34 +78,28 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: const AzTopBar(),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+    return AuthLayout(
+      title: 'Créer un compte',
+      subtitle: widget.args.returnToCaller
+          ? 'Votre devis est conservé. Créez votre compte pour souscrire.'
+          : 'Seules les informations nécessaires à vos contrats.',
+      showBack: true,
+      step: 1,
+      steps: 2,
+      titleSize: 28,
+      children: [
+        AzTextField(
+          label: 'Nom et prénoms',
+          controller: _name,
+          hint: 'Ex. Koné Awa',
+          error: _errors['name'],
+          capitalization: TextCapitalization.words,
+          autofillHints: const [AutofillHints.name],
+        ),
+        AzPhoneField(controller: _phone, error: _errors['phone']),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Créer un compte', style: AzText.display.copyWith(fontSize: 28)),
-            const SizedBox(height: 8),
-            Text(
-              widget.args.returnToCaller
-                  ? 'Votre devis est conservé. Créez votre compte pour souscrire.'
-                  : 'Seules les informations nécessaires à vos contrats.',
-              style: AzText.body.copyWith(color: AzColors.muted),
-            ),
-            const SizedBox(height: 24),
-            AzTextField(
-              label: 'Nom et prénoms',
-              controller: _name,
-              hint: 'Ex. Koné Awa',
-              error: _errors['name'],
-              capitalization: TextCapitalization.words,
-              autofillHints: const [AutofillHints.name],
-            ),
-            const SizedBox(height: 16),
-            AzPhoneField(controller: _phone, error: _errors['phone']),
-            const SizedBox(height: 16),
             AzCodeField(
               controller: _pin,
               label: 'Créez votre code PIN (6 chiffres)',
@@ -112,29 +107,24 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: 6),
             Text('Évitez les codes trop simples comme 000000 ou 123456.', style: AzText.caption.copyWith(fontWeight: FontWeight.w500)),
-            const SizedBox(height: 16),
-            AzCheckRow(
-              value: _cgu,
-              onChanged: (v) => setState(() {
-                _cgu = v;
-                _errors['cgu'] = null;
-              }),
-              child: const Text('J’accepte les Conditions générales d’utilisation et la Politique de confidentialité.'),
-            ),
-            AzCheckRow(
-              value: _marketing,
-              onChanged: (v) => setState(() => _marketing = v),
-              child: const Text('J’accepte de recevoir les offres AssurZen (2 messages par mois au maximum). Facultatif.'),
-            ),
-            if (_errors['cgu'] != null) ...[
-              const SizedBox(height: 8),
-              AzBanner(kind: AzBannerKind.error, text: _errors['cgu']!),
-            ],
-            const SizedBox(height: 20),
-            AzButton('Continuer', loading: _loading, onPressed: _submit),
           ],
         ),
-      ),
+        AzCheckRow(
+          value: _cgu,
+          onChanged: (v) => setState(() {
+            _cgu = v;
+            _errors['cgu'] = null;
+          }),
+          child: const Text('J’accepte les Conditions générales d’utilisation et la Politique de confidentialité.'),
+        ),
+        AzCheckRow(
+          value: _marketing,
+          onChanged: (v) => setState(() => _marketing = v),
+          child: const Text('J’accepte de recevoir les offres AssurZen (2 messages par mois au maximum). Facultatif.'),
+        ),
+        if (_errors['cgu'] != null) AzBanner(kind: AzBannerKind.error, text: _errors['cgu']!),
+        AuthPrimaryButton('Continuer', loading: _loading, onPressed: _submit),
+      ],
     );
   }
 }

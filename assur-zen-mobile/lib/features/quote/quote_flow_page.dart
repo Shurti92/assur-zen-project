@@ -248,7 +248,9 @@ class _QuoteFlowPageState extends State<QuoteFlowPage> {
 
   Widget _body(Product product, QuoteReferentials ref) {
     final step = _d.step;
-    final showNext = !(step == 5 && (_computing || _quoteError != null));
+    // Produit professionnel : le parcours s'arrête au devis, sans souscription ni paiement.
+    final professional = product.family == ProductFamily.professionnel;
+    final showNext = !(step == 5 && (_computing || _quoteError != null)) && !(professional && step >= 5);
     return Column(
       children: [
         AzTopBar(
@@ -299,7 +301,10 @@ class _QuoteFlowPageState extends State<QuoteFlowPage> {
               loading: _uploading,
               onPressed: () => _next(product),
             ),
-          if (step <= 5)
+          // Produit professionnel : une fois le devis calculé, la suite se fait avec un conseiller.
+          if (professional && step == 5 && showNext == false && !_computing && _quoteError == null)
+            AzButton('Être rappelé par un conseiller', onPressed: () => showAdvisorSheet(context, product: product))
+          else if (step <= 5)
             AzButton.ghost(
               'Je préfère être accompagné par un conseiller',
               height: 40,

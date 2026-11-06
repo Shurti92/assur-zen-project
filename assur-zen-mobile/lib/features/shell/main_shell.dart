@@ -128,7 +128,7 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-/// Barre de navigation à 5 onglets, « Souscrire » mis en avant au centre.
+/// Barre de navigation flottante à 5 onglets : pilule blanche, « Souscrire » en pastille orange au centre.
 class AzBottomNav extends StatelessWidget {
   const AzBottomNav({super.key, required this.current, required this.onSelect, this.unread = 0});
 
@@ -144,33 +144,80 @@ class AzBottomNav extends StatelessWidget {
     (Icons.person_outline_rounded, Icons.person_rounded, 'Profil'),
   ];
 
+  static const double _pillHeight = 66;
+  static const double _plusSize = 54;
+  static const double _plusLift = 22; // la pastille orange dépasse du haut de la pilule
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AzColors.line)),
-      ),
+    return ColoredBox(
+      color: AzColors.background,
       child: SafeArea(
         top: false,
         // Libellés agrandis jusqu’à 115 % : la barre reste lisible, sans débordement.
         child: MediaQuery.withClampedTextScaling(
           maxScaleFactor: 1.15,
           child: SizedBox(
-            height: 76,
-            child: Row(
-              children: [
-                for (var i = 0; i < _items.length; i++)
-                  Expanded(
-                    child: _NavItem(
-                      icon: i == current ? _items[i].$2 : _items[i].$1,
-                      label: _items[i].$3,
-                      selected: i == current,
-                      center: i == ShellTab.catalog,
-                      onTap: () => onSelect(i),
+            height: _pillHeight + _plusLift + 12,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: _pillHeight,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: AzColors.line),
+                      ),
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < _items.length; i++)
+                            Expanded(
+                              flex: i == ShellTab.catalog ? 0 : 10,
+                              child: i == ShellTab.catalog
+                                  ? const SizedBox(width: 70)
+                                  : _NavItem(
+                                      icon: i == current ? _items[i].$2 : _items[i].$1,
+                                      label: _items[i].$3,
+                                      selected: i == current,
+                                      onTap: () => onSelect(i),
+                                    ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-              ],
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: _plusSize,
+                    child: Center(
+                      child: Semantics(
+                        button: true,
+                        selected: current == ShellTab.catalog,
+                        label: 'Onglet ${_items[ShellTab.catalog].$3}',
+                        excludeSemantics: true,
+                        child: Material(
+                          color: AzColors.orange500,
+                          shape: const CircleBorder(side: BorderSide(color: AzColors.background, width: 4)),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => onSelect(ShellTab.catalog),
+                            child: const SizedBox(width: _plusSize, height: _plusSize, child: Icon(Icons.add_rounded, color: Colors.white, size: 28)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -180,12 +227,11 @@ class AzBottomNav extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-  const _NavItem({required this.icon, required this.label, required this.selected, required this.center, required this.onTap});
+  const _NavItem({required this.icon, required this.label, required this.selected, required this.onTap});
 
   final IconData icon;
   final String label;
   final bool selected;
-  final bool center;
   final VoidCallback onTap;
 
   @override
@@ -201,34 +247,19 @@ class _NavItem extends StatelessWidget {
         containedInkWell: true,
         highlightShape: BoxShape.rectangle,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (center)
-              Transform.translate(
-                offset: const Offset(0, -12),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AzColors.orange500,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: AzShadow.fab,
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 26),
-                ),
-              )
-            else
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 56,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: selected ? AzColors.blue50 : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AzRadius.pill),
-                ),
-                child: Icon(icon, color: color, size: 23),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 44,
+              height: 28,
+              decoration: BoxDecoration(
+                color: selected ? AzColors.blue700 : Colors.transparent,
+                borderRadius: BorderRadius.circular(AzRadius.pill),
               ),
-            SizedBox(height: center ? 0 : 4),
+              child: Icon(icon, color: selected ? Colors.white : color, size: 22),
+            ),
+            const SizedBox(height: 2),
             Text(
               label,
               maxLines: 1,
@@ -236,7 +267,6 @@ class _NavItem extends StatelessWidget {
               softWrap: false,
               style: AzText.caption.copyWith(fontSize: 11, color: color, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 6),
           ],
         ),
       ),

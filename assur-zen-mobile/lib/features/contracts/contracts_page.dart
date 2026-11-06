@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../../app/app_scope.dart';
 import '../../app/routes.dart';
 import '../../core/ui.dart';
+import '../../core/utils/file_viewer.dart';
 import '../../data/models/models.dart';
+import '../home/home_page.dart' show RenewalStrip;
 import '../shell/main_shell.dart';
 
-/// « Mes assurances » : recherche, filtres de statut, liste des contrats.
+/// « Mes assurances » : résumé, recherche, filtres de statut avec compteurs, contrats.
 class ContractsPage extends StatefulWidget {
   const ContractsPage({super.key});
 
@@ -31,6 +33,8 @@ class _ContractsPageState extends State<ContractsPage> {
     super.dispose();
   }
 
+  static bool _expiring(Contract c) => c.status == ContractStatus.actif && c.renewalOpen;
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -39,8 +43,8 @@ class _ContractsPageState extends State<ContractsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AzSpace.screen, 20, AzSpace.screen, 12),
-            child: Semantics(header: true, child: const Text('Mes assurances', style: AzText.headline)),
+            padding: const EdgeInsets.fromLTRB(AzSpace.screen, 20, AzSpace.screen, 4),
+            child: Semantics(header: true, child: Text('Mes assurances', style: AzText.display.copyWith(fontSize: 28, height: 1.1))),
           ),
           Expanded(
             child: AsyncView<List<Contract>>(
@@ -58,12 +62,22 @@ class _ContractsPageState extends State<ContractsPage> {
                 final list = contracts
                     .where((c) => _filter == null || c.status == _filter)
                     .where((c) => q.isEmpty || '${c.number} ${c.insuredObject} ${c.name}'.toLowerCase().contains(q))
-                    .toList();
+                    .toList()
+                  // Les contrats à renouveler passent en tête (tri stable pour le reste).
+                  ..sort((a, b) => (_expiring(a) ? 0 : 1).compareTo(_expiring(b) ? 0 : 1));
+                final toRenew = contracts.where(_expiring).length;
+                final strip = list.where(_expiring).firstOrNull;
                 return RefreshIndicator(
                   onRefresh: reload,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(AzSpace.screen, 0, AzSpace.screen, 24),
                     children: [
+                      Text(
+                        '${contracts.length} contrat${contracts.length > 1 ? 's' : ''}'
+                        '${toRenew > 0 ? ' · $toRenew à renouveler' : ''}',
+                        style: AzText.bodyMedium.copyWith(color: AzColors.muted),
+                      ),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _search,
                         onChanged: (_) => setState(() {}),
@@ -75,11 +89,11 @@ class _ContractsPageState extends State<ContractsPage> {
                           fillColor: Colors.white,
                           contentPadding: const EdgeInsets.symmetric(vertical: 14),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(18),
                             borderSide: const BorderSide(color: AzColors.line),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(18),
                             borderSide: const BorderSide(color: AzColors.blue700, width: 2),
                           ),
                         ),
@@ -91,15 +105,25 @@ class _ContractsPageState extends State<ContractsPage> {
                           scrollDirection: Axis.horizontal,
                           itemCount: _filters.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (context, i) => AzChoiceChip(
-                            label: _filters[i].$2,
-                            selected: _filter == _filters[i].$1,
-                            onTap: () => setState(() => _filter = _filters[i].$1),
-                          ),
+                          itemBuilder: (context, i) {
+                            final status = _filters[i].$1;
+                            // Compteur affiché seulement s'il y a des contrats dans ce statut (ou pour « Tous »).
+                            final count = status == null ? contracts.length : contracts.where((c) => c.status == status).length;
+                            return _FilterChip(
+                              label: _filters[i].$2,
+                              count: count > 0 ? count : null,
+                              selected: _filter == status,
+                              onTap: () => setState(() => _filter = status),
+                            );
+                          },
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      for (final c in list) ...[ContractCard(contract: c), const SizedBox(height: 10)],
+                      if (strip != null) ...[
+                        const SizedBox(height: 12),
+                        RenewalStrip(contract: strip, onTap: () => context.push(AppRoutes.contract, strip.id)),
+                      ],
+                      const SizedBox(height: 2),
+                      for (final c in list) ...[const SizedBox(height: 10), ContractCard(contract: c)],
                       if (list.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 40),
@@ -118,77 +142,167 @@ class _ContractsPageState extends State<ContractsPage> {
   }
 }
 
-/// Carte d’un contrat dans la liste.
+/// Filtre de statut : libellé et compteur dans une pastille.
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({required this.label, required this.selected, required this.onTap, this.count});
+
+  final String label;
+  final int? count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = selected ? Colors.white : AzColors.ink2;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? AzColors.blue700 : Colors.white,
+        shape: StadiumBorder(side: BorderSide(color: selected ? AzColors.blue700 : AzColors.line)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 40),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Center(
+                widthFactor: 1,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(label, style: AzText.label.copyWith(color: fg, fontWeight: FontWeight.w700)),
+                    if (count != null) ...[
+                      const SizedBox(width: 6),
+                      Text('$count', style: AzText.caption.copyWith(color: selected ? AzColors.blue100 : AzColors.muted, fontWeight: FontWeight.w700)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Carte d’un contrat dans la liste : identité, numéro, échéance, actions rapides fournies par le serveur.
 class ContractCard extends StatelessWidget {
   const ContractCard({super.key, required this.contract});
 
   final Contract contract;
 
+  Future<void> _attestation(BuildContext context) async {
+    if (contract.hasDigitalAttestation) {
+      await context.push(AppRoutes.attestation, contract);
+      return;
+    }
+    try {
+      final file = await context.repos.contracts.downloadAttestation(contract.id);
+      if (context.mounted) await FileViewer.show(context, file, fallbackName: 'attestation');
+    } catch (e) {
+      if (context.mounted) showAzSnack(context, errorMessage(e));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final c = contract;
     // Échéance proche : décidée par le serveur (`renewal`), pas recalculée ici.
-    final days = contract.renewal?.daysLeft;
-    final expiring = contract.status == ContractStatus.actif && contract.renewalOpen;
+    final expiring = c.status == ContractStatus.actif && c.renewalOpen;
+    final canAttest = c.status == ContractStatus.actif && c.attestation?.available == true;
+    final canClaim = c.actions.canDeclareClaim;
+    final actions = <Widget>[
+      if (expiring)
+        AzPill(
+          'Renouveler',
+          expand: true,
+          icon: Icons.arrow_forward_rounded,
+          background: AzColors.orange500,
+          foreground: Colors.white,
+          onTap: () => context.push(AppRoutes.contract, c.id),
+        ),
+      if (canAttest)
+        AzPill('Attestation', expand: true, leadingIcon: Icons.download_rounded, borderColor: AzColors.line, onTap: () => _attestation(context)),
+      if (!expiring && canClaim)
+        AzPill('Sinistre', expand: true, leadingIcon: Icons.report_outlined, borderColor: AzColors.line, onTap: () => context.push(AppRoutes.claimNew, c.id)),
+      if (((expiring ? 1 : 0) + (canAttest ? 1 : 0) + (!expiring && canClaim ? 1 : 0)) < 2)
+        AzPill('Détails', expand: true, icon: Icons.chevron_right_rounded, borderColor: AzColors.line, onTap: () => context.push(AppRoutes.contract, c.id)),
+    ];
     return AzCard(
-      onTap: () => context.push(AppRoutes.contract, contract.id),
-      semanticLabel: '${contract.name}, ${contract.status.label}',
+      radius: 26,
+      borderColor: expiring ? const Color(0xFFF3C7A6) : AzColors.line,
+      onTap: () => context.push(AppRoutes.contract, c.id),
+      semanticLabel: '${c.name}, ${c.status.label}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              AzIconTile(icon: productIcon(contract.productId)),
+              AzIconTile(
+                icon: productIcon(c.productId),
+                background: expiring ? AzColors.orange50 : AzColors.blue50,
+                color: expiring ? AzColors.orange700 : AzColors.blue700,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(contract.name, style: AzText.titleSmall),
-                    Text(contract.insuredObject, style: AzText.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(c.name, style: AzText.titleSmall),
+                    Text(c.insuredObject, style: AzText.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
-              AzStatusBadge.contract(contract.status),
+              const SizedBox(width: 8),
+              if (expiring) const AzStatusBadge.pending('Bientôt échu') else AzStatusBadge.contract(c.status),
             ],
           ),
-          const Divider(height: 24, color: AzColors.lineSoft),
+          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _Field('N° de contrat', contract.number)),
-              Expanded(child: _Field('Échéance', formatDate(contract.endDate))),
+              Expanded(child: _Fact('N° de contrat', c.number)),
+              const SizedBox(width: 8),
+              Expanded(child: _Fact('Échéance', formatDate(c.endDate))),
             ],
           ),
-          if (expiring) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(color: AzColors.warningBg, borderRadius: BorderRadius.circular(10)),
-              child: Text(days == null ? 'Échéance proche.' : (days == 0 ? 'Échéance aujourd’hui.' : 'Échéance dans $days jours.'),
-                  style: AzText.label.copyWith(color: AzColors.warning, fontWeight: FontWeight.w700)),
-            ),
-          ],
+          const SizedBox(height: 12),
+          // Deux boutons, comme la maquette : Renouveler (si échéance proche), Attestation, Sinistre, sinon Détails.
+          Row(
+            children: [
+              for (var i = 0; i < actions.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: actions[i]),
+              ],
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _Field extends StatelessWidget {
-  const _Field(this.label, this.value);
+class _Fact extends StatelessWidget {
+  const _Fact(this.label, this.value);
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AzText.caption.copyWith(fontWeight: FontWeight.w500)),
-        const SizedBox(height: 2),
-        Text(value, style: AzText.label.copyWith(color: AzColors.ink, fontWeight: FontWeight.w800)),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(color: AzColors.background, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AzText.caption.copyWith(fontWeight: FontWeight.w500, fontSize: 11.5)),
+          const SizedBox(height: 2),
+          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: AzText.label.copyWith(color: AzColors.ink, fontWeight: FontWeight.w800)),
+        ],
+      ),
     );
   }
 }

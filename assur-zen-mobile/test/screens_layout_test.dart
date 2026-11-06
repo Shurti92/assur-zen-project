@@ -120,6 +120,9 @@ void main() {
       'profil': (_) => const Scaffold(body: ProfilePage()),
       'devis générique': (id) => QuoteFlowPage(args: QuoteArgs(productId: id)),
       'accueil et onglets': (_) => const MainShell(initialTab: ShellTab.home),
+      'onglet assurances': (_) => const MainShell(initialTab: ShellTab.contracts),
+      'onglet sinistres': (_) => const MainShell(initialTab: ShellTab.claims),
+      'onglet profil': (_) => const MainShell(initialTab: ShellTab.profile),
     };
 
     for (final screen in _screens.entries) {
@@ -197,6 +200,8 @@ void main() {
       // La page d'accueil est une liste : on la fait défiler jusqu'à la tuile.
       await tester.scrollUntilVisible(find.text('Mes devis'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Mes devis'), findsOneWidget);
+      await tester.ensureVisible(find.text('Mes devis'));
+      await tester.pump();
       await tester.tap(find.text('Mes devis'));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 800));

@@ -45,27 +45,40 @@ class ContractDetailPage extends StatelessWidget {
                 ),
               ],
               if (c.hasDigitalAttestation) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 _AttestationCard(contract: c),
               ] else if (c.attestation?.available == true) ...[
                 // Attestation jointe par AssurZen, sans code de vérification : on propose le fichier.
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 _AttestationFileCard(contract: c),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               const AzSectionHeader('Documents'),
               const SizedBox(height: 8),
               if (c.documents.isEmpty)
                 AzCard(
+                  radius: 26,
                   child: Text('Aucun document disponible pour le moment.', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
                 )
               else
-                for (final d in c.documents) ...[_DocumentRow(contract: c, document: d), const SizedBox(height: 10)],
+                AzCard(
+                  radius: 26,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < c.documents.length; i++) ...[
+                        if (i > 0) const Divider(height: 1, color: AzColors.lineSoft),
+                        _DocumentRow(contract: c, document: c.documents[i]),
+                      ],
+                    ],
+                  ),
+                ),
               const SizedBox(height: 14),
               const AzSectionHeader('Garanties', trailing: Env.useMock ? AzStatusBadge.pending('Exemple') : null),
               const SizedBox(height: 8),
               if (c.guarantees.isEmpty)
                 AzCard(
+                  radius: 26,
                   child: Text(
                     'Le détail de vos garanties n’est pas encore disponible dans l’application. Votre conseiller vous le communique sur demande.',
                     style: AzText.bodyMedium.copyWith(color: AzColors.muted),
@@ -73,19 +86,14 @@ class ContractDetailPage extends StatelessWidget {
                 )
               else
                 AzCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  radius: 26,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                   child: Column(
                     children: [
-                      for (var i = 0; i < c.guarantees.length; i++)
-                        AzInfoRow(
-                          c.guarantees[i].name,
-                          c.guarantees[i].kindLabel,
-                          last: i == c.guarantees.length - 1,
-                          valueColor: switch (c.guarantees[i].kind) {
-                            GuaranteeKind.obligatoire || GuaranteeKind.incluse => AzColors.success,
-                            _ => AzColors.warning,
-                          },
-                        ),
+                      for (var i = 0; i < c.guarantees.length; i++) ...[
+                        if (i > 0) const Divider(height: 1, color: AzColors.lineSoft),
+                        _GuaranteeRow(guarantee: c.guarantees[i]),
+                      ],
                     ],
                   ),
                 ),
@@ -96,7 +104,8 @@ class ContractDetailPage extends StatelessWidget {
                     flex: 3, // libellé plus long que « Contacter » : évite « Déclarer un sin… »
                     child: AzButton.secondary(
                       'Déclarer un sinistre',
-                      height: 48,
+                      height: 50,
+                      radius: 16,
                       onPressed: c.actions.canDeclareClaim ? () => context.push(AppRoutes.claimNew, c.id) : null,
                     ),
                   ),
@@ -105,7 +114,8 @@ class ContractDetailPage extends StatelessWidget {
                     flex: 2,
                     child: AzButton.secondary(
                       'Contacter',
-                      height: 48,
+                      height: 50,
+                      radius: 16,
                       onPressed: () => Launch.whatsapp(context, message: 'Bonjour AssurZen, je vous contacte au sujet de mon contrat ${c.number}.'),
                     ),
                   ),
@@ -156,31 +166,55 @@ class ContractDetailPage extends StatelessWidget {
     final r = c.renewal;
     if (r == null || !r.eligible) return const [];
     final days = r.daysLeft;
+    final chip = switch (days) {
+      null => 'Bientôt',
+      0 => 'Aujourd’hui',
+      1 => '1 jour',
+      final d => '$d jours',
+    };
     final when = days == null ? 'Échéance proche. ' : (days == 0 ? 'Échéance aujourd’hui. ' : 'Échéance dans $days jours. ');
     return [
-      const SizedBox(height: 14),
-      Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: AzColors.warningBg, borderRadius: BorderRadius.circular(14)),
+      const SizedBox(height: 10),
+      AzCard(
+        color: AzColors.orange50,
+        borderColor: null,
+        radius: 26,
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(
+              children: [
+                Expanded(child: Text('À FAIRE', style: AzText.overline.copyWith(color: AzColors.orange700))),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(color: AzColors.orange500, borderRadius: BorderRadius.circular(AzRadius.pill)),
+                  child: Text(chip, style: AzText.caption.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text.rich(
               TextSpan(children: [
                 TextSpan(text: when, style: const TextStyle(fontWeight: FontWeight.w800)),
                 const TextSpan(text: 'Renouvelez pour rester couvert sans interruption.'),
               ]),
-              style: AzText.bodyMedium.copyWith(color: AzColors.warningInk),
+              style: AzText.title.copyWith(fontSize: 17, height: 1.25),
             ),
             if (r.amount != null) ...[
-              const SizedBox(height: 4),
-              Text('Prime de renouvellement : ${formatFcfa(r.amount!)}', style: AzText.label.copyWith(color: AzColors.warningInk)),
+              const SizedBox(height: 6),
+              Text(
+                'Renouvellement · ${r.durationMonths ?? 12} mois · Prime de renouvellement : ${formatFcfa(r.amount!)}',
+                style: AzText.label.copyWith(color: AzColors.warningInk, fontWeight: FontWeight.w500),
+              ),
             ],
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             AzButton(
               'Renouveler',
-              icon: Icons.autorenew_rounded,
-              height: 46,
+              variant: AzButtonVariant.accent,
+              icon: Icons.arrow_forward_rounded,
+              height: 50,
+              radius: 16,
               onPressed: () {
                 // Le serveur fournit la référence payable quand le renouvellement l'est.
                 // En démonstration seulement, le numéro de contrat en tient lieu.
@@ -208,6 +242,7 @@ class ContractDetailPage extends StatelessWidget {
   }
 }
 
+/// Carte bleue d'identité du contrat : produit, statut, quatre repères.
 class _Summary extends StatelessWidget {
   const _Summary({required this.contract});
 
@@ -216,34 +251,43 @@ class _Summary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = contract;
-    return AzHeroCard(
-      showDot: false,
+    final ok = c.status == ContractStatus.actif;
+    return AzCard(
+      color: AzColors.blue700,
+      borderColor: null,
+      radius: 28,
+      padding: const EdgeInsets.all(18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              AzIconTile(icon: productIcon(c.productId), size: 48, background: const Color(0x24FFFFFF), color: Colors.white),
+              AzIconTile(icon: productIcon(c.productId), size: 42, background: const Color(0x29FFFFFF), color: Colors.white, radius: 15),
               const Spacer(),
-              AzStatusBadge.contract(c.status),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AzRadius.pill)),
+                child: Text(c.status.label, style: AzText.caption.copyWith(color: ok ? AzColors.success : AzColors.ink2, fontWeight: FontWeight.w700)),
+              ),
             ],
           ),
           const SizedBox(height: 14),
-          Text(c.name, style: AzText.title.copyWith(color: Colors.white, fontSize: 22)),
+          Text(c.name, style: AzText.title.copyWith(color: Colors.white, fontSize: 22, height: 1.15)),
           Text(c.insuredObject, style: AzText.bodyMedium.copyWith(color: AzColors.blue100)),
-          const Divider(height: 28, color: Color(0x2EFFFFFF)),
+          const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _Light('N° de contrat', c.number)),
-              const SizedBox(width: 12),
-              Expanded(child: _Light('Prime', c.premium == null ? 'À confirmer' : formatFcfa(c.premium!))),
+              Expanded(child: _Fact('N° de contrat', c.number)),
+              const SizedBox(width: 8),
+              Expanded(child: _Fact('Prime', c.premium == null ? 'À confirmer' : formatFcfa(c.premium!))),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _Light('Prise d’effet', formatDate(c.startDate))),
-              Expanded(child: _Light('Échéance', formatDate(c.endDate))),
+              Expanded(child: _Fact('Prise d’effet', formatDate(c.startDate))),
+              const SizedBox(width: 8),
+              Expanded(child: _Fact('Échéance', formatDate(c.endDate))),
             ],
           ),
         ],
@@ -252,45 +296,101 @@ class _Summary extends StatelessWidget {
   }
 }
 
-class _Light extends StatelessWidget {
-  const _Light(this.label, this.value);
+class _Fact extends StatelessWidget {
+  const _Fact(this.label, this.value);
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AzText.caption.copyWith(color: AzColors.blue100, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 2),
-        Text(value, style: AzText.label.copyWith(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(color: const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AzText.caption.copyWith(color: AzColors.blue100, fontWeight: FontWeight.w500, fontSize: 11.5)),
+          const SizedBox(height: 2),
+          Text(value, style: AzText.label.copyWith(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
+        ],
+      ),
     );
   }
 }
 
-class _AttestationCard extends StatelessWidget {
+/// Une garantie : libellé et pastille (Obligatoire, Incluse, Selon formule, À confirmer).
+class _GuaranteeRow extends StatelessWidget {
+  const _GuaranteeRow({required this.guarantee});
+
+  final Guarantee guarantee;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color fg, Color bg) = switch (guarantee.kind) {
+      GuaranteeKind.obligatoire => (AzColors.success, AzColors.successBg),
+      GuaranteeKind.incluse => (AzColors.blue700, AzColors.blue50),
+      _ => (AzColors.warning, AzColors.warningBg),
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(child: Text(guarantee.name, style: AzText.bodyMedium.copyWith(color: AzColors.ink, fontWeight: FontWeight.w600))),
+          const SizedBox(width: 10),
+          AzStatusBadge(label: guarantee.kindLabel, foreground: fg, background: bg, dot: false),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttestationCard extends StatefulWidget {
   const _AttestationCard({required this.contract});
 
   final Contract contract;
 
   @override
+  State<_AttestationCard> createState() => _AttestationCardState();
+}
+
+class _AttestationCardState extends State<_AttestationCard> {
+  bool _busy = false;
+
+  Future<void> _download() async {
+    setState(() => _busy = true);
+    try {
+      final file = await context.repos.contracts.downloadAttestation(widget.contract.id);
+      if (mounted) await FileViewer.show(context, file, fallbackName: 'attestation');
+    } catch (e) {
+      if (mounted) showAzSnack(context, errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final contract = widget.contract;
     return AzCard(
+      radius: 26,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              QrImageView(
-                data: contract.verificationCode!,
-                size: 88,
-                padding: EdgeInsets.zero,
-                semanticsLabel: 'QR code de vérification de l’attestation',
+              Container(
+                width: 84,
+                height: 84,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AzColors.line)),
+                child: QrImageView(
+                  data: contract.verificationCode!,
+                  padding: EdgeInsets.zero,
+                  semanticsLabel: 'QR code de vérification de l’attestation',
+                ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,21 +398,28 @@ class _AttestationCard extends StatelessWidget {
                     const Text('Attestation numérique', style: AzText.titleSmall),
                     const SizedBox(height: 4),
                     Text('QR code vérifiable lors des contrôles routiers. Valide jusqu’au ${formatDate(contract.endDate)}.',
-                        style: AzText.caption.copyWith(fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 6),
-                    const AzStatusBadge(
-                      label: 'Disponible hors connexion',
-                      foreground: AzColors.success,
-                      background: AzColors.successBg,
-                      dot: false,
-                    ),
+                        style: AzText.caption.copyWith(fontSize: 12.5, height: 17 / 12.5, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    Text('Disponible hors connexion', style: AzText.caption.copyWith(color: AzColors.success, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          AzButton('Présenter l’attestation', height: 46, icon: Icons.qr_code_2_rounded, onPressed: () => context.push(AppRoutes.attestation, contract)),
+          AzButton('Présenter l’attestation', height: 50, radius: 16, icon: Icons.qr_code_2_rounded, onPressed: () => context.push(AppRoutes.attestation, contract)),
+          if (contract.attestation?.available == true) ...[
+            const SizedBox(height: 8),
+            AzButton(
+              'Télécharger l’attestation',
+              variant: AzButtonVariant.tonal,
+              height: 50,
+              radius: 16,
+              icon: Icons.download_rounded,
+              loading: _busy,
+              onPressed: _download,
+            ),
+          ],
         ],
       ),
     );
@@ -349,6 +456,7 @@ class _AttestationFileCardState extends State<_AttestationFileCard> {
     final a = widget.contract.attestation;
     final until = a?.validUntil;
     return AzCard(
+      radius: 26,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -359,7 +467,7 @@ class _AttestationFileCardState extends State<_AttestationFileCard> {
             style: AzText.bodyMedium.copyWith(color: AzColors.muted),
           ),
           const SizedBox(height: 12),
-          AzButton('Télécharger l’attestation', height: 46, icon: Icons.download_rounded, loading: _busy, onPressed: _download),
+          AzButton('Télécharger l’attestation', height: 50, radius: 16, icon: Icons.download_rounded, loading: _busy, onPressed: _download),
         ],
       ),
     );
@@ -403,11 +511,11 @@ class _DocumentRowState extends State<_DocumentRow> {
   @override
   Widget build(BuildContext context) {
     final d = document;
-    return AzCard(
-      padding: const EdgeInsets.all(14),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          const AzIconTile(icon: Icons.description_outlined, background: AzColors.background, color: AzColors.ink2),
+          const AzIconTile(icon: Icons.description_outlined),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -451,9 +559,9 @@ class _SmallAction extends StatelessWidget {
       message: tooltip,
       child: Material(
         color: AzColors.blue50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           onTap: onTap,
           child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 20, color: AzColors.blue700)),
         ),

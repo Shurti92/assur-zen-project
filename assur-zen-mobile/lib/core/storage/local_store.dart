@@ -29,6 +29,7 @@ class LocalStore {
   static const _kPattern = 'pattern_enabled';
   static const _kLockChoice = 'lock_choice_done';
   static const _kDraft = 'quote_draft';
+  static const _kPopups = 'promo_popups_seen';
   static const _kAttestation = 'attestation_cache';
   static const _kPrefs = 'notification_prefs';
   static const _kDeviceId = 'push_device_id';
@@ -111,6 +112,29 @@ class LocalStore {
   }
 
   Future<void> setNotificationPrefs(Map<String, bool> value) => _prefs.setString(_kPrefs, jsonEncode(value));
+
+  // Pop-up publicitaires : dernière apparition de chaque campagne (`version|jour`) ---------
+  Map<String, String> readPopupsSeen() {
+    final raw = _prefs.getString(_kPopups);
+    if (raw == null) return {};
+    try {
+      return {for (final e in (jsonDecode(raw) as Map).entries) e.key.toString(): e.value.toString()};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> markPopupSeen(String id, String version, String day) async {
+    final seen = readPopupsSeen()..[id] = '$version|$day';
+    // On ne garde que les 30 dernières campagnes vues.
+    final keys = seen.keys.toList();
+    if (keys.length > 30) {
+      for (final k in keys.take(keys.length - 30)) {
+        seen.remove(k);
+      }
+    }
+    await _prefs.setString(_kPopups, jsonEncode(seen));
+  }
 
   // Brouillon de devis (décision 2.5) ------------------------------------------
   QuoteDraft? readDraft() {
