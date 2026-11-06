@@ -177,6 +177,11 @@ const baseNavItems: INavData[] = [
         url: '/mobile/engagement',
         icon: 'nav-icon-bullet',
       },
+      {
+        name: 'nav.mobile.messagerie',
+        url: '/mobile/messagerie',
+        icon: 'nav-icon-bullet',
+      },
     ],
   },
   {

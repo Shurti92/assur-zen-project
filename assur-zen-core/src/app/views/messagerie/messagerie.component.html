@@ -1,0 +1,86 @@
+<div class="ms-page">
+  <div class="ms-banner">
+    <h1>Messagerie</h1>
+    <p>Serveur d'envoi des e-mails (devis, PDF, notifications). Aucun e-mail n'est envoyé par le test.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="ms-card ms-center"><c-spinner size="sm" /> Lecture de la configuration…</div>
+  } @else if (loadError()) {
+    <div class="ms-card">
+      <div class="ms-alert" role="alert">⚠ {{ loadError() }}</div>
+      <button (click)="load()" class="ms-btn ms-btn--sec" type="button">Réessayer</button>
+    </div>
+  } @else {
+    @if (diag(); as d) {
+      <section class="ms-card">
+        <h2>État de la connexion</h2>
+        <p class="ms-sub">Le test ouvre une connexion avec le serveur d'e-mail et s'arrête avant tout envoi.</p>
+        <div class="ms-status">
+          @if (last(); as l) {
+            @if (l.result.ok) {
+              <span class="ms-badge ms-badge--ok"><i></i>Connecté</span>
+            } @else {
+              <span class="ms-badge ms-badge--ko"><i></i>Connexion impossible</span>
+            }
+            <span class="ms-last">Dernier test : aujourd'hui à {{ l.at.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }} · {{ duration(l.ms) }}</span>
+          } @else {
+            <span class="ms-badge ms-badge--no"><i></i>Non testé</span>
+            <span class="ms-last">Aucun test effectué depuis l'ouverture de l'écran</span>
+          }
+          <span class="ms-spacer"></span>
+          <button (click)="runTest()" [disabled]="testing()" class="ms-btn ms-btn--pri" type="button">
+            @if (testing()) {
+              <c-spinner size="sm" />
+            }
+            Tester la connexion
+          </button>
+        </div>
+
+        @if (last(); as l) {
+          @if (l.result.ok) {
+            <div class="ms-result ms-result--ok"><b>✓ Le serveur a répondu et l'authentification est acceptée.</b><br />Prêt à envoyer des e-mails.</div>
+          } @else {
+            <div class="ms-result ms-result--ko">
+              <b>✕ {{ l.result.error || 'Échec de la connexion.' }}</b>
+              @if (hints().length > 0) {
+                <ul>
+                  @for (h of hints(); track h) {
+                    <li>{{ h }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+        } @else if (missingPassword()) {
+          <div class="ms-alert">⚠ Le mot de passe n'est pas renseigné : l'authentification échouera. Saisissez-le dans les réglages ci-dessous.</div>
+        }
+      </section>
+
+      <section class="ms-card">
+        <h2>Configuration utilisée</h2>
+        <p class="ms-sub">Valeurs réellement appliquées (origine : <b>{{ sourceLabel() }}</b>). Le mot de passe n'est jamais affiché.</p>
+        <div class="ms-grid">
+          <div class="ms-row"><span>Serveur</span><b>{{ d.host || '—' }}</b></div>
+          <div class="ms-row"><span>Port</span><b>{{ d.port ?? '—' }}</b></div>
+          <div class="ms-row"><span>Connexion sécurisée</span><b>{{ d.ssl ? 'SSL direct' : 'Sans SSL direct' }}</b></div>
+          <div class="ms-row"><span>STARTTLS</span><b>{{ d.starttls ? 'Oui' : 'Non' }}</b></div>
+          <div class="ms-row"><span>Authentification</span><b>{{ d.auth ? 'Oui' : 'Non' }}</b></div>
+          <div class="ms-row"><span>Utilisateur</span><b>{{ d.username || '—' }}</b></div>
+          <div class="ms-row">
+            <span>Mot de passe</span>
+            @if (d.passwordSet) {
+              <b>•••••••• défini</b>
+            } @else {
+              <b class="ms-warn">Non défini · à saisir</b>
+            }
+          </div>
+        </div>
+        <div class="ms-foot">
+          <span>Une valeur vide dans le back-office utilise la variable d'environnement du serveur. Effet sans redémarrage.</span>
+          <a class="ms-btn ms-btn--sec" routerLink="/administration/configuration/sans-redeploiement/configurations">Modifier les réglages SMTP →</a>
+        </div>
+      </section>
+    }
+  }
+</div>

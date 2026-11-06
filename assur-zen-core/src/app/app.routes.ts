@@ -536,6 +536,15 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'mobile/messagerie',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./views/messagerie/messagerie.component').then((m) => m.MessagerieComponent),
+        data: {
+          title: 'Messagerie',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
         path: 'mobile/avis',
         canActivate: [adminGuard],
         loadComponent: () => import('./views/avis-mobile/avis-mobile.component').then((m) => m.AvisMobileComponent),
