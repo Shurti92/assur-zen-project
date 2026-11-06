@@ -140,16 +140,35 @@ class MotoGuaranteeLine {
 }
 
 class MotoGuarantee {
-  const MotoGuarantee({required this.label, required this.details});
+  const MotoGuarantee({required this.label, required this.details, this.group});
 
   final String label;
   final List<MotoGuaranteeLine> details;
+
+  /// Rubrique d'appartenance (texte du serveur). Absent = pas de regroupement.
+  final String? group;
+}
+
+/// Garanties regroupées par rubrique, dans l'ordre de première apparition. Aucune rubrique renseignée :
+/// liste vide (l'écran affiche alors la liste à plat). Les garanties sans rubrique forment une dernière
+/// entrée sans titre (`null`).
+List<(String?, List<MotoGuarantee>)> groupGuarantees(List<MotoGuarantee> all) {
+  if (!all.any((g) => g.group != null)) return const [];
+  final order = <String?>[];
+  final map = <String?, List<MotoGuarantee>>{};
+  for (final g in all) {
+    if (!map.containsKey(g.group)) order.add(g.group);
+    map.putIfAbsent(g.group, () => []).add(g);
+  }
+  if (order.remove(null)) order.add(null);
+  return [for (final k in order) (k, map[k]!)];
 }
 
 List<MotoGuarantee> _guarantees(Object? raw) => [
       for (final g in (raw as List? ?? const []))
         MotoGuarantee(
           label: ((g as Map)['label'] ?? '').toString(),
+          group: _text(g['group']),
           details: [
             for (final d in (g['details'] as List? ?? const []))
               MotoGuaranteeLine(label: ((d as Map)['label'] ?? '').toString(), amount: _text(d['amount'])),

@@ -235,6 +235,7 @@ class _Summary extends StatelessWidget {
           Row(
             children: [
               Expanded(child: _Light('N° de contrat', c.number)),
+              const SizedBox(width: 12),
               Expanded(child: _Light('Prime', c.premium == null ? 'À confirmer' : formatFcfa(c.premium!))),
             ],
           ),

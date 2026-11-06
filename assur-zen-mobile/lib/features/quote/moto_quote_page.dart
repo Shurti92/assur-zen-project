@@ -455,34 +455,42 @@ class MotoQuoteResult extends StatelessWidget {
           const SizedBox(height: 16),
           const AzSectionHeader('Garanties'),
           const SizedBox(height: 8),
-          AzCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final g in simulation.guarantees) ...[
-                  Text(g.label, style: AzText.bodyMedium.copyWith(fontWeight: FontWeight.w700)),
-                  for (final d in g.details)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      // Libellé et montant se partagent la largeur (2/5 et 3/5) et passent à la ligne : un montant long
-                      // (« 300 euros (196 787 F CFA), franchise de 100 euros ») n'écrase plus le libellé ni ne déborde.
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Flexible(flex: 2, child: Text(d.label, style: AzText.body.copyWith(color: AzColors.muted))),
-                          // Montant déjà formaté par le serveur ; absent = rien d'affiché.
-                          if (d.amount != null) ...[
-                            const SizedBox(width: 12),
-                            Expanded(flex: 3, child: Text(keepNumbersTogether(d.amount!), textAlign: TextAlign.right, style: AzText.bodyMedium)),
-                          ],
-                        ],
+          Builder(builder: (context) {
+            final groups = groupGuarantees(simulation.guarantees);
+            // Aucune rubrique fournie par le serveur : liste à plat.
+            if (groups.isEmpty) {
+              return AzCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [for (final g in simulation.guarantees) ..._guaranteeWidgets(g)],
+                ),
+              );
+            }
+            // Rubriques repliables ; la première est dépliée.
+            return AzCard(
+              child: Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < groups.length; i++)
+                      ExpansionTile(
+                        key: PageStorageKey('guarantee-group-$i'),
+                        initiallyExpanded: i == 0,
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                        title: Text(
+                          groups[i].$1 ?? 'Autres garanties',
+                          style: AzText.bodyMedium.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text('${groups[i].$2.length} garantie${groups[i].$2.length > 1 ? 's' : ''}', style: AzText.caption),
+                        children: [for (final g in groups[i].$2) ..._guaranteeWidgets(g)],
                       ),
-                    ),
-                  const SizedBox(height: 10),
-                ],
-              ],
-            ),
-          ),
+                  ],
+                ),
+              ),
+            );
+          }),
           // Renvoi de l'astérisque des montants : texte du serveur, absent = rien.
           if (simulation.guaranteesNote != null) ...[
             const SizedBox(height: 8),
@@ -509,3 +517,26 @@ class MotoQuoteResult extends StatelessWidget {
     );
   }
 }
+
+/// Une garantie : titre puis lignes libellé / montant.
+List<Widget> _guaranteeWidgets(MotoGuarantee g) => [
+      Text(g.label, style: AzText.bodyMedium.copyWith(fontWeight: FontWeight.w700)),
+      for (final d in g.details)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          // Libellé et montant se partagent la largeur (2/5 et 3/5) et passent à la ligne : un montant long
+          // n'écrase plus le libellé ni ne déborde.
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(flex: 2, child: Text(d.label, style: AzText.body.copyWith(color: AzColors.muted))),
+              // Montant déjà formaté par le serveur ; absent = rien d'affiché.
+              if (d.amount != null) ...[
+                const SizedBox(width: 12),
+                Expanded(flex: 3, child: Text(keepNumbersTogether(d.amount!), textAlign: TextAlign.right, style: AzText.bodyMedium)),
+              ],
+            ],
+          ),
+        ),
+      const SizedBox(height: 10),
+    ];

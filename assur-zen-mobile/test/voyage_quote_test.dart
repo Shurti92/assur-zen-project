@@ -152,6 +152,55 @@ void main() {
     });
   });
 
+  group('Garanties par rubrique', () {
+    MotoGuarantee g(String label, [String? group]) => MotoGuarantee(label: label, group: group, details: const []);
+
+    test('rubriques dans l\'ordre de première apparition, sans rubrique à la fin', () {
+      final r = groupGuarantees([g('a', 'Santé'), g('b'), g('c', 'Bagages'), g('d', 'Santé')]);
+      expect(r.map((e) => e.$1), ['Santé', 'Bagages', null]);
+      expect(r[0].$2.map((x) => x.label), ['a', 'd']);
+    });
+
+    test('aucune rubrique : pas de regroupement (liste à plat)', () {
+      expect(groupGuarantees([g('a'), g('b')]), isEmpty);
+    });
+
+    test('rubrique vide ou d\'espaces : lue comme absente', () {
+      final q = MotoQuote.fromJson({
+        ..._quoteJson(),
+        'guarantees': [
+          {'label': 'x', 'group': '  ', 'details': []},
+        ],
+      });
+      expect(q.simulation.guarantees.single.group, isNull);
+    });
+
+    testWidgets('rubriques repliables : la première est dépliée, les autres repliées', (tester) async {
+      final quote = MotoQuote.fromJson({
+        ..._quoteJson(),
+        'guarantees': [
+          {'label': 'Frais médicaux', 'group': 'Santé', 'details': [{'label': 'Plafond', 'amount': '30 000 euros'}]},
+          {'label': 'Perte de bagages', 'group': 'Bagages et retards', 'details': [{'label': 'Plafond', 'amount': '800 euros'}]},
+        ],
+      });
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: MotoQuoteResult(simulation: quote.simulation, quote: null, busy: false, onSave: () {}, onAccept: () {}),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('Santé'), findsOneWidget);
+      expect(find.text('Bagages et retards'), findsOneWidget);
+      expect(find.text('Frais médicaux').hitTestable(), findsOneWidget);
+      expect(find.text('Perte de bagages').hitTestable(), findsNothing);
+      await tester.tap(find.text('Bagages et retards'));
+      await tester.pumpAndSettle();
+      expect(find.text('Perte de bagages').hitTestable(), findsOneWidget);
+    });
+  });
+
   group('Saisie de la date de naissance', () {
     TextEditingValue type(String before, String typed) =>
         const DateMaskFormatter().formatEditUpdate(TextEditingValue(text: before), TextEditingValue(text: typed));
