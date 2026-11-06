@@ -120,3 +120,74 @@ class AzScreenTitle extends StatelessWidget {
 
 /// Marge latérale des écrans à blocs.
 const EdgeInsets azScreenPadding = EdgeInsets.symmetric(horizontal: AzSpace.screen);
+
+/// Accordéon en carte arrondie : titre, résumé et pastille, contenu qui se déplie. Encadré en bleu quand il est ouvert.
+/// Sans contenu à déplier, la ligne reste une carte simple (pas de flèche).
+class AzAccordion extends StatefulWidget {
+  const AzAccordion({super.key, required this.title, this.subtitle, this.pill, this.body = const [], this.initiallyOpen = false});
+
+  final String title;
+  final String? subtitle;
+  final Widget? pill;
+  final List<Widget> body;
+  final bool initiallyOpen;
+
+  @override
+  State<AzAccordion> createState() => _AzAccordionState();
+}
+
+class _AzAccordionState extends State<AzAccordion> {
+  late bool _open = widget.initiallyOpen && widget.body.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final head = Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.title, style: AzText.titleSmall.copyWith(fontSize: 15, height: 1.3)),
+              if (widget.subtitle != null)
+                Text(widget.subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.caption.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        if (widget.pill != null) ...[const SizedBox(width: 8), widget.pill!],
+      ],
+    );
+    Widget card(Widget child) => Material(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(26),
+            side: BorderSide(color: _open ? AzColors.blue700 : AzColors.line, width: _open ? 2 : 1),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: child,
+        );
+    if (widget.body.isEmpty) {
+      return card(Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), child: head));
+    }
+    return card(
+      Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: _open,
+          onExpansionChanged: (v) => setState(() => _open = v),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          expandedAlignment: Alignment.centerLeft,
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          iconColor: AzColors.blue700,
+          collapsedIconColor: AzColors.muted,
+          title: head,
+          children: [
+            const Divider(height: 1, color: AzColors.lineSoft),
+            const SizedBox(height: 10),
+            ...widget.body,
+          ],
+        ),
+      ),
+    );
+  }
+}

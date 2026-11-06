@@ -292,77 +292,6 @@ class _Benefits extends StatelessWidget {
   }
 }
 
-/// Accordéon en carte arrondie : titre, résumé et pastille, contenu qui se déplie. Encadré en bleu quand il est ouvert.
-/// Sans contenu à déplier, la ligne reste une carte simple (pas de flèche).
-class _Accordion extends StatefulWidget {
-  const _Accordion({required this.title, this.subtitle, this.pill, this.body = const [], this.initiallyOpen = false});
-
-  final String title;
-  final String? subtitle;
-  final Widget? pill;
-  final List<Widget> body;
-  final bool initiallyOpen;
-
-  @override
-  State<_Accordion> createState() => _AccordionState();
-}
-
-class _AccordionState extends State<_Accordion> {
-  late bool _open = widget.initiallyOpen && widget.body.isNotEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    final head = Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.title, style: AzText.titleSmall.copyWith(fontSize: 15, height: 1.3)),
-              if (widget.subtitle != null)
-                Text(widget.subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.caption.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500)),
-            ],
-          ),
-        ),
-        if (widget.pill != null) ...[const SizedBox(width: 8), widget.pill!],
-      ],
-    );
-    Widget card(Widget child) => Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: _open ? AzColors.blue700 : AzColors.line, width: _open ? 2 : 1),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: child,
-        );
-    if (widget.body.isEmpty) {
-      return card(Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), child: head));
-    }
-    return card(
-      Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: _open,
-          onExpansionChanged: (v) => setState(() => _open = v),
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-          expandedAlignment: Alignment.centerLeft,
-          expandedCrossAxisAlignment: CrossAxisAlignment.start,
-          iconColor: AzColors.blue700,
-          collapsedIconColor: AzColors.muted,
-          title: head,
-          children: [
-            const Divider(height: 1, color: AzColors.lineSoft),
-            const SizedBox(height: 10),
-            ...widget.body,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Garanties du produit, en accordéons, dans l'ordre du serveur. Rubrique masquée si vide ;
 /// description et plafond/franchise affichés seulement s'ils sont communiqués.
 class _Guarantees extends StatelessWidget {
@@ -381,7 +310,7 @@ class _Guarantees extends StatelessWidget {
         const SizedBox(height: 8),
         for (var i = 0; i < list.length; i++) ...[
           if (i > 0) const SizedBox(height: 10),
-          _Accordion(
+          AzAccordion(
             initiallyOpen: i == 0,
             title: list[i].name,
             pill: _kindPill(list[i]),
@@ -429,7 +358,7 @@ class _Formulas extends StatelessWidget {
         const SizedBox(height: 8),
         for (var i = 0; i < formulas.length; i++) ...[
           if (i > 0) const SizedBox(height: 10),
-          _Accordion(
+          AzAccordion(
             initiallyOpen: i == 0,
             title: formulas[i].name,
             subtitle: formulas[i].description.isEmpty ? null : formulas[i].description,

@@ -18,6 +18,7 @@ class AuthLayout extends StatelessWidget {
     this.step,
     this.steps,
     this.titleSize = 30,
+    this.sheetColor = Colors.white,
   });
 
   final String title;
@@ -38,6 +39,9 @@ class AuthLayout extends StatelessWidget {
   final int? steps;
   final double titleSize;
 
+  /// Couleur de la feuille qui porte le contenu (blanc pour les formulaires, fond de l'appli pour les pages à cartes).
+  final Color sheetColor;
+
   static const double _overlap = 32;
 
   @override
@@ -49,7 +53,7 @@ class AuthLayout extends StatelessWidget {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: sheetColor,
         body: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
@@ -70,9 +74,9 @@ class AuthLayout extends StatelessWidget {
               Transform.translate(
                 offset: const Offset(0, -_overlap),
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  decoration: BoxDecoration(
+                    color: sheetColor,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                   ),
                   padding: EdgeInsets.fromLTRB(22, 24, 22, 24 + MediaQuery.paddingOf(context).bottom + _overlap),
                   child: Column(

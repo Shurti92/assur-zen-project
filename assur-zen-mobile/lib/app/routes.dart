@@ -88,7 +88,7 @@ abstract final class AppRoutes {
       claimNew => ClaimDeclarePage(contractId: args as String?),
       claimDone => ClaimDonePage(claim: args as Claim),
       claim => ClaimDetailPage(claimId: args as String),
-      support => const SupportPage(),
+      support => SupportPage(focusFaq: args == SupportPage.faqArg),
       protectionScore => const ProtectionScorePage(),
       badges => const BadgesPage(),
       quiz => const QuizPage(),

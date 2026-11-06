@@ -8,6 +8,7 @@ import '../../core/security/biometric.dart';
 import '../../core/ui.dart';
 import '../../data/models/engagement.dart';
 import '../../data/models/models.dart';
+import '../support/support_page.dart' show SupportPage;
 import 'pattern_setup.dart';
 
 /// Profil et paramètres.
@@ -199,7 +200,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ]),
               _Group(title: 'Aide et informations', children: [
                 _Item(icon: Icons.support_agent_outlined, label: 'Contact et assistance', onTap: () => context.push(AppRoutes.support)),
-                _Item(icon: Icons.help_outline_rounded, label: 'Questions fréquentes', onTap: () => context.push(AppRoutes.support)),
+                _Item(icon: Icons.help_outline_rounded, label: 'Questions fréquentes', onTap: () => context.push(AppRoutes.support, SupportPage.faqArg)),
                 if (_legalLinks.termsUrl != null)
                   _Item(icon: Icons.description_outlined, label: 'Conditions générales', onTap: () => _openLegal(_legalLinks.termsUrl!)),
                 if (_legalLinks.privacyUrl != null)
