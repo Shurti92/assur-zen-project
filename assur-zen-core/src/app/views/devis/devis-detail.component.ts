@@ -5,6 +5,7 @@ import { SpinnerComponent } from '@coreui/angular';
 
 import { QuotePaymentReminderItem, QuoteEmailHistoryItem, QuoteSmsHistoryItem } from '../../core/quotes/models/quote.model';
 import { ciMobileOperator, CI_OPERATOR_LABEL, formatCiPhone } from '../../core/quotes/ci-phone';
+import { groupGuarantees } from '../../core/quotes/guarantee-groups';
 import { QUOTE_ADDRESS_ENABLED, QUOTE_SMS_ENABLED } from '../../core/quotes/quote-sms.config';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QuoteView } from '../../core/quotes/models/quote.model';
@@ -38,6 +39,9 @@ interface Step {
   imports: [AlertMessageComponent, DevisConversionComponent, QuoteReminderDialogComponent, RouterLink, SendQuoteEmailDialogComponent, SendQuoteSmsDialogComponent, SpinnerComponent],
 })
 export class DevisDetailComponent {
+  /** Regroupement des garanties par rubrique (accordéons). */
+  readonly groupGuarantees = groupGuarantees;
+
   private readonly service = inject(QuoteService);
 
   private readonly route = inject(ActivatedRoute);

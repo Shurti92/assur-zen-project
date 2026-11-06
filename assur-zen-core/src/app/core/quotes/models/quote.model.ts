@@ -31,6 +31,8 @@ export interface QuoteGuaranteeDetail {
 export interface QuoteGuarantee {
   label: string;
   details?: QuoteGuaranteeDetail[];
+  /** Rubrique d'affichage (vide = pas de regroupement). */
+  group?: string | null;
 }
 
 /** Corps de la simulation (public) et partie `vehicle` de la création d'un devis moto. */

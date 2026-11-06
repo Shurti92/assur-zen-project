@@ -1,0 +1,236 @@
+// Bloc Résultat du simulateur (accordéons, prix, décomposition) : fichier séparé pour rester sous le budget de style.
+.vy-rc {
+  padding: 0;
+  overflow: hidden;
+}
+
+.vy-pad {
+  padding: 20px;
+}
+
+.vy-hero {
+  padding: 22px 24px 20px;
+  background: linear-gradient(135deg, #1b3b8f, #2c53bd);
+  color: #fff;
+}
+
+.vy-chip {
+  margin-left: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 12px;
+}
+
+.vy-total {
+  margin: 12px 0 4px;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+
+  small {
+    margin-left: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+}
+
+.vy-hs {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.vy-brk {
+  padding: 18px 24px 4px;
+}
+
+.vy-split {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.vy-s1 {
+  background: #1b3b8f;
+}
+
+.vy-s2 {
+  background: #ec7c1e;
+}
+
+.vy-s3 {
+  background: #4a74e8;
+}
+
+.vy-leg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 14px 0 10px;
+  font-size: 12px;
+  color: var(--mb-mut);
+
+  i {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+  }
+
+  b {
+    display: block;
+    margin-top: 2px;
+    color: var(--mb-ink, inherit);
+    font-size: 16px;
+  }
+
+  em {
+    margin-left: 4px;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    color: var(--mb-mut);
+  }
+}
+
+.vy-sum {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px dashed var(--mb-bd);
+  font-weight: 600;
+
+  b {
+    color: var(--mb-pri);
+    font-size: 18px;
+  }
+}
+
+.vy-gt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px 10px;
+}
+
+.vy-gh {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mb-mut);
+}
+
+.vy-cnt {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--mb-ok);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vy-acc {
+  display: block;
+  border-top: 1px solid var(--mb-bd);
+
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    cursor: pointer;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+
+  &[open] .vy-chv {
+    transform: rotate(180deg);
+  }
+}
+
+.vy-ic {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--mb-soft);
+  font-size: 17px;
+}
+
+.vy-gn {
+  flex: 1;
+
+  b {
+    display: block;
+    font-size: 15px;
+  }
+
+  small {
+    color: var(--mb-mut);
+    font-size: 12px;
+  }
+}
+
+.vy-chv {
+  color: var(--mb-mut);
+  transition: transform 0.2s;
+}
+
+.vy-guar {
+  margin: 0;
+  padding: 0 24px 12px 70px;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 16px;
+    padding: 10px 0;
+    border-top: 1px solid var(--mb-bd);
+    font-size: 14px;
+
+    &:first-child {
+      border-top: 0;
+    }
+  }
+
+  small {
+    display: block;
+    color: var(--mb-mut);
+    font-size: 12px;
+    font-weight: 400;
+  }
+}
+
+.vy-flat {
+  padding-left: 24px;
+}
+
+.vy-gl::before {
+  content: '✓ ';
+  color: var(--mb-ok);
+  font-weight: 700;
+}
+
+.vy-gv {
+  font-weight: 600;
+  text-align: right;
+}
+
+.vy-gnote {
+  margin: 6px 0 0;
+  padding: 14px 24px 20px;
+  background: var(--mb-soft);
+  color: var(--mb-mut);
+  font-size: 12px;
+}

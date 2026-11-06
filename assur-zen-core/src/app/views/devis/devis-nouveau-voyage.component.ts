@@ -9,6 +9,7 @@ import { SpinnerComponent } from '@coreui/angular';
 import { CI_OPERATOR_LABEL, ciMobileOperator } from '../../core/quotes/ci-phone';
 import { QUOTE_EMAIL_ENABLED } from '../../core/quotes/quote-email.config';
 import { QUOTE_ADDRESS_ENABLED, QUOTE_SMS_ENABLED } from '../../core/quotes/quote-sms.config';
+import { groupGuarantees } from '../../core/quotes/guarantee-groups';
 import { QuoteService } from '../../core/quotes/quote.service';
 import { VoyageForm, VoyageService, VoyageSimulation } from '../../core/quotes/voyage.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
@@ -65,6 +66,9 @@ function ageAt(birth: string, departure: string): number | null {
   imports: [AlertMessageComponent, ReactiveFormsModule, RouterLink, SpinnerComponent],
 })
 export class DevisNouveauVoyageComponent {
+  /** Regroupement des garanties par rubrique (accordéons). */
+  readonly groupGuarantees = groupGuarantees;
+
   private readonly service = inject(QuoteService);
   private readonly voyage = inject(VoyageService);
   private readonly router = inject(Router);

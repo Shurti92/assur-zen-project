@@ -194,13 +194,29 @@
         @if ((s.guarantees ?? []).length > 0) {
           <div class="df-glist">
             <b>Garanties incluses</b>
-            @for (g of s.guarantees ?? []; track g.label) {
-              <div>
-                <span>✓ {{ g.label }}</span>
-                @for (d of g.details ?? []; track d.label) {
-                  <small>{{ d.label }} : {{ d.amount }}</small>
+            @for (grp of groupGuarantees(s.guarantees); track grp.name; let first = $first) {
+              @if (grp.name) {
+                <details [open]="first" class="df-acc">
+                  <summary>{{ grp.icon }} <b>{{ grp.name }}</b> <small>({{ grp.items.length }})</small></summary>
+                  @for (g of grp.items; track g.label) {
+                    <div>
+                      <span>✓ {{ g.label }}</span>
+                      @for (d of g.details ?? []; track d.label) {
+                        <small>{{ d.label }} : {{ d.amount }}</small>
+                      }
+                    </div>
+                  }
+                </details>
+              } @else {
+                @for (g of grp.items; track g.label) {
+                  <div>
+                    <span>✓ {{ g.label }}</span>
+                    @for (d of g.details ?? []; track d.label) {
+                      <small>{{ d.label }} : {{ d.amount }}</small>
+                    }
+                  </div>
                 }
-              </div>
+              }
             }
             @if (s.guaranteesNote) {
               <small class="df-gnote">{{ s.guaranteesNote }}</small>

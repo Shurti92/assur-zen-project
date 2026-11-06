@@ -585,6 +585,21 @@
   }
 }
 
+.df-glist .df-acc {
+  display: block;
+  border-top: 1px solid var(--cui-border-color, #e3e8f4);
+
+  summary {
+    padding: 0.5rem 0;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  > div {
+    padding: 0.35rem 0 0.35rem 1.4rem;
+  }
+}
+
 .df-glist .df-gnote {
   margin: 0.5rem 0 0;
   font-size: 0.7rem;

@@ -258,22 +258,50 @@
         @if (q.guarantees.length > 0) {
           <hr />
           <h3>Garanties incluses</h3>
-          <ul class="dd-guar">
-            @for (g of q.guarantees; track g.label) {
-              <li>
-                <div>
-                  {{ g.label }}
-                  @if ((g.details ?? []).length > 0) {
-                    <div class="dd-gdet">
-                      @for (d of g.details ?? []; track d.label) {
-                        <span>{{ d.label }} : {{ d.amount }}</span>
+          @for (grp of groupGuarantees(q.guarantees); track grp.name; let first = $first) {
+            @if (grp.name) {
+              <details [open]="first" class="dd-acc">
+                <summary>
+                  <span class="dd-aic">{{ grp.icon }}</span>
+                  <span class="dd-an"><b>{{ grp.name }}</b><small>{{ grp.items.length }} garantie{{ grp.items.length > 1 ? 's' : '' }}</small></span>
+                  <span class="dd-chv">⌄</span>
+                </summary>
+                <ul class="dd-guar">
+                  @for (g of grp.items; track g.label) {
+                    <li>
+                      <div>
+                        {{ g.label }}
+                        @if ((g.details ?? []).length > 0) {
+                          <div class="dd-gdet">
+                            @for (d of g.details ?? []; track d.label) {
+                              <span>{{ d.label }} : {{ d.amount }}</span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </li>
+                  }
+                </ul>
+              </details>
+            } @else {
+              <ul class="dd-guar">
+                @for (g of grp.items; track g.label) {
+                  <li>
+                    <div>
+                      {{ g.label }}
+                      @if ((g.details ?? []).length > 0) {
+                        <div class="dd-gdet">
+                          @for (d of g.details ?? []; track d.label) {
+                            <span>{{ d.label }} : {{ d.amount }}</span>
+                          }
+                        </div>
                       }
                     </div>
-                  }
-                </div>
-              </li>
+                  </li>
+                }
+              </ul>
             }
-          </ul>
+          }
           @if (q.voyage?.guaranteesNote) {
             <p class="dd-gnote">{{ q.voyage?.guaranteesNote }}</p>
           }

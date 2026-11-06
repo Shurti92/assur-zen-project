@@ -281,41 +281,73 @@
           <div class="vy-err" role="alert">⛔ {{ simError() }}</div>
         }
       </section>
-      <aside class="vy-card">
-        <h3>Résultat</h3>
+      <aside class="vy-card vy-rc">
         @if (simResult(); as r) {
-          <p class="vy-subt">{{ r.country.name }} · {{ r.country.spaceLabel }}</p>
-          <div class="vy-total">{{ r.totalPremium.toLocaleString('fr-FR') }}<small>F CFA</small></div>
-          <div class="vy-subt vy-tight">{{ r.ageBand }} ans · séjour de {{ r.durationDays }} jour{{ r.durationDays > 1 ? 's' : '' }} : tranche « {{ r.durationBand }} »</div>
-          <div class="vy-split" aria-hidden="true">
-            <i [style.width.%]="share(r.netPremium, r.totalPremium)" class="vy-s1"></i>
-            <i [style.width.%]="share(r.accessories, r.totalPremium)" class="vy-s2"></i>
-            <i [style.width.%]="share(r.taxes, r.totalPremium)" class="vy-s3"></i>
+          <div class="vy-hero">
+            <div>{{ r.country.name }} <span class="vy-chip">{{ r.country.spaceLabel }}</span></div>
+            <div class="vy-total">{{ r.totalPremium.toLocaleString('fr-FR') }}<small>F CFA</small></div>
+            <div class="vy-hs">{{ r.ageBand }} ans · séjour de {{ r.durationDays }} jour{{ r.durationDays > 1 ? 's' : '' }} <span class="vy-chip">tranche « {{ r.durationBand }} »</span></div>
           </div>
-          <div class="vy-res">
-            <div><span>Prime nette HT</span><b>{{ r.netPremium.toLocaleString('fr-FR') }}</b></div>
-            <div><span>Accessoires</span><b>{{ r.accessories.toLocaleString('fr-FR') }}</b></div>
-            <div><span>Taxes</span><b>{{ r.taxes.toLocaleString('fr-FR') }}</b></div>
-            <div class="vy-sum"><span><b>Prime TTC</b></span><b>{{ r.totalPremium.toLocaleString('fr-FR') }}</b></div>
+          <div class="vy-brk">
+            <div class="vy-split" aria-hidden="true">
+              <i [style.width.%]="share(r.netPremium, r.totalPremium)" class="vy-s1"></i>
+              <i [style.width.%]="share(r.accessories, r.totalPremium)" class="vy-s2"></i>
+              <i [style.width.%]="share(r.taxes, r.totalPremium)" class="vy-s3"></i>
+            </div>
+            <div class="vy-leg">
+              <div><span><i class="vy-s1"></i>Prime nette HT</span><b>{{ r.netPremium.toLocaleString('fr-FR') }}<em>{{ share(r.netPremium, r.totalPremium).toFixed(0) }} %</em></b></div>
+              <div><span><i class="vy-s2"></i>Accessoires</span><b>{{ r.accessories.toLocaleString('fr-FR') }}<em>{{ share(r.accessories, r.totalPremium).toFixed(0) }} %</em></b></div>
+              <div><span><i class="vy-s3"></i>Taxes</span><b>{{ r.taxes.toLocaleString('fr-FR') }}<em>{{ share(r.taxes, r.totalPremium).toFixed(0) }} %</em></b></div>
+            </div>
+            <div class="vy-sum"><span>Prime TTC</span><b>{{ r.totalPremium.toLocaleString('fr-FR') }} F CFA</b></div>
           </div>
           @if ((r.guarantees ?? []).length > 0) {
-            <h3 class="vy-gh">Garanties incluses</h3>
-            <ul class="vy-guar">
-              @for (g of r.guarantees ?? []; track g.label) {
-                <li>
-                  {{ g.label }}
-                  @for (d of g.details ?? []; track d.label) {
-                    <small>{{ d.label }} : {{ d.amount }}</small>
+            <div class="vy-gt">
+              <h3 class="vy-gh">Garanties incluses</h3>
+              <span class="vy-cnt">{{ (r.guarantees ?? []).length }} garantie{{ (r.guarantees ?? []).length > 1 ? 's' : '' }}</span>
+            </div>
+            @for (grp of simGroups(); track grp.name; let first = $first) {
+              @if (grp.name) {
+                <details [open]="first" class="vy-acc">
+                  <summary>
+                    <span class="vy-ic">{{ grp.icon }}</span>
+                    <span class="vy-gn"><b>{{ grp.name }}</b><small>{{ grp.items.length }} garantie{{ grp.items.length > 1 ? 's' : '' }}</small></span>
+                    <span class="vy-chv">⌄</span>
+                  </summary>
+                  <ul class="vy-guar">
+                    @for (g of grp.items; track g.label) {
+                      <li>
+                        <span class="vy-gl">{{ g.label }}</span>
+                        <span class="vy-gv">
+                          @for (d of g.details ?? []; track d.label) {
+                            <span>{{ d.amount }}@if (d.label !== 'Plafond / prise en charge') {<small>{{ d.label }}</small>}</span>
+                          }
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                </details>
+              } @else {
+                <ul class="vy-guar vy-flat">
+                  @for (g of grp.items; track g.label) {
+                    <li>
+                      <span class="vy-gl">{{ g.label }}</span>
+                      <span class="vy-gv">
+                        @for (d of g.details ?? []; track d.label) {
+                          <span>{{ d.amount }}@if (d.label !== 'Plafond / prise en charge') {<small>{{ d.label }}</small>}</span>
+                        }
+                      </span>
+                    </li>
                   }
-                </li>
+                </ul>
               }
-            </ul>
+            }
             @if (r.guaranteesNote) {
               <p class="vy-gnote">{{ r.guaranteesNote }}</p>
             }
           }
         } @else {
-          <p class="vy-subt">Lancez un calcul pour voir le détail de la prime.</p>
+          <p class="vy-subt vy-pad">Lancez un calcul pour voir le détail de la prime.</p>
         }
       </aside>
     </div>

@@ -558,6 +558,61 @@ hr {
   opacity: 1;
 }
 
+.dd-acc {
+  display: block;
+  border-top: 1px solid var(--dd-bd);
+
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    cursor: pointer;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+
+  &[open] .dd-chv {
+    transform: rotate(180deg);
+  }
+
+  .dd-guar {
+    padding: 0 0 12px 46px;
+  }
+}
+
+.dd-aic {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--dd-soft);
+  font-size: 17px;
+}
+
+.dd-an {
+  flex: 1;
+
+  b {
+    display: block;
+    font-size: 15px;
+  }
+
+  small {
+    color: var(--dd-mut);
+    font-size: 12px;
+  }
+}
+
+.dd-chv {
+  color: var(--dd-mut);
+  transition: transform 0.2s;
+}
+
 .dd-guar {
   display: grid;
   gap: 8px;

@@ -86,10 +86,6 @@
   font-size: 13px;
 }
 
-.vy-tight {
-  margin: 2px 0 0;
-}
-
 // ---------- Grille ----------
 .vy-grid {
   width: 100%;
@@ -288,61 +284,6 @@
 }
 
 // ---------- Simulateur ----------
-.vy-total {
-  color: var(--mb-pri);
-  font-size: 40px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-
-  small {
-    margin-left: 4px;
-    color: var(--mb-mut);
-    font-size: 18px;
-    font-weight: 600;
-  }
-}
-
-.vy-split {
-  display: flex;
-  gap: 2px;
-  height: 10px;
-  margin: 12px 0;
-  overflow: hidden;
-  border-radius: 10px;
-}
-
-.vy-s1 {
-  background: #1b3b8f;
-}
-
-.vy-s2 {
-  background: #ec7c1e;
-}
-
-.vy-s3 {
-  background: #4a74e8;
-}
-
-.vy-res {
-  display: grid;
-  gap: 8px;
-
-  div {
-    display: flex;
-    justify-content: space-between;
-  }
-
-  span {
-    color: var(--mb-mut);
-  }
-}
-
-.vy-sum {
-  padding-top: 8px;
-  border-top: 1px solid var(--mb-bd);
-}
-
 // ---------- Fenêtres ----------
 .vy-ov {
   position: fixed;
@@ -367,42 +308,6 @@
   h4 {
     margin: 0 0 10px;
     font-size: 18px;
-  }
-}
-
-.vy-gh {
-  margin: 18px 0 10px;
-  padding-top: 14px;
-  border-top: 1px solid var(--mb-bd);
-  font-size: 12px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--mb-mut);
-}
-
-.vy-guar {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-
-  li {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-
-    &::before {
-      content: '✓ ';
-      color: var(--mb-ok);
-    }
-  }
-
-  small {
-    display: block;
-    margin-left: 18px;
-    color: var(--mb-mut);
-    font-weight: 400;
   }
 }
 
@@ -460,11 +365,6 @@
   font-weight: 400;
 }
 
-.vy-gnote {
-  margin: 10px 0 0;
-  color: var(--mb-mut);
-  font-size: 12px;
-}
 
 // Glisser-déposer (CDK) : l'aperçu est ajouté au <body>.
 ::ng-deep .cdk-drag-preview.vy-dr {

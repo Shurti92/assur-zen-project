@@ -4,6 +4,8 @@ import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } fro
 import { FormsModule } from '@angular/forms';
 import { SpinnerComponent } from '@coreui/angular';
 
+import { groupGuarantees } from '../../core/quotes/guarantee-groups';
+
 import {
   VOYAGE_SPACES,
   VoyageCountry,
@@ -21,7 +23,6 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 
 /** Durées maximales de la grille de départ (jours) ; null = « 1 an » (au-delà de 180 jours). */
 const DEFAULT_DURATIONS: (number | null)[] = [7, 10, 15, 21, 30, 45, 60, 91, 180, null];
-
 interface CountryDraft {
   id: number | null;
   name: string;
@@ -57,7 +58,7 @@ interface TariffDraft {
 @Component({
   selector: 'app-voyage',
   templateUrl: './voyage.component.html',
-  styleUrl: './voyage.component.scss',
+  styleUrls: ['./voyage.component.scss', './voyage-result.component.scss'],
   imports: [AlertMessageComponent, CdkDrag, CdkDragHandle, CdkDropList, FormsModule, SpinnerComponent],
 })
 export class VoyageComponent {
@@ -156,6 +157,8 @@ export class VoyageComponent {
   readonly simDays = signal<number | null>(12);
   readonly simulating = signal(false);
   readonly simResult = signal<VoyageSimulation | null>(null);
+  /** Garanties du résultat regroupées par rubrique (ordre d'apparition) ; groupe vide = liste à plat. */
+  readonly simGroups = computed(() => groupGuarantees(this.simResult()?.guarantees));
   readonly simError = signal<string | null>(null);
 
   constructor() {
