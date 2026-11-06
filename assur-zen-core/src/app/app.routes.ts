@@ -536,6 +536,15 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'mobile/popups',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./views/popups-mobile/popups-mobile.component').then((m) => m.PopupsMobileComponent),
+        data: {
+          title: 'Pop-up publicitaires',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
         path: 'mobile/messagerie',
         canActivate: [adminGuard],
         loadComponent: () => import('./views/messagerie/messagerie.component').then((m) => m.MessagerieComponent),

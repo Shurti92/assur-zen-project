@@ -178,6 +178,11 @@ const baseNavItems: INavData[] = [
         icon: 'nav-icon-bullet',
       },
       {
+        name: 'nav.mobile.popups',
+        url: '/mobile/popups',
+        icon: 'nav-icon-bullet',
+      },
+      {
         name: 'nav.mobile.messagerie',
         url: '/mobile/messagerie',
         icon: 'nav-icon-bullet',

@@ -1,0 +1,349 @@
+<div class="mb">
+  @if (draft(); as d) {
+    <!-- ============ Formulaire + aperçu ============ -->
+    <header class="mb-hero">
+      <div>
+        <h1>{{ d.id ? 'Modifier le pop-up' : 'Nouveau pop-up' }}</h1>
+        <p>Renseignez le contenu à gauche ; l'aperçu à droite montre ce que verra le client.</p>
+      </div>
+    </header>
+
+    @if (formError()) {
+      <app-alert-message class="d-block my-3" [message]="formError()!" [dismissible]="true" (dismissed)="formError.set(null)" />
+    }
+
+    <div class="pp-cols">
+      <section class="pp-card">
+        <div class="pp-form">
+          <h2>Contenu</h2>
+          <p class="pp-sub">Les champs marqués * sont obligatoires.</p>
+
+          <div class="pp-two">
+            <div class="pp-fld">
+              <label for="pp-title">Titre affiché *</label>
+              <input [(ngModel)]="d.title" id="pp-title" maxlength="80" name="pp-title" />
+              <small>80 caractères max.</small>
+            </div>
+            <div class="pp-fld">
+              <label for="pp-int">Nom interne</label>
+              <input [(ngModel)]="d.internalName" id="pp-int" maxlength="100" name="pp-int" />
+              <small>Visible seulement ici.</small>
+            </div>
+          </div>
+
+          <div class="pp-fld">
+            <label for="pp-place">Emplacement *</label>
+            <select [(ngModel)]="d.placement" id="pp-place" name="pp-place">
+              @for (p of limits()?.placements ?? ['HOME']; track p) {
+                <option [value]="p">{{ placementLabel[p] ?? p }}</option>
+              }
+            </select>
+            <small>D'autres emplacements viendront plus tard.</small>
+          </div>
+
+          <div class="pp-fld">
+            <label>Type de média *</label>
+            <div class="pp-seg">
+              <button (click)="setMediaType(d, 'IMAGE')" [class.pp-on]="d.mediaType === 'IMAGE'" type="button">🖼️ Image</button>
+              <button (click)="setMediaType(d, 'VIDEO')" [class.pp-on]="d.mediaType === 'VIDEO'" type="button">▶ Vidéo</button>
+            </div>
+          </div>
+
+          <div class="pp-fld">
+            <label>Média *</label>
+            @if (d.mediaUrl) {
+              <div class="pp-file">
+                @if (d.mediaType === 'IMAGE') {
+                  <img [src]="d.mediaUrl" alt="" class="pp-th" />
+                } @else {
+                  <span class="pp-th pp-th--v">▶</span>
+                }
+                <span class="pp-fn">{{ d.mediaUrl }}</span>
+                <button (click)="removeMedia(d, 'MEDIA')" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Remplacer</button>
+              </div>
+            } @else {
+              <label class="pp-drop" for="pp-media">
+                @if (uploading() === 'MEDIA') {
+                  <c-spinner size="sm" /> Téléversement…
+                } @else {
+                  <b>Cliquez pour choisir le fichier</b>
+                  {{ d.mediaType === 'VIDEO' ? 'Vidéo : MP4 (H.264)' : 'Image : JPG, PNG ou WebP' }}
+                }
+              </label>
+              <input (change)="onFile(d, 'MEDIA', $event)" [accept]="d.mediaType === 'VIDEO' ? 'video/mp4' : 'image/jpeg,image/png,image/webp'" class="pp-hide" id="pp-media" type="file" />
+            }
+            @if (limits(); as l) {
+              <div class="pp-lim">
+                <span>Image : {{ bytes(l.image.maxBytes) }} max</span>
+                <span>Vidéo : {{ bytes(l.video.maxBytes) }} max · {{ l.video.maxDurationSeconds }} s max · {{ l.video.codec }}</span>
+                <span>Image d'attente : {{ bytes(l.poster.maxBytes) }} max</span>
+              </div>
+              @if (d.mediaType === 'VIDEO') {
+                <small>Le serveur ne vérifie ni le codec ni la durée de la vidéo : respectez les limites ci-dessus.</small>
+              }
+            }
+          </div>
+
+          @if (d.mediaType === 'VIDEO') {
+            <div class="pp-fld">
+              <label>Image d'attente de la vidéo</label>
+              @if (d.posterUrl) {
+                <div class="pp-file">
+                  <img [src]="d.posterUrl" alt="" class="pp-th" />
+                  <span class="pp-fn">{{ d.posterUrl }}</span>
+                  <button (click)="removeMedia(d, 'POSTER')" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Retirer</button>
+                </div>
+              } @else {
+                <label class="pp-drop" for="pp-poster">
+                  @if (uploading() === 'POSTER') {
+                    <c-spinner size="sm" /> Téléversement…
+                  } @else {
+                    <b>Facultatif</b>
+                    Affichée pendant le chargement de la vidéo
+                  }
+                </label>
+                <input (change)="onFile(d, 'POSTER', $event)" accept="image/jpeg,image/png,image/webp" class="pp-hide" id="pp-poster" type="file" />
+              }
+            </div>
+          }
+
+          <h2 class="pp-h2">Bouton (facultatif)</h2>
+          <p class="pp-sub">Sans bouton, le pop-up n'a que la fermeture.</p>
+          <div class="pp-fld">
+            <label>Action du bouton</label>
+            <div class="pp-seg">
+              <button (click)="d.action = 'NONE'" [class.pp-on]="d.action === 'NONE'" type="button">Aucun bouton</button>
+              <button (click)="d.action = 'LINK'" [class.pp-on]="d.action === 'LINK'" type="button">Lien https</button>
+              <button (click)="d.action = 'PRODUCT'" [class.pp-on]="d.action === 'PRODUCT'" type="button">Produit de l'app</button>
+            </div>
+          </div>
+          @if (d.action !== 'NONE') {
+            <div class="pp-two">
+              @if (d.action === 'LINK') {
+                <div class="pp-fld">
+                  <label for="pp-link">Lien https *</label>
+                  <input [(ngModel)]="d.linkUrl" id="pp-link" name="pp-link" placeholder="https://" />
+                  <small>Seuls les liens https sont acceptés.</small>
+                </div>
+              } @else {
+                <div class="pp-fld">
+                  <label for="pp-prod">Produit *</label>
+                  <select [(ngModel)]="d.productId" id="pp-prod" name="pp-prod">
+                    <option [ngValue]="null">Choisir…</option>
+                    @for (p of products(); track p.id) {
+                      <option [ngValue]="p.id">{{ p.title }}</option>
+                    }
+                  </select>
+                  <small>Ouvre la fiche du produit dans l'application.</small>
+                </div>
+              }
+              <div class="pp-fld">
+                <label for="pp-lbl">Texte du bouton *</label>
+                <input [(ngModel)]="d.linkLabel" id="pp-lbl" maxlength="30" name="pp-lbl" />
+                <small>30 caractères max.</small>
+              </div>
+            </div>
+          }
+
+          <h2 class="pp-h2">Affichage</h2>
+          <p class="pp-sub">Réglages d'apparition dans l'application.</p>
+          <div class="pp-two">
+            <div class="pp-fld">
+              <label for="pp-freq">Fréquence *</label>
+              <select [(ngModel)]="d.frequency" id="pp-freq" name="pp-freq">
+                @for (f of frequencies; track f) {
+                  <option [value]="f">{{ f === 'DAILY' ? 'Une fois par jour' : f === 'ONCE' ? 'Une seule fois par appareil' : "À chaque ouverture de l'app" }}</option>
+                }
+              </select>
+            </div>
+            <div class="pp-fld">
+              <label for="pp-delay">Délai d'apparition (secondes)</label>
+              <input [(ngModel)]="d.displayAfterSeconds" id="pp-delay" max="30" min="0" name="pp-delay" type="number" />
+              <small>0 à {{ limits()?.maxDisplayAfterSeconds ?? 30 }} s.</small>
+            </div>
+          </div>
+          <div class="pp-two">
+            <div class="pp-fld">
+              <label for="pp-from">Début</label>
+              <input [(ngModel)]="d.startDate" id="pp-from" name="pp-from" type="date" />
+              <small>Facultatif.</small>
+            </div>
+            <div class="pp-fld">
+              <label for="pp-to">Fin</label>
+              <input [(ngModel)]="d.endDate" id="pp-to" name="pp-to" type="date" />
+              <small>Facultatif.</small>
+            </div>
+          </div>
+          <div class="pp-fld">
+            <label for="pp-prio">Priorité</label>
+            <input [(ngModel)]="d.priority" id="pp-prio" max="100" min="0" name="pp-prio" type="number" />
+            <small>Plus le nombre est grand, plus le pop-up passe en premier. Un seul pop-up s'affiche par lancement.</small>
+          </div>
+          <div class="pp-sw">
+            <div><b>Pop-up actif</b><small>Inactif : jamais montré aux clients. L'activation demande un média.</small></div>
+            <button (click)="d.active = !d.active" [attr.aria-pressed]="d.active" [class.pp-tg--on]="d.active" aria-label="Pop-up actif" class="pp-tg" type="button"></button>
+          </div>
+        </div>
+        <div class="pp-foot">
+          <button (click)="cancel()" class="mb-btn mb-btn--ghost" type="button">Annuler</button>
+          <button (click)="save()" [disabled]="saving() || uploading() !== null" class="mb-btn mb-btn--pri" type="button">
+            @if (saving()) {
+              <c-spinner size="sm" />
+            }
+            Enregistrer
+          </button>
+        </div>
+      </section>
+
+      <aside class="pp-card pp-prev">
+        <h3>Aperçu dans l'application</h3>
+        <p class="pp-sub">Tel que le client le verra.</p>
+        <div class="pp-phone">
+          <div class="pp-screen">
+            <div class="pp-shade">
+              <div class="pp-pop">
+                <div class="pp-m">
+                  @if (d.mediaType === 'IMAGE' && d.mediaUrl) {
+                    <img [src]="d.mediaUrl" alt="" />
+                  } @else if (d.mediaType === 'VIDEO' && d.posterUrl) {
+                    <img [src]="d.posterUrl" alt="" />
+                    <span class="pp-play">▶</span>
+                  } @else {
+                    <span>{{ d.mediaType === 'VIDEO' ? '▶' : '🖼️' }}</span>
+                  }
+                </div>
+                <span class="pp-x">✕</span>
+                <div class="pp-b">
+                  <b>{{ d.title || 'Titre du pop-up' }}</b>
+                  @if (d.action !== 'NONE' && d.linkLabel) {
+                    <span class="pp-go">{{ d.linkLabel }}</span>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pp-note">{{ previewDelay(d) }} · fermable à tout moment (croix, toucher en dehors, retour Android)</div>
+        @if (d.stats; as s) {
+          <div class="pp-stats">
+            <div><b>{{ s.views.toLocaleString('fr-FR') }}</b><small>Vues</small></div>
+            <div><b>{{ s.clicks.toLocaleString('fr-FR') }}</b><small>Clics</small></div>
+            <div><b>{{ s.closes.toLocaleString('fr-FR') }}</b><small>Fermetures</small></div>
+          </div>
+          <div class="pp-note">Compteurs en lecture seule.</div>
+        }
+      </aside>
+    </div>
+  } @else {
+    <!-- ============ Liste ============ -->
+    <header class="mb-hero">
+      <div>
+        <h1>Pop-up publicitaires</h1>
+        <p>Image ou vidéo affichée dans l'application mobile. Le client peut toujours la fermer. Sans campagne active, rien ne s'affiche.</p>
+      </div>
+      <div class="mb-acts">
+        <button (click)="newPopup()" class="mb-btn mb-btn--white" type="button">+ Nouveau pop-up</button>
+      </div>
+    </header>
+
+    @if (error()) {
+      <app-alert-message class="d-block my-3" [message]="error()!" [dismissible]="true" (dismissed)="error.set(null)" />
+    }
+    @if (info()) {
+      <app-alert-message class="d-block my-3" variant="success" [message]="info()!" [dismissible]="true" (dismissed)="info.set(null)" />
+    }
+
+    <div class="pp-kpis">
+      <button (click)="statusFilter.set('all')" [class.mb-kpi--on]="statusFilter() === 'all'" class="mb-kpi" type="button"><small>Tous</small><b>{{ summary()?.total ?? '—' }}</b></button>
+      <button (click)="statusFilter.set('ACTIVE')" [class.mb-kpi--on]="statusFilter() === 'ACTIVE'" class="mb-kpi" type="button"><small><i class="mb-k1"></i>Actifs</small><b>{{ summary()?.active ?? '—' }}</b></button>
+      <button (click)="statusFilter.set('SCHEDULED')" [class.mb-kpi--on]="statusFilter() === 'SCHEDULED'" class="mb-kpi" type="button"><small><i class="pp-k-info"></i>Programmés</small><b>{{ summary()?.scheduled ?? '—' }}</b></button>
+      <button (click)="statusFilter.set('EXPIRED')" [class.mb-kpi--on]="statusFilter() === 'EXPIRED'" class="mb-kpi" type="button"><small><i class="mb-k2"></i>Expirés</small><b>{{ summary()?.expired ?? '—' }}</b></button>
+      <button (click)="statusFilter.set('INACTIVE')" [class.mb-kpi--on]="statusFilter() === 'INACTIVE'" class="mb-kpi" type="button"><small><i class="mb-k3"></i>Inactifs</small><b>{{ summary()?.inactive ?? '—' }}</b></button>
+    </div>
+
+    <div class="mb-toolbar">
+      <input (input)="search.set($any($event.target).value)" [value]="search()" aria-label="Rechercher un pop-up" class="pp-search" placeholder="Rechercher un pop-up…" type="search" />
+      <select (change)="placementFilter.set($any($event.target).value)" aria-label="Filtrer par emplacement" class="pp-select">
+        <option value="">Tous les emplacements</option>
+        @for (p of limits()?.placements ?? ['HOME']; track p) {
+          <option [value]="p">{{ placementLabel[p] ?? p }}</option>
+        }
+      </select>
+    </div>
+
+    @if (loading()) {
+      <p class="mb-empty">Chargement des pop-up…</p>
+    } @else if (items().length === 0) {
+      <div class="mb-list">
+        <div class="pp-empty">
+          <b>Aucun pop-up pour le moment.</b><br />
+          Sans campagne active, rien ne s'affiche dans l'application.<br /><br />
+          <button (click)="newPopup()" class="mb-btn mb-btn--pri" type="button">+ Créer le premier pop-up</button>
+        </div>
+      </div>
+    } @else {
+      <div class="mb-list pp-scroll">
+        <div class="pp-min">
+          <div class="mb-head pp-grid">
+            <div>Pop-up</div>
+            <div>Période</div>
+            <div>Fréquence</div>
+            <div>Priorité</div>
+            <div>Statut</div>
+            <div>Vues</div>
+            <div>Clics</div>
+            <div>Fermetures</div>
+            <div>Actif</div>
+            <div></div>
+          </div>
+          @for (p of shown(); track p.id) {
+            <div class="mb-row pp-grid">
+              <div class="pp-t">
+                <span class="pp-th" [class.pp-th--v]="p.mediaType === 'VIDEO'">
+                  @if (p.mediaType === 'IMAGE' && p.mediaUrl) {
+                    <img [src]="p.mediaUrl" alt="" />
+                  } @else {
+                    {{ p.mediaType === 'VIDEO' ? '▶' : '🖼️' }}
+                  }
+                </span>
+                <div>
+                  <b>{{ p.title }}</b>
+                  <small>{{ placementLabel[p.placement] ?? p.placement }} · {{ p.mediaType === 'VIDEO' ? 'Vidéo' : 'Image' }} · {{ p.linkLabel ? 'bouton « ' + p.linkLabel + ' »' : 'pas de bouton' }}</small>
+                </div>
+              </div>
+              <div>{{ period(p) }}</div>
+              <div>{{ frequencyLabel[p.frequency] }}</div>
+              <div>{{ p.priority }}</div>
+              <div><span [class]="pillClass(p.status)">{{ statusLabel[p.status] }}</span></div>
+              <div>{{ p.stats.views.toLocaleString('fr-FR') }}</div>
+              <div>{{ p.stats.clicks.toLocaleString('fr-FR') }}</div>
+              <div>{{ p.stats.closes.toLocaleString('fr-FR') }}</div>
+              <div>
+                <button (click)="toggleActive(p)" [attr.aria-pressed]="p.active" [attr.aria-label]="(p.active ? 'Désactiver ' : 'Activer ') + p.title" [class.pp-tg--on]="p.active" class="pp-tg" type="button"></button>
+              </div>
+              <div class="pp-btns">
+                <button (click)="edit(p)" class="mb-btn mb-btn--ghost mb-btn--sm" type="button">Modifier</button>
+                <button (click)="askDelete(p)" class="mb-btn mb-btn--danger mb-btn--sm" type="button">Supprimer</button>
+              </div>
+            </div>
+          } @empty {
+            <p class="mb-empty">Aucun pop-up ne correspond aux filtres.</p>
+          }
+        </div>
+      </div>
+    }
+  }
+</div>
+
+@if (deleteTarget(); as t) {
+  <div (click)="deleteTarget.set(null)" class="pp-ov" role="presentation">
+    <div (click)="$event.stopPropagation()" aria-modal="true" class="pp-modal" role="dialog">
+      <h4>Supprimer « {{ t.title }} » ?</h4>
+      <p>La suppression est définitive et les compteurs (vues, clics, fermetures) sont perdus. Pour les garder, désactivez simplement le pop-up.</p>
+      <div class="pp-foot pp-foot--m">
+        <button (click)="deleteTarget.set(null)" class="mb-btn mb-btn--ghost" type="button">Annuler</button>
+        <button (click)="confirmDelete()" class="mb-btn mb-btn--danger" type="button">Supprimer définitivement</button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,511 @@
+@use '../mobile-shared';
+
+// Pop-up publicitaires : liste, formulaire, aperçu téléphone. Maquette validée le 2026-11-06.
+.pp-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.pp-k-info {
+  background: var(--mb-pri);
+}
+
+.pp-search,
+.pp-select {
+  padding: 11px 14px;
+  border: 1px solid var(--mb-bd);
+  border-radius: 14px;
+  background: var(--mb-soft);
+  color: var(--mb-txt);
+  font: inherit;
+}
+
+.pp-search {
+  flex: 1 1 260px;
+}
+
+.pp-scroll {
+  overflow-x: auto;
+}
+
+.pp-min {
+  min-width: 1060px;
+}
+
+.pp-grid {
+  grid-template-columns: minmax(230px, 2.4fr) 1.1fr 1.1fr 0.6fr 0.9fr 0.6fr 0.5fr 0.8fr 0.5fr 110px;
+}
+
+.pp-t {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+
+  b,
+  small {
+    display: block;
+  }
+
+  small {
+    color: var(--mb-mut);
+    font-size: 12px;
+  }
+}
+
+.pp-th {
+  display: grid;
+  flex: none;
+  width: 64px;
+  height: 44px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--mb-soft2);
+  font-size: 18px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.pp-th--v {
+  background: #2b3350;
+  color: #fff;
+}
+
+.pp-btns {
+  display: grid;
+  gap: 6px;
+}
+
+.pp-empty {
+  padding: 40px 20px;
+  color: var(--mb-mut);
+  text-align: center;
+
+  b {
+    color: var(--mb-txt);
+  }
+}
+
+// ---------- Interrupteur ----------
+.pp-tg {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mb-soft2);
+  cursor: pointer;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: left 0.12s;
+  }
+}
+
+.pp-tg--on {
+  background: var(--mb-ok);
+
+  &::after {
+    left: 22px;
+  }
+}
+
+// ---------- Formulaire ----------
+.pp-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
+  gap: 16px;
+  margin-top: 18px;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pp-card {
+  border: 1px solid var(--mb-bd);
+  border-radius: var(--mb-r);
+  background: var(--mb-card);
+  box-shadow: var(--mb-shadow);
+  overflow: hidden;
+}
+
+.pp-form {
+  padding: 20px 24px;
+
+  h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+  }
+}
+
+.pp-h2 {
+  margin-top: 22px !important;
+}
+
+.pp-sub {
+  margin: 0 0 16px;
+  color: var(--mb-mut);
+  font-size: 13px;
+}
+
+.pp-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pp-fld {
+  margin-bottom: 14px;
+
+  > label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  input:not([type='file']),
+  select {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1px solid var(--mb-bd);
+    border-radius: 12px;
+    background: var(--mb-soft);
+    color: var(--mb-txt);
+    font: inherit;
+  }
+
+  small {
+    display: block;
+    margin-top: 4px;
+    color: var(--mb-mut);
+    font-size: 12px;
+  }
+}
+
+.pp-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  button {
+    padding: 9px 14px;
+    border: 1px solid var(--mb-bd);
+    border-radius: 12px;
+    background: var(--mb-card);
+    color: var(--mb-txt);
+    font: inherit;
+    cursor: pointer;
+  }
+}
+
+.pp-on {
+  border-color: var(--mb-pri) !important;
+  background: var(--mb-info-soft) !important;
+  color: var(--mb-pri) !important;
+  font-weight: 700;
+}
+
+.pp-hide {
+  display: none;
+}
+
+.pp-drop {
+  display: grid;
+  gap: 4px;
+  place-items: center;
+  margin: 0;
+  padding: 18px;
+  border: 2px dashed var(--mb-soft2);
+  border-radius: 14px;
+  background: var(--mb-soft);
+  color: var(--mb-mut);
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+
+  b {
+    color: var(--mb-txt);
+    font-size: 14px;
+  }
+}
+
+.pp-file {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--mb-bd);
+  border-radius: 12px;
+}
+
+.pp-fn {
+  flex: 1;
+  overflow: hidden;
+  color: var(--mb-mut);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-lim {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+
+  span {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--mb-info-soft);
+    color: var(--mb-pri);
+    font-size: 12px;
+  }
+}
+
+.pp-sw {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid var(--mb-bd);
+
+  small {
+    display: block;
+    color: var(--mb-mut);
+    font-size: 12px;
+  }
+}
+
+.pp-foot {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid var(--mb-bd);
+  background: var(--mb-soft);
+}
+
+.pp-foot--m {
+  margin: 14px -22px -22px;
+}
+
+// ---------- Aperçu téléphone ----------
+.pp-prev {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 24px;
+  background: var(--mb-soft);
+
+  h3 {
+    align-self: flex-start;
+    margin: 0 0 4px;
+    font-size: 14px;
+  }
+
+  .pp-sub {
+    align-self: flex-start;
+  }
+}
+
+.pp-phone {
+  position: relative;
+  width: 250px;
+  height: 470px;
+  padding: 10px;
+  border-radius: 30px;
+  background: #111;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.pp-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #f4f6fc;
+
+  &::before {
+    content: "Accueil de l'app";
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    color: #6b7394;
+    font-size: 12px;
+  }
+}
+
+.pp-shade {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 15, 30, 0.6);
+}
+
+.pp-pop {
+  position: relative;
+  width: 82%;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  color: #1c2340;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.pp-m {
+  position: relative;
+  display: grid;
+  height: 130px;
+  place-items: center;
+  background: linear-gradient(135deg, #2c53bd, #7aa2ff);
+  color: #fff;
+  font-size: 34px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.pp-play {
+  position: absolute;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 18px;
+}
+
+.pp-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 14px;
+}
+
+.pp-b {
+  padding: 12px 14px;
+  text-align: center;
+
+  b {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+}
+
+.pp-go {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: #1b3b8f;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pp-note {
+  margin-top: 10px;
+  color: var(--mb-mut);
+  font-size: 12px;
+  text-align: center;
+}
+
+.pp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  margin-top: 14px;
+
+  div {
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--mb-card);
+    text-align: center;
+  }
+
+  b {
+    display: block;
+    font-size: 20px;
+  }
+
+  small {
+    color: var(--mb-mut);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+}
+
+// ---------- Fenêtre de confirmation ----------
+.pp-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 18, 30, 0.55);
+}
+
+.pp-modal {
+  width: min(30rem, 100%);
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--mb-card);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+
+  h4 {
+    margin: 0 0 10px;
+    font-size: 18px;
+  }
+
+  p {
+    margin: 0;
+    color: var(--mb-mut);
+    font-size: 14px;
+  }
+}
