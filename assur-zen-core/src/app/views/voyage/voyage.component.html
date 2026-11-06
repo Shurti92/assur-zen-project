@@ -250,9 +250,14 @@
           <label for="vy-country">Pays de destination</label>
           <select (change)="simCountryId.set(+$any($event.target).value)" [value]="simCountryId()" id="vy-country">
             @for (c of form()?.countries ?? []; track c.id) {
-              <option [value]="c.id" [selected]="c.id === simCountryId()">{{ c.name }} · {{ c.spaceLabel }}</option>
+              <option [value]="c.id" [selected]="c.id === simCountryId()">{{ c.name }}</option>
             }
           </select>
+        </div>
+        <div class="vy-fld">
+          <label for="vy-space">Espace</label>
+          <input [value]="simSpaceLabel()" aria-readonly="true" class="vy-ro" id="vy-space" readonly tabindex="-1" type="text" />
+          <small>Déterminé par le pays : non modifiable.</small>
         </div>
         <div class="vy-two">
           <div class="vy-fld">

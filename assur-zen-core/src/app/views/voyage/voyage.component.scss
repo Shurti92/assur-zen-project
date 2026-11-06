@@ -185,6 +185,14 @@
   }
 }
 
+.vy-fld input.vy-ro {
+  border-style: dashed;
+  background: transparent;
+  color: var(--mb-mut);
+  cursor: default;
+  font-weight: 600;
+}
+
 .vy-req {
   color: var(--mb-ko);
 }

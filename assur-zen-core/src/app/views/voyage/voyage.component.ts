@@ -148,6 +148,10 @@ export class VoyageComponent {
   // ---------- Simulateur ----------
   readonly form = signal<VoyageForm | null>(null);
   readonly simCountryId = signal<number | null>(null);
+  /** Espace du pays choisi : affiché en lecture seule sous le sélecteur. */
+  readonly simSpaceLabel = computed(
+    () => this.form()?.countries.find((c) => c.id === this.simCountryId())?.spaceLabel ?? '',
+  );
   readonly simAge = signal<number | null>(34);
   readonly simDays = signal<number | null>(12);
   readonly simulating = signal(false);
