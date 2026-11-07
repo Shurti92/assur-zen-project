@@ -684,6 +684,14 @@ class _MockNotifications implements NotificationRepository {
   Future<List<NotificationPreference>> getPreferences() async =>
       [for (final c in NotificationCategory.values) NotificationPreference(c, _prefs[c] ?? true)];
 
+  // Démonstration : le serveur ne fournit pas de canaux.
+  @override
+  Future<NotificationSettings> getSettings() async => const NotificationSettings(hasChannels: false, pushEnabled: true, smsEnabled: false, categories: []);
+
+  @override
+  Future<NotificationSettings> updateSettings({bool? push, bool? sms, String? smsConsentVersion, List<CategoryChannels>? categories}) async =>
+      getSettings();
+
   @override
   Future<List<NotificationPreference>> setPreference(NotificationCategory category, bool enabled) async {
     _prefs[category] = enabled;

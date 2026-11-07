@@ -893,3 +893,53 @@ extension ClientDocumentTypeInfo on ClientDocumentType {
         ClientDocumentType.attestation => 'Le document remis à l’achat',
       };
 }
+
+/// Choix d'une catégorie de notification par canal.
+class CategoryChannels {
+  const CategoryChannels(this.category, {required this.push, required this.sms});
+
+  final NotificationCategory category;
+  final bool push;
+  final bool sms;
+
+  CategoryChannels copyWith({bool? push, bool? sms}) => CategoryChannels(category, push: push ?? this.push, sms: sms ?? this.sms);
+}
+
+/// Préférences de notification par canal (push, SMS) et par catégorie, tenues par le serveur.
+/// `hasChannels` est faux tant que le serveur ne les fournit pas : l'écran ne montre alors rien de plus.
+class NotificationSettings {
+  const NotificationSettings({
+    required this.hasChannels,
+    required this.pushEnabled,
+    required this.smsEnabled,
+    required this.categories,
+    this.smsConsentAt,
+    this.smsConsentVersion,
+    this.smsConsentText,
+    this.smsPhone,
+  });
+
+  final bool hasChannels;
+  final bool pushEnabled;
+  final bool smsEnabled;
+  final DateTime? smsConsentAt;
+  final String? smsConsentVersion;
+
+  /// Texte de l'accord fourni par le serveur ; absent : l'écran n'affiche pas de texte inventé.
+  final String? smsConsentText;
+
+  /// Numéro déjà masqué par le serveur (« 07 ** ** ** 86 »).
+  final String? smsPhone;
+  final List<CategoryChannels> categories;
+
+  NotificationSettings copyWith({bool? pushEnabled, bool? smsEnabled, List<CategoryChannels>? categories}) => NotificationSettings(
+        hasChannels: hasChannels,
+        pushEnabled: pushEnabled ?? this.pushEnabled,
+        smsEnabled: smsEnabled ?? this.smsEnabled,
+        categories: categories ?? this.categories,
+        smsConsentAt: smsConsentAt,
+        smsConsentVersion: smsConsentVersion,
+        smsConsentText: smsConsentText,
+        smsPhone: smsPhone,
+      );
+}

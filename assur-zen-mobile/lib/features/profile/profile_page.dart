@@ -51,19 +51,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _togglePush(NotificationCategory category, bool enabled) async {
-    final previous = _pushPrefs;
-    // Mise à jour immédiate de l'interrupteur, annulée si le serveur refuse.
-    setState(() => _pushPrefs = [for (final p in previous) p.category == category ? NotificationPreference(category, enabled) : p]);
-    try {
-      final saved = await context.repos.notifications.setPreference(category, enabled);
-      if (mounted && saved.isNotEmpty) setState(() => _pushPrefs = saved);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _pushPrefs = previous);
-      showAzSnack(context, errorMessage(e));
-    }
-  }
 
   Future<void> _toggleBiometric(bool value) async {
     final session = context.session;
@@ -186,17 +173,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   onChanged: _togglePattern,
                 ),
               ]),
-              // Préférences push par catégorie : tenues par le serveur (la notification
-              // reste toujours listée dans l'écran, seul le push est concerné).
+              // Préférences de notification (push, et SMS quand le serveur les propose) : tenues par le serveur.
               if (_pushPrefs.isNotEmpty)
                 _Group(title: 'Notifications', children: [
-                  for (final p in _pushPrefs)
-                    _Toggle(
-                      icon: notificationIcon(p.category),
-                      label: p.category.label,
-                      value: p.enabled,
-                      onChanged: (v) => _togglePush(p.category, v),
-                    ),
+                  _Item(icon: Icons.notifications_none_rounded, label: 'Mes notifications', onTap: () => context.push(AppRoutes.notificationSettings)),
                 ]),
               _Group(title: 'Aide et informations', children: [
                 _Item(icon: Icons.support_agent_outlined, label: 'Contact et assistance', onTap: () => context.push(AppRoutes.support)),

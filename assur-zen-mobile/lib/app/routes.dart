@@ -13,6 +13,7 @@ import '../features/claims/claim_detail_page.dart';
 import '../features/claims/claim_done_page.dart';
 import '../features/contracts/attestation_page.dart';
 import '../features/contracts/documents_page.dart';
+import '../features/profile/notification_settings_page.dart';
 import '../features/contracts/contract_detail_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../features/onboarding/onboarding_page.dart';
@@ -51,6 +52,7 @@ abstract final class AppRoutes {
   static const voyageQuote = '/voyage-quote';
   static const myQuotes = '/my-quotes';
   static const documents = '/documents';
+  static const notificationSettings = '/notification-settings';
   static const motoQuoteDetail = '/moto-quote-detail';
   static const payment = '/payment';
   static const contract = '/contract';
@@ -84,6 +86,7 @@ abstract final class AppRoutes {
       voyageQuote => VoyageQuotePage(title: args is String ? args : null),
       myQuotes => const MyQuotesPage(),
       documents => const DocumentsPage(),
+      notificationSettings => const NotificationSettingsPage(),
       motoQuoteDetail => MotoQuoteDetailPage(quote: args as MotoQuote),
       payment => PaymentPage(args: args as PaymentArgs),
       contract => ContractDetailPage(contractId: args as String),

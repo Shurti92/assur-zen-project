@@ -204,6 +204,13 @@ abstract interface class NotificationRepository {
   /// Active ou désactive le push d'une catégorie ; renvoie la liste à jour.
   Future<List<NotificationPreference>> setPreference(NotificationCategory category, bool enabled);
 
+  /// Préférences par canal (push, SMS) et par catégorie. `hasChannels` faux = le serveur
+  /// ne les fournit pas encore.
+  Future<NotificationSettings> getSettings();
+
+  /// Modifie un canal et/ou des catégories ; seuls les champs donnés changent. Renvoie l'état à jour.
+  Future<NotificationSettings> updateSettings({bool? push, bool? sms, String? smsConsentVersion, List<CategoryChannels>? categories});
+
   /// Enregistre l'appareil (jeton FCM) pour les notifications push. Idempotent par
   /// jeton ; renvoie l'identifiant de l'appareil à conserver pour la déconnexion.
   Future<String> registerDevice({required String token, String? appVersion});

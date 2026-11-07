@@ -42,6 +42,57 @@ class ApiNotificationRepository implements NotificationRepository {
       preferencesFromJson(await _client.get(Endpoints.notificationPreferences));
 
   @override
+  Future<NotificationSettings> getSettings() async => settingsFromJson(await _client.get(Endpoints.notificationPreferences));
+
+  @override
+  Future<NotificationSettings> updateSettings({bool? push, bool? sms, String? smsConsentVersion, List<CategoryChannels>? categories}) async {
+    final data = await _client.put(
+      Endpoints.notificationPreferences,
+      body: {
+        if (push != null || sms != null)
+          'channels': {
+            if (push != null) 'push': {'enabled': push},
+            if (sms != null) 'sms': {'enabled': sms, if (sms && smsConsentVersion != null) 'consentVersion': smsConsentVersion},
+          },
+        if (categories != null)
+          'categories': [
+            for (final c in categories) {'category': categoryCode(c.category), 'push': c.push, 'sms': c.sms},
+          ],
+      },
+    );
+    return settingsFromJson(data);
+  }
+
+  static NotificationSettings settingsFromJson(dynamic data) {
+    final json = data is Map<String, dynamic> ? data : const <String, dynamic>{};
+    final channels = json['channels'];
+    final hasChannels = channels is Map<String, dynamic>;
+    final push = hasChannels && channels['push'] is Map<String, dynamic> ? channels['push'] as Map<String, dynamic> : const <String, dynamic>{};
+    final sms = hasChannels && channels['sms'] is Map<String, dynamic> ? channels['sms'] as Map<String, dynamic> : const <String, dynamic>{};
+    String? text(Object? v) {
+      final s = v?.toString().trim();
+      return (s == null || s.isEmpty) ? null : s;
+    }
+
+    final cats = json['categories'];
+    return NotificationSettings(
+      hasChannels: hasChannels,
+      pushEnabled: push['enabled'] != false,
+      smsEnabled: sms['enabled'] == true,
+      smsConsentAt: DateTime.tryParse((sms['consentAt'] ?? '').toString())?.toLocal(),
+      // Version à renvoyer à l'activation : la version actuelle du texte, sinon celle déjà acceptée.
+      smsConsentVersion: text(sms['currentConsentVersion']) ?? text(sms['consentVersion']),
+      smsConsentText: text(sms['consentText']),
+      smsPhone: text(sms['phone']),
+      categories: [
+        for (final e in (cats is List ? cats : const []))
+          if (e is Map<String, dynamic> && e['category'] != null)
+            CategoryChannels(categoryFromCode(e['category'].toString()), push: e['push'] != false, sms: e['sms'] == true),
+      ],
+    );
+  }
+
+  @override
   Future<List<NotificationPreference>> setPreference(NotificationCategory category, bool enabled) async {
     // Seules les catégories envoyées changent ; le serveur renvoie la liste complète.
     final data = await _client.put(
