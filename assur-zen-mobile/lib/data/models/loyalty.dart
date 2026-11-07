@@ -92,10 +92,13 @@ class LoyaltyRules {
 
 /// Un palier de remise : durée de garantie (bornes incluses, en mois) et pourcentage de la prime nette.
 class LoyaltyDiscountTier {
-  const LoyaltyDiscountTier({required this.productKey, required this.minMonths, required this.maxMonths, required this.percent});
+  const LoyaltyDiscountTier({required this.productKey, required this.minMonths, required this.maxMonths, required this.percent, this.productLabel});
 
   /// Clé du produit du devis : `moto` (moto et tricycle) ou `automobile-vtc`.
   final String productKey;
+
+  /// Nom du produit rédigé par AssurZen (réglable au back-office) ; absent : « Assurance ».
+  final String? productLabel;
   final int minMonths;
   final int maxMonths;
   final num percent;
@@ -106,12 +109,25 @@ class LoyaltyDiscountTier {
   }
 }
 
-/// Remises Zen Points du client. Le serveur ne liste que les paliers dont le client bénéficie.
+/// Remises du premier niveau supérieur, montrées en grisé à un client qui n'y a pas encore droit.
+class LoyaltyUpcomingDiscounts {
+  const LoyaltyUpcomingDiscounts({required this.levelLabel, required this.tiers, this.pointsToGo});
+
+  final String levelLabel;
+  final int? pointsToGo;
+  final List<LoyaltyDiscountTier> tiers;
+}
+
+/// Remises Zen Points du client. `tiers` ne liste que les paliers dont il bénéficie ; sans eux,
+/// `upcoming` (s'il existe) décrit ce que lui ouvrirait le niveau suivant.
 class LoyaltyDiscounts {
-  const LoyaltyDiscounts({required this.tiers, this.levelLabel});
+  const LoyaltyDiscounts({required this.tiers, this.levelLabel, this.upcoming});
 
   final String? levelLabel;
   final List<LoyaltyDiscountTier> tiers;
+  final LoyaltyUpcomingDiscounts? upcoming;
+
+  bool get isLocked => tiers.isEmpty && upcoming != null;
 
   /// Pourcentage du palier qui couvre ce produit et cette durée (bornes incluses) ; `null` si aucun.
   num? percentFor(String productKey, int months) {

@@ -50,22 +50,39 @@ class ApiLoyaltyRepository implements LoyaltyRepository {
 
   // Conversion JSON (publique pour les tests) ---------------------------------
 
-  /// `{enabled, levelLabel, tiers[]}` ; coupé, sans palier ou corps inattendu : aucune remise à montrer.
+  static List<LoyaltyDiscountTier> _tiers(Object? raw) => [
+        for (final t in (raw is List ? raw : const []))
+          if (t is Map<String, dynamic> && _text(t['productKey']) != null && t['percent'] is num && (t['percent'] as num) > 0)
+            LoyaltyDiscountTier(
+              productKey: _text(t['productKey'])!,
+              productLabel: _text(t['productLabel']),
+              minMonths: _int(t['minMonths']) ?? 1,
+              maxMonths: _int(t['maxMonths']) ?? _int(t['minMonths']) ?? 1,
+              percent: t['percent'] as num,
+            ),
+      ];
+
+  /// `{enabled, levelLabel, tiers[], upcoming{levelLabel, pointsToGo, tiers[]}}`.
+  /// Actives : `tiers`. Client Bronze adhérent : `upcoming` (grille du niveau suivant, grisée).
+  /// Remises coupées, client non adhérent ou corps inattendu : rien à montrer.
   static LoyaltyDiscounts? discountsFromJson(dynamic data) {
-    if (data is! Map<String, dynamic> || data['enabled'] != true) return null;
-    final raw = data['tiers'];
-    final tiers = <LoyaltyDiscountTier>[
-      for (final t in (raw is List ? raw : const []))
-        if (t is Map<String, dynamic> && _text(t['productKey']) != null && t['percent'] is num && (t['percent'] as num) > 0)
-          LoyaltyDiscountTier(
-            productKey: _text(t['productKey'])!,
-            minMonths: _int(t['minMonths']) ?? 1,
-            maxMonths: _int(t['maxMonths']) ?? _int(t['minMonths']) ?? 1,
-            percent: t['percent'] as num,
-          ),
-    ];
-    if (tiers.isEmpty) return null;
-    return LoyaltyDiscounts(levelLabel: _text(data['levelLabel']), tiers: tiers);
+    if (data is! Map<String, dynamic>) return null;
+    if (data['enabled'] == true) {
+      final tiers = _tiers(data['tiers']);
+      return tiers.isEmpty ? null : LoyaltyDiscounts(levelLabel: _text(data['levelLabel']), tiers: tiers);
+    }
+    final u = data['upcoming'];
+    if (u is Map<String, dynamic> && _text(u['levelLabel']) != null) {
+      final tiers = _tiers(u['tiers']);
+      if (tiers.isNotEmpty) {
+        return LoyaltyDiscounts(
+          levelLabel: _text(data['levelLabel']),
+          tiers: const [],
+          upcoming: LoyaltyUpcomingDiscounts(levelLabel: _text(u['levelLabel'])!, pointsToGo: _int(u['pointsToGo']), tiers: tiers),
+        );
+      }
+    }
+    return null;
   }
 
   static String? _text(Object? v) {

@@ -226,6 +226,58 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('Bronze : la grille du niveau suivant est lue en grisé, tous les autres cas sont masqués', () {
+    final bronze = ApiLoyaltyRepository.discountsFromJson({
+      'enabled': false,
+      'levelCode': 'BRONZE',
+      'levelLabel': 'Bronze',
+      'tiers': [],
+      'upcoming': {
+        'levelCode': 'SILVER',
+        'levelLabel': 'Silver',
+        'pointsToGo': 380,
+        'tiers': [
+          {'productKey': 'moto', 'productLabel': 'Assurance moto', 'minMonths': 1, 'maxMonths': 12, 'percent': 10},
+        ],
+      },
+    })!;
+    expect(bronze.isLocked, isTrue);
+    expect(bronze.tiers, isEmpty);
+    expect(bronze.upcoming!.levelLabel, 'Silver');
+    expect(bronze.upcoming!.pointsToGo, 380);
+    expect(bronze.upcoming!.tiers.single.productLabel, 'Assurance moto');
+    // Une remise « verrouillée » ne s'applique jamais à une simulation.
+    expect(bronze.percentFor('moto', 12), isNull);
+
+    // Remises coupées ou client non adhérent : { enabled: false } seul.
+    expect(ApiLoyaltyRepository.discountsFromJson({'enabled': false}), isNull);
+    // Niveau supérieur sans palier propre : rien.
+    expect(ApiLoyaltyRepository.discountsFromJson({'enabled': false, 'upcoming': {'levelLabel': 'Silver', 'tiers': []}}), isNull);
+    // Actives : pas de grille grisée.
+    final silver = ApiLoyaltyRepository.discountsFromJson({
+      'enabled': true,
+      'tiers': [
+        {'productKey': 'moto', 'minMonths': 1, 'maxMonths': 12, 'percent': 10},
+      ],
+    })!;
+    expect(silver.isLocked, isFalse);
+  });
+
+  testWidgets('Bronze : les remises du niveau suivant s’affichent en grisé avec le nombre de points manquants', (tester) async {
+    final fake = _FakeLoyalty()
+      ..discounts = const LoyaltyDiscounts(tiers: [], upcoming: LoyaltyUpcomingDiscounts(levelLabel: 'Silver', pointsToGo: 380, tiers: [
+        LoyaltyDiscountTier(productKey: 'moto', productLabel: 'Assurance moto', minMonths: 1, maxMonths: 12, percent: 10),
+      ]));
+    await _pump(tester, _repos(fake), const LoyaltyPage(), size: const Size(360, 1600));
+    expect(find.text('Vos remises assurance auto'), findsOneWidget);
+    expect(find.text('Assurance moto'), findsOneWidget);
+    expect(find.text('−10 %'), findsOneWidget);
+    expect(find.textContaining('Disponibles dès le niveau Silver'), findsOneWidget);
+    expect(find.textContaining('Encore 380 points'), findsOneWidget);
+    expect(find.textContaining('Appliquées automatiquement'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   test('le palier est trouvé par produit et durée, bornes incluses', () {
     const d = LoyaltyDiscounts(tiers: [
       LoyaltyDiscountTier(productKey: 'moto', minMonths: 1, maxMonths: 12, percent: 10),

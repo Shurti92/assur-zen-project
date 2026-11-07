@@ -193,21 +193,19 @@ class _LoyaltyPageState extends State<LoyaltyPage> {
 }
 
 /// Remises du niveau du client, par produit et par durée. Le serveur ne liste que celles auxquelles
-/// le client a droit ; le libellé du produit est celui de la clé connue, sinon « Assurance ».
+/// le client a droit. Pour un client du niveau d'en dessous, la grille du niveau suivant est montrée en
+/// grisé. Le nom du produit vient du serveur.
 class _DiscountsCard extends StatelessWidget {
   const _DiscountsCard({required this.discounts});
 
   final LoyaltyDiscounts discounts;
 
-  static String _product(String key) => switch (key) {
-        'moto' => 'Moto et tricycle',
-        'automobile-vtc' => 'Auto VTC',
-        _ => 'Assurance',
-      };
-
   @override
   Widget build(BuildContext context) {
-    final tiers = discounts.tiers;
+    final locked = discounts.isLocked;
+    final upcoming = discounts.upcoming;
+    final tiers = locked ? upcoming!.tiers : discounts.tiers;
+    final togo = upcoming?.pointsToGo;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -222,16 +220,22 @@ class _DiscountsCard extends StatelessWidget {
                 if (i > 0) const Divider(height: 1, color: AzColors.lineSoft),
                 _LineRow(
                   title: 'Durée ${tiers[i].durationLabel}',
-                  subtitle: _product(tiers[i].productKey),
+                  subtitle: tiers[i].productLabel ?? 'Assurance',
                   trailing: '−${formatPercent(tiers[i].percent)} %',
-                  color: AzColors.blue700,
+                  color: locked ? AzColors.muted : AzColors.blue700,
                 ),
               ],
             ],
           ),
         ),
         const SizedBox(height: 10),
-        const AzBanner(kind: AzBannerKind.success, text: 'Appliquées automatiquement à votre prochain devis.'),
+        if (locked)
+          AzBanner(
+            kind: AzBannerKind.info,
+            text: 'Disponibles dès le niveau ${upcoming!.levelLabel}.${togo != null && togo > 0 ? ' Encore ${_pts(togo)} pour y accéder.' : ''}',
+          )
+        else
+          const AzBanner(kind: AzBannerKind.success, text: 'Appliquées automatiquement à votre prochain devis.'),
       ],
     );
   }
