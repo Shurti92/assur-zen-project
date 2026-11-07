@@ -71,6 +71,7 @@ export class ZenPointsComponent {
   readonly levelCode = signal('');
   readonly levelLabel = signal('');
   readonly levelThreshold = signal<number | null>(0);
+  readonly levelBonus = signal<number | null>(0);
   readonly levelPerks = signal('');
   readonly levelBusy = signal(false);
   readonly levelError = signal<string | null>(null);
@@ -210,6 +211,7 @@ export class ZenPointsComponent {
     this.levelCode.set(level?.code ?? '');
     this.levelLabel.set(level?.label ?? '');
     this.levelThreshold.set(level?.threshold ?? 0);
+    this.levelBonus.set(level?.pointsBonusPercent ?? 0);
     this.levelPerks.set((level?.perks ?? []).join('\n'));
     this.levelError.set(null);
     this.levelVisible.set(true);
@@ -230,6 +232,8 @@ export class ZenPointsComponent {
     if (!label || label.length > 60) return 'Le nom est obligatoire (60 caractères max).';
     const t = this.levelThreshold();
     if (t === null || !Number.isInteger(t) || t < 0) return 'Le seuil doit être un entier positif ou nul.';
+    const b = this.levelBonus();
+    if (b === null || !Number.isInteger(b) || b < 0 || b > 100) return 'Le bonus de points est un entier de 0 à 100.';
     if (this.perksList().some((p) => p.length > 200)) return 'Chaque avantage fait 200 caractères max.';
     return null;
   }
@@ -242,7 +246,12 @@ export class ZenPointsComponent {
     }
     this.levelBusy.set(true);
     this.levelError.set(null);
-    const base = { label: this.levelLabel().trim(), threshold: this.levelThreshold() as number, perks: this.perksList() };
+    const base = {
+      label: this.levelLabel().trim(),
+      threshold: this.levelThreshold() as number,
+      pointsBonusPercent: this.levelBonus() as number,
+      perks: this.perksList(),
+    };
     const editing = this.levelEditing();
     const call = editing
       ? this.service.updateLevel(editing.code, base)

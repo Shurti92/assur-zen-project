@@ -1,3 +1,4 @@
+import { LoyaltyBadgeComponent } from '../../shared/loyalty-badge/loyalty-badge.component';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -36,7 +37,7 @@ interface Step {
   selector: 'app-devis-detail',
   templateUrl: './devis-detail.component.html',
   styleUrl: './devis-detail.component.scss',
-  imports: [AlertMessageComponent, DevisConversionComponent, QuoteReminderDialogComponent, RouterLink, SendQuoteEmailDialogComponent, SendQuoteSmsDialogComponent, SpinnerComponent],
+  imports: [AlertMessageComponent, LoyaltyBadgeComponent, DevisConversionComponent, QuoteReminderDialogComponent, RouterLink, SendQuoteEmailDialogComponent, SendQuoteSmsDialogComponent, SpinnerComponent],
 })
 export class DevisDetailComponent {
   /** Regroupement des garanties par rubrique (accordéons). */

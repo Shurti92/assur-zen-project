@@ -81,7 +81,7 @@
           <div class="dd-person">
             <div class="dd-avatar">{{ initials() }}</div>
             <div>
-              <b>{{ q.prospectName || '—' }}</b>
+              <b>{{ q.prospectName || '—' }}<app-loyalty-badge [level]="q.loyaltyLevel" /></b>
               <span>{{ q.productKey === 'voyage' ? 'Voyageur' : 'Prospect' }}</span>
             </div>
           </div>

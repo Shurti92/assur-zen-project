@@ -1,3 +1,4 @@
+import { LoyaltyBadgeComponent } from '../../shared/loyalty-badge/loyalty-badge.component';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -32,7 +33,7 @@ type ProductFilter = 'moto' | 'automobile-vtc' | 'voyage' | null;
   selector: 'app-devis-liste',
   templateUrl: './devis-liste.component.html',
   styleUrl: './devis-liste.component.scss',
-  imports: [QuoteReminderDialogComponent, RouterLink, SpinnerComponent],
+  imports: [LoyaltyBadgeComponent, QuoteReminderDialogComponent, RouterLink, SpinnerComponent],
 })
 export class DevisListeComponent {
   private readonly service = inject(QuoteService);

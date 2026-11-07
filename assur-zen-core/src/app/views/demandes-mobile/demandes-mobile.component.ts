@@ -13,6 +13,7 @@ import {
   SupportRequest,
 } from '../../core/mobile-admin/models/mobile-request.model';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
+import { LoyaltyBadgeComponent } from '../../shared/loyalty-badge/loyalty-badge.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
 
 type Tab = 'callbacks' | 'contracts' | 'deletions' | 'support';
@@ -35,7 +36,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   selector: 'app-demandes-mobile',
   templateUrl: './demandes-mobile.component.html',
   styleUrl: './demandes-mobile.component.scss',
-  imports: [ButtonDirective, SpinnerComponent, FormsModule, RouterLink, AlertMessageComponent, ModalComponent],
+  imports: [ButtonDirective, SpinnerComponent, FormsModule, RouterLink, AlertMessageComponent, ModalComponent, LoyaltyBadgeComponent],
 })
 export class DemandesMobileComponent {
   private readonly service = inject(MobileRequestService);

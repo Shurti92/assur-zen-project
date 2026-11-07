@@ -86,7 +86,7 @@
                 <div>{{ item.productName || (item.productId ? 'Produit #' + item.productId : '—') }}</div>
                 <div>
                   @if (item.userId) {
-                    {{ item.fullName || 'Compte #' + item.userId }}
+                    {{ item.fullName || 'Compte #' + item.userId }}<app-loyalty-badge [level]="item.loyaltyLevel" />
                   } @else {
                     <span class="mb-mut">Sans compte</span>
                   }
@@ -118,7 +118,7 @@
                   {{ item.policyNumber }}
                   <small><a [routerLink]="['/contrats/liste-des-contrats']" [queryParams]="{ q: item.policyNumber }">Ouvrir le contrat</a></small>
                 </div>
-                <div>{{ displayName(item.insuredName) }}</div>
+                <div>{{ displayName(item.insuredName) }}<app-loyalty-badge [level]="item.loyaltyLevel" /></div>
                 <div class="mb-msg">{{ item.message || '—' }}</div>
                 <div class="mb-mut">{{ formatDateTime(item.createdAt) }}</div>
                 <div><span [class]="'mb-pill ' + pillClass(statusVariant(item.statut))">{{ statusLabel(item.statut) }}</span></div>
@@ -192,7 +192,7 @@
       <div><span class="dm-label">Téléphone</span><span class="dl-timestamp">{{ item.phone }}</span></div>
       <div><span class="dm-label">Créneau souhaité</span>{{ slotLabel(item.slot) }}</div>
       <div><span class="dm-label">Produit</span>{{ item.productName || (item.productId ? 'Produit #' + item.productId : '—') }}</div>
-      <div><span class="dm-label">Compte</span>{{ item.userId ? (item.fullName || 'Compte #' + item.userId) : 'Sans compte' }}</div>
+      <div><span class="dm-label">Compte</span>{{ item.userId ? (item.fullName || 'Compte #' + item.userId) : 'Sans compte' }}<app-loyalty-badge [level]="item.loyaltyLevel" /></div>
       @if (item.statut !== 'EN_ATTENTE') {
         <div><span class="dm-label">Statut</span>{{ statusLabel(item.statut) }}</div>
         <div><span class="dm-label">Traitée</span>{{ formatDateTime(item.processedAt) }} · {{ item.processedBy || '—' }}</div>
@@ -227,7 +227,7 @@
         <span [class]="'dl-chip ' + (item.type === 'TERMINATION' ? 'dl-chip--danger' : 'dl-chip--info')">{{ item.type === 'TERMINATION' ? 'Résiliation' : 'Modification' }}</span>
       </div>
       <div><span class="dm-label">Contrat</span><span class="dl-tag">{{ item.policyNumber }}</span></div>
-      <div><span class="dm-label">Assuré</span>{{ displayName(item.insuredName) }}</div>
+      <div><span class="dm-label">Assuré</span>{{ displayName(item.insuredName) }}<app-loyalty-badge [level]="item.loyaltyLevel" /></div>
       <div><span class="dm-label">Téléphone</span><span class="dl-timestamp">{{ item.phone || '—' }}</span></div>
       <div><span class="dm-label">Reçue le</span>{{ formatDateTime(item.createdAt) }}</div>
       @if (item.statut !== 'EN_ATTENTE') {

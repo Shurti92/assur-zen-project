@@ -26,12 +26,15 @@ export interface LoyaltyLevel {
   code: string;
   label: string;
   threshold: number;
+  /** Bonus de points en % sur les gains futurs (0 à 100). */
+  pointsBonusPercent?: number;
   perks: string[];
 }
 
 export interface LoyaltyLevelUpdate {
   label: string;
   threshold: number;
+  pointsBonusPercent: number;
   perks: string[];
 }
 

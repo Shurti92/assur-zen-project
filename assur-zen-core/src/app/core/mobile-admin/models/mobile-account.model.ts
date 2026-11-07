@@ -11,6 +11,8 @@ export interface MobileAccount {
   pendingDeletionReference?: string | null;
   /** true dès que l'assuré s'est connecté au moins une fois (sinon : invitation envoyée). */
   activated?: boolean;
+  /** Niveau Zen Points (ex. Silver, Gold) ; absent si non adhérent, accord retiré ou Bronze. */
+  loyaltyLevel?: string | null;
 }
 
 export interface MobileAccountPage {

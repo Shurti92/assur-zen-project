@@ -98,7 +98,7 @@
           <div class="dq-who">
             <span class="dq-av">{{ initials(d) }}</span>
             <div>
-              <b>{{ d.prospectName || '—' }}</b>
+              <b>{{ d.prospectName || '—' }}<app-loyalty-badge [level]="d.loyaltyLevel" /></b>
               <small>{{ formatPhone(d.prospectPhone) }}</small>
             </div>
           </div>

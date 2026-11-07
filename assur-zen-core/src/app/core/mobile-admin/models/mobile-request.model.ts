@@ -17,6 +17,8 @@ export interface CallbackRequest {
   userId?: number | null;
   /** Nom du titulaire du compte, si le gateway le fournit. */
   fullName?: string | null;
+  /** Niveau Zen Points du client (absent si non adhérent, retiré ou Bronze). */
+  loyaltyLevel?: string | null;
   statut: CallbackStatus;
   createdAt: string;
   processedAt?: string | null;
@@ -32,6 +34,8 @@ export interface ContractRequest {
   insuredName: string;
   userId?: number | null;
   phone?: string | null;
+  /** Niveau Zen Points du client (absent si non adhérent, retiré ou Bronze). */
+  loyaltyLevel?: string | null;
   type: ContractRequestType;
   message?: string | null;
   statut: ContractRequestStatus;

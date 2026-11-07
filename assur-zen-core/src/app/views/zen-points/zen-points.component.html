@@ -139,6 +139,7 @@
             <th scope="col">Niveau</th>
             <th scope="col">Code</th>
             <th scope="col">Seuil</th>
+            <th scope="col">Bonus de points</th>
             <th scope="col">Avantages (texte client)</th>
             <th scope="col"></th>
           </tr>
@@ -149,6 +150,7 @@
               <td><span [class]="levelClass(l.code)">{{ l.label }}</span></td>
               <td><span class="dl-tag">{{ l.code }}</span></td>
               <td>{{ fmt(l.threshold) }}</td>
+              <td>{{ l.pointsBonusPercent ? '+' + l.pointsBonusPercent + ' %' : '—' }}</td>
               <td>{{ l.perks.length ? l.perks.join(' · ') : '—' }}</td>
               <td class="text-end">
                 <button (click)="openLevel(l)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
@@ -341,8 +343,17 @@
   }
   <label class="form-label fw-semibold" for="zp-label">Nom</label>
   <input [ngModel]="levelLabel()" (ngModelChange)="levelLabel.set($event)" id="zp-label" maxlength="60" class="form-control mb-2" />
-  <label class="form-label fw-semibold" for="zp-threshold">Seuil (points qualifiants)</label>
-  <input [ngModel]="levelThreshold()" (ngModelChange)="levelThreshold.set($event)" id="zp-threshold" type="number" min="0" class="form-control mb-2" />
+  <div class="row g-2 mb-1">
+    <div class="col-6">
+      <label class="form-label fw-semibold" for="zp-threshold">Seuil (points qualifiants)</label>
+      <input [ngModel]="levelThreshold()" (ngModelChange)="levelThreshold.set($event)" id="zp-threshold" type="number" min="0" class="form-control" />
+    </div>
+    <div class="col-6">
+      <label class="form-label fw-semibold" for="zp-bonus">Bonus de points (%)</label>
+      <input [ngModel]="levelBonus()" (ngModelChange)="levelBonus.set($event)" id="zp-bonus" type="number" min="0" max="100" class="form-control" />
+    </div>
+  </div>
+  <div class="small text-body-secondary mb-2">Bonus : entier de 0 à 100. Majore les points gagnés par les clients de ce niveau, pour les gains futurs seulement.</div>
   <label class="form-label fw-semibold" for="zp-perks">Avantages (un par ligne)</label>
   <textarea [ngModel]="levelPerks()" (ngModelChange)="levelPerks.set($event)" id="zp-perks" rows="3" class="form-control"></textarea>
   @if (levelEditing()) {
