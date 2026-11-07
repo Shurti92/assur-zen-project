@@ -69,7 +69,14 @@ class ApiCatalogRepository implements CatalogRepository {
       guarantees: guarantees,
       eligibility: _nonEmpty(j['eligibility']),
       iconCode: _nonEmpty(j['icon']),
+      quoteType: _quoteType(j['quote']),
     );
+  }
+
+  /// `quote: { available, type }` calculé par le serveur ; indisponible ou corps inattendu : aucune cotation.
+  static String? _quoteType(Object? v) {
+    if (v is! Map<String, dynamic> || v['available'] != true) return null;
+    return _nonEmpty(v['type']);
   }
 
   static ProductFamily _family(String? v) => switch (v) {

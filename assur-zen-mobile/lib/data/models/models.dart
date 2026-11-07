@@ -116,7 +116,14 @@ class Product {
     this.faq = const [],
     this.contentVersion,
     this.assistancePlans = const [],
+    this.quoteType,
   });
+
+  /// Type de cotation que le serveur sait faire pour ce produit (`MOTO`, `VTC`, `VOYAGE`, `ENTREPRISE`) ;
+  /// `null` : pas de cotation, le client demande à être rappelé.
+  final String? quoteType;
+
+  bool get hasEnterpriseQuote => quoteType == 'ENTREPRISE';
 
   /// Niveaux d'assistance (Assurance Auto uniquement), actifs et triés par le serveur. Vide : rubrique masquée.
   final List<AssistancePlan> assistancePlans;

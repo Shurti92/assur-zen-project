@@ -27,6 +27,7 @@ import '../features/engagement/badges_page.dart';
 import '../features/engagement/protection_score_page.dart';
 import '../features/engagement/quiz_page.dart';
 import '../features/quote/my_quotes_page.dart';
+import '../features/quote/enterprise_quote_page.dart';
 import '../features/quote/voyage_quote_page.dart';
 import '../features/quote/quote_flow_page.dart';
 import '../features/quote/vtc_quote_page.dart';
@@ -51,6 +52,7 @@ abstract final class AppRoutes {
   static const motoQuote = '/moto-quote';
   static const vtcQuote = '/vtc-quote';
   static const voyageQuote = '/voyage-quote';
+  static const enterpriseQuote = '/enterprise-quote';
   static const myQuotes = '/my-quotes';
   static const documents = '/documents';
   static const loyalty = '/loyalty';
@@ -88,6 +90,7 @@ abstract final class AppRoutes {
       motoQuote => MotoQuotePage(title: args is String ? args : null),
       vtcQuote => VtcQuotePage(title: args is String ? args : null),
       voyageQuote => VoyageQuotePage(title: args is String ? args : null),
+      enterpriseQuote => EnterpriseQuotePage(product: args as Product),
       myQuotes => const MyQuotesPage(),
       documents => const DocumentsPage(),
       loyalty => const LoyaltyPage(),

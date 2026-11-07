@@ -10,6 +10,7 @@ import 'api_contract_repository.dart';
 import 'api_moto_quote_repository.dart';
 import 'api_engagement_repository.dart';
 import 'api_promotion_repository.dart';
+import 'api_enterprise_quote_repository.dart';
 import 'api_loyalty_repository.dart';
 import 'api_notification_repository.dart';
 import 'api_payment_repository.dart';
@@ -42,6 +43,7 @@ abstract final class ApiRepositories {
         engagement: ApiEngagementRepository(client),
         promotions: ApiPromotionRepository(client),
         loyalty: ApiLoyaltyRepository(client),
+        enterpriseQuotes: ApiEnterpriseQuoteRepository(client),
       );
 }
 

@@ -1,5 +1,7 @@
+import '../../core/network/api_exception.dart';
 import '../../core/network/downloaded_file.dart';
 import '../models/engagement.dart';
+import '../models/enterprise_quote.dart';
 import '../models/loyalty.dart';
 import '../models/models.dart';
 import '../models/moto_quote.dart';
@@ -262,6 +264,7 @@ class Repositories {
     required this.engagement,
     this.promotions = const NoPromotions(),
     this.loyalty = const NoLoyalty(),
+    this.enterpriseQuotes = const NoEnterpriseQuotes(),
   });
 
   final AuthRepository auth;
@@ -276,6 +279,27 @@ class Repositories {
   final EngagementRepository engagement;
   final PromotionRepository promotions;
   final LoyaltyRepository loyalty;
+  final EnterpriseQuoteRepository enterpriseQuotes;
+}
+
+/// Cotation Assurance Entreprise (publique, rien n'est enregistré).
+abstract interface class EnterpriseQuoteRepository {
+  Future<EnterpriseForm> getForm();
+
+  /// Prime annuelle TTC d'une formule et d'une option, avec ses garanties quand le serveur en donne.
+  Future<EnterpriseSimulation> simulate({required String formulaId, required String option});
+}
+
+/// Pas de cotation Entreprise (démonstration, serveur sans cotation) : aucune formule, aucun prix.
+class NoEnterpriseQuotes implements EnterpriseQuoteRepository {
+  const NoEnterpriseQuotes();
+
+  @override
+  Future<EnterpriseForm> getForm() async => const EnterpriseForm(packs: []);
+
+  @override
+  Future<EnterpriseSimulation> simulate({required String formulaId, required String option}) async =>
+      throw ApiException.notImplemented('cotation Entreprise');
 }
 
 /// Pop-up publicitaires paramétrés au back-office.

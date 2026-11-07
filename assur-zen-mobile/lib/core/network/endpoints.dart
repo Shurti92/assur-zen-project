@@ -117,6 +117,8 @@ abstract final class Endpoints {
   static const voyageQuoteForm = '$prefix/public/quotes/voyage/form';
   static const voyageQuoteSimulate = '$prefix/public/quotes/voyage/simulate';
   static const voyageQuoteCreate = '$prefix/mobile/quotes/voyage'; // POST
+  static const enterpriseQuoteForm = '$prefix/public/quotes/entreprise/form';
+  static const enterpriseQuoteSimulate = '$prefix/public/quotes/entreprise/simulate'; // POST
   static String motoQuote(String reference) => '$prefix/mobile/quotes/$reference';
   static String motoQuoteAccept(String reference) => '$prefix/mobile/quotes/$reference/accept';
   // Paiement Jeko d'un devis accepté : renvoie le même objet Payment que `POST /mobile/payments`.
