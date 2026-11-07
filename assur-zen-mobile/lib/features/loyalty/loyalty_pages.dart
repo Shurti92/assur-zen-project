@@ -432,7 +432,10 @@ class LoyaltyRulesPage extends StatelessWidget {
                           Text(l.threshold == 0 ? 'dès 0 point' : 'dès ${l.threshold}', style: AzText.caption.copyWith(fontWeight: FontWeight.w700)),
                         ],
                       ),
-                      for (final p in l.perks)
+                      for (final p in [
+                        if (l.pointsBonusPercent != null) 'Points gagnés majorés de ${formatPercent(l.pointsBonusPercent!)} %',
+                        ...l.perks,
+                      ])
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text('• $p', style: AzText.bodyMedium),

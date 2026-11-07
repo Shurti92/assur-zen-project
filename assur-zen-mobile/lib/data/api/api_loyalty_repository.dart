@@ -128,6 +128,7 @@ class ApiLoyaltyRepository implements LoyaltyRepository {
               code: _text(l['code']) ?? '',
               label: _text(l['label'])!,
               threshold: _int(l['threshold']) ?? 0,
+              pointsBonusPercent: l['pointsBonusPercent'] is num && (l['pointsBonusPercent'] as num) > 0 ? l['pointsBonusPercent'] as num : null,
               perks: [for (final p in (l['perks'] is List ? l['perks'] as List : const [])) if (_text(p) != null) _text(p)!],
             ),
       ],

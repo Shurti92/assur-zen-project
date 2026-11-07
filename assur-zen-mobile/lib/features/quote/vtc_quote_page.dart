@@ -9,6 +9,7 @@ import '../../core/ui.dart';
 import '../../data/models/moto_quote.dart';
 import '../auth/register_page.dart';
 import '../catalog/advisor_sheet.dart';
+import '../loyalty/discount_hint.dart';
 import 'moto_quote_page.dart';
 
 /// Libellé d'une énergie renvoyée par le serveur (code inconnu : affiché tel quel).
@@ -366,7 +367,8 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
         ],
         if (sim == null)
           AzButton('Calculer mon devis', loading: _busy, onPressed: _simulate)
-        else
+        else ...[
+          if (_saved == null) ZenDiscountHint(productKey: 'automobile-vtc', months: _months),
           MotoQuoteResult(
             simulation: sim,
             quote: _saved,
@@ -375,6 +377,7 @@ class _VtcQuoteBodyState extends State<_VtcQuoteBody> {
             onAccept: _accept,
             onPay: _saved == null ? null : () => payQuote(context, _saved!),
           ),
+        ],
         const SizedBox(height: 12),
         AzButton.secondary('Être rappelé par un conseiller', onPressed: () => showAdvisorSheet(context)),
       ],

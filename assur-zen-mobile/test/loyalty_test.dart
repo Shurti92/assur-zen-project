@@ -7,6 +7,7 @@ import 'package:assurzen_mobile/data/mock/mock_data.dart';
 import 'package:assurzen_mobile/data/mock/mock_repositories.dart';
 import 'package:assurzen_mobile/data/models/loyalty.dart';
 import 'package:assurzen_mobile/data/repositories/repositories.dart';
+import 'package:assurzen_mobile/features/loyalty/discount_hint.dart';
 import 'package:assurzen_mobile/features/loyalty/loyalty_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -225,6 +226,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('le palier est trouvé par produit et durée, bornes incluses', () {
+    const d = LoyaltyDiscounts(tiers: [
+      LoyaltyDiscountTier(productKey: 'moto', minMonths: 1, maxMonths: 12, percent: 10),
+      LoyaltyDiscountTier(productKey: 'automobile-vtc', minMonths: 3, maxMonths: 6, percent: 10),
+      LoyaltyDiscountTier(productKey: 'automobile-vtc', minMonths: 12, maxMonths: 12, percent: 20),
+    ]);
+    expect(d.percentFor('moto', 12), 10);
+    expect(d.percentFor('automobile-vtc', 3), 10);
+    expect(d.percentFor('automobile-vtc', 6), 10);
+    expect(d.percentFor('automobile-vtc', 12), 20);
+    expect(d.percentFor('automobile-vtc', 2), isNull, reason: 'aucune durée de 2 mois n’est couverte');
+    expect(d.percentFor('voyage', 12), isNull);
+  });
+
+  testWidgets('la phrase de remise de la simulation suit le palier du serveur', (tester) async {
+    final fake = _FakeLoyalty()
+      ..discounts = const LoyaltyDiscounts(tiers: [
+        LoyaltyDiscountTier(productKey: 'automobile-vtc', minMonths: 12, maxMonths: 12, percent: 20),
+      ]);
+    await _pump(tester, _repos(fake), const Scaffold(body: ZenDiscountHint(productKey: 'automobile-vtc', months: 12)));
+    expect(find.textContaining('Remise Zen Points −20 %'), findsOneWidget);
+
+    // Durée non couverte : aucune promesse.
+    await _pump(tester, _repos(fake), const Scaffold(body: ZenDiscountHint(productKey: 'automobile-vtc', months: 6)));
+    expect(find.textContaining('Remise Zen Points'), findsNothing);
+
+    // Remises coupées ou client sans droit : rien.
+    await _pump(tester, _repos(const NoLoyalty()), const SizedBox());
+    await _pump(tester, _repos(const NoLoyalty()), const Scaffold(body: ZenDiscountHint(productKey: 'automobile-vtc', months: 12)));
+    expect(find.textContaining('Remise Zen Points'), findsNothing);
+  });
+
   testWidgets('programme absent : message neutre, aucun point', (tester) async {
     await _pump(tester, _repos(const NoLoyalty()), const LoyaltyPage());
     expect(find.text('Programme indisponible'), findsOneWidget);
@@ -236,6 +269,18 @@ void main() {
     expect(find.text('+200'), findsOneWidget);
     expect(find.text('Les points durent 12 mois.'), findsOneWidget);
     expect(tester.takeException(), isNull);
+
+    // Bonus de points par niveau : lu tel quel, absent ou à 0 = aucun bonus.
+    final r = ApiLoyaltyRepository.rulesFromJson({
+      'levels': [
+        {'code': 'BRONZE', 'label': 'Bronze', 'threshold': 0, 'pointsBonusPercent': 0},
+        {'code': 'SILVER', 'label': 'Silver', 'threshold': 500, 'pointsBonusPercent': 10},
+        {'code': 'GOLD', 'label': 'Gold', 'threshold': 1500},
+      ],
+    });
+    expect(r.levels[0].pointsBonusPercent, isNull);
+    expect(r.levels[1].pointsBonusPercent, 10);
+    expect(r.levels[2].pointsBonusPercent, isNull);
 
     // Durée à 0 (pas d'expiration) : aucune phrase.
     expect(ApiLoyaltyRepository.rulesFromJson({'expiryMonths': 0}).expiryMonths, 0);

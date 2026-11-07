@@ -70,12 +70,15 @@ class LoyaltyAction {
 }
 
 class LoyaltyLevelRule {
-  const LoyaltyLevelRule({required this.code, required this.label, required this.threshold, this.perks = const []});
+  const LoyaltyLevelRule({required this.code, required this.label, required this.threshold, this.perks = const [], this.pointsBonusPercent});
 
   final String code;
   final String label;
   final int threshold;
   final List<String> perks;
+
+  /// Majoration des gains de points propre au niveau (ex. 10) ; absent ou 0 : aucun bonus.
+  final num? pointsBonusPercent;
 }
 
 class LoyaltyRules {
@@ -109,6 +112,14 @@ class LoyaltyDiscounts {
 
   final String? levelLabel;
   final List<LoyaltyDiscountTier> tiers;
+
+  /// Pourcentage du palier qui couvre ce produit et cette durée (bornes incluses) ; `null` si aucun.
+  num? percentFor(String productKey, int months) {
+    for (final t in tiers) {
+      if (t.productKey == productKey && months >= t.minMonths && months <= t.maxMonths) return t.percent;
+    }
+    return null;
+  }
 }
 
 enum LoyaltyEntryType { earn, expire, adjust, cancel }
