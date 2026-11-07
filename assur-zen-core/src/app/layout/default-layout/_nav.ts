@@ -168,6 +168,11 @@ const baseNavItems: INavData[] = [
         icon: 'nav-icon-bullet',
       },
       {
+        name: 'nav.mobile.documents',
+        url: '/mobile/documents',
+        icon: 'nav-icon-bullet',
+      },
+      {
         name: 'nav.mobile.avis',
         url: '/mobile/avis',
         icon: 'nav-icon-bullet',
