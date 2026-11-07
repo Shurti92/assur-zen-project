@@ -579,6 +579,11 @@
             Ce texte s'affiche sur l'écran verrouillé du téléphone : n'y mettez jamais de montant, de nom ni de numéro de police.
           </div>
         }
+        @if (isSmsConsentTextKey()) {
+          <div class="alert alert-warning small mt-2 mb-0">
+            Texte de consentement SMS montré au client. Si vous le modifiez, augmentez aussi <strong>MOBILE_SMS_CONSENT_VERSION</strong> : sinon les clients qui ont déjà accepté ne sont pas invités à relire le nouveau texte.
+          </div>
+        }
         @if (isPushGenericKey()) {
           <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
             Vrai (recommandé) : la notification push affiche un texte générique par catégorie. Faux : le détail de l'événement apparaît dans la notification, donc sur l'écran verrouillé.

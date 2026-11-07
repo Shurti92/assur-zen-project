@@ -550,6 +550,10 @@ export class ConfigurationDynamiqueComponent {
     return key === 'MOBILE_PUSH_TITLE' || key.startsWith('MOBILE_PUSH_TEXT_');
   }
 
+  isSmsConsentTextKey(): boolean {
+    return this.configForm.controls.configKey.value.trim() === 'MOBILE_SMS_CONSENT_TEXT';
+  }
+
   isPushGenericKey(): boolean {
     return this.configForm.controls.configKey.value.trim() === 'MOBILE_PUSH_GENERIC';
   }
