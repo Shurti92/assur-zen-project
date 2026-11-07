@@ -61,15 +61,14 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   Future<void> _toggleSms(bool v) async {
     final s = _settings!;
     if (v) {
-      // L'accord est explicite : le texte vient du serveur quand il le fournit.
+      // L'accord est explicite et son texte est celui du serveur : sans lui, rien n'est proposé.
+      final text = s.smsConsentText;
+      if (text == null) return;
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Recevoir des SMS ?'),
-          content: Text(
-            s.smsConsentText ??
-                'Vous acceptez de recevoir des SMS d’AssurZen${s.smsPhone == null ? '' : ' au ${s.smsPhone}'}. Ils ne contiennent ni montant ni numéro de contrat. Vous pouvez retirer cet accord à tout moment.',
-          ),
+          content: Text(text),
           actions: [
             TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuler')),
             TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('J’accepte')),
@@ -124,7 +123,8 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                               label: 'SMS',
                               sub: s.smsPhone == null ? 'Sur votre numéro' : 'Au ${s.smsPhone}',
                               value: s.smsEnabled,
-                              onChanged: _saving ? null : _toggleSms,
+                              // On peut toujours les couper ; les activer demande le texte d'accord du serveur.
+                              onChanged: _saving || (!s.smsEnabled && s.smsConsentText == null) ? null : _toggleSms,
                             ),
                           ],
                         ],
