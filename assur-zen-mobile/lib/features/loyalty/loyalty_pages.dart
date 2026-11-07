@@ -23,6 +23,7 @@ class _LoyaltyPageState extends State<LoyaltyPage> {
   LoyaltyOverview? _overview;
   LoyaltyRules? _rules;
   LoyaltyHistory? _history;
+  LoyaltyDiscounts? _discounts;
   Object? _error;
   bool _loading = true;
 
@@ -42,13 +43,17 @@ class _LoyaltyPageState extends State<LoyaltyPage> {
       final overview = await repo.getOverview();
       LoyaltyRules? rules;
       LoyaltyHistory? history;
+      LoyaltyDiscounts? discounts;
       if (overview != null && overview.joined) {
-        // Les deux listes sont facultatives : une erreur masque seulement la section.
+        // Ces sections sont facultatives : une erreur masque seulement la section.
         try {
           rules = await repo.getRules();
         } catch (_) {}
         try {
           history = await repo.getHistory(size: 3);
+        } catch (_) {}
+        try {
+          discounts = await repo.getDiscounts();
         } catch (_) {}
       }
       if (!mounted) return;
@@ -56,6 +61,7 @@ class _LoyaltyPageState extends State<LoyaltyPage> {
         _overview = overview;
         _rules = rules;
         _history = history;
+        _discounts = discounts;
         _loading = false;
       });
     } catch (e) {
@@ -144,6 +150,10 @@ class _LoyaltyPageState extends State<LoyaltyPage> {
               : '${_pts(o.expiring!.points)} expirent le ${formatDate(o.expiring!.date)}.',
         ),
       ],
+      if (_discounts != null) ...[
+        const SizedBox(height: 20),
+        _DiscountsCard(discounts: _discounts!),
+      ],
       if (level != null && actions.isNotEmpty) ...[
         const SizedBox(height: 20),
         AzSectionHeader('Comment gagner', trailing: AzTextLink('Tout voir', onPressed: () => context.push(AppRoutes.loyaltyRules))),
@@ -179,6 +189,51 @@ class _LoyaltyPageState extends State<LoyaltyPage> {
         ),
       ],
     ];
+  }
+}
+
+/// Remises du niveau du client, par produit et par durée. Le serveur ne liste que celles auxquelles
+/// le client a droit ; le libellé du produit est celui de la clé connue, sinon « Assurance ».
+class _DiscountsCard extends StatelessWidget {
+  const _DiscountsCard({required this.discounts});
+
+  final LoyaltyDiscounts discounts;
+
+  static String _product(String key) => switch (key) {
+        'moto' => 'Moto et tricycle',
+        'automobile-vtc' => 'Auto VTC',
+        _ => 'Assurance',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final tiers = discounts.tiers;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const AzSectionHeader('Vos remises assurance auto'),
+        const SizedBox(height: 8),
+        AzCard(
+          radius: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          child: Column(
+            children: [
+              for (var i = 0; i < tiers.length; i++) ...[
+                if (i > 0) const Divider(height: 1, color: AzColors.lineSoft),
+                _LineRow(
+                  title: 'Durée ${tiers[i].durationLabel}',
+                  subtitle: _product(tiers[i].productKey),
+                  trailing: '−${formatPercent(tiers[i].percent)} %',
+                  color: AzColors.blue700,
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        const AzBanner(kind: AzBannerKind.success, text: 'Appliquées automatiquement à votre prochain devis.'),
+      ],
+    );
   }
 }
 

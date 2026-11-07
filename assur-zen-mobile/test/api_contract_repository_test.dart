@@ -107,11 +107,40 @@ void main() {
       expect(c.renewal!.amount, 27500);
       expect(c.renewal!.durationMonths, 10);
       expect(c.renewal!.payableReference, isNull);
+      expect(c.renewal!.hasDiscount, isFalse, reason: 'aucune remise annoncée : rien à afficher');
       expect(c.actions.canDeclareClaim, isTrue);
       expect(c.guarantees, isEmpty);
       expect(c.documents, isEmpty);
       expect(c.attestation, isNull);
       expect(c.hasDigitalAttestation, isFalse, reason: 'pas d’attestation numérique tant que le serveur n’en fournit pas');
+    });
+
+    test('renouvellement avec remise Zen Points : le montant à payer est celui du serveur', () async {
+      final repo = build((req) async => _json(200, {
+            ..._listItem('655', 'DEMO-MOB-ECHEANCE', 'moto', 'Assurance Moto', 'ACTIVE', 12, true),
+            'guarantees': [],
+            'documents': [],
+            'attestation': null,
+            'renewal': {
+              'eligible': true,
+              'daysLeft': 12,
+              'amount': 34560,
+              'durationMonths': 6,
+              'payableReference': 'POL-1',
+              'discountPercent': 10,
+              'discountAmount': 3840,
+              'fullAmount': 38400,
+            },
+            'actions': {'canDeclareClaim': true, 'canRequestChange': true, 'canRequestTermination': true},
+          }));
+
+      final r = (await repo.getContract('655')).renewal!;
+
+      expect(r.amount, 34560, reason: 'déjà net : c’est ce que reçoit le paiement');
+      expect(r.hasDiscount, isTrue);
+      expect(r.discountPercent, 10);
+      expect(r.discountAmount, 3840);
+      expect(r.fullAmount, 38400);
     });
 
     test('contrat en attente : aucune action, pas de renouvellement', () async {

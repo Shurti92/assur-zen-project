@@ -488,14 +488,26 @@ class ContractRenewal {
     this.amount,
     this.durationMonths,
     this.payableReference,
+    this.discountPercent,
+    this.discountAmount,
+    this.fullAmount,
   });
 
   final bool eligible;
   final DateTime? opensOn;
   final int? daysLeft;
 
-  /// Prime du renouvellement (peut différer de la prime actuelle).
+  /// Prime du renouvellement, remise Zen Points déjà déduite : c'est le montant à payer.
   final int? amount;
+
+  /// Remise Zen Points du renouvellement ; absents quand il n'y en a pas.
+  final num? discountPercent;
+  final int? discountAmount;
+
+  /// Prix public avant remise.
+  final int? fullAmount;
+
+  bool get hasDiscount => (discountPercent ?? 0) > 0 && (discountAmount ?? 0) > 0 && fullAmount != null;
   final int? durationMonths;
 
   /// Référence à payer ; fournie avec le lot paiement (demande n°4).

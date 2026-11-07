@@ -87,6 +87,30 @@ class LoyaltyRules {
   final List<LoyaltyLevelRule> levels;
 }
 
+/// Un palier de remise : durée de garantie (bornes incluses, en mois) et pourcentage de la prime nette.
+class LoyaltyDiscountTier {
+  const LoyaltyDiscountTier({required this.productKey, required this.minMonths, required this.maxMonths, required this.percent});
+
+  /// Clé du produit du devis : `moto` (moto et tricycle) ou `automobile-vtc`.
+  final String productKey;
+  final int minMonths;
+  final int maxMonths;
+  final num percent;
+
+  String get durationLabel {
+    if (minMonths == maxMonths) return '$minMonths mois';
+    return '$minMonths à $maxMonths mois';
+  }
+}
+
+/// Remises Zen Points du client. Le serveur ne liste que les paliers dont le client bénéficie.
+class LoyaltyDiscounts {
+  const LoyaltyDiscounts({required this.tiers, this.levelLabel});
+
+  final String? levelLabel;
+  final List<LoyaltyDiscountTier> tiers;
+}
+
 enum LoyaltyEntryType { earn, expire, adjust, cancel }
 
 class LoyaltyEntry {

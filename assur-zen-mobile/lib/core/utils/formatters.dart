@@ -20,6 +20,9 @@ String formatFcfa(num amount) {
   return '${negative ? '-' : ''}$buffer FCFA';
 }
 
+/// 10 → « 10 », 7.5 → « 7,5 » (le signe % est ajouté par l'écran).
+String formatPercent(num v) => (v % 1 == 0 ? v.toInt().toString() : v.toString()).replaceAll('.', ',');
+
 /// Ne garde que les chiffres (10 au maximum pour un numéro ivoirien).
 String phoneDigits(String input) {
   final d = input.replaceAll(RegExp(r'\D'), '');

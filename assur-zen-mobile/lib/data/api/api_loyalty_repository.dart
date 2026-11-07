@@ -38,7 +38,35 @@ class ApiLoyaltyRepository implements LoyaltyRepository {
   Future<LoyaltyHistory> getHistory({int page = 0, int size = 20}) async =>
       historyFromJson(await _client.get(Endpoints.loyaltyHistory, query: {'page': '$page', 'size': '$size'}));
 
+  @override
+  Future<LoyaltyDiscounts?> getDiscounts() async {
+    try {
+      return discountsFromJson(await _client.get(Endpoints.loyaltyDiscounts));
+    } on ApiException catch (e) {
+      if (e.statusCode == 403 || e.statusCode == 404 || e.statusCode == 405) return null;
+      rethrow;
+    }
+  }
+
   // Conversion JSON (publique pour les tests) ---------------------------------
+
+  /// `{enabled, levelLabel, tiers[]}` ; coupé, sans palier ou corps inattendu : aucune remise à montrer.
+  static LoyaltyDiscounts? discountsFromJson(dynamic data) {
+    if (data is! Map<String, dynamic> || data['enabled'] != true) return null;
+    final raw = data['tiers'];
+    final tiers = <LoyaltyDiscountTier>[
+      for (final t in (raw is List ? raw : const []))
+        if (t is Map<String, dynamic> && _text(t['productKey']) != null && t['percent'] is num && (t['percent'] as num) > 0)
+          LoyaltyDiscountTier(
+            productKey: _text(t['productKey'])!,
+            minMonths: _int(t['minMonths']) ?? 1,
+            maxMonths: _int(t['maxMonths']) ?? _int(t['minMonths']) ?? 1,
+            percent: t['percent'] as num,
+          ),
+    ];
+    if (tiers.isEmpty) return null;
+    return LoyaltyDiscounts(levelLabel: _text(data['levelLabel']), tiers: tiers);
+  }
 
   static String? _text(Object? v) {
     final s = v?.toString().trim();

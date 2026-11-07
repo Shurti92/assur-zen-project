@@ -127,6 +127,9 @@ class ApiContractRepository implements ContractRepository {
       amount: (v['amount'] as num?)?.round(),
       durationMonths: (v['durationMonths'] as num?)?.toInt(),
       payableReference: v['payableReference']?.toString(),
+      discountPercent: v['discountPercent'] as num?,
+      discountAmount: (v['discountAmount'] as num?)?.round(),
+      fullAmount: (v['fullAmount'] as num?)?.round(),
     );
   }
 

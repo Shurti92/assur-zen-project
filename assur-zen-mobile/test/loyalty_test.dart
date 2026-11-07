@@ -1,6 +1,7 @@
 import 'package:assurzen_mobile/app/app_scope.dart';
 import 'package:assurzen_mobile/app/session_controller.dart';
 import 'package:assurzen_mobile/core/storage/local_store.dart';
+import 'package:assurzen_mobile/core/utils/formatters.dart';
 import 'package:assurzen_mobile/data/api/api_loyalty_repository.dart';
 import 'package:assurzen_mobile/data/mock/mock_data.dart';
 import 'package:assurzen_mobile/data/mock/mock_repositories.dart';
@@ -47,6 +48,11 @@ class _FakeLoyalty implements LoyaltyRepository {
         ],
         levels: [LoyaltyLevelRule(code: 'BRONZE', label: 'Bronze', threshold: 0, perks: ['Accès au programme'])],
       );
+
+  LoyaltyDiscounts? discounts;
+
+  @override
+  Future<LoyaltyDiscounts?> getDiscounts() async => discounts;
 
   @override
   Future<LoyaltyHistory> getHistory({int page = 0, int size = 20}) async => LoyaltyHistory(
@@ -174,6 +180,49 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(fake.acceptedVersion, 'v1');
     expect(find.text('320 points'), findsOneWidget);
+  });
+
+  test('les remises sont lues telles que le serveur les donne', () {
+    final d = ApiLoyaltyRepository.discountsFromJson({
+      'enabled': true,
+      'levelCode': 'SILVER',
+      'levelLabel': 'Silver',
+      'tiers': [
+        {'productKey': 'moto', 'minMonths': 1, 'maxMonths': 12, 'percent': 10},
+        {'productKey': 'automobile-vtc', 'minMonths': 3, 'maxMonths': 6, 'percent': 7.5},
+        {'productKey': 'automobile-vtc', 'minMonths': 12, 'maxMonths': 12, 'percent': 0},
+      ],
+    })!;
+    expect(d.tiers.length, 2); // le palier à 0 % est ignoré
+    expect(d.tiers[0].durationLabel, '1 à 12 mois');
+    expect(d.tiers[1].durationLabel, '3 à 6 mois');
+    expect(formatPercent(d.tiers[1].percent), '7,5');
+    expect(formatPercent(10), '10');
+
+    // Coupées, Bronze (aucun palier) ou corps inattendu : rien à montrer.
+    expect(ApiLoyaltyRepository.discountsFromJson({'enabled': false}), isNull);
+    expect(ApiLoyaltyRepository.discountsFromJson({'enabled': false, 'levelCode': 'BRONZE', 'tiers': []}), isNull);
+    expect(ApiLoyaltyRepository.discountsFromJson({'enabled': true, 'tiers': []}), isNull);
+    expect(ApiLoyaltyRepository.discountsFromJson('x'), isNull);
+  });
+
+  testWidgets('sans remise du serveur (Bronze, coupées) : aucun bloc', (tester) async {
+    await _pump(tester, _repos(_FakeLoyalty()), const LoyaltyPage(), size: const Size(360, 1600));
+    expect(find.text('320 points'), findsOneWidget);
+    expect(find.text('Vos remises assurance auto'), findsNothing);
+  });
+
+  testWidgets('les remises du serveur s’affichent dans la page Zen Points', (tester) async {
+    final fake = _FakeLoyalty()
+      ..discounts = const LoyaltyDiscounts(levelLabel: 'Silver', tiers: [
+        LoyaltyDiscountTier(productKey: 'moto', minMonths: 1, maxMonths: 12, percent: 10),
+        LoyaltyDiscountTier(productKey: 'automobile-vtc', minMonths: 12, maxMonths: 12, percent: 20),
+      ]);
+    await _pump(tester, _repos(fake), const LoyaltyPage(), size: const Size(360, 1600));
+    expect(find.text('Vos remises assurance auto'), findsOneWidget);
+    expect(find.text('−10 %'), findsOneWidget);
+    expect(find.text('Durée 12 mois'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('programme absent : message neutre, aucun point', (tester) async {

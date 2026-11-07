@@ -308,6 +308,9 @@ abstract interface class LoyaltyRepository {
   Future<LoyaltyRules> getRules();
 
   Future<LoyaltyHistory> getHistory({int page = 0, int size = 20});
+
+  /// Remises du niveau du client ; `null` si elles sont coupées ou si le client n'y a pas droit.
+  Future<LoyaltyDiscounts?> getDiscounts();
 }
 
 /// Programme absent (démonstration, serveur sans fidélité) : rien n'est affiché.
@@ -325,4 +328,7 @@ class NoLoyalty implements LoyaltyRepository {
 
   @override
   Future<LoyaltyHistory> getHistory({int page = 0, int size = 20}) async => const LoyaltyHistory(items: [], total: 0);
+
+  @override
+  Future<LoyaltyDiscounts?> getDiscounts() async => null;
 }

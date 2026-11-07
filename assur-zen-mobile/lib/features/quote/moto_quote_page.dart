@@ -453,7 +453,7 @@ class MotoQuoteResult extends StatelessWidget {
         // Une ligne à 0 n'est pas affichée (ex. taxes non communiquées, CEDEAO propre au VTC).
         AzSummaryCard(radius: 26, rows: [
           ('Prime nette', formatFcfa(p.netPremium)),
-          if (p.discount > 0) ('Remise', '- ${formatFcfa(p.discount)}'),
+          if (p.discount > 0) (_discountLabel(q), '- ${formatFcfa(p.discount)}'),
           if (p.taxes > 0) ('Taxes', formatFcfa(p.taxes)),
           if (p.accessories > 0) ('Accessoires', formatFcfa(p.accessories)),
           if (p.fga > 0) ('FGA', formatFcfa(p.fga)),
@@ -552,6 +552,14 @@ List<Widget> _guaranteeWidgets(MotoGuarantee g) => [
         ),
       const SizedBox(height: 10),
     ];
+
+/// Libellé de la remise : sur un devis fait dans l'application, toute remise est une remise Zen Points
+/// (seul un conseiller peut en saisir une autre). Sans pourcentage ou devis de conseiller : « Remise ».
+String _discountLabel(MotoQuote? q) {
+  final percent = q?.discountPercent;
+  if (q == null || q.isFromAdvisor || percent == null || percent <= 0) return 'Remise';
+  return 'Remise Zen Points −${formatPercent(percent)} %';
+}
 
 /// Pastille blanche d'état du devis, sur la carte bleue.
 Widget _statusPill(MotoQuoteStatus s) {

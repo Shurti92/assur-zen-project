@@ -207,6 +207,13 @@ class ContractDetailPage extends StatelessWidget {
                 'Renouvellement · ${r.durationMonths ?? 12} mois · Prime de renouvellement : ${formatFcfa(r.amount!)}',
                 style: AzText.label.copyWith(color: AzColors.warningInk, fontWeight: FontWeight.w500),
               ),
+              if (r.hasDiscount) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Remise Zen Points −${formatPercent(r.discountPercent!)} % : −${formatFcfa(r.discountAmount!)} sur ${formatFcfa(r.fullAmount!)}',
+                  style: AzText.label.copyWith(color: AzColors.success, fontWeight: FontWeight.w700),
+                ),
+              ],
             ],
             const SizedBox(height: 12),
             AzButton(
