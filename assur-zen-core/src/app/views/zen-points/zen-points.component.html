@@ -41,11 +41,17 @@
     }
     <div class="zp-kpis">
       <div class="zp-kpi"><span>Membres (accord donné)</span><b>{{ fmt(s.members) }}</b></div>
-      <div class="zp-kpi"><span>Points distribués ce mois</span><b>{{ fmt(s.pointsDistributedThisMonth) }}</b></div>
-      <div class="zp-kpi"><span>Effacement après retrait</span><b>{{ s.withdrawalGraceDays }} j</b></div>
       <div class="zp-kpi">
-        <span>Expiration des points</span>
-        <b>{{ s.expiryMonths > 0 ? s.expiryMonths + ' mois' : 'Aucune' }}</b>
+        <span>Points distribués ce mois</span><b>{{ fmt(s.pointsDistributedThisMonth) }}</b>
+        <small>sur un plafond de {{ fmt(s.globalMonthlyCap) }}</small>
+      </div>
+      <div class="zp-kpi">
+        <span>Points en circulation</span><b>{{ s.pointsInCirculation !== undefined ? fmt(s.pointsInCirculation) : '—' }}</b>
+        <small>soldes cumulés des membres actifs</small>
+      </div>
+      <div class="zp-kpi">
+        <span>Retraits en attente d'effacement</span><b>{{ s.pendingErasures !== undefined ? fmt(s.pendingErasures) : '—' }}</b>
+        <small>délai de grâce en cours</small>
       </div>
     </div>
     <div class="small">
@@ -53,6 +59,52 @@
       <span class="text-body-secondary">(réglage LOYALTY_GLOBAL_MONTHLY_CAP)</span>
     </div>
     <div class="zp-bar"><i [style.width.%]="capPercent()"></i></div>
+
+    @if (s.membersByLevel; as byLevel) {
+      <h6 class="fw-semibold mt-4 mb-2">Répartition des membres par niveau</h6>
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
+            <tr>
+              <th scope="col">Niveau</th>
+              <th scope="col" class="text-end">Membres</th>
+              <th scope="col" style="width: 40%">Part des membres</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of byLevel; track l.code) {
+              <tr>
+                <td><span [class]="levelClass(l.code)">{{ l.label }}</span></td>
+                <td class="text-end"><strong>{{ fmt(l.members) }}</strong></td>
+                <td>
+                  @if (levelShare(l.members); as share) {
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="zp-bar flex-grow-1 mt-0"><i [style.width.%]="share"></i></div>
+                      <span class="small">{{ share.toLocaleString('fr-FR') }} %</span>
+                    </div>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="text-body-secondary">Total</td>
+              <td class="text-end"><strong>{{ fmt(s.members) }}</strong></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="small text-body-secondary mt-1">
+        Niveaux calculés d'après les points qualifiants des 12 derniers mois, du seuil le plus bas au plus haut. Les ajustements manuels ne comptent pas.
+      </div>
+    }
+
+    <div class="d-flex flex-wrap gap-4 small mt-3">
+      <span>Effacement après retrait : <strong>{{ s.withdrawalGraceDays }} j</strong></span>
+      <span>Expiration des points : <strong>{{ s.expiryMonths > 0 ? s.expiryMonths + ' mois' : 'Aucune' }}</strong></span>
+    </div>
     <div class="d-flex justify-content-end mt-3">
       <button (click)="loadStats()" [disabled]="statsLoading()" cButton class="dl-btn" type="button">Actualiser</button>
     </div>
