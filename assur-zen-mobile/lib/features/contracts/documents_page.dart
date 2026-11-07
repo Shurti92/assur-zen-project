@@ -5,6 +5,7 @@ import '../../app/routes.dart';
 import '../../core/ui.dart';
 import '../../core/utils/file_viewer.dart';
 import '../../data/models/models.dart';
+import 'add_document_sheet.dart';
 
 /// Mes documents : un bloc par contrat (véhicule, attestation, vignette, autres
 /// documents). Tout vient du serveur : un document absent n'est pas affiché, et
@@ -109,6 +110,7 @@ class _DocumentsPageState extends State<DocumentsPage> {
                       expanded: c.id == expandedId,
                       collapsible: contracts.length > 1,
                       onToggle: () => setState(() => _expandedId = c.id == expandedId ? '' : c.id),
+                      onChanged: _reload,
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -165,19 +167,23 @@ class _FilterPill extends StatelessWidget {
 }
 
 class _ContractDocuments extends StatelessWidget {
-  const _ContractDocuments({super.key, required this.contract, required this.expanded, required this.collapsible, required this.onToggle});
+  const _ContractDocuments({super.key, required this.contract, required this.expanded, required this.collapsible, required this.onToggle, required this.onChanged});
 
   final Contract contract;
   final bool expanded;
   final bool collapsible;
   final VoidCallback onToggle;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
     final c = contract;
-    final attestationDocs = c.documents.where((d) => d.type == DocumentType.attestation).toList();
-    final vignetteDocs = c.documents.where((d) => d.type == DocumentType.vignette).toList();
-    final others = c.documents.where((d) => d.type != DocumentType.attestation && d.type != DocumentType.vignette).toList();
+    final official = c.documents.where((d) => !d.addedByClient).toList();
+    final mine = c.documents.where((d) => d.addedByClient).toList();
+    final attestationDocs = official.where((d) => d.type == DocumentType.attestation).toList();
+    final vignetteDocs = official.where((d) => d.type == DocumentType.vignette).toList();
+    final others = official.where((d) => d.type != DocumentType.attestation && d.type != DocumentType.vignette).toList();
+    final canAdd = c.status != ContractStatus.expire && c.status != ContractStatus.resilie;
     final renewal = c.renewalOpen && c.status == ContractStatus.actif;
 
     return Column(
@@ -220,6 +226,23 @@ class _ContractDocuments extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+          if (canAdd) ...[
+            const SizedBox(height: 14),
+            _AddButton(
+              onTap: () async {
+                if (await showAddDocumentSheet(context, c) && context.mounted) onChanged();
+              },
+            ),
+          ],
+          if (mine.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _Section('Mes ajouts', AzStatusBadge(label: '${mine.length}', foreground: AzColors.blue700, background: AzColors.blue50, dot: false)),
+            const SizedBox(height: 8),
+            for (final d in mine) ...[
+              _ClientDocumentCard(contract: c, document: d, onChanged: onChanged),
+              const SizedBox(height: 10),
+            ],
           ],
           const SizedBox(height: 12),
           AzButton('Détails du contrat', variant: AzButtonVariant.secondary, height: 50, radius: 16, onPressed: () => context.push(AppRoutes.contract, c.id)),
@@ -560,6 +583,167 @@ class _DocumentLineState extends State<_DocumentLine> {
                     onPressed: _open,
                     icon: const Icon(Icons.download_rounded, color: AzColors.blue700),
                   ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bouton pointillé « Ajouter un document ».
+class _AddButton extends StatelessWidget {
+  const _AddButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Ajouter un document. Contrat, reçu d’achat ou attestation',
+      child: Material(
+        color: AzColors.blue50,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26), side: const BorderSide(color: AzColors.blue700, width: 1.6)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(26),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                const AzIconTile(icon: Icons.add_rounded, background: AzColors.blue700, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ajouter un document', style: AzText.titleSmall.copyWith(color: AzColors.blue700)),
+                      Text('Contrat, reçu d’achat ou attestation', style: AzText.caption.copyWith(color: AzColors.ink2, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Document ajouté par l'assuré : statut donné par le serveur, motif de refus,
+/// consultation, remplacement et suppression selon ce que le serveur autorise.
+class _ClientDocumentCard extends StatefulWidget {
+  const _ClientDocumentCard({required this.contract, required this.document, required this.onChanged});
+
+  final Contract contract;
+  final ContractDocument document;
+  final VoidCallback onChanged;
+
+  @override
+  State<_ClientDocumentCard> createState() => _ClientDocumentCardState();
+}
+
+class _ClientDocumentCardState extends State<_ClientDocumentCard> {
+  bool _busy = false;
+
+  ContractDocument get d => widget.document;
+
+  Future<void> _view() async {
+    setState(() => _busy = true);
+    try {
+      final file = await context.repos.contracts.downloadDocument(widget.contract.id, d.id);
+      if (mounted) await FileViewer.show(context, file, fallbackName: d.name);
+    } catch (e) {
+      if (mounted) showAzSnack(context, documentErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer ce document ?'),
+        content: Text('« ${d.name} » sera retiré de votre dossier.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Supprimer')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await context.repos.contracts.deleteDocument(contractId: widget.contract.id, documentId: d.id);
+      if (mounted) widget.onChanged();
+    } catch (e) {
+      if (mounted) showAzSnack(context, documentErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _replace() async {
+    if (await showAddDocumentSheet(context, widget.contract) && mounted) {
+      // Le nouvel envoi est parti : l'ancien document refusé peut être retiré.
+      try {
+        await context.repos.contracts.deleteDocument(contractId: widget.contract.id, documentId: d.id);
+      } catch (_) {}
+      if (mounted) widget.onChanged();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rejected = d.status == DocumentStatus.refuse;
+    final pending = d.status == DocumentStatus.enVerification;
+    return AzCard(
+      radius: 26,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const AzIconTile(icon: Icons.description_outlined),
+              const SizedBox(width: 12),
+              Expanded(child: Text(d.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.titleSmall)),
+              const SizedBox(width: 8),
+              Flexible(child: AzStatusBadge.document(d.status)),
+            ],
+          ),
+          if (pending) ...[
+            const SizedBox(height: 10),
+            const AzBanner(
+              kind: AzBannerKind.warning,
+              text: 'AssurZen vérifie ce document. Il ne remplace pas l’attestation officielle tant qu’il n’est pas validé.',
+            ),
+          ],
+          if (rejected && d.rejectReason != null) ...[
+            const SizedBox(height: 10),
+            AzBanner(kind: AzBannerKind.error, text: 'Motif : ${d.rejectReason}'),
+          ],
+          const SizedBox(height: 12),
+          if (_busy)
+            const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(strokeWidth: 2.5)))
+          else
+            Row(
+              children: [
+                if (rejected) ...[
+                  Expanded(child: AzButton('Remplacer', height: 50, radius: 16, horizontalPadding: 8, icon: Icons.refresh_rounded, onPressed: _replace)),
+                  const SizedBox(width: 8),
+                ] else ...[
+                  Expanded(
+                    child: AzButton('Voir', variant: AzButtonVariant.tonal, height: 50, radius: 16, horizontalPadding: 8, icon: Icons.visibility_outlined, onPressed: _view),
+                  ),
+                  if (d.removable) const SizedBox(width: 8),
+                ],
+                if (d.removable)
+                  Expanded(
+                    child: AzButton('Supprimer', variant: AzButtonVariant.tonal, height: 50, radius: 16, horizontalPadding: 8, icon: Icons.delete_outline_rounded, onPressed: _delete),
+                  ),
+              ],
+            ),
         ],
       ),
     );

@@ -436,24 +436,44 @@ extension ContractStatusLabel on ContractStatus {
 
 enum DocumentType { attestation, vignette, carteBrune, carteGrise, conditions, recu, contrat, autre }
 
-enum DocumentStatus { disponible, enGeneration, nonDisponible }
+enum DocumentStatus { disponible, enGeneration, nonDisponible, enVerification, refuse }
 
 extension DocumentStatusLabel on DocumentStatus {
   String get label => switch (this) {
         DocumentStatus.disponible => 'Disponible',
         DocumentStatus.enGeneration => 'En cours de génération',
         DocumentStatus.nonDisponible => 'Pas encore disponible',
+        DocumentStatus.enVerification => 'En attente',
+        DocumentStatus.refuse => 'Refusé',
       };
 }
 
 class ContractDocument {
-  const ContractDocument({required this.id, required this.name, required this.type, required this.status, this.url});
+  const ContractDocument({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.status,
+    this.url,
+    this.addedByClient = false,
+    this.rejectReason,
+    this.removable = false,
+  });
 
   final String id;
   final String name;
   final DocumentType type;
   final DocumentStatus status;
   final String? url; // URL sécurisée fournie par le serveur
+
+  /// Document ajouté par l'assuré lui-même (source `CLIENT`) ; AssurZen le valide ou le refuse.
+  final bool addedByClient;
+
+  /// Motif de refus rédigé par AssurZen, jamais par l'application.
+  final String? rejectReason;
+
+  /// Suppression autorisée par le serveur (documents de l'assuré non validés).
+  final bool removable;
 
   bool get isAvailable => status == DocumentStatus.disponible;
 }
@@ -848,4 +868,28 @@ class SupportReceipt {
 
   final String reference;
   final int? expectedWithinMinutes;
+}
+
+/// Types de documents que l'assuré peut ajouter lui-même à un contrat.
+enum ClientDocumentType { contrat, recu, attestation }
+
+extension ClientDocumentTypeInfo on ClientDocumentType {
+  /// Code attendu par le serveur.
+  String get code => switch (this) {
+        ClientDocumentType.contrat => 'CONTRAT_ASSURANCE',
+        ClientDocumentType.recu => 'RECU_ACHAT',
+        ClientDocumentType.attestation => 'ATTESTATION_ASSURANCE',
+      };
+
+  String get label => switch (this) {
+        ClientDocumentType.contrat => 'Contrat d’assurance',
+        ClientDocumentType.recu => 'Reçu d’achat',
+        ClientDocumentType.attestation => 'Attestation d’assurance',
+      };
+
+  String get hint => switch (this) {
+        ClientDocumentType.contrat => 'Votre contrat signé',
+        ClientDocumentType.recu => 'Preuve de paiement de la prime',
+        ClientDocumentType.attestation => 'Le document remis à l’achat',
+      };
 }

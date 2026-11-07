@@ -25,6 +25,8 @@ class AzStatusBadge extends StatelessWidget {
       DocumentStatus.disponible => (AzColors.success, AzColors.successBg),
       DocumentStatus.enGeneration => (AzColors.warning, AzColors.warningBg),
       DocumentStatus.nonDisponible => (AzColors.neutral, AzColors.neutralBg),
+      DocumentStatus.enVerification => (AzColors.warning, AzColors.warningBg),
+      DocumentStatus.refuse => (AzColors.error, AzColors.errorBg),
     };
     return AzStatusBadge(label: status.label, foreground: fg, background: bg, dot: false);
   }

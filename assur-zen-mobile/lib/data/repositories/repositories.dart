@@ -166,6 +166,13 @@ abstract interface class ContractRepository {
   /// Fichier de l'attestation du contrat.
   Future<DownloadedFile> downloadAttestation(String contractId);
 
+  /// Ajout d'un document par l'assuré (PDF, JPG ou PNG, 5 Mo). Le serveur le
+  /// met « en attente » ; AssurZen le valide ou le refuse.
+  Future<void> uploadDocument({required String contractId, required ClientDocumentType type, required String filePath});
+
+  /// Suppression d'un document ajouté par l'assuré et non validé.
+  Future<void> deleteDocument({required String contractId, required String documentId});
+
   /// Demande de modification ou de résiliation, traitée par un conseiller.
   Future<ContractRequestReceipt> requestChange({
     required String contractId,

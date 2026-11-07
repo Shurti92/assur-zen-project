@@ -66,6 +66,7 @@ abstract final class Endpoints {
   static String contract(String id) => '$prefix/mobile/contracts/$id';
   static String contractRequests(String id) => '$prefix/mobile/contracts/$id/requests';
   // Fichiers d'un contrat : l'en-tête Authorization est obligatoire (jamais d'ouverture par le navigateur).
+  static String contractDocuments(String id) => '$prefix/mobile/contracts/$id/documents';
   static String contractDocument(String id, String documentId) => '$prefix/mobile/contracts/$id/documents/$documentId';
   static String contractAttestationFile(String id) => '$prefix/mobile/contracts/$id/attestation';
 

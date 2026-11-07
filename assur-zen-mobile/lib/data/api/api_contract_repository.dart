@@ -41,6 +41,16 @@ class ApiContractRepository implements ContractRepository {
       _client.download(Endpoints.contractAttestationFile(contractId));
 
   @override
+  Future<void> uploadDocument({required String contractId, required ClientDocumentType type, required String filePath}) async {
+    await _client.upload(Endpoints.contractDocuments(contractId), filePath: filePath, field: 'file', fields: {'type': type.code});
+  }
+
+  @override
+  Future<void> deleteDocument({required String contractId, required String documentId}) async {
+    await _client.delete(Endpoints.contractDocument(contractId, documentId));
+  }
+
+  @override
   Future<ContractRequestReceipt> requestChange({
     required String contractId,
     required ContractRequestType type,
@@ -90,6 +100,9 @@ class ApiContractRepository implements ContractRepository {
             type: _docType(d['type']?.toString()),
             status: _docStatus(d['status']?.toString()),
             url: d['url']?.toString(),
+            addedByClient: d['source']?.toString().toUpperCase() == 'CLIENT',
+            rejectReason: _text(d['rejectReason']),
+            removable: d['removable'] == true,
           ),
       ],
     );
@@ -97,6 +110,11 @@ class ApiContractRepository implements ContractRepository {
 
   static List<Map<String, dynamic>> _list(Object? v) =>
       v is List ? [for (final e in v) if (e is Map<String, dynamic>) e] : const [];
+
+  static String? _text(Object? v) {
+    final s = v?.toString().trim();
+    return (s == null || s.isEmpty) ? null : s;
+  }
 
   static DateTime? _date(Object? v) => v is String ? DateTime.tryParse(v) : null;
 
@@ -173,6 +191,8 @@ class ApiContractRepository implements ContractRepository {
   static DocumentStatus _docStatus(String? s) => switch (s) {
         'AVAILABLE' => DocumentStatus.disponible,
         'GENERATING' => DocumentStatus.enGeneration,
+        'PENDING_REVIEW' => DocumentStatus.enVerification,
+        'REJECTED' => DocumentStatus.refuse,
         _ => DocumentStatus.nonDisponible,
       };
 }

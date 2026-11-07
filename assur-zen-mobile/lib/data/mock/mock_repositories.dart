@@ -597,6 +597,18 @@ class _MockContracts implements ContractRepository {
   }
 
   @override
+  Future<void> uploadDocument({required String contractId, required ClientDocumentType type, required String filePath}) async {
+    await _latency(400);
+    throw ApiException.notImplemented('ajout de document');
+  }
+
+  @override
+  Future<void> deleteDocument({required String contractId, required String documentId}) async {
+    await _latency(400);
+    throw ApiException.notImplemented('suppression de document');
+  }
+
+  @override
   Future<ContractRequestReceipt> requestChange({
     required String contractId,
     required ContractRequestType type,
