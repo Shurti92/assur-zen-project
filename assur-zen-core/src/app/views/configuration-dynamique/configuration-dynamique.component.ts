@@ -544,6 +544,16 @@ export class ConfigurationDynamiqueComponent {
     return this.configForm.controls.configKey.value.trim() === REMINDER_DAYS_KEY;
   }
 
+  /** Textes et titre des notifications push du mobile (affichés sur l'écran verrouillé). */
+  isPushTextKey(): boolean {
+    const key = this.configForm.controls.configKey.value.trim();
+    return key === 'MOBILE_PUSH_TITLE' || key.startsWith('MOBILE_PUSH_TEXT_');
+  }
+
+  isPushGenericKey(): boolean {
+    return this.configForm.controls.configKey.value.trim() === 'MOBILE_PUSH_GENERIC';
+  }
+
   /** Jours valides (0-365) de la valeur saisie, pour l'affichage en puces. */
   reminderDayChips(value: string): number[] {
     return this.parseReminderDays(value).valid;

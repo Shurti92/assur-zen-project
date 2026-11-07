@@ -574,6 +574,16 @@
             Jours avant l'échéance, séparés par des virgules (0 = le jour même, valeurs de 0 à 365). Exemple : 30,15,7,3,0
           </div>
         }
+        @if (isPushTextKey()) {
+          <div class="alert alert-warning small mt-2 mb-0">
+            Ce texte s'affiche sur l'écran verrouillé du téléphone : n'y mettez jamais de montant, de nom ni de numéro de police.
+          </div>
+        }
+        @if (isPushGenericKey()) {
+          <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
+            Vrai (recommandé) : la notification push affiche un texte générique par catégorie. Faux : le détail de l'événement apparaît dans la notification, donc sur l'écran verrouillé.
+          </div>
+        }
       }
       @if (editingWasSensitive()) {
         @if (!clearSensitiveValue()) {
