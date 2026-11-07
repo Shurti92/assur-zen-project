@@ -78,6 +78,7 @@ export interface LoyaltyClient {
 export interface LoyaltyDiscountTier {
   id: number;
   levelCode: string;
+  productKey: string;
   minMonths: number;
   maxMonths: number;
   percent: number;
@@ -86,13 +87,16 @@ export interface LoyaltyDiscountTier {
 
 export interface LoyaltyDiscountSettings {
   discountEnabled: boolean;
-  /** Types de véhicules séparés par des virgules (ex. MOTO,TRICYCLE,VTC). */
-  vehicleTypes: string;
+  /** Produits concernés (ex. moto, automobile-vtc). */
+  products: string[];
+  /** Remise maximale acceptée pour une tranche (en %). */
+  maxPercent: number;
   tiers: LoyaltyDiscountTier[];
 }
 
 export interface LoyaltyDiscountUpsert {
   levelCode: string;
+  productKey: string;
   minMonths: number;
   maxMonths: number;
   percent: number;
@@ -103,7 +107,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   LOYALTY_MEMBER_NOT_FOUND: "Ce client n'a pas adhéré au programme Zen Points.",
   LOYALTY_NOT_MEMBER: "Ce client n'est plus membre du programme (accord retiré) : ajustement impossible.",
   INSUFFICIENT_BALANCE: 'Le solde ne peut pas devenir négatif.',
-  DISCOUNT_OVERLAP: 'Cette tranche chevauche une tranche active du même niveau.',
+  DISCOUNT_OVERLAP: 'Cette tranche chevauche une tranche active du même niveau et du même produit.',
+  PRODUCT_NOT_ALLOWED: "Ce produit n'est pas autorisé pour les remises.",
   LEVEL_CODE_INVALID: 'Code de niveau invalide ou déjà utilisé (majuscules, chiffres et _ uniquement).',
   VALIDATION_FAILED: 'Champ manquant ou invalide.',
 };

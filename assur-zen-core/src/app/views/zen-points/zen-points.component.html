@@ -179,22 +179,22 @@
         }
       </div>
       <div class="zp-kpi">
-        <span>Véhicules concernés</span>
+        <span>Produits concernés</span>
         <b>
-          @for (v of discountVehicles(); track v) {
-            <span class="dl-tag me-1">{{ v }}</span>
+          @for (v of d.products; track v) {
+            <span class="dl-tag me-1">{{ productLabel(v) }}</span>
           } @empty {
             —
           }
         </b>
       </div>
-      <div class="zp-kpi"><span>Remise maximale</span><b>{{ discountMax() !== null ? discountMax() + ' %' : '—' }}</b></div>
+      <div class="zp-kpi"><span>Remise maximale</span><b>{{ d.maxPercent }} %</b></div>
     </div>
     <div class="alert alert-warning small">
       @if (d.discountEnabled) {
         Les remises sont actives : le coût est supporté par la commission AssurZen. Toute modification d'une tranche s'applique aux souscriptions suivantes.
       } @else {
-        Les remises sont <strong>désactivées</strong> (réglage <span class="dl-tag">LOYALTY_DISCOUNT_ENABLED</span>). Le coût d'une remise est supporté par la commission AssurZen : à activer uniquement sur décision explicite, dans le Paramétrage dynamique (jamais depuis cet écran).
+        Les remises sont <strong>désactivées</strong> (réglage <span class="dl-tag">LOYALTY_DISCOUNT_ENABLED</span>). Le coût d'une remise est supporté par la commission AssurZen : à activer uniquement sur décision explicite, dans le Paramétrage dynamique (jamais depuis cet écran). Elles s'appliquent aussi au renouvellement.
       }
       <div class="mt-2">
         <a routerLink="/administration/configuration/sans-redeploiement/configurations" class="btn btn-sm btn-outline-secondary">Ouvrir le Paramétrage dynamique</a>
@@ -205,52 +205,60 @@
       <span class="small text-body-secondary">Remise appliquée selon le niveau du client et la durée de souscription choisie (en mois).</span>
       <button (click)="openTier(null)" cButton class="dl-btn dl-btn-primary" type="button">+ Nouvelle tranche</button>
     </div>
-    <div class="dl-table-scroll">
-      <table class="dl-table">
-        <thead>
-          <tr>
-            <th scope="col">Niveau</th>
-            <th scope="col">Durée min (mois)</th>
-            <th scope="col">Durée max (mois)</th>
-            <th scope="col">Remise</th>
-            <th scope="col">Actif</th>
-            <th scope="col"></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (t of d.tiers; track t.id) {
+    @for (product of d.products; track product) {
+      <div class="d-flex align-items-center gap-2 mt-4 mb-1">
+        <h6 class="mb-0 fw-semibold">{{ productLabel(product) }}</h6>
+        <span class="dl-tag">{{ product }}</span>
+        <span class="flex-grow-1"></span>
+        <button (click)="openTier(null, product)" cButton class="dl-btn" size="sm" type="button">+ Tranche {{ productLabel(product) }}</button>
+      </div>
+      <div class="dl-table-scroll">
+        <table class="dl-table">
+          <thead>
             <tr>
-              <td><span [class]="levelClass(t.levelCode)">{{ levelLabelOf(t.levelCode) }}</span></td>
-              <td>{{ t.minMonths }}</td>
-              <td>{{ t.maxMonths }}</td>
-              <td><strong>{{ t.percent }} %</strong></td>
-              <td>
-                @if (t.active) {
-                  <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Actif</span>
-                } @else {
-                  <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Inactif</span>
-                }
-              </td>
-              <td class="text-end text-nowrap">
-                <button (click)="openTier(t)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
-                <button (click)="tierDeleteTarget.set(t)" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Supprimer</button>
-              </td>
+              <th scope="col">Niveau</th>
+              <th scope="col">Durée min (mois)</th>
+              <th scope="col">Durée max (mois)</th>
+              <th scope="col">Remise</th>
+              <th scope="col">Actif</th>
+              <th scope="col"></th>
             </tr>
-          } @empty {
-            <tr><td colspan="6" class="dl-empty">Aucune tranche : aucune remise n'est appliquée.</td></tr>
-          }
-          @for (l of levelsWithoutTier(); track l.code) {
-            <tr class="text-body-secondary fst-italic">
-              <td><span [class]="levelClass(l.code)">{{ l.label }}</span></td>
-              <td colspan="4">Aucune tranche propre : hérite de la grille du niveau le plus proche.</td>
-              <td class="text-end"><button (click)="openTier(null, l.code)" cButton class="dl-btn" size="sm" type="button">+ Tranche {{ l.label }}</button></td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @for (t of tiersOf(product); track t.id) {
+              <tr>
+                <td><span [class]="levelClass(t.levelCode)">{{ levelLabelOf(t.levelCode) }}</span></td>
+                <td>{{ t.minMonths }}</td>
+                <td>{{ t.maxMonths }}</td>
+                <td><strong>{{ t.percent }} %</strong></td>
+                <td>
+                  @if (t.active) {
+                    <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Actif</span>
+                  } @else {
+                    <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Inactif</span>
+                  }
+                </td>
+                <td class="text-end text-nowrap">
+                  <button (click)="openTier(t)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+                  <button (click)="tierDeleteTarget.set(t)" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Supprimer</button>
+                </td>
+              </tr>
+            }
+            @for (row of inheritanceRows(product); track row.level.code) {
+              <tr class="text-body-secondary fst-italic">
+                <td><span [class]="levelClass(row.level.code)">{{ row.level.label }}</span></td>
+                <td colspan="4">
+                  {{ row.from ? 'Aucune tranche propre : hérite de la grille du niveau inférieur (' + row.from + ').' : 'Aucune remise.' }}
+                </td>
+                <td class="text-end"><button (click)="openTier(null, product, row.level.code)" cButton class="dl-btn" size="sm" type="button">+ Tranche {{ row.level.label }}</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
     <div class="alert alert-info small mt-3 mb-0">
-      Une tranche inactive est conservée mais n'est pas appliquée. Deux tranches actives du même niveau ne peuvent pas se chevaucher.
+      L'héritage ne va que vers le haut : un niveau sans tranche propre utilise celles du niveau inférieur le plus proche qui en possède ; le premier niveau n'hérite de rien. Une tranche inactive est conservée mais pas appliquée. Deux tranches actives du même niveau et du même produit ne peuvent pas se chevaucher.
     </div>
   }
 }
@@ -264,6 +272,12 @@
   @if (tierError(); as message) {
     <app-alert-message class="d-block mb-3" [message]="message" />
   }
+  <label class="form-label fw-semibold" for="zd-product">Produit</label>
+  <select [ngModel]="tierProduct()" (ngModelChange)="tierProduct.set($event)" id="zd-product" class="form-select mb-2">
+    @for (v of discounts()?.products ?? []; track v) {
+      <option [value]="v">{{ productLabel(v) }}</option>
+    }
+  </select>
   <label class="form-label fw-semibold" for="zd-level">Niveau</label>
   <select [ngModel]="tierLevel()" (ngModelChange)="tierLevel.set($event)" id="zd-level" class="form-select mb-2">
     @for (l of levels(); track l.code) {
@@ -283,7 +297,7 @@
   <label class="form-label fw-semibold mt-2" for="zd-percent">Remise (%)</label>
   <input [ngModel]="tierPercent()" (ngModelChange)="tierPercent.set($event)" id="zd-percent" type="number" min="0" step="0.5" class="form-control" />
   <div class="small text-body-secondary mt-1">
-    Plafond : {{ discountMax() !== null ? discountMax() + ' %' : 'défini par le réglage LOYALTY_DISCOUNT_MAX_PERCENT' }}. La Gateway reste juge.
+    Plafond : {{ discounts()?.maxPercent ?? '—' }} %. La Gateway reste juge.
   </div>
   <div class="form-check mt-3">
     <input [ngModel]="tierActive()" (ngModelChange)="tierActive.set($event)" id="zd-active" type="checkbox" class="form-check-input" />
@@ -305,7 +319,7 @@
   cancelLabel="Annuler"
   confirmLabel="Supprimer"
   icon="cilWarning"
-  message="Les souscriptions suivantes n'auront plus cette remise (sauf autre tranche applicable). Les contrats existants ne changent pas. Pour garder la tranche sans l'appliquer, décochez plutôt « Actif »."
+  message="Les souscriptions et renouvellements suivants n'auront plus cette remise (sauf autre tranche applicable). Les contrats existants ne changent pas. Pour garder la tranche sans l'appliquer, décochez plutôt « Actif »."
   title="Supprimer cette tranche ?"
   (cancelled)="tierDeleteTarget.set(null)"
   (confirmed)="confirmDeleteTier()"
