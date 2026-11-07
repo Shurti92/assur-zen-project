@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
-import { ConfigurationService } from '../../core/configurations/configuration.service';
 import {
   LoyaltyDiscountSettings,
   LoyaltyDiscountTier,
@@ -41,7 +40,6 @@ const LEVEL_CODE = /^[A-Z0-9_]{1,20}$/;
 })
 export class ZenPointsComponent {
   private readonly service = inject(LoyaltyService);
-  private readonly configService = inject(ConfigurationService);
 
   readonly tab = signal<Tab>('stats');
   readonly info = signal<string | null>(null);
@@ -263,16 +261,15 @@ export class ZenPointsComponent {
     });
   }
 
-  // ------------------------------------------------------------------ remises automatiques
+  // ------------------------------------------------------------------ remises automatiques (par produit)
 
   readonly discounts = signal<LoyaltyDiscountSettings | null>(null);
   readonly discountsLoading = signal(false);
   readonly discountsError = signal<string | null>(null);
-  /** Remise maximale (réglage LOYALTY_DISCOUNT_MAX_PERCENT), null si illisible. */
-  readonly discountMax = signal<number | null>(null);
   readonly tierVisible = signal(false);
   /** null = création. */
   readonly tierEditing = signal<LoyaltyDiscountTier | null>(null);
+  readonly tierProduct = signal('');
   readonly tierLevel = signal('');
   readonly tierMin = signal<number | null>(1);
   readonly tierMaxMonths = signal<number | null>(1);
@@ -282,25 +279,15 @@ export class ZenPointsComponent {
   readonly tierError = signal<string | null>(null);
   readonly tierDeleteTarget = signal<LoyaltyDiscountTier | null>(null);
 
-  readonly discountVehicles = computed(() =>
-    (this.discounts()?.vehicleTypes ?? '')
-      .split(',')
-      .map((v) => v.trim())
-      .filter((v) => v.length > 0),
-  );
-
-  /** Niveaux sans tranche propre : ils héritent du niveau le plus proche porteur de tranches. */
-  readonly levelsWithoutTier = computed(() => {
-    const used = new Set((this.discounts()?.tiers ?? []).map((t) => t.levelCode));
-    return this.levels().filter((l) => !used.has(l.code));
-  });
-
   loadDiscounts(): void {
     this.discountsLoading.set(true);
     this.discountsError.set(null);
     this.service.discounts().subscribe({
       next: (d) => {
-        this.discounts.set({ ...d, tiers: [...d.tiers].sort((a, b) => a.levelCode.localeCompare(b.levelCode) || a.minMonths - b.minMonths) });
+        this.discounts.set({
+          ...d,
+          tiers: [...d.tiers].sort((a, b) => this.levelRank(a.levelCode) - this.levelRank(b.levelCode) || a.minMonths - b.minMonths),
+        });
         this.discountsLoading.set(false);
       },
       error: (err) => {
@@ -308,21 +295,53 @@ export class ZenPointsComponent {
         this.discountsLoading.set(false);
       },
     });
-    this.configService.getByKey('LOYALTY_DISCOUNT_MAX_PERCENT').subscribe({
-      next: (c) => {
-        const n = Number((c.configValue ?? '').trim());
-        this.discountMax.set(Number.isFinite(n) && n > 0 ? n : null);
-      },
-      error: () => this.discountMax.set(null),
+  }
+
+  private levelRank(code: string): number {
+    const i = this.levels().findIndex((l) => l.code === code);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  }
+
+  /** Libellé lisible d'une clé produit (moto, automobile-vtc…). */
+  productLabel(key: string): string {
+    if (key === 'moto') return 'Moto';
+    if (key === 'automobile-vtc') return 'Automobile / VTC';
+    return key;
+  }
+
+  tiersOf(product: string): LoyaltyDiscountTier[] {
+    return (this.discounts()?.tiers ?? []).filter((t) => t.productKey === product);
+  }
+
+  /**
+   * Niveaux sans tranche propre pour ce produit. L'héritage ne va que vers le haut : un niveau utilise les tranches
+   * du niveau inférieur le plus proche qui en possède ; le premier niveau n'hérite de rien (aucune remise).
+   */
+  inheritanceRows(product: string): { level: LoyaltyLevel; from: string | null }[] {
+    const used = new Set(this.tiersOf(product).map((t) => t.levelCode));
+    const levels = this.levels();
+    const rows: { level: LoyaltyLevel; from: string | null }[] = [];
+    levels.forEach((level, i) => {
+      if (used.has(level.code)) return;
+      let from: string | null = null;
+      for (let j = i - 1; j >= 0; j--) {
+        if (used.has(levels[j].code)) {
+          from = levels[j].label;
+          break;
+        }
+      }
+      rows.push({ level, from });
     });
+    return rows;
   }
 
   levelLabelOf(code: string): string {
     return this.levels().find((l) => l.code === code)?.label ?? code;
   }
 
-  openTier(tier: LoyaltyDiscountTier | null, levelCode?: string): void {
+  openTier(tier: LoyaltyDiscountTier | null, productKey?: string, levelCode?: string): void {
     this.tierEditing.set(tier);
+    this.tierProduct.set(tier?.productKey ?? productKey ?? this.discounts()?.products[0] ?? '');
     this.tierLevel.set(tier?.levelCode ?? levelCode ?? this.levels()[0]?.code ?? '');
     this.tierMin.set(tier?.minMonths ?? 1);
     this.tierMaxMonths.set(tier?.maxMonths ?? 1);
@@ -333,6 +352,7 @@ export class ZenPointsComponent {
   }
 
   tierFormError(): string | null {
+    if (!this.tierProduct()) return 'Choisissez un produit.';
     if (!this.tierLevel()) return 'Choisissez un niveau.';
     const min = this.tierMin();
     const max = this.tierMaxMonths();
@@ -342,7 +362,7 @@ export class ZenPointsComponent {
     if (max < min) return 'La durée maximale doit être supérieure ou égale à la durée minimale.';
     const p = this.tierPercent();
     if (p === null || !(p > 0)) return 'La remise doit être supérieure à 0 %.';
-    const cap = this.discountMax() ?? 100;
+    const cap = this.discounts()?.maxPercent ?? 100;
     if (p > cap) return `La remise ne peut pas dépasser ${cap} %.`;
     return null;
   }
@@ -357,6 +377,7 @@ export class ZenPointsComponent {
     this.tierError.set(null);
     const body = {
       levelCode: this.tierLevel(),
+      productKey: this.tierProduct(),
       minMonths: this.tierMin() as number,
       maxMonths: this.tierMaxMonths() as number,
       percent: this.tierPercent() as number,
