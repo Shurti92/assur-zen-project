@@ -123,29 +123,26 @@ class _AddDocumentBodyState extends State<_AddDocumentBody> {
           AzBanner(kind: AzBannerKind.error, text: _error!),
         ],
         const SizedBox(height: 14),
-        Row(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: AzButton(
-                'Prendre une photo',
-                variant: AzButtonVariant.tonal,
-                height: 50,
-                radius: 16,
-                icon: Icons.photo_camera_outlined,
-                loading: _busy,
-                onPressed: _busy ? null : () => _pickImage(ImageSource.camera),
-              ),
+            AzButton(
+              'Prendre une photo',
+              variant: AzButtonVariant.tonal,
+              height: 50,
+              radius: 16,
+              icon: Icons.photo_camera_outlined,
+              loading: _busy,
+              onPressed: _busy ? null : () => _pickImage(ImageSource.camera),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: AzButton(
-                'Choisir un fichier',
-                variant: AzButtonVariant.tonal,
-                height: 50,
-                radius: 16,
-                icon: Icons.attach_file_rounded,
-                onPressed: _busy ? null : _pickFile,
-              ),
+            const SizedBox(height: 8),
+            AzButton(
+              'Choisir un fichier',
+              variant: AzButtonVariant.tonal,
+              height: 50,
+              radius: 16,
+              icon: Icons.attach_file_rounded,
+              onPressed: _busy ? null : _pickFile,
             ),
           ],
         ),

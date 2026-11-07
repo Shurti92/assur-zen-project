@@ -40,7 +40,12 @@ class _DocumentsPageState extends State<DocumentsPage> {
     return details;
   }
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() {
+    // Bloc (et non flèche) : setState refuse un rappel qui renvoie un Future.
+    setState(() {
+      _future = _load();
+    });
+  }
 
   bool _isExpired(Contract c) => c.status == ContractStatus.expire || c.status == ContractStatus.resilie;
 
