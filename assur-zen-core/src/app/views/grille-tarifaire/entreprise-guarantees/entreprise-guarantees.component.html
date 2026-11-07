@@ -1,0 +1,193 @@
+<app-modal [visible]="visible()" size="xxl" [title]="'Garanties · ' + title()" (closed)="requestClose()">
+  <div class="eg-head">
+    <span class="eg-chip">{{ rows().length }} ligne{{ rows().length > 1 ? 's' : '' }}</span>
+    <span class="eg-sp"></span>
+    <button (click)="openCopy()" [disabled]="loading() || saving() || sources().length === 0" class="eg-btn eg-btn--sm" type="button">
+      Copier depuis une autre option…
+    </button>
+  </div>
+  <p class="eg-hint">
+    L'ordre du tableau est l'ordre affiché au client. Une ligne « dont » (niveau 1) est rattachée à la ligne de niveau 0 qui la précède.
+  </p>
+
+  @if (error(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+
+  @if (loading()) {
+    <p class="eg-empty"><c-spinner size="sm" /> Chargement des garanties…</p>
+  } @else {
+    @if (rows().length === 0) {
+      <p class="eg-empty">
+        Aucune garantie pour cette option : le client ne voit aucun détail de couverture. Ajoutez des lignes ci-dessous.
+      </p>
+    } @else {
+      <div class="eg-scroll">
+        <table class="eg-table">
+          <thead>
+            <tr>
+              <th scope="col" class="eg-w-order">Ordre</th>
+              <th scope="col" class="eg-w-kind">Type</th>
+              <th scope="col">Nom</th>
+              <th scope="col" class="eg-w-amount">Indemnité (FCFA)</th>
+              <th scope="col" class="eg-w-label">ou texte</th>
+              <th scope="col" class="eg-w-small">Franchise</th>
+              <th scope="col" class="eg-w-small">Base</th>
+              <th scope="col">Actif</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of rows(); track r.key; let i = $index) {
+              <tr [class.eg-lv1]="r.level === 1" [class.eg-off]="!r.active" [class.eg-bad]="errors().has(r.key)">
+                <td>
+                  <span class="eg-mv">
+                    <button (click)="move(i, -1)" [disabled]="!canMoveUp(i)" aria-label="Monter" class="eg-mini" type="button">▲</button>
+                    <button (click)="move(i, 1)" [disabled]="!canMoveDown(i)" aria-label="Descendre" class="eg-mini" type="button">▼</button>
+                  </span>
+                </td>
+                <td>
+                  @if (r.level === 1) {
+                    <span class="eg-kind eg-kind--g">dont</span>
+                  } @else {
+                    <select (change)="setKind(i, $any($event.target).value)" [value]="r.kind" aria-label="Type de ligne" class="eg-input">
+                      <option value="GUARANTEE">Garantie</option>
+                      <option value="LIMIT">Plafond</option>
+                      <option value="NOTE">Note</option>
+                    </select>
+                  }
+                </td>
+                @if (r.kind === 'NOTE') {
+                  <td class="eg-muted">(pas de nom)</td>
+                  <td colspan="4">
+                    <input
+                      (input)="patch(i, { label: $any($event.target).value })"
+                      [value]="r.label"
+                      aria-label="Texte de la note"
+                      class="eg-input"
+                      maxlength="250"
+                      placeholder="Texte de la note"
+                    />
+                  </td>
+                } @else {
+                  <td>
+                    <div [class.eg-dont]="r.level === 1">
+                      <input
+                        (input)="patch(i, { name: $any($event.target).value })"
+                        [value]="r.name"
+                        aria-label="Nom"
+                        class="eg-input"
+                        maxlength="250"
+                      />
+                    </div>
+                  </td>
+                  <td>
+                    <input
+                      (input)="setAmount(i, $any($event.target).value)"
+                      [value]="formatAmount(r.amount)"
+                      aria-label="Montant d'indemnité"
+                      class="eg-input eg-amount"
+                      inputmode="numeric"
+                    />
+                  </td>
+                  <td>
+                    @if (r.kind === 'GUARANTEE') {
+                      <input
+                        (input)="patch(i, { label: $any($event.target).value })"
+                        [value]="r.label"
+                        aria-label="Texte d'indemnité"
+                        class="eg-input"
+                        maxlength="250"
+                        placeholder="ex. Non garanti"
+                      />
+                    } @else {
+                      <span class="eg-muted">—</span>
+                    }
+                  </td>
+                  <td>
+                    <input (input)="patch(i, { deductible: $any($event.target).value })" [value]="r.deductible" aria-label="Franchise" class="eg-input" maxlength="100" />
+                  </td>
+                  <td>
+                    <input (input)="patch(i, { basis: $any($event.target).value })" [value]="r.basis" aria-label="Base" class="eg-input" maxlength="100" />
+                  </td>
+                }
+                <td>
+                  <label class="eg-switch">
+                    <input (change)="patch(i, { active: $any($event.target).checked })" [checked]="r.active" aria-label="Ligne active" type="checkbox" />
+                  </label>
+                </td>
+                <td class="eg-actions">
+                  @if (r.level === 0 && r.kind !== 'NOTE') {
+                    <button (click)="addDont(i)" class="eg-btn eg-btn--sm" type="button">+ dont</button>
+                  }
+                  <button (click)="remove(i)" aria-label="Supprimer la ligne" class="eg-btn eg-btn--sm eg-btn--danger" type="button">✕</button>
+                </td>
+              </tr>
+              @if (errors().get(r.key); as message) {
+                <tr class="eg-errrow"><td colspan="9">{{ message }}</td></tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div class="eg-add">
+      <button (click)="add('GUARANTEE')" [disabled]="rows().length >= 80" class="eg-btn eg-btn--sm" type="button">+ Garantie</button>
+      <button (click)="add('LIMIT')" [disabled]="rows().length >= 80" class="eg-btn eg-btn--sm" type="button">+ Plafond</button>
+      <button (click)="add('NOTE')" [disabled]="rows().length >= 80" class="eg-btn eg-btn--sm" type="button">+ Note</button>
+      <span class="eg-sp"></span>
+      <span class="eg-hint">Une ligne inactive est conservée mais n'est pas montrée au client. 80 lignes au maximum.</span>
+    </div>
+
+    <div class="eg-warn">
+      L'enregistrement <strong>remplace tout le tableau</strong> de cette formule et de cette option dans l'ordre affiché. Une liste vide = aucune garantie.
+    </div>
+  }
+
+  <div class="eg-foot">
+    <span class="eg-hint">{{ dirty() ? 'Modifications non enregistrées' : 'Aucune modification non enregistrée' }}</span>
+    <button (click)="requestClose()" class="eg-btn" type="button">{{ dirty() ? 'Annuler' : 'Fermer' }}</button>
+    <button (click)="save()" [disabled]="!canSave()" class="eg-btn eg-btn--primary" type="button">
+      @if (saving()) {
+        <c-spinner size="sm" />
+      }
+      Enregistrer
+    </button>
+  </div>
+</app-modal>
+
+<app-modal [visible]="copyVisible()" size="md" title="Copier les garanties" (closed)="copyVisible.set(false)">
+  @if (copyError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <label class="form-label fw-semibold" for="eg-source">Source</label>
+  <select (change)="copySource.set($any($event.target).value)" [value]="copySource()" id="eg-source" class="form-select">
+    @for (s of sources(); track sourceKey(s)) {
+      <option [value]="sourceKey(s)">{{ s.label }}</option>
+    }
+  </select>
+  <div class="alert alert-warning small mt-3 mb-0">
+    Les lignes de l'éditeur seront <strong>remplacées</strong> par celles de la source. Rien n'est enregistré tant que vous ne cliquez pas sur Enregistrer.
+  </div>
+  <div class="d-flex justify-content-end gap-2 mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+    <button (click)="copyVisible.set(false)" class="eg-btn" type="button">Annuler</button>
+    <button (click)="copyFrom()" [disabled]="copyBusy()" class="eg-btn eg-btn--primary" type="button">
+      @if (copyBusy()) {
+        <c-spinner size="sm" />
+      }
+      Copier dans l'éditeur
+    </button>
+  </div>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="confirmClose()"
+  cancelLabel="Continuer l'édition"
+  confirmLabel="Fermer sans enregistrer"
+  icon="cilWarning"
+  message="Des modifications de garanties ne sont pas enregistrées : elles seront perdues."
+  title="Fermer sans enregistrer ?"
+  (cancelled)="confirmClose.set(false)"
+  (confirmed)="discardAndClose()"
+/>

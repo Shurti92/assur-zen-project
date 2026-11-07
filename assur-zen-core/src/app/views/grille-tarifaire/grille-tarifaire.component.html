@@ -281,6 +281,7 @@
               <tr>
                 <th scope="col">Option</th>
                 <th scope="col" class="gt-r">Prime TTC annuelle (FCFA)</th>
+                <th scope="col">Garanties</th>
                 <th scope="col">Actif</th>
                 <th scope="col"></th>
               </tr>
@@ -304,6 +305,20 @@
                     }
                   </td>
                   <td>
+                    @if (!r.existing) {
+                      <span class="gt-pack-hint">Enregistrez d'abord la formule</span>
+                    } @else if (guaranteeCounts()[guaranteeKey(r)] === undefined) {
+                      <span class="gt-pack-hint">…</span>
+                    } @else if (guaranteeCounts()[guaranteeKey(r)] === 0) {
+                      <button (click)="openGuarantees(g, r)" class="gt-btn gt-btn--primary gt-btn--sm" type="button">+ Ajouter les garanties</button>
+                      <span class="gt-pack-none">Aucune</span>
+                    } @else {
+                      <button (click)="openGuarantees(g, r)" class="gt-btn gt-btn--secondary gt-btn--sm" type="button">
+                        Garanties{{ guaranteeCounts()[guaranteeKey(r)] !== null ? ' · ' + guaranteeCounts()[guaranteeKey(r)] : '' }}
+                      </button>
+                    }
+                  </td>
+                  <td>
                     <label class="gt-switch">
                       <input (change)="update(r, { active: $any($event.target).checked })" [checked]="r.active" type="checkbox" [attr.aria-label]="'Option ' + r.vehicleCategory + ' active'" />
                     </label>
@@ -323,6 +338,16 @@
       }
     }
   }
+
+  <app-entreprise-guarantees
+    [visible]="editorVisible()"
+    [formulaId]="editorFormula()"
+    [option]="editorOption()"
+    [title]="editorTitle()"
+    [sources]="guaranteeSources()"
+    (closed)="editorVisible.set(false)"
+    (saved)="onGuaranteesSaved($event.count)"
+  />
 
   <app-modal [visible]="newVisible()" size="md" title="Nouvelle formule Entreprise" (closed)="newVisible.set(false)">
     @if (newError(); as message) {
