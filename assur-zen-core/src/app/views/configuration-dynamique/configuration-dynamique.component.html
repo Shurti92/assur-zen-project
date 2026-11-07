@@ -584,6 +584,30 @@
             Texte de consentement SMS montré au client. Si vous le modifiez, augmentez aussi <strong>MOBILE_SMS_CONSENT_VERSION</strong> : sinon les clients qui ont déjà accepté ne sont pas invités à relire le nouveau texte.
           </div>
         }
+        @switch (loyaltyKey()) {
+          @case ('LOYALTY_ENABLED') {
+            <div class="alert alert-warning small mt-2 mb-0">
+              Interrupteur général de Zen Points. À ne passer à vrai qu'après avis de la conformité sur les conditions du programme.
+            </div>
+          }
+          @case ('LOYALTY_TERMS_TEXT') {
+            <div class="alert alert-warning small mt-2 mb-0">
+              Conditions montrées au client avant son accord : texte à faire valider par la conformité. Si vous le modifiez, augmentez aussi <strong>LOYALTY_TERMS_VERSION</strong> pour redemander l'accord.
+            </div>
+          }
+          @case ('LOYALTY_TERMS_VERSION') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">À augmenter à chaque changement du texte des conditions : les clients devront accepter à nouveau.</div>
+          }
+          @case ('LOYALTY_GLOBAL_MONTHLY_CAP') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">Nombre entier positif : total de points distribuables par mois pour tous les clients.</div>
+          }
+          @case ('LOYALTY_WITHDRAWAL_GRACE_DAYS') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">Nombre entier de jours avant l'effacement des données d'un client qui retire son accord (90 par défaut).</div>
+          }
+          @case ('LOYALTY_EXPIRY_MONTHS') {
+            <div class="alert alert-warning small mt-2 mb-0">L'expiration des points n'est pas encore livrée : laissez ce réglage vide ou à 0.</div>
+          }
+        }
         @if (isPushGenericKey()) {
           <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
             Vrai (recommandé) : la notification push affiche un texte générique par catégorie. Faux : le détail de l'événement apparaît dans la notification, donc sur l'écran verrouillé.

@@ -554,6 +554,15 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'mobile/zen-points',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./views/zen-points/zen-points.component').then((m) => m.ZenPointsComponent),
+        data: {
+          title: 'Zen Points',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
         path: 'mobile/documents',
         canActivate: [adminGuard],
         loadComponent: () => import('./views/documents-mobile/documents-mobile.component').then((m) => m.DocumentsMobileComponent),
