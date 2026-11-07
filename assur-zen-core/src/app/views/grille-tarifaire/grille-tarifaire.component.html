@@ -39,6 +39,7 @@
   @if (loading()) {
     <p class="gt-empty"><c-spinner size="sm" /> Chargement de la grille…</p>
   } @else {
+    @if (!isEntreprise()) {
     <div class="gt-kpis">
       <div class="gt-kpi"><span>Tarifs actifs</span><b>{{ activeRows().length }}</b></div>
       <div class="gt-kpi">
@@ -223,7 +224,135 @@
       <p class="gt-empty">Aucune ligne tarifaire pour ce produit.</p>
       <button (click)="addRow()" class="gt-add" type="button"><span><b>＋</b>Ajouter un tarif</span></button>
     }
+    } @else {
+      <div class="gt-kpis">
+        <div class="gt-kpi"><span>Formules actives</span><b>{{ activePacks() }} / {{ packs().length }}</b></div>
+        <div class="gt-kpi">
+          <span>Durée</span>
+          <b>{{ activeDurations().length ? activeDurations().join(' · ') + ' mois' : '—' }}</b>
+        </div>
+        <div class="gt-kpi"><span>Prime la plus basse</span><b>{{ minPrice() !== null ? formatAmount(minPrice()!) : '—' }}</b></div>
+        <div class="gt-kpi">
+          <span>Dernière mise à jour</span>
+          <b class="gt-kpi-small">
+            @if (lastUpdate(); as u) {
+              {{ formatDate(u.updatedAt) }}{{ u.updatedBy ? ' · ' + u.updatedBy : '' }}
+            } @else {
+              —
+            }
+          </b>
+        </div>
+      </div>
+
+      <div class="gt-pack-intro">
+        <span>
+          Chaque formule a un nom et une description affichés au client, et ses options (Option 1, Option 2) avec leur prime TTC annuelle.
+          Le montant saisi fait seul foi.
+        </span>
+        <button (click)="openNew()" [disabled]="saving()" class="gt-btn gt-btn--primary" type="button">+ Nouvelle formule</button>
+      </div>
+
+      @for (g of packs(); track g.formulaId) {
+        <article [class.gt-pack--off]="!packActive(g)" class="gt-pack">
+          <div class="gt-pack-head">
+            <h2>{{ packTitle(g) }}</h2>
+            <span class="gt-chip">{{ g.formulaId }}</span>
+            @if (!packActive(g)) {
+              <span class="gt-pack-off">Retirée de la cotation</span>
+            }
+            <span class="gt-pack-sp"></span>
+            <label class="gt-switch">
+              <input (change)="setPackActive(g, $any($event.target).checked)" [checked]="packActive(g)" type="checkbox" [attr.aria-label]="'Formule ' + g.formulaId + ' active'" />
+              <span>{{ packActive(g) ? 'Active' : 'Inactive' }}</span>
+            </label>
+          </div>
+          <div class="gt-pack-fields">
+            <label>
+              Nom affiché au client
+              <input (input)="setPackText(g, 'formulaName', $any($event.target).value)" [value]="packName(g)" maxlength="100" type="text" />
+            </label>
+            <label>
+              Description ({{ packDescription(g).length }}/500)
+              <input (input)="setPackText(g, 'formulaDescription', $any($event.target).value)" [value]="packDescription(g)" maxlength="500" type="text" />
+            </label>
+          </div>
+          <table class="gt-opt-table">
+            <thead>
+              <tr>
+                <th scope="col">Option</th>
+                <th scope="col" class="gt-r">Prime TTC annuelle (FCFA)</th>
+                <th scope="col">Actif</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of g.rows; track r.key) {
+                <tr [class.gt-opt--changed]="changedKeys().has(r.key)" [class.gt-opt--off]="!r.active">
+                  <td>{{ optionLabel(r.vehicleCategory) }} <span class="gt-chip">{{ r.vehicleCategory }}</span></td>
+                  <td class="gt-r">
+                    <input
+                      (input)="setAmount(r, 'netPremium', $any($event.target).value)"
+                      [class.gt-input--error]="amountError(r)"
+                      [value]="r.netPremium !== null ? r.netPremium.toLocaleString('fr-FR') : ''"
+                      [attr.aria-label]="'Prime ' + optionLabel(r.vehicleCategory)"
+                      class="gt-amount"
+                      inputmode="numeric"
+                      type="text"
+                    />
+                    @if (amountError(r)) {
+                      <div class="gt-pack-err">La prime doit être un montant supérieur à 0.</div>
+                    }
+                  </td>
+                  <td>
+                    <label class="gt-switch">
+                      <input (change)="update(r, { active: $any($event.target).checked })" [checked]="r.active" type="checkbox" [attr.aria-label]="'Option ' + r.vehicleCategory + ' active'" />
+                    </label>
+                  </td>
+                  <td class="gt-r">
+                    @if (!r.existing) {
+                      <button (click)="removeRow(r)" class="gt-link" type="button">Retirer</button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </article>
+      } @empty {
+        <p class="gt-empty">Aucune formule Entreprise dans la grille.</p>
+      }
+    }
   }
+
+  <app-modal [visible]="newVisible()" size="md" title="Nouvelle formule Entreprise" (closed)="newVisible.set(false)">
+    @if (newError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    <label class="form-label fw-semibold" for="ne-id">Identifiant (minuscules, chiffres et tirets)</label>
+    <input (input)="newId.set($any($event.target).value.toLowerCase())" [value]="newId()" id="ne-id" maxlength="40" class="form-control mb-1" placeholder="Ex. transport-pro" />
+    <div class="small text-body-secondary mb-2">Non modifiable ensuite. Ne doit pas déjà exister.</div>
+    <label class="form-label fw-semibold" for="ne-name">Nom affiché au client</label>
+    <input (input)="newName.set($any($event.target).value)" [value]="newName()" id="ne-name" maxlength="100" class="form-control mb-2" />
+    <label class="form-label fw-semibold" for="ne-desc">Description ({{ newDesc().length }}/500)</label>
+    <textarea (input)="newDesc.set($any($event.target).value)" [value]="newDesc()" id="ne-desc" maxlength="500" rows="2" class="form-control mb-2"></textarea>
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="form-label fw-semibold" for="ne-p1">Prime Option 1 (FCFA)</label>
+        <input (input)="newP1.set(numberOf($any($event.target).value))" [value]="newP1() !== null ? newP1()!.toLocaleString('fr-FR') : ''" id="ne-p1" inputmode="numeric" class="form-control" />
+      </div>
+      <div class="col-6">
+        <label class="form-label fw-semibold" for="ne-p2">Prime Option 2 (FCFA)</label>
+        <input (input)="newP2.set(numberOf($any($event.target).value))" [value]="newP2() !== null ? newP2()!.toLocaleString('fr-FR') : ''" id="ne-p2" inputmode="numeric" class="form-control" />
+      </div>
+    </div>
+    <div class="alert alert-info small mt-3 mb-0">
+      Les deux options sont créées actives, durée 12 mois. Seul le montant fait foi : les taxes et accessoires sont à 0. Elles sont enregistrées avec la barre d'enregistrement.
+    </div>
+    <div class="d-flex justify-content-end gap-2 mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+      <button (click)="newVisible.set(false)" class="gt-btn gt-btn--ghost" type="button">Annuler</button>
+      <button (click)="addFormula()" class="gt-btn gt-btn--primary" type="button">Ajouter la formule</button>
+    </div>
+  </app-modal>
 
   <div [class.gt-save--on]="changeCount() > 0" class="gt-save" role="status">
     <span>{{ changeCount() }} modification{{ changeCount() > 1 ? 's' : '' }} non enregistrée{{ changeCount() > 1 ? 's' : '' }}</span>

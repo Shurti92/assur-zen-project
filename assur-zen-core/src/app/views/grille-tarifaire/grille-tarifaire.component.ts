@@ -5,10 +5,11 @@ import { SpinnerComponent } from '@coreui/angular';
 import { QuoteTariff, QuoteTariffRequestItem, VehicleCategory } from '../../core/quotes/models/quote-tariff.model';
 import { QuoteTariffService } from '../../core/quotes/quote-tariff.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
+import { ModalComponent } from '../../shared/modal/modal.component';
 
 type AmountKey = 'netPremium' | 'taxes' | 'accessories' | 'fga' | 'cedeao' | 'attestation';
 type CriteriaKey = 'minFiscalPower' | 'minSeats' | 'maxSeats';
-type ProductTab = 'moto' | 'automobile-vtc';
+type ProductTab = 'moto' | 'automobile-vtc' | 'entreprise';
 
 interface TariffRow {
   key: number;
@@ -30,6 +31,9 @@ interface TariffRow {
   /** Taux de taxe (% de la prime nette) : conservé et renvoyé tel quel, sinon la ligne le perdrait au PUT. */
   taxRate: number | null;
   active: boolean;
+  /** Produits Entreprise : nom et description de la formule (null = non modifiés). */
+  formulaName: string | null;
+  formulaDescription: string | null;
   updatedAt: string | null;
   updatedBy: string | null;
 }
@@ -40,10 +44,14 @@ interface FormulaGroup {
 }
 
 const VTC_PRODUCT = 'automobile-vtc';
+const ENTREPRISE_PRODUCT = 'entreprise';
+const ENTREPRISE_DURATION = 12;
+const FORMULA_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 const PRODUCT_TABS: { key: ProductTab; label: string; formulaId: string; category: string }[] = [
   { key: 'moto', label: 'Moto', formulaId: 'tiers-simple-moto', category: 'MOTO' },
   { key: 'automobile-vtc', label: 'Automobile VTC', formulaId: 'tiers-simple-vtc', category: 'VTC' },
+  { key: 'entreprise', label: 'Entreprise', formulaId: '', category: 'OPTION_1' },
 ];
 
 const FORMULA_LABEL: Record<string, string> = {
@@ -53,6 +61,7 @@ const FORMULA_LABEL: Record<string, string> = {
 
 const ERROR_MESSAGES: Record<string, string> = {
   VALIDATION_FAILED: 'Une ligne est invalide : vérifiez les montants, la durée et les critères.',
+  TARIFF_TOTAL_MISMATCH: 'Le total doit être égal à la somme des composantes.',
 };
 
 /** Composantes du prix, dans l'ordre d'affichage (couleur de la barre de répartition incluse). */
@@ -69,7 +78,7 @@ export const AMOUNT_FIELDS: { key: AmountKey; label: string; color: string; vtcO
   selector: 'app-grille-tarifaire',
   templateUrl: './grille-tarifaire.component.html',
   styleUrl: './grille-tarifaire.component.scss',
-  imports: [AlertMessageComponent, SpinnerComponent],
+  imports: [AlertMessageComponent, ModalComponent, SpinnerComponent],
 })
 export class GrilleTarifaireComponent {
   private readonly service = inject(QuoteTariffService);
@@ -78,6 +87,7 @@ export class GrilleTarifaireComponent {
   readonly tabs = PRODUCT_TABS;
   readonly product = signal<ProductTab>('moto');
   readonly isVtc = computed(() => this.product() === 'automobile-vtc');
+  readonly isEntreprise = computed(() => this.product() === ENTREPRISE_PRODUCT);
   /** Composantes affichées : CEDEAO et attestation seulement pour le VTC. */
   readonly fields = computed(() => AMOUNT_FIELDS.filter((f) => this.isVtc() || !f.vtcOnly));
 
@@ -192,6 +202,17 @@ export class GrilleTarifaireComponent {
   }
 
   isComplete(row: TariffRow): boolean {
+    if (this.productOf(row) === ENTREPRISE_PRODUCT) {
+      return (
+        !!row.durationMonths &&
+        FORMULA_SLUG.test(row.formulaId.trim()) &&
+        /^OPTION_[0-9]{1,2}$/.test(row.vehicleCategory.trim()) &&
+        row.netPremium !== null &&
+        row.netPremium >= 1 &&
+        (row.formulaName ?? '').length <= 100 &&
+        (row.formulaDescription ?? '').length <= 500
+      );
+    }
     const vtc = this.productOf(row) === 'automobile-vtc';
     const amounts: AmountKey[] = vtc
       ? ['netPremium', 'taxes', 'accessories', 'fga', 'cedeao', 'attestation']
@@ -259,6 +280,7 @@ export class GrilleTarifaireComponent {
   }
 
   addRow(): void {
+    if (this.isEntreprise()) return;
     const tab = PRODUCT_TABS.find((t) => t.key === this.product()) ?? PRODUCT_TABS[0];
     const last = this.visibleRows().at(-1);
     const vtc = tab.key === VTC_PRODUCT;
@@ -283,6 +305,8 @@ export class GrilleTarifaireComponent {
         maxSeats: vtc ? (last?.maxSeats ?? 8) : null,
         taxRate: last?.taxRate ?? null,
         active: true,
+        formulaName: null,
+        formulaDescription: null,
         updatedAt: null,
         updatedBy: null,
       },
@@ -323,6 +347,26 @@ export class GrilleTarifaireComponent {
     this.error.set(null);
     this.success.set(null);
     const body: QuoteTariffRequestItem[] = this.rows().map((r) => {
+      if (this.productOf(r) === ENTREPRISE_PRODUCT) {
+        // Seul le montant TTC fait foi : prime nette = total, le reste à 0.
+        const amount = r.netPremium as number;
+        return {
+          productKey: r.productKey,
+          formulaId: r.formulaId.trim(),
+          vehicleCategory: r.vehicleCategory.trim(),
+          durationMonths: r.durationMonths as number,
+          netPremium: amount,
+          taxes: 0,
+          accessories: 0,
+          fga: 0,
+          cedeao: 0,
+          attestation: 0,
+          total: amount,
+          active: r.active,
+          formulaName: r.formulaName,
+          formulaDescription: r.formulaDescription,
+        };
+      }
       const vtc = this.productOf(r) === 'automobile-vtc';
       return {
         productKey: r.productKey,
@@ -354,6 +398,129 @@ export class GrilleTarifaireComponent {
     });
   }
 
+  // ------------------------------------------------------------------ Entreprise (formules et options)
+
+  /** Formules Entreprise avec leurs options, dans l'ordre de la grille. */
+  readonly packs = computed<FormulaGroup[]>(() => this.groups());
+
+  /** Formules ayant au moins une option active. */
+  readonly activePacks = computed(() => this.packs().filter((g) => g.rows.some((r) => r.active)).length);
+
+  readonly newVisible = signal(false);
+  readonly newId = signal('');
+  readonly newName = signal('');
+  readonly newDesc = signal('');
+  readonly newP1 = signal<number | null>(null);
+  readonly newP2 = signal<number | null>(null);
+  readonly newError = signal<string | null>(null);
+
+  /** Nom affiché au client, sinon identifiant mis en forme (cabinet-rh → Cabinet Rh). */
+  packTitle(g: FormulaGroup): string {
+    const name = g.rows.find((r) => (r.formulaName ?? '').trim())?.formulaName?.trim();
+    if (name) return name;
+    return g.formulaId
+      .split('-')
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+      .join(' ');
+  }
+
+  packName(g: FormulaGroup): string {
+    return g.rows.find((r) => r.formulaName !== null)?.formulaName ?? '';
+  }
+
+  packDescription(g: FormulaGroup): string {
+    return g.rows.find((r) => r.formulaDescription !== null)?.formulaDescription ?? '';
+  }
+
+  packActive(g: FormulaGroup): boolean {
+    return g.rows.some((r) => r.active);
+  }
+
+  /** Active ou retire d'un geste les deux options d'une formule. */
+  setPackActive(g: FormulaGroup, active: boolean): void {
+    this.success.set(null);
+    const keys = new Set(g.rows.map((r) => r.key));
+    this.rows.update((rows) => rows.map((r) => (keys.has(r.key) ? { ...r, active } : r)));
+  }
+
+  /** Nom et description sont portés par chaque option d'une formule : on les met à jour ensemble. */
+  setPackText(g: FormulaGroup, field: 'formulaName' | 'formulaDescription', value: string): void {
+    this.success.set(null);
+    const max = field === 'formulaName' ? 100 : 500;
+    const text = value.slice(0, max);
+    const keys = new Set(g.rows.map((r) => r.key));
+    this.rows.update((rows) => rows.map((r) => (keys.has(r.key) ? { ...r, [field]: text } : r)));
+  }
+
+  optionLabel(category: string): string {
+    const m = /^OPTION_(\d+)$/.exec(category);
+    return m ? `Option ${m[1]}` : category;
+  }
+
+  amountError(row: TariffRow): boolean {
+    return this.productOf(row) === ENTREPRISE_PRODUCT && (row.netPremium === null || row.netPremium < 1);
+  }
+
+  openNew(): void {
+    this.newId.set('');
+    this.newName.set('');
+    this.newDesc.set('');
+    this.newP1.set(null);
+    this.newP2.set(null);
+    this.newError.set(null);
+    this.newVisible.set(true);
+  }
+
+  newFormError(): string | null {
+    const id = this.newId().trim();
+    if (!FORMULA_SLUG.test(id) || id.length > 40) return 'Identifiant : minuscules, chiffres et tirets uniquement (40 caractères max).';
+    if (this.rows().some((r) => r.productKey === ENTREPRISE_PRODUCT && r.formulaId === id)) return 'Cet identifiant existe déjà.';
+    if (this.newName().length > 100) return 'Le nom fait 100 caractères au plus.';
+    if (this.newDesc().length > 500) return 'La description fait 500 caractères au plus.';
+    const p1 = this.newP1();
+    const p2 = this.newP2();
+    if (p1 === null || p2 === null || p1 < 1 || p2 < 1) return 'Les deux primes doivent être des montants supérieurs à 0.';
+    return null;
+  }
+
+  /** Crée les deux options de la nouvelle formule ; l'enregistrement se fait avec la barre habituelle. */
+  addFormula(): void {
+    const problem = this.newFormError();
+    if (problem) {
+      this.newError.set(problem);
+      return;
+    }
+    const id = this.newId().trim();
+    const name = this.newName().trim();
+    const desc = this.newDesc().trim();
+    const mk = (category: string, amount: number): TariffRow => ({
+      key: this.nextKey++,
+      existing: false,
+      productKey: ENTREPRISE_PRODUCT,
+      formulaId: id,
+      vehicleCategory: category,
+      durationMonths: ENTREPRISE_DURATION,
+      netPremium: amount,
+      taxes: 0,
+      accessories: 0,
+      fga: 0,
+      cedeao: 0,
+      attestation: 0,
+      minFiscalPower: null,
+      minSeats: null,
+      maxSeats: null,
+      taxRate: null,
+      active: true,
+      formulaName: name || null,
+      formulaDescription: desc || null,
+      updatedAt: null,
+      updatedBy: null,
+    });
+    this.success.set(null);
+    this.rows.update((rows) => [...rows, mk('OPTION_1', this.newP1() as number), mk('OPTION_2', this.newP2() as number)]);
+    this.newVisible.set(false);
+  }
+
   formatDate(value?: string | null): string {
     if (!value) return '—';
     const d = new Date(value);
@@ -365,6 +532,7 @@ export class GrilleTarifaireComponent {
   }
 
   private productOf(row: { productKey: string }): ProductTab {
+    if (row.productKey === ENTREPRISE_PRODUCT) return 'entreprise';
     return row.productKey === VTC_PRODUCT ? 'automobile-vtc' : 'moto';
   }
 
@@ -404,6 +572,8 @@ export class GrilleTarifaireComponent {
         maxSeats: t.maxSeats ?? null,
         taxRate: t.taxRate ?? null,
         active: t.active,
+        formulaName: t.formulaName ?? null,
+        formulaDescription: t.formulaDescription ?? null,
         updatedAt: t.updatedAt ?? null,
         updatedBy: t.updatedBy ?? null,
       }));
@@ -427,6 +597,8 @@ export class GrilleTarifaireComponent {
       r.minSeats,
       r.maxSeats,
       r.active,
+      r.formulaName,
+      r.formulaDescription,
     ]);
   }
 

@@ -23,6 +23,9 @@ export interface QuoteTariff {
   /** = netPremium + taxes + accessories + fga + cedeao + attestation. */
   total: number;
   active: boolean;
+  /** Produits Entreprise : nom et description de la formule affichés au client (absents = inchangés ; chaîne vide = effacer). */
+  formulaName?: string | null;
+  formulaDescription?: string | null;
   updatedAt?: string | null;
   updatedBy?: string | null;
 }

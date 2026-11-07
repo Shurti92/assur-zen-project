@@ -543,3 +543,147 @@
   font: inherit;
   text-align: right;
 }
+
+// ---------- Entreprise : formules et options ----------
+
+.gt-pack-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 14px;
+  color: var(--cui-secondary-color);
+  font-size: 13px;
+}
+
+.gt-pack {
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 14px;
+  background: var(--cui-body-bg);
+}
+
+.gt-pack--off {
+  opacity: 0.65;
+}
+
+.gt-pack-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+
+  h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+}
+
+.gt-pack-sp {
+  flex: 1;
+}
+
+.gt-pack-off {
+  padding: 2px 10px;
+  border-radius: 99px;
+  background: var(--cui-secondary-bg, #e2e8f0);
+  color: var(--cui-secondary-color);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gt-pack-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--cui-secondary-color);
+    font-size: 12px;
+  }
+
+  input {
+    padding: 6px 10px;
+    border: 1px solid var(--cui-border-color);
+    border-radius: 8px;
+    background: var(--cui-body-bg);
+    color: var(--cui-body-color);
+    font: inherit;
+  }
+}
+
+.gt-opt-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--cui-border-color);
+    font-size: 13px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    color: var(--cui-secondary-color);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+}
+
+.gt-opt--changed td {
+  background: rgba(79, 70, 229, 0.06);
+}
+
+.gt-opt--off td {
+  color: var(--cui-secondary-color);
+}
+
+.gt-r {
+  text-align: right !important;
+}
+
+.gt-amount {
+  width: 160px;
+  padding: 6px 10px;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 8px;
+  background: var(--cui-body-bg);
+  color: var(--cui-body-color);
+  font: inherit;
+  font-weight: 700;
+  text-align: right;
+}
+
+.gt-input--error {
+  border-color: #dc2626;
+}
+
+.gt-pack-err {
+  margin-top: 2px;
+  color: #dc2626;
+  font-size: 11px;
+}
+
+.gt-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--cui-secondary-color);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .gt-pack-fields {
+    grid-template-columns: 1fr;
+  }
+}
