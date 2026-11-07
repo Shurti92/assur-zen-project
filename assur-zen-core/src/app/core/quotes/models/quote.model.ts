@@ -178,6 +178,8 @@ export interface QuoteView {
   acceptedAt?: string | null;
   channel?: string | null;
   prospectName?: string | null;
+  /** Niveau Zen Points du client (absent si non adhérent, retiré ou Bronze). */
+  loyaltyLevel?: string | null;
   prospectPhone?: string | null;
   createdByUserId?: number | null;
   /** Envoi par e-mail (contrat proposé, à confirmer par la gateway). */

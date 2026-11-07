@@ -64,7 +64,7 @@
           <div class="mb-who">
             <span class="mb-av">{{ initials(item.fullName) }}</span>
             <div>
-              <b>{{ displayName(item) }}</b>
+              <b>{{ displayName(item) }}</b><app-loyalty-badge [level]="item.loyaltyLevel" />
               @if (item.pendingDeletionReference) {
                 <small>Suppression demandée · {{ item.pendingDeletionReference }}</small>
               }
@@ -105,7 +105,7 @@
     <div class="d-flex align-items-center gap-3 mb-3 pb-3" style="border-bottom: 1px solid var(--cui-border-color)">
       <span class="dl-avatar dl-avatar--lg">{{ initials(d.account.fullName) }}</span>
       <div class="flex-grow-1">
-        <div class="fw-semibold fs-5">{{ displayName(d.account) }}</div>
+        <div class="fw-semibold fs-5">{{ displayName(d.account) }}<app-loyalty-badge [level]="d.account.loyaltyLevel" /></div>
         <div class="dl-timestamp">{{ d.account.phone || '—' }}</div>
       </div>
       @if (d.account.active) {

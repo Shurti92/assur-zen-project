@@ -9,6 +9,7 @@ import { MobileAccountService } from '../../core/mobile-admin/mobile-account.ser
 import { LinkedInsured, MobileAccount, MobileAccountDetail } from '../../core/mobile-admin/models/mobile-account.model';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
+import { LoyaltyBadgeComponent } from '../../shared/loyalty-badge/loyalty-badge.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
 import { ZenPointsClientComponent } from './zen-points-client/zen-points-client.component';
 
@@ -26,7 +27,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   selector: 'app-comptes-mobile',
   templateUrl: './comptes-mobile.component.html',
   styleUrl: './comptes-mobile.component.scss',
-  imports: [ButtonDirective, SpinnerComponent, FormsModule, AlertMessageComponent, ConfirmDialogComponent, ModalComponent, ZenPointsClientComponent],
+  imports: [ButtonDirective, SpinnerComponent, FormsModule, AlertMessageComponent, ConfirmDialogComponent, ModalComponent, ZenPointsClientComponent, LoyaltyBadgeComponent],
 })
 export class ComptesMobileComponent {
   private readonly service = inject(MobileAccountService);
