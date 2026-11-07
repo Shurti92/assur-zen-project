@@ -1,11 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { catchError, forkJoin, map, of } from 'rxjs';
 import { SpinnerComponent } from '@coreui/angular';
 
 import { QuoteTariff, QuoteTariffRequestItem, VehicleCategory } from '../../core/quotes/models/quote-tariff.model';
+import { QuoteGuaranteeService } from '../../core/quotes/quote-guarantee.service';
 import { QuoteTariffService } from '../../core/quotes/quote-tariff.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
+import { EntrepriseGuaranteesComponent, GuaranteeSource } from './entreprise-guarantees/entreprise-guarantees.component';
 
 type AmountKey = 'netPremium' | 'taxes' | 'accessories' | 'fga' | 'cedeao' | 'attestation';
 type CriteriaKey = 'minFiscalPower' | 'minSeats' | 'maxSeats';
@@ -78,10 +81,11 @@ export const AMOUNT_FIELDS: { key: AmountKey; label: string; color: string; vtcO
   selector: 'app-grille-tarifaire',
   templateUrl: './grille-tarifaire.component.html',
   styleUrl: './grille-tarifaire.component.scss',
-  imports: [AlertMessageComponent, ModalComponent, SpinnerComponent],
+  imports: [AlertMessageComponent, EntrepriseGuaranteesComponent, ModalComponent, SpinnerComponent],
 })
 export class GrilleTarifaireComponent {
   private readonly service = inject(QuoteTariffService);
+  private readonly guaranteeService = inject(QuoteGuaranteeService);
   private nextKey = 1;
 
   readonly tabs = PRODUCT_TABS;
@@ -156,6 +160,12 @@ export class GrilleTarifaireComponent {
 
   constructor() {
     this.load();
+    // Compteurs de garanties : chargés une fois à l'ouverture de l'onglet Entreprise.
+    effect(() => {
+      if (this.isEntreprise() && !this.loading() && this.rows().length > 0) {
+        untracked(() => this.loadGuaranteeCounts());
+      }
+    });
   }
 
   load(): void {
@@ -406,6 +416,34 @@ export class GrilleTarifaireComponent {
   /** Formules ayant au moins une option active. */
   readonly activePacks = computed(() => this.packs().filter((g) => g.rows.some((r) => r.active)).length);
 
+  /** Nombre de lignes de garanties par « formule|option » ; null = lecture impossible, absent = pas encore chargé. */
+  readonly guaranteeCounts = signal<Record<string, number | null>>({});
+  private countsRequested = false;
+
+  readonly editorVisible = signal(false);
+  readonly editorFormula = signal('');
+  readonly editorOption = signal('');
+  readonly editorTitle = signal('');
+
+  /** Options (déjà enregistrées) dont on peut copier les garanties, avec au moins une ligne. */
+  readonly guaranteeSources = computed<GuaranteeSource[]>(() => {
+    const counts = this.guaranteeCounts();
+    const list: GuaranteeSource[] = [];
+    for (const g of this.packs()) {
+      for (const r of g.rows) {
+        const n = counts[this.guaranteeKey(r)];
+        if (r.existing && n && n > 0) {
+          list.push({
+            formulaId: r.formulaId,
+            option: r.vehicleCategory,
+            label: `${this.packTitle(g)} · ${this.optionLabel(r.vehicleCategory)} (${n} ligne${n > 1 ? 's' : ''})`,
+          });
+        }
+      }
+    }
+    return list;
+  });
+
   readonly newVisible = signal(false);
   readonly newId = signal('');
   readonly newName = signal('');
@@ -450,6 +488,39 @@ export class GrilleTarifaireComponent {
     const text = value.slice(0, max);
     const keys = new Set(g.rows.map((r) => r.key));
     this.rows.update((rows) => rows.map((r) => (keys.has(r.key) ? { ...r, [field]: text } : r)));
+  }
+
+  guaranteeKey(row: { formulaId: string; vehicleCategory: string }): string {
+    return `${row.formulaId}|${row.vehicleCategory}`;
+  }
+
+  /** Lit le nombre de lignes de chaque option enregistrée (une lecture par option). */
+  loadGuaranteeCounts(force = false): void {
+    if (this.countsRequested && !force) return;
+    this.countsRequested = true;
+    const targets = this.rows().filter((r) => r.productKey === ENTREPRISE_PRODUCT && r.existing);
+    if (!targets.length) return;
+    forkJoin(
+      targets.map((r) =>
+        this.guaranteeService.get(r.formulaId, r.vehicleCategory).pipe(
+          map((list): [string, number | null] => [this.guaranteeKey(r), list.items.length]),
+          catchError((): import('rxjs').Observable<[string, number | null]> => of([this.guaranteeKey(r), null])),
+        ),
+      ),
+    ).subscribe((entries) => this.guaranteeCounts.set(Object.fromEntries(entries)));
+  }
+
+  openGuarantees(g: FormulaGroup, row: TariffRow): void {
+    this.editorFormula.set(row.formulaId);
+    this.editorOption.set(row.vehicleCategory);
+    this.editorTitle.set(`${this.packTitle(g)} · ${this.optionLabel(row.vehicleCategory)}`);
+    this.editorVisible.set(true);
+  }
+
+  onGuaranteesSaved(count: number): void {
+    this.editorVisible.set(false);
+    this.guaranteeCounts.update((c) => ({ ...c, [`${this.editorFormula()}|${this.editorOption()}`]: count }));
+    this.success.set(`Garanties enregistrées : ${this.editorTitle()} (${count} ligne${count > 1 ? 's' : ''}).`);
   }
 
   optionLabel(category: string): string {
