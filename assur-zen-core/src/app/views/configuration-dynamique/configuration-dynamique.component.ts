@@ -550,6 +550,12 @@ export class ConfigurationDynamiqueComponent {
     return key === 'MOBILE_PUSH_TITLE' || key.startsWith('MOBILE_PUSH_TEXT_');
   }
 
+  /** Clé LOYALTY_* : retourne la clé (en majuscules) ou '' si autre. */
+  loyaltyKey(): string {
+    const k = this.configForm.controls.configKey.value.trim().toUpperCase();
+    return k.startsWith('LOYALTY_') ? k : '';
+  }
+
   isSmsConsentTextKey(): boolean {
     return this.configForm.controls.configKey.value.trim() === 'MOBILE_SMS_CONSENT_TEXT';
   }

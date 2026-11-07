@@ -188,6 +188,11 @@ const baseNavItems: INavData[] = [
         icon: 'nav-icon-bullet',
       },
       {
+        name: 'nav.mobile.zenpoints',
+        url: '/mobile/zen-points',
+        icon: 'nav-icon-bullet',
+      },
+      {
         name: 'nav.mobile.messagerie',
         url: '/mobile/messagerie',
         icon: 'nav-icon-bullet',

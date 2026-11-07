@@ -10,6 +10,7 @@ import { LinkedInsured, MobileAccount, MobileAccountDetail } from '../../core/mo
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
+import { ZenPointsClientComponent } from './zen-points-client/zen-points-client.component';
 
 type StatusFilter = '' | 'true' | 'false';
 
@@ -25,7 +26,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   selector: 'app-comptes-mobile',
   templateUrl: './comptes-mobile.component.html',
   styleUrl: './comptes-mobile.component.scss',
-  imports: [ButtonDirective, SpinnerComponent, FormsModule, AlertMessageComponent, ConfirmDialogComponent, ModalComponent],
+  imports: [ButtonDirective, SpinnerComponent, FormsModule, AlertMessageComponent, ConfirmDialogComponent, ModalComponent, ZenPointsClientComponent],
 })
 export class ComptesMobileComponent {
   private readonly service = inject(MobileAccountService);
@@ -52,6 +53,8 @@ export class ComptesMobileComponent {
   // ---- Fiche compte ----
   readonly detailVisible = signal(false);
   readonly detail = signal<MobileAccountDetail | null>(null);
+  /** Onglet de la fiche : informations du compte ou Zen Points. */
+  readonly ficheTab = signal<'compte' | 'zen'>('compte');
   readonly detailLoading = signal(false);
   readonly detailError = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
@@ -158,6 +161,7 @@ export class ComptesMobileComponent {
   // ================= Fiche compte =================
 
   openDetail(account: MobileAccount): void {
+    this.ficheTab.set('compte');
     this.detail.set({ account, linkedInsureds: [] });
     this.detailError.set(null);
     this.actionError.set(null);
