@@ -189,7 +189,7 @@ class ProductTile extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 8),
-                SubscriptionModeBadge(online: product.onlineSubscription, quoteOnly: product.family == ProductFamily.professionnel),
+                SubscriptionModeBadge(online: product.onlineSubscription, quoteOnly: product.isQuoteOnly),
               ],
             ),
           ),

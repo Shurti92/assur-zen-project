@@ -152,6 +152,11 @@ class Product {
   final String? eligibility;
 
   bool get isVehicle => family == ProductFamily.vehicule;
+
+  /// Produit professionnel dont le devis se fait dans l'application (« Sur devis ») : le parcours s'arrête
+  /// au devis, la suite se fait avec un conseiller. Un produit professionnel sans souscription en ligne
+  /// (ex. Assurance Entreprise) n'a pas de devis : le client demande à être rappelé.
+  bool get isQuoteOnly => family == ProductFamily.professionnel && onlineSubscription;
 }
 
 /// Une prestation d'un niveau d'assistance : texte libre, avec une condition éventuelle.

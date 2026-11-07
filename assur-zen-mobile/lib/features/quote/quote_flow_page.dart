@@ -249,7 +249,7 @@ class _QuoteFlowPageState extends State<QuoteFlowPage> {
   Widget _body(Product product, QuoteReferentials ref) {
     final step = _d.step;
     // Produit professionnel : le parcours s'arrête au devis, sans souscription ni paiement.
-    final professional = product.family == ProductFamily.professionnel;
+    final professional = product.isQuoteOnly;
     final showNext = !(step == 5 && (_computing || _quoteError != null)) && !(professional && step >= 5);
     return Column(
       children: [

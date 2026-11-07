@@ -13,6 +13,7 @@ IconData productIcon(String productId, {String? code}) {
     'health' => Icons.health_and_safety_outlined,
     'home' => Icons.home_outlined,
     'plane' => Icons.luggage_outlined,
+    'briefcase' => Icons.business_center_outlined,
     _ => null,
   };
   return byCode ?? _productIconById(productId);

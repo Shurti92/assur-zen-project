@@ -30,7 +30,7 @@ class _ProductPageState extends State<ProductPage> {
         loading: const AzLoader(),
         builder: (context, p, _) {
           // Produit professionnel : le parcours s'arrête au devis (la suite se fait avec un conseiller).
-          final professional = p.family == ProductFamily.professionnel;
+          final professional = p.isQuoteOnly;
           return Column(
             children: [
               Expanded(
@@ -157,7 +157,7 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final professional = product.family == ProductFamily.professionnel;
+    final professional = product.isQuoteOnly;
     return SafeArea(
       bottom: false,
       child: Padding(

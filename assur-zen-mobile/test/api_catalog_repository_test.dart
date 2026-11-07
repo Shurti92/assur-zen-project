@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:assurzen_mobile/core/network/api_client.dart';
 import 'package:assurzen_mobile/core/network/api_exception.dart';
 import 'package:assurzen_mobile/core/network/endpoints.dart';
+import 'package:assurzen_mobile/core/widgets/az_icons.dart';
 import 'package:assurzen_mobile/data/api/api_catalog_repository.dart';
 import 'package:assurzen_mobile/data/models/models.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -94,6 +96,43 @@ void main() {
     expect(p.title, 'Assurance Sante', reason: 'jamais retouché côté mobile');
     expect(p.shortName, 'Assurance Sante');
     expect(p.family, ProductFamily.professionnel);
+  });
+
+  test('produit professionnel sans souscription en ligne (Assurance Entreprise) : rappel, pas de devis', () async {
+    final repo = build((req) async => _json(200, {
+          'id': 'entreprise',
+          'title': 'Assurance Entreprise',
+          'shortName': 'Entreprise',
+          'family': 'PROFESSIONAL',
+          'icon': 'briefcase',
+          'onlineSubscription': false,
+          'description': 'Protégez votre activité.',
+          'benefits': ['Un conseiller dédié'],
+          'howItWorks': 'Un conseiller vous rappelle.',
+          'guarantees': [],
+          'formulas': [],
+        }));
+
+    final p = await repo.getProduct('entreprise');
+
+    expect(p.family, ProductFamily.professionnel);
+    expect(p.onlineSubscription, isFalse);
+    expect(p.isQuoteOnly, isFalse, reason: 'pas de devis dans l’application : « Être rappelé »');
+    expect(p.formulas, isEmpty);
+    expect(p.guarantees, isEmpty);
+    expect(p.iconCode, 'briefcase');
+    expect(productIcon(p.id, code: p.iconCode), Icons.business_center_outlined);
+  });
+
+  test('produit professionnel avec devis en ligne : parcours « Sur devis »', () async {
+    final repo = build((req) async => _json(200, {
+          'id': 'flotte',
+          'title': 'Flotte',
+          'family': 'PROFESSIONAL',
+          'onlineSubscription': true,
+        }));
+
+    expect((await repo.getProduct('flotte')).isQuoteOnly, isTrue);
   });
 
   test('fiche produit : contenu du back-office et garanties', () async {
