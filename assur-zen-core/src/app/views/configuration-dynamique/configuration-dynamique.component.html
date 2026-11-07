@@ -616,7 +616,14 @@
             <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">Remise maximale acceptée pour une tranche, en pourcentage (30 par défaut). Les tranches au-dessus sont refusées.</div>
           }
           @case ('LOYALTY_EXPIRY_MONTHS') {
-            <div class="alert alert-warning small mt-2 mb-0">L'expiration des points n'est pas encore livrée : laissez ce réglage vide ou à 0.</div>
+            <div class="alert alert-warning small mt-2 mb-0">
+              Durée de validité des points, en mois (0 = pas d'expiration, valeur par défaut). Seuls les points gagnés <strong>après l'activation</strong> expirent, N mois après leur gain : aucune perte rétroactive des points déjà acquis. L'expiration s'exécute chaque nuit à 3 h 30 et le client est prévenu <strong>LOYALTY_EXPIRY_WARNING_DAYS</strong> jours avant. À ne renseigner qu'après avis de la conformité et information des clients.
+            </div>
+          }
+          @case ('LOYALTY_EXPIRY_WARNING_DAYS') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
+              Nombre entier de jours avant l'expiration de points pour prévenir le client (30 par défaut). Sans effet tant que LOYALTY_EXPIRY_MONTHS vaut 0.
+            </div>
           }
         }
         @if (isPushGenericKey()) {
