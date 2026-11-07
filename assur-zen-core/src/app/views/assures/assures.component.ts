@@ -21,6 +21,7 @@ import { ExerciceComptableResponse } from '../../core/configuration/models/exerc
 import { SINISTRE_STATUS_LABEL, SINISTRE_STATUS_VARIANT } from '../../core/sinistres/sinistre-status';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
+import { AccesMobileComponent } from './acces-mobile/acces-mobile.component';
 import { EntityDocumentsComponent } from '../../shared/entity-documents/entity-documents.component';
 
 const TYPE_CLIENT_LABEL: Record<TypeClient, string> = {
@@ -48,6 +49,7 @@ interface FilterChip {
     AlertMessageComponent,
     ModalComponent,
     EntityDocumentsComponent,
+    AccesMobileComponent,
   ],
 })
 export class AssuresComponent {

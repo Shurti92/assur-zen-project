@@ -20,6 +20,7 @@ import { InsuredService } from '../../core/insured/insured.service';
 import { InsuredResponse } from '../../core/insured/models/insured.model';
 import { ModalComponent } from '../../shared/modal/modal.component';
 import { AuditHistoryComponent } from '../../shared/audit-history/audit-history.component';
+import { ContractMobileDocumentsComponent } from './contract-mobile-documents/contract-mobile-documents.component';
 import { EntityDocumentsComponent } from '../../shared/entity-documents/entity-documents.component';
 import { AvenantService } from '../../core/avenants/avenant.service';
 import { AvenantRequest, AvenantResponse, AvenantType } from '../../core/avenants/models/avenant.model';
@@ -139,6 +140,7 @@ interface AvenantChange {
     ColComponent,
     AuditHistoryComponent,
     EntityDocumentsComponent,
+    ContractMobileDocumentsComponent,
   ],
 })
 export class ContratsComponent {

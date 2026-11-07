@@ -554,6 +554,15 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'mobile/documents',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./views/documents-mobile/documents-mobile.component').then((m) => m.DocumentsMobileComponent),
+        data: {
+          title: 'Documents à valider',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
         path: 'mobile/avis',
         canActivate: [adminGuard],
         loadComponent: () => import('./views/avis-mobile/avis-mobile.component').then((m) => m.AvisMobileComponent),

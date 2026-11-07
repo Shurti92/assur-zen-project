@@ -1,0 +1,122 @@
+@if (isAdmin()) {
+  <div class="fs-section mt-4">
+    <h6 class="fw-semibold mb-2">Accès mobile</h6>
+
+    @if (error(); as message) {
+      <app-alert-message class="d-block mb-2" [message]="message" />
+    }
+    @if (actionError(); as message) {
+      <app-alert-message class="d-block mb-2" [message]="message" />
+    }
+    @if (info(); as message) {
+      <div class="alert alert-success small py-2">{{ message }}</div>
+    }
+
+    @if (loading()) {
+      <p class="dl-empty">Chargement de l'accès mobile…</p>
+    } @else if (account(); as a) {
+      <div class="d-flex align-items-center flex-wrap gap-2" style="border: 1px solid var(--cui-border-color); border-radius: 0.6rem; padding: 0.75rem">
+        @switch (state()) {
+          @case ('active') {
+            <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Activé</span>
+          }
+          @case ('pending') {
+            <span class="dl-chip dl-chip--info"><span class="dl-chip-dot"></span>Invitation envoyée</span>
+          }
+          @case ('suspended') {
+            <span class="dl-chip dl-chip--danger"><span class="dl-chip-dot"></span>Suspendu</span>
+          }
+        }
+        <span class="text-body-secondary">Identifiant : <strong>{{ a.phone }}</strong></span>
+        <span class="flex-grow-1"></span>
+        @if (state() === 'pending') {
+          <button (click)="sendInvitation()" [disabled]="busy()" cButton class="dl-btn" size="sm" type="button">Renvoyer l'invitation</button>
+        }
+        @if (state() === 'suspended') {
+          <button (click)="reactivate()" [disabled]="busy()" cButton class="dl-btn dl-btn-primary" size="sm" type="button">Réactiver</button>
+        } @else {
+          <button (click)="openSuspend()" [disabled]="busy()" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Suspendre</button>
+        }
+      </div>
+      @if (state() === 'pending') {
+        <div class="alert alert-info small mt-2 mb-0">Pas de code PIN : le client le définit via « PIN oublié » avec le code reçu par SMS.</div>
+      }
+      <div class="row g-3 mt-1">
+        <div class="col-6"><div class="small text-body-secondary">Créé le</div>{{ formatDate(a.createdAt) }}</div>
+        <div class="col-6"><div class="small text-body-secondary">Assurés rattachés</div>{{ detail()?.linkedInsureds?.length ?? 0 }}</div>
+      </div>
+
+      <div class="small text-uppercase text-body-secondary fw-semibold mt-3 mb-1">Assurés rattachés au même numéro</div>
+      @for (li of detail()?.linkedInsureds ?? []; track li.insuredId) {
+        <div class="d-flex align-items-center gap-3 p-2 mb-2" style="border: 1px solid var(--cui-border-color); border-radius: 0.6rem">
+          <span class="dl-avatar">{{ initials(li.name) }}</span>
+          <div class="flex-grow-1">
+            <div class="fw-semibold">{{ li.name }}</div>
+            <div class="dl-timestamp">{{ li.phone || '—' }}</div>
+          </div>
+          @if (li.insuredId === insured().id) {
+            <span class="dl-chip dl-chip--neutral">Cet assuré</span>
+          } @else {
+            <button (click)="unlinkTarget.set({ insuredId: li.insuredId, name: li.name })" [disabled]="busy()" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Détacher</button>
+          }
+        </div>
+      }
+      <div class="small text-body-secondary">Pour rattacher un autre assuré : écran Mobile AssurZen › Comptes clients.</div>
+    } @else if (existing(); as e) {
+      <div class="alert alert-warning small mb-2">
+        Un accès mobile existe déjà pour ce numéro ({{ e.phone }}), mais cet assuré n'y est pas rattaché. Aucun nouveau compte ne sera créé.
+      </div>
+      <button (click)="attachHere()" [disabled]="busy()" cButton class="dl-btn dl-btn-primary" size="sm" type="button">Rattacher cet assuré à ce compte</button>
+    } @else {
+      <div class="d-flex align-items-center flex-wrap gap-2" style="border: 1px solid var(--cui-border-color); border-radius: 0.6rem; padding: 0.75rem">
+        <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Aucun accès</span>
+        <span class="text-body-secondary small">Le client ne peut pas encore voir ses contrats dans l'application.</span>
+        <span class="flex-grow-1"></span>
+        <button (click)="openCreate()" [disabled]="busy()" cButton class="dl-btn dl-btn-primary" size="sm" type="button">Créer l'accès mobile</button>
+      </div>
+    }
+  </div>
+
+  <app-modal [visible]="createVisible()" size="md" title="Créer l'accès mobile" (closed)="createVisible.set(false)">
+    @if (createError(); as message) {
+      <app-alert-message class="d-block mb-3" [message]="message" />
+    }
+    <p class="small text-body-secondary">Pour {{ insured().nom }} {{ insured().prenoms }}. Aucun contrat ni assuré n'est créé ; les autres assurés ayant le même numéro sont rattachés automatiquement.</p>
+    <label class="form-label fw-semibold" for="am-phone">Téléphone (identifiant de connexion)</label>
+    <input [ngModel]="createPhone()" (ngModelChange)="createPhone.set($event)" class="form-control" id="am-phone" type="tel" />
+    <div class="form-check mt-3">
+      <input [ngModel]="createInvite()" (ngModelChange)="createInvite.set($event)" class="form-check-input" id="am-invite" type="checkbox" />
+      <label class="form-check-label" for="am-invite">Envoyer le SMS d'invitation</label>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+      <button (click)="createVisible.set(false)" cButton class="dl-btn" type="button">Annuler</button>
+      <button (click)="submitCreate()" [disabled]="busy()" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (busy()) {
+          <c-spinner size="sm" />
+        }
+        Créer l'accès
+      </button>
+    </div>
+  </app-modal>
+
+  <app-modal [visible]="suspendVisible()" size="md" title="Suspendre l'accès mobile" (closed)="suspendVisible.set(false)">
+    <div class="alert alert-warning small">La suspension coupe immédiatement toutes les sessions du client dans l'application.</div>
+    <label class="form-label fw-semibold" for="am-comment">Motif (optionnel)</label>
+    <textarea [ngModel]="suspendComment()" (ngModelChange)="suspendComment.set($event)" class="form-control" id="am-comment" rows="3" placeholder="Ex. numéro recyclé, demande du client…"></textarea>
+    <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+      <button (click)="suspendVisible.set(false)" cButton class="dl-btn" type="button">Annuler</button>
+      <button (click)="confirmSuspend()" [disabled]="busy()" cButton color="danger" class="dl-btn" type="button">Suspendre</button>
+    </div>
+  </app-modal>
+
+  <app-confirm-dialog
+    [visible]="unlinkTarget() !== null"
+    cancelLabel="Annuler"
+    confirmLabel="Détacher"
+    icon="cilWarning"
+    message="Le client ne verra plus les contrats ni les sinistres de cet assuré dans l'application."
+    title="Détacher {{ unlinkTarget()?.name }} ?"
+    (cancelled)="unlinkTarget.set(null)"
+    (confirmed)="confirmUnlink()"
+  />
+}

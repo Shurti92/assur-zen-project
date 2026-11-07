@@ -559,6 +559,31 @@
           [value]="configForm.controls.configValue.value"
           (valueChange)="configForm.controls.configValue.setValue($event)"
         />
+        @if (isReminderDaysKey()) {
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            @for (d of reminderDayChips(configForm.controls.configValue.value); track $index) {
+              <span class="dl-chip dl-chip--info">{{ d === 0 ? 'Le jour même' : d + ' jour' + (d > 1 ? 's' : '') + ' avant' }}</span>
+            }
+          </div>
+          @if (reminderDaysInvalid(configForm.controls.configValue.value).length > 0) {
+            <div class="text-danger mt-1" style="font-size: 0.8rem;">
+              Valeurs invalides ignorées : {{ reminderDaysInvalid(configForm.controls.configValue.value).join(', ') }}
+            </div>
+          }
+          <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
+            Jours avant l'échéance, séparés par des virgules (0 = le jour même, valeurs de 0 à 365). Exemple : 30,15,7,3,0
+          </div>
+        }
+        @if (isPushTextKey()) {
+          <div class="alert alert-warning small mt-2 mb-0">
+            Ce texte s'affiche sur l'écran verrouillé du téléphone : n'y mettez jamais de montant, de nom ni de numéro de police.
+          </div>
+        }
+        @if (isPushGenericKey()) {
+          <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
+            Vrai (recommandé) : la notification push affiche un texte générique par catégorie. Faux : le détail de l'événement apparaît dans la notification, donc sur l'écran verrouillé.
+          </div>
+        }
       }
       @if (editingWasSensitive()) {
         @if (!clearSensitiveValue()) {
