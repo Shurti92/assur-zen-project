@@ -48,6 +48,7 @@ IconData notificationIcon(NotificationCategory c) => switch (c) {
       NotificationCategory.sinistre => Icons.report_outlined,
       NotificationCategory.document => Icons.description_outlined,
       NotificationCategory.service => Icons.info_outline,
+      NotificationCategory.loyalty => Icons.stars_outlined,
     };
 
 /// Couleurs (texte, fond) d’une catégorie de notification.
@@ -58,4 +59,5 @@ IconData notificationIcon(NotificationCategory c) => switch (c) {
       NotificationCategory.sinistre => (AzColors.info, AzColors.infoBg),
       NotificationCategory.document => (AzColors.blue700, AzColors.blue50),
       NotificationCategory.service => (AzColors.ink2, AzColors.neutralBg),
+      NotificationCategory.loyalty => (AzColors.blue700, AzColors.blue50),
     };

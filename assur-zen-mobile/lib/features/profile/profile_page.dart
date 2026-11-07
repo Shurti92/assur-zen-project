@@ -23,6 +23,7 @@ class _ProfilePageState extends State<ProfilePage> {
   List<NotificationPreference> _pushPrefs = const [];
   LegalLinks _legalLinks = LegalLinks.empty;
   ProtectionScore? _score;
+  bool _hasLoyalty = false; // le serveur propose les Zen Points
 
   @override
   void initState() {
@@ -33,6 +34,10 @@ class _ProfilePageState extends State<ProfilePage> {
     }).catchError((_) {});
     context.repos.notifications.getPreferences().then((prefs) {
       if (mounted) setState(() => _pushPrefs = prefs);
+    }).catchError((_) {});
+    // Zen Points : l'entrée n'apparaît que si le serveur propose le programme.
+    context.repos.loyalty.getOverview().then((o) {
+      if (mounted && o != null) setState(() => _hasLoyalty = true);
     }).catchError((_) {});
     _loadScore();
   }
@@ -173,6 +178,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   onChanged: _togglePattern,
                 ),
               ]),
+              if (_hasLoyalty)
+                _Group(title: 'Fidélité', children: [
+                  _Item(icon: Icons.stars_rounded, label: 'Mes Zen Points', onTap: () => context.push(AppRoutes.loyalty)),
+                ]),
               // Préférences de notification (push, et SMS quand le serveur les propose) : tenues par le serveur.
               if (_pushPrefs.isNotEmpty)
                 _Group(title: 'Notifications', children: [

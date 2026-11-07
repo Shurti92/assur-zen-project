@@ -5,6 +5,7 @@ import '../../app/routes.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/ui.dart';
 import '../../data/models/engagement.dart';
+import '../../data/models/loyalty.dart';
 
 /// Carte « Ma protection » de l'accueil.
 ///
@@ -23,6 +24,7 @@ class _EngagementCardState extends State<EngagementCard> {
   ProtectionScore? _score;
   List<AppBadge>? _badges;
   QuizQuestion? _quiz;
+  LoyaltyOverview? _loyalty;
   bool _loading = true;
 
   @override
@@ -34,6 +36,7 @@ class _EngagementCardState extends State<EngagementCard> {
   Future<void> _load() async {
     try {
       final repo = context.repos.engagement;
+      final loyaltyRepo = context.repos.loyalty;
       final e = await repo.getEngagement();
       ProtectionScore? score;
       List<AppBadge>? badges;
@@ -51,6 +54,15 @@ class _EngagementCardState extends State<EngagementCard> {
           badges = null;
         }
       }
+      // Zen Points : facultatif, une erreur ou l'absence du programme masque seulement la ligne.
+      LoyaltyOverview? loyalty;
+      if (e.consent.accepted) {
+        try {
+          loyalty = await loyaltyRepo.getOverview();
+        } catch (_) {
+          loyalty = null;
+        }
+      }
       QuizQuestion? quiz;
       if (e.showsQuiz && e.consent.accepted) {
         try {
@@ -65,6 +77,7 @@ class _EngagementCardState extends State<EngagementCard> {
         _score = score;
         _badges = badges;
         _quiz = quiz;
+        _loyalty = loyalty;
         _loading = false;
       });
     } catch (_) {
@@ -121,6 +134,7 @@ class _EngagementCardState extends State<EngagementCard> {
       if (score != null) _scoreRow(context, score),
       if (_quiz case final quiz?) _quizRow(context, quiz),
       if (_badges case final badges? when badges.isNotEmpty) _badgesRow(context, badges),
+      if (_loyalty case final loyalty?) _loyaltyRow(context, loyalty),
     ];
     if (rows.isEmpty) return const SizedBox.shrink();
 
@@ -221,6 +235,29 @@ class _EngagementCardState extends State<EngagementCard> {
               mainAxisSize: MainAxisSize.min,
               children: [Text('Jouer', style: AzText.label.copyWith(color: AzColors.blue700, fontWeight: FontWeight.w800)), _chevron],
             ),
+    );
+  }
+
+  Widget _loyaltyRow(BuildContext context, LoyaltyOverview o) {
+    final level = o.level;
+    final subtitle = o.joined
+        ? [if (level != null) 'Niveau ${level.label}', '${o.balance} point${(o.balance ?? 0) > 1 ? 's' : ''}'].join(' · ')
+        : 'Rejoindre les Zen Points';
+    return _row(
+      label: 'Zen Points : $subtitle',
+      onTap: () async {
+        await context.push(AppRoutes.loyalty);
+        if (mounted) _load();
+      },
+      leading: const AzIconTile(icon: Icons.stars_rounded, size: 44),
+      middle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Zen Points', style: AzText.titleSmall.copyWith(fontSize: 15)),
+          Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: AzText.caption.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500)),
+        ],
+      ),
+      trailing: _chevron,
     );
   }
 

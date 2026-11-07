@@ -703,7 +703,7 @@ class ClaimDraft {
 // Notifications et assistance
 // ---------------------------------------------------------------------------
 
-enum NotificationCategory { echeance, souscription, paiement, sinistre, document, service }
+enum NotificationCategory { echeance, souscription, paiement, sinistre, document, service, loyalty }
 
 extension NotificationCategoryLabel on NotificationCategory {
   String get label => switch (this) {
@@ -713,6 +713,7 @@ extension NotificationCategoryLabel on NotificationCategory {
         NotificationCategory.sinistre => 'Sinistre',
         NotificationCategory.document => 'Document',
         NotificationCategory.service => 'Service',
+        NotificationCategory.loyalty => 'Zen Points',
       };
 }
 

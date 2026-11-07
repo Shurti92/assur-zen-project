@@ -133,6 +133,7 @@ class ApiNotificationRepository implements NotificationRepository {
         NotificationCategory.sinistre => 'CLAIM',
         NotificationCategory.document => 'DOCUMENT',
         NotificationCategory.service => 'SERVICE',
+        NotificationCategory.loyalty => 'LOYALTY',
       };
 
   static NotificationCategory categoryFromCode(String? code) => switch (code) {
@@ -141,6 +142,7 @@ class ApiNotificationRepository implements NotificationRepository {
         'PAYMENT' => NotificationCategory.paiement,
         'CLAIM' => NotificationCategory.sinistre,
         'DOCUMENT' => NotificationCategory.document,
+        'LOYALTY' => NotificationCategory.loyalty,
         _ => NotificationCategory.service,
       };
 

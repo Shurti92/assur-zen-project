@@ -1,5 +1,6 @@
 import '../../core/network/downloaded_file.dart';
 import '../models/engagement.dart';
+import '../models/loyalty.dart';
 import '../models/models.dart';
 import '../models/moto_quote.dart';
 import '../models/promo_popup.dart';
@@ -260,6 +261,7 @@ class Repositories {
     required this.support,
     required this.engagement,
     this.promotions = const NoPromotions(),
+    this.loyalty = const NoLoyalty(),
   });
 
   final AuthRepository auth;
@@ -273,6 +275,7 @@ class Repositories {
   final SupportRepository support;
   final EngagementRepository engagement;
   final PromotionRepository promotions;
+  final LoyaltyRepository loyalty;
 }
 
 /// Pop-up publicitaires paramétrés au back-office.
@@ -293,4 +296,33 @@ class NoPromotions implements PromotionRepository {
 
   @override
   Future<void> sendPopupEvent(String id, String type) async {}
+}
+
+/// Zen Points (phase A). `getOverview` renvoie `null` quand le serveur ne propose pas le programme.
+abstract interface class LoyaltyRepository {
+  Future<LoyaltyOverview?> getOverview();
+
+  /// Accepte ou retire l'accord ; renvoie la synthèse à jour.
+  Future<LoyaltyOverview?> setConsent({required bool accepted, String? version});
+
+  Future<LoyaltyRules> getRules();
+
+  Future<LoyaltyHistory> getHistory({int page = 0, int size = 20});
+}
+
+/// Programme absent (démonstration, serveur sans fidélité) : rien n'est affiché.
+class NoLoyalty implements LoyaltyRepository {
+  const NoLoyalty();
+
+  @override
+  Future<LoyaltyOverview?> getOverview() async => null;
+
+  @override
+  Future<LoyaltyOverview?> setConsent({required bool accepted, String? version}) async => null;
+
+  @override
+  Future<LoyaltyRules> getRules() async => const LoyaltyRules();
+
+  @override
+  Future<LoyaltyHistory> getHistory({int page = 0, int size = 20}) async => const LoyaltyHistory(items: [], total: 0);
 }
