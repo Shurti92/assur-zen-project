@@ -188,6 +188,9 @@ void main() {
     expect(find.text('Les points durent 12 mois.'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    // Durée à 0 (pas d'expiration) : aucune phrase.
+    expect(ApiLoyaltyRepository.rulesFromJson({'expiryMonths': 0}).expiryMonths, 0);
+
     await _pump(tester, _repos(_FakeLoyalty()), const LoyaltyHistoryPage(), size: const Size(320, 640), scale: 1.3);
     expect(find.text('Points expirés'), findsOneWidget);
     expect(find.text('-30'), findsOneWidget);

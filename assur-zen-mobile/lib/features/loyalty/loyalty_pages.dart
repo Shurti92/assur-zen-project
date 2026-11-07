@@ -405,7 +405,7 @@ class LoyaltyRulesPage extends StatelessWidget {
                 ),
               ),
             ],
-            if (rules.expiryMonths != null) ...[
+            if ((rules.expiryMonths ?? 0) > 0) ...[
               const SizedBox(height: 12),
               AzBanner(kind: AzBannerKind.info, text: 'Les points durent ${rules.expiryMonths} mois.'),
             ],
