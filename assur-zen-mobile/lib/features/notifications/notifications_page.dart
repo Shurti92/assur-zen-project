@@ -17,6 +17,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   List<AppNotification>? _items;
   Object? _error;
   bool _unreadOnly = false;
+  NotificationCategory? _category; // filtre par type ; null = tous
 
   @override
   void initState() {
@@ -73,7 +74,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Widget build(BuildContext context) {
     final items = _items;
     final unread = items?.where((n) => !n.read).length ?? 0;
-    final visible = items == null ? null : (_unreadOnly ? items.where((n) => !n.read).toList() : items);
+    final visible = items?.where((n) => (!_unreadOnly || !n.read) && (_category == null || n.category == _category)).toList();
+    // Types réellement présents, dans l'ordre de l'énumération, avec leur compteur.
+    final counts = <NotificationCategory, int>{
+      for (final c in NotificationCategory.values)
+        if (items != null && items.any((n) => n.category == c)) c: items.where((n) => n.category == c).length,
+    };
 
     return Scaffold(
       appBar: AzTopBar(
@@ -82,14 +88,42 @@ class _NotificationsPageState extends State<NotificationsPage> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AzSpace.screen, 0, AzSpace.screen, 12),
-            child: AzChipFill<bool>(
-              options: const [false, true],
-              selected: _unreadOnly,
-              minChipWidth: 120,
-              labelOf: (unreadOnly) => unreadOnly ? 'Non lues ($unread)' : 'Toutes',
-              onSelected: (v) => setState(() => _unreadOnly = v),
+          SizedBox(
+            height: 50,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(AzSpace.screen, 0, AzSpace.screen, 12),
+              children: [
+                _FilterChip(
+                  label: 'Toutes',
+                  count: items?.length,
+                  selected: !_unreadOnly && _category == null,
+                  onTap: () => setState(() {
+                    _unreadOnly = false;
+                    _category = null;
+                  }),
+                ),
+                if (unread > 0)
+                  _FilterChip(
+                    label: 'Non lues',
+                    count: unread,
+                    selected: _unreadOnly,
+                    onTap: () => setState(() {
+                      _unreadOnly = true;
+                      _category = null;
+                    }),
+                  ),
+                for (final e in counts.entries)
+                  _FilterChip(
+                    label: e.key.label,
+                    count: e.value,
+                    selected: _category == e.key,
+                    onTap: () => setState(() {
+                      _category = e.key;
+                      _unreadOnly = false;
+                    }),
+                  ),
+              ],
             ),
           ),
           Expanded(
@@ -102,7 +136,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             icon: Icons.notifications_none_rounded,
                             title: 'Vous êtes à jour',
                             // « Toutes » vide : aucune notification du tout ; « Non lues » vide : tout est lu.
-                            message: _unreadOnly ? 'Aucune notification non lue.' : 'Aucune notification pour le moment.',
+                            message: _unreadOnly
+                                ? 'Aucune notification non lue.'
+                                : _category != null
+                                    ? 'Aucune notification de ce type.'
+                                    : 'Aucune notification pour le moment.',
                           )
                         : RefreshIndicator(
                             onRefresh: _load,
@@ -115,6 +153,53 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pastille de filtre : libellé + compteur, remplie en bleu quand elle est choisie.
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({required this.label, required this.selected, required this.onTap, this.count});
+
+  final String label;
+  final int? count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = selected ? Colors.white : AzColors.ink;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: count == null ? label : '$label, $count',
+        child: Material(
+          color: selected ? AzColors.blue700 : Colors.white,
+          shape: StadiumBorder(side: BorderSide(color: selected ? AzColors.blue700 : const Color(0xFFE3E7EF))),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(label, style: AzText.body.copyWith(fontSize: 13, fontWeight: FontWeight.w700, color: fg)),
+                    if (count != null) ...[
+                      const SizedBox(width: 6),
+                      Text('$count', style: AzText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: selected ? const Color(0xFFD6E0F3) : AzColors.muted)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

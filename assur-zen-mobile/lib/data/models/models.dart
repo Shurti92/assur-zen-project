@@ -434,7 +434,7 @@ extension ContractStatusLabel on ContractStatus {
       };
 }
 
-enum DocumentType { attestation, carteBrune, carteGrise, conditions, recu, contrat, autre }
+enum DocumentType { attestation, vignette, carteBrune, carteGrise, conditions, recu, contrat, autre }
 
 enum DocumentStatus { disponible, enGeneration, nonDisponible }
 
@@ -513,6 +513,23 @@ class ContractRequestReceipt {
   final int? expectedWithinHours;
 }
 
+/// Véhicule du contrat (auto, moto) fourni par le serveur ; tout champ peut manquer.
+class ContractVehicle {
+  const ContractVehicle({this.type, this.brand, this.model, this.plate});
+
+  final String? type; // MOTO, AUTO, ...
+  final String? brand;
+  final String? model;
+  final String? plate;
+
+  bool get isEmpty => type == null && brand == null && model == null && plate == null;
+
+  bool get isMoto => type?.toUpperCase() == 'MOTO';
+
+  /// « Yamaha Crypton » (marque et modèle présents seulement).
+  String get title => [brand, model].whereType<String>().join(' ');
+}
+
 class Contract {
   const Contract({
     required this.id,
@@ -530,8 +547,10 @@ class Contract {
     this.renewal,
     this.actions = ContractActions.none,
     this.attestation,
+    this.vehicle,
   });
 
+  final ContractVehicle? vehicle;
   final String id;
   final String productId;
   final String name;

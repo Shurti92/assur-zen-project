@@ -3,7 +3,6 @@ import 'package:assurzen_mobile/app/routes.dart';
 import 'package:assurzen_mobile/app/session_controller.dart';
 import 'package:assurzen_mobile/core/storage/local_store.dart';
 import 'package:assurzen_mobile/core/widgets/az_layout.dart';
-import 'package:assurzen_mobile/core/widgets/az_selection.dart';
 import 'package:assurzen_mobile/data/mock/mock_data.dart';
 import 'package:assurzen_mobile/data/mock/mock_repositories.dart';
 import 'package:assurzen_mobile/features/auth/forgot_pin_page.dart';
@@ -16,6 +15,7 @@ import 'package:assurzen_mobile/features/catalog/product_page.dart';
 import 'package:assurzen_mobile/features/claims/claim_declare_page.dart';
 import 'package:assurzen_mobile/features/contracts/contract_detail_page.dart';
 import 'package:assurzen_mobile/features/notifications/notifications_page.dart';
+import 'package:assurzen_mobile/features/contracts/documents_page.dart';
 import 'package:assurzen_mobile/features/profile/profile_page.dart';
 import 'package:assurzen_mobile/features/quote/my_quotes_page.dart';
 import 'package:assurzen_mobile/features/quote/quote_flow_page.dart';
@@ -118,6 +118,7 @@ void main() {
       'déclaration de sinistre': (_) => const ClaimDeclarePage(contractId: null),
       'assistance': (_) => const SupportPage(),
       'notifications': (_) => const NotificationsPage(),
+      'documents': (_) => const DocumentsPage(),
       'profil': (_) => const Scaffold(body: ProfilePage()),
       'devis générique': (id) => QuoteFlowPage(args: QuoteArgs(productId: id)),
       'accueil et onglets': (_) => const MainShell(initialTab: ShellTab.home),
@@ -161,23 +162,6 @@ void main() {
   });
 
   group('Pastilles des autres écrans', () {
-    testWidgets('notifications : « Toutes » et « Non lues » se partagent la largeur', (tester) async {
-      _useScreen(tester, const Size(360, 640));
-      SharedPreferences.setMockInitialValues({'lock_choice_done': true});
-      final store = await LocalStore.open();
-      final repos = MockRepositories.create();
-      final session = SessionController(store: store, repos: repos)..updateUser(MockData.demoUser);
-      await tester.pumpWidget(AppScope(repos: repos, session: session, store: store, child: _app(1, const NotificationsPage())));
-      await tester.pump(const Duration(milliseconds: 800));
-
-      final rects = tester.widgetList(find.byType(AzChoiceChip)).map((w) => tester.getRect(find.byWidget(w))).toList()
-        ..sort((a, b) => a.left.compareTo(b.left));
-      expect(rects.length, 2);
-      expect(rects.first.left, closeTo(20, 0.6));
-      expect(rects.last.right, closeTo(340, 0.6));
-      expect(rects.first.width, closeTo(rects.last.width, 0.6));
-      await tester.pumpWidget(const SizedBox.shrink());
-    });
   });
 
   group('Accueil : accès à Mes devis', () {

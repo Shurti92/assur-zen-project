@@ -68,6 +68,7 @@ class ApiContractRepository implements ContractRepository {
       productId: (j['productId'] ?? '').toString(),
       name: (j['productName'] ?? '').toString(),
       insuredObject: (j['insuredLabel'] ?? '').toString(),
+      vehicle: _vehicle(j['vehicle']),
       number: (j['number'] ?? '').toString(),
       status: _status(j['status']?.toString()),
       holderName: j['holderName']?.toString(),
@@ -120,6 +121,18 @@ class ApiContractRepository implements ContractRepository {
     );
   }
 
+  /// Véhicule assuré : absent hors auto/moto, champs absents omis (rien d'inventé).
+  static ContractVehicle? _vehicle(Object? v) {
+    if (v is! Map<String, dynamic>) return null;
+    String? s(Object? x) {
+      final t = x?.toString().trim();
+      return (t == null || t.isEmpty) ? null : t;
+    }
+
+    final vehicle = ContractVehicle(type: s(v['type']), brand: s(v['brand']), model: s(v['model']), plate: s(v['plate']));
+    return vehicle.isEmpty ? null : vehicle;
+  }
+
   static ContractAttestation? _attestation(Object? v) {
     if (v is! Map<String, dynamic>) return null;
     return ContractAttestation(
@@ -147,8 +160,9 @@ class ApiContractRepository implements ContractRepository {
       };
 
   static DocumentType _docType(String? s) => switch (s) {
-        'ATTESTATION' => DocumentType.attestation,
+        'ATTESTATION' || 'ATTESTATION_ASSURANCE' => DocumentType.attestation,
         'CEDEAO' => DocumentType.carteBrune,
+        'VIGNETTE' => DocumentType.vignette,
         'CARTE_GRISE' => DocumentType.carteGrise,
         'CONDITIONS' || 'CONDITIONS_PARTICULIERES' => DocumentType.conditions,
         'RECEIPT' => DocumentType.recu,

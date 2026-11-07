@@ -486,7 +486,7 @@ class _QuickActions extends StatelessWidget {
         if (firstContract == null) {
           showAzSnack(context, 'Aucun document : souscrivez d’abord un contrat.');
         } else {
-          context.push(AppRoutes.contract, firstContract!.id);
+          context.push(AppRoutes.documents);
         }
       }),
     ];
