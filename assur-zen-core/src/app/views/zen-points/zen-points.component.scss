@@ -44,7 +44,18 @@
   }
 
   b {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
     font-size: 22px;
+
+    .dl-chip,
+    .dl-tag {
+      display: inline-flex;
+      width: auto;
+      font-size: 13px;
+    }
   }
 }
 

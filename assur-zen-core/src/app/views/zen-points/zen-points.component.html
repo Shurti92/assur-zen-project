@@ -19,6 +19,7 @@
   <button type="button" [class.active]="tab() === 'stats'" (click)="setTab('stats')">Statistiques</button>
   <button type="button" [class.active]="tab() === 'rules'" (click)="setTab('rules')">Règles de points</button>
   <button type="button" [class.active]="tab() === 'levels'" (click)="setTab('levels')">Niveaux</button>
+  <button type="button" [class.active]="tab() === 'discounts'" (click)="setTab('discounts')">Remises auto</button>
 </div>
 
 @if (info(); as message) {
@@ -159,6 +160,156 @@
     </div>
   }
 }
+
+<!-- ===== Remises auto ===== -->
+@if (tab() === 'discounts') {
+  @if (discountsError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  @if (discountsLoading() && !discounts()) {
+    <p class="dl-empty"><c-spinner size="sm" /> Chargement…</p>
+  } @else if (discounts(); as d) {
+    <div class="zp-kpis">
+      <div class="zp-kpi">
+        <span>Remises automatiques</span>
+        @if (d.discountEnabled) {
+          <b><span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Activées</span></b>
+        } @else {
+          <b><span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Désactivées</span></b>
+        }
+      </div>
+      <div class="zp-kpi">
+        <span>Véhicules concernés</span>
+        <b>
+          @for (v of discountVehicles(); track v) {
+            <span class="dl-tag me-1">{{ v }}</span>
+          } @empty {
+            —
+          }
+        </b>
+      </div>
+      <div class="zp-kpi"><span>Remise maximale</span><b>{{ discountMax() !== null ? discountMax() + ' %' : '—' }}</b></div>
+    </div>
+    <div class="alert alert-warning small">
+      @if (d.discountEnabled) {
+        Les remises sont actives : le coût est supporté par la commission AssurZen. Toute modification d'une tranche s'applique aux souscriptions suivantes.
+      } @else {
+        Les remises sont <strong>désactivées</strong> (réglage <span class="dl-tag">LOYALTY_DISCOUNT_ENABLED</span>). Le coût d'une remise est supporté par la commission AssurZen : à activer uniquement sur décision explicite, dans le Paramétrage dynamique (jamais depuis cet écran).
+      }
+      <div class="mt-2">
+        <a routerLink="/administration/configuration/sans-redeploiement/configurations" class="btn btn-sm btn-outline-secondary">Ouvrir le Paramétrage dynamique</a>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+      <span class="small text-body-secondary">Remise appliquée selon le niveau du client et la durée de souscription choisie (en mois).</span>
+      <button (click)="openTier(null)" cButton class="dl-btn dl-btn-primary" type="button">+ Nouvelle tranche</button>
+    </div>
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col">Niveau</th>
+            <th scope="col">Durée min (mois)</th>
+            <th scope="col">Durée max (mois)</th>
+            <th scope="col">Remise</th>
+            <th scope="col">Actif</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (t of d.tiers; track t.id) {
+            <tr>
+              <td><span [class]="levelClass(t.levelCode)">{{ levelLabelOf(t.levelCode) }}</span></td>
+              <td>{{ t.minMonths }}</td>
+              <td>{{ t.maxMonths }}</td>
+              <td><strong>{{ t.percent }} %</strong></td>
+              <td>
+                @if (t.active) {
+                  <span class="dl-chip dl-chip--success"><span class="dl-chip-dot"></span>Actif</span>
+                } @else {
+                  <span class="dl-chip dl-chip--neutral"><span class="dl-chip-dot"></span>Inactif</span>
+                }
+              </td>
+              <td class="text-end text-nowrap">
+                <button (click)="openTier(t)" cButton class="dl-btn" size="sm" type="button">Modifier</button>
+                <button (click)="tierDeleteTarget.set(t)" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Supprimer</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6" class="dl-empty">Aucune tranche : aucune remise n'est appliquée.</td></tr>
+          }
+          @for (l of levelsWithoutTier(); track l.code) {
+            <tr class="text-body-secondary fst-italic">
+              <td><span [class]="levelClass(l.code)">{{ l.label }}</span></td>
+              <td colspan="4">Aucune tranche propre : hérite de la grille du niveau le plus proche.</td>
+              <td class="text-end"><button (click)="openTier(null, l.code)" cButton class="dl-btn" size="sm" type="button">+ Tranche {{ l.label }}</button></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-info small mt-3 mb-0">
+      Une tranche inactive est conservée mais n'est pas appliquée. Deux tranches actives du même niveau ne peuvent pas se chevaucher.
+    </div>
+  }
+}
+
+<app-modal
+  [visible]="tierVisible()"
+  size="md"
+  [title]="tierEditing() ? 'Modifier la tranche de remise' : 'Nouvelle tranche de remise'"
+  (closed)="tierVisible.set(false)"
+>
+  @if (tierError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <label class="form-label fw-semibold" for="zd-level">Niveau</label>
+  <select [ngModel]="tierLevel()" (ngModelChange)="tierLevel.set($event)" id="zd-level" class="form-select mb-2">
+    @for (l of levels(); track l.code) {
+      <option [value]="l.code">{{ l.label }}</option>
+    }
+  </select>
+  <div class="row g-2">
+    <div class="col-6">
+      <label class="form-label fw-semibold" for="zd-min">Durée minimale (mois)</label>
+      <input [ngModel]="tierMin()" (ngModelChange)="tierMin.set($event)" id="zd-min" type="number" min="1" max="60" class="form-control" />
+    </div>
+    <div class="col-6">
+      <label class="form-label fw-semibold" for="zd-max">Durée maximale (mois)</label>
+      <input [ngModel]="tierMaxMonths()" (ngModelChange)="tierMaxMonths.set($event)" id="zd-max" type="number" min="1" max="60" class="form-control" />
+    </div>
+  </div>
+  <label class="form-label fw-semibold mt-2" for="zd-percent">Remise (%)</label>
+  <input [ngModel]="tierPercent()" (ngModelChange)="tierPercent.set($event)" id="zd-percent" type="number" min="0" step="0.5" class="form-control" />
+  <div class="small text-body-secondary mt-1">
+    Plafond : {{ discountMax() !== null ? discountMax() + ' %' : 'défini par le réglage LOYALTY_DISCOUNT_MAX_PERCENT' }}. La Gateway reste juge.
+  </div>
+  <div class="form-check mt-3">
+    <input [ngModel]="tierActive()" (ngModelChange)="tierActive.set($event)" id="zd-active" type="checkbox" class="form-check-input" />
+    <label class="form-check-label" for="zd-active">Tranche active</label>
+  </div>
+  <div class="d-flex justify-content-end gap-2 mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+    <button (click)="tierVisible.set(false)" cButton class="dl-btn" type="button">Annuler</button>
+    <button (click)="saveTier()" [disabled]="tierBusy()" cButton class="dl-btn dl-btn-primary" type="button">
+      @if (tierBusy()) {
+        <c-spinner size="sm" />
+      }
+      Enregistrer
+    </button>
+  </div>
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="tierDeleteTarget() !== null"
+  cancelLabel="Annuler"
+  confirmLabel="Supprimer"
+  icon="cilWarning"
+  message="Les souscriptions suivantes n'auront plus cette remise (sauf autre tranche applicable). Les contrats existants ne changent pas. Pour garder la tranche sans l'appliquer, décochez plutôt « Actif »."
+  title="Supprimer cette tranche ?"
+  (cancelled)="tierDeleteTarget.set(null)"
+  (confirmed)="confirmDeleteTier()"
+/>
 
 <app-modal
   [visible]="levelVisible()"

@@ -74,10 +74,36 @@ export interface LoyaltyClient {
   history: { items: LoyaltyHistoryItem[]; page: number; size: number; total: number };
 }
 
+/** Tranche de remise automatique (niveau, durée de souscription en mois, pourcentage). */
+export interface LoyaltyDiscountTier {
+  id: number;
+  levelCode: string;
+  minMonths: number;
+  maxMonths: number;
+  percent: number;
+  active: boolean;
+}
+
+export interface LoyaltyDiscountSettings {
+  discountEnabled: boolean;
+  /** Types de véhicules séparés par des virgules (ex. MOTO,TRICYCLE,VTC). */
+  vehicleTypes: string;
+  tiers: LoyaltyDiscountTier[];
+}
+
+export interface LoyaltyDiscountUpsert {
+  levelCode: string;
+  minMonths: number;
+  maxMonths: number;
+  percent: number;
+  active: boolean;
+}
+
 const ERROR_MESSAGES: Record<string, string> = {
   LOYALTY_MEMBER_NOT_FOUND: "Ce client n'a pas adhéré au programme Zen Points.",
   LOYALTY_NOT_MEMBER: "Ce client n'est plus membre du programme (accord retiré) : ajustement impossible.",
   INSUFFICIENT_BALANCE: 'Le solde ne peut pas devenir négatif.',
+  DISCOUNT_OVERLAP: 'Cette tranche chevauche une tranche active du même niveau.',
   LEVEL_CODE_INVALID: 'Code de niveau invalide ou déjà utilisé (majuscules, chiffres et _ uniquement).',
   VALIDATION_FAILED: 'Champ manquant ou invalide.',
 };
@@ -122,6 +148,22 @@ export class LoyaltyService {
 
   createLevel(body: LoyaltyLevelCreate): Observable<LoyaltyLevel> {
     return this.http.post<LoyaltyLevel>(`${this.base}/levels`, body);
+  }
+
+  discounts(): Observable<LoyaltyDiscountSettings> {
+    return this.http.get<LoyaltyDiscountSettings>(`${this.base}/discounts`);
+  }
+
+  createDiscount(body: LoyaltyDiscountUpsert): Observable<LoyaltyDiscountTier> {
+    return this.http.post<LoyaltyDiscountTier>(`${this.base}/discounts`, body);
+  }
+
+  updateDiscount(id: number, body: LoyaltyDiscountUpsert): Observable<LoyaltyDiscountTier> {
+    return this.http.put<LoyaltyDiscountTier>(`${this.base}/discounts/${id}`, body);
+  }
+
+  deleteDiscount(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/discounts/${id}`);
   }
 
   client(userId: number, page = 0, size = 20): Observable<LoyaltyClient> {
