@@ -29,6 +29,11 @@ export class MobileAccountService {
     return this.http.post<MobileAccountDetail>(this.base, payload);
   }
 
+  /** Renvoie le SMS d'invitation (404 ACCOUNT_NOT_FOUND, 409 ACCOUNT_INACTIVE). */
+  sendInvitation(userId: number): Observable<unknown> {
+    return this.http.post(`${this.base}/${userId}/invitation`, {});
+  }
+
   /** Désactiver coupe immédiatement les sessions du client. */
   setActive(userId: number, active: boolean, comment?: string): Observable<unknown> {
     return this.http.patch(`${this.base}/${userId}/active`, { active, comment: comment || undefined });

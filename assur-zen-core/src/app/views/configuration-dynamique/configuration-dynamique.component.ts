@@ -64,6 +64,8 @@ const TITLES: Record<View, string> = {
   historique: 'Historique',
 };
 
+const REMINDER_DAYS_KEY = 'MOBILE_EXPIRY_REMINDER_DAYS';
+
 const EMPTY_FORM: DynamicConfigurationRequest = {
   configKey: '',
   configValue: '',
@@ -537,11 +539,43 @@ export class ConfigurationDynamiqueComponent {
     };
   }
 
+  /** Rappels d'échéance du mobile : liste de jours « 30,7 » (0 = le jour même). */
+  isReminderDaysKey(): boolean {
+    return this.configForm.controls.configKey.value.trim() === REMINDER_DAYS_KEY;
+  }
+
+  /** Jours valides (0-365) de la valeur saisie, pour l'affichage en puces. */
+  reminderDayChips(value: string): number[] {
+    return this.parseReminderDays(value).valid;
+  }
+
+  reminderDaysInvalid(value: string): string[] {
+    return this.parseReminderDays(value).invalid;
+  }
+
+  private parseReminderDays(value: string): { valid: number[]; invalid: string[] } {
+    const valid: number[] = [];
+    const invalid: string[] = [];
+    for (const part of (value ?? '').split(',').map((p) => p.trim()).filter(Boolean)) {
+      const n = /^\d+$/.test(part) ? Number(part) : NaN;
+      if (Number.isInteger(n) && n >= 0 && n <= 365) valid.push(n);
+      else invalid.push(part);
+    }
+    return { valid, invalid };
+  }
+
   submitForm(): void {
     const payload = this.buildPayload();
     if (!payload.configKey) {
       this.formError.set('La clé de configuration est requise.');
       return;
+    }
+    if (payload.configKey === REMINDER_DAYS_KEY) {
+      const invalid = this.reminderDaysInvalid(payload.configValue ?? '');
+      if (invalid.length > 0) {
+        this.formError.set(`Valeurs invalides : ${invalid.join(', ')}. Entiers de 0 à 365, séparés par des virgules.`);
+        return;
+      }
     }
     // Modification (pas création) d'un paramètre sensible : demander confirmation avant d'envoyer.
     if (this.editingKey() && this.configForm.getRawValue().sensitive) {

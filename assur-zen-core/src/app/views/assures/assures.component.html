@@ -252,6 +252,10 @@
   }
 
   @if (selectedInsured(); as insured) {
+    <app-acces-mobile [insured]="insured" />
+  }
+
+  @if (selectedInsured(); as insured) {
     <div class="fs-section mt-4">
       <app-entity-documents [entityId]="insured.id" entityType="CLIENT" />
     </div>
