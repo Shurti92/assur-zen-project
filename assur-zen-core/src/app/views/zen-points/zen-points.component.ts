@@ -1,8 +1,12 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonDirective, SpinnerComponent } from '@coreui/angular';
 
+import { ConfigurationService } from '../../core/configurations/configuration.service';
 import {
+  LoyaltyDiscountSettings,
+  LoyaltyDiscountTier,
   LoyaltyLevel,
   LoyaltyRule,
   LoyaltyService,
@@ -10,9 +14,10 @@ import {
   loyaltyErrorMessage,
 } from '../../core/mobile-admin/loyalty.service';
 import { AlertMessageComponent } from '../../shared/alert-message/alert-message.component';
+import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { ModalComponent } from '../../shared/modal/modal.component';
 
-type Tab = 'stats' | 'rules' | 'levels';
+type Tab = 'stats' | 'rules' | 'levels' | 'discounts';
 
 /** Brouillon d'une règle (édition en ligne). */
 interface RuleDraft {
@@ -32,10 +37,11 @@ const LEVEL_CODE = /^[A-Z0-9_]{1,20}$/;
   selector: 'app-zen-points',
   templateUrl: './zen-points.component.html',
   styleUrl: './zen-points.component.scss',
-  imports: [ButtonDirective, SpinnerComponent, FormsModule, AlertMessageComponent, ModalComponent],
+  imports: [ButtonDirective, SpinnerComponent, FormsModule, RouterLink, AlertMessageComponent, ModalComponent, ConfirmDialogComponent],
 })
 export class ZenPointsComponent {
   private readonly service = inject(LoyaltyService);
+  private readonly configService = inject(ConfigurationService);
 
   readonly tab = signal<Tab>('stats');
   readonly info = signal<string | null>(null);
@@ -75,6 +81,7 @@ export class ZenPointsComponent {
     this.loadStats();
     this.loadRules();
     this.loadLevels();
+    this.loadDiscounts();
   }
 
   setTab(tab: Tab): void {
@@ -253,6 +260,135 @@ export class ZenPointsComponent {
         this.levelBusy.set(false);
         this.levelError.set(loyaltyErrorMessage(err, "Impossible d'enregistrer le niveau."));
       },
+    });
+  }
+
+  // ------------------------------------------------------------------ remises automatiques
+
+  readonly discounts = signal<LoyaltyDiscountSettings | null>(null);
+  readonly discountsLoading = signal(false);
+  readonly discountsError = signal<string | null>(null);
+  /** Remise maximale (réglage LOYALTY_DISCOUNT_MAX_PERCENT), null si illisible. */
+  readonly discountMax = signal<number | null>(null);
+  readonly tierVisible = signal(false);
+  /** null = création. */
+  readonly tierEditing = signal<LoyaltyDiscountTier | null>(null);
+  readonly tierLevel = signal('');
+  readonly tierMin = signal<number | null>(1);
+  readonly tierMaxMonths = signal<number | null>(1);
+  readonly tierPercent = signal<number | null>(null);
+  readonly tierActive = signal(true);
+  readonly tierBusy = signal(false);
+  readonly tierError = signal<string | null>(null);
+  readonly tierDeleteTarget = signal<LoyaltyDiscountTier | null>(null);
+
+  readonly discountVehicles = computed(() =>
+    (this.discounts()?.vehicleTypes ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0),
+  );
+
+  /** Niveaux sans tranche propre : ils héritent du niveau le plus proche porteur de tranches. */
+  readonly levelsWithoutTier = computed(() => {
+    const used = new Set((this.discounts()?.tiers ?? []).map((t) => t.levelCode));
+    return this.levels().filter((l) => !used.has(l.code));
+  });
+
+  loadDiscounts(): void {
+    this.discountsLoading.set(true);
+    this.discountsError.set(null);
+    this.service.discounts().subscribe({
+      next: (d) => {
+        this.discounts.set({ ...d, tiers: [...d.tiers].sort((a, b) => a.levelCode.localeCompare(b.levelCode) || a.minMonths - b.minMonths) });
+        this.discountsLoading.set(false);
+      },
+      error: (err) => {
+        this.discountsError.set(loyaltyErrorMessage(err, 'Impossible de charger les remises.'));
+        this.discountsLoading.set(false);
+      },
+    });
+    this.configService.getByKey('LOYALTY_DISCOUNT_MAX_PERCENT').subscribe({
+      next: (c) => {
+        const n = Number((c.configValue ?? '').trim());
+        this.discountMax.set(Number.isFinite(n) && n > 0 ? n : null);
+      },
+      error: () => this.discountMax.set(null),
+    });
+  }
+
+  levelLabelOf(code: string): string {
+    return this.levels().find((l) => l.code === code)?.label ?? code;
+  }
+
+  openTier(tier: LoyaltyDiscountTier | null, levelCode?: string): void {
+    this.tierEditing.set(tier);
+    this.tierLevel.set(tier?.levelCode ?? levelCode ?? this.levels()[0]?.code ?? '');
+    this.tierMin.set(tier?.minMonths ?? 1);
+    this.tierMaxMonths.set(tier?.maxMonths ?? 1);
+    this.tierPercent.set(tier?.percent ?? null);
+    this.tierActive.set(tier?.active ?? true);
+    this.tierError.set(null);
+    this.tierVisible.set(true);
+  }
+
+  tierFormError(): string | null {
+    if (!this.tierLevel()) return 'Choisissez un niveau.';
+    const min = this.tierMin();
+    const max = this.tierMaxMonths();
+    if (min === null || max === null || !Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 60) {
+      return 'Les durées sont des nombres entiers de mois, de 1 à 60.';
+    }
+    if (max < min) return 'La durée maximale doit être supérieure ou égale à la durée minimale.';
+    const p = this.tierPercent();
+    if (p === null || !(p > 0)) return 'La remise doit être supérieure à 0 %.';
+    const cap = this.discountMax() ?? 100;
+    if (p > cap) return `La remise ne peut pas dépasser ${cap} %.`;
+    return null;
+  }
+
+  saveTier(): void {
+    const problem = this.tierFormError();
+    if (problem) {
+      this.tierError.set(problem);
+      return;
+    }
+    this.tierBusy.set(true);
+    this.tierError.set(null);
+    const body = {
+      levelCode: this.tierLevel(),
+      minMonths: this.tierMin() as number,
+      maxMonths: this.tierMaxMonths() as number,
+      percent: this.tierPercent() as number,
+      active: this.tierActive(),
+    };
+    const editing = this.tierEditing();
+    const call = editing ? this.service.updateDiscount(editing.id, body) : this.service.createDiscount(body);
+    call.subscribe({
+      next: () => {
+        this.tierBusy.set(false);
+        this.tierVisible.set(false);
+        this.info.set(editing ? 'Tranche enregistrée.' : 'Tranche créée.');
+        this.loadDiscounts();
+      },
+      error: (err) => {
+        this.tierBusy.set(false);
+        this.tierError.set(loyaltyErrorMessage(err, "Impossible d'enregistrer la tranche."));
+      },
+    });
+  }
+
+  confirmDeleteTier(): void {
+    const target = this.tierDeleteTarget();
+    if (!target) return;
+    this.tierDeleteTarget.set(null);
+    this.discountsError.set(null);
+    this.service.deleteDiscount(target.id).subscribe({
+      next: () => {
+        this.info.set('Tranche supprimée.');
+        this.loadDiscounts();
+      },
+      error: (err) => this.discountsError.set(loyaltyErrorMessage(err, 'Impossible de supprimer la tranche.')),
     });
   }
 

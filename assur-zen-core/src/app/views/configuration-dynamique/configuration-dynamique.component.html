@@ -604,6 +604,17 @@
           @case ('LOYALTY_WITHDRAWAL_GRACE_DAYS') {
             <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">Nombre entier de jours avant l'effacement des données d'un client qui retire son accord (90 par défaut).</div>
           }
+          @case ('LOYALTY_DISCOUNT_ENABLED') {
+            <div class="alert alert-warning small mt-2 mb-0">
+              Active les remises automatiques Zen Points sur l'assurance auto. Le coût est supporté par la commission AssurZen : à activer uniquement sur décision explicite. La grille se gère dans Mobile AssurZen › Zen Points › Remises auto.
+            </div>
+          }
+          @case ('LOYALTY_DISCOUNT_VEHICLE_TYPES') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">Types de véhicules concernés, séparés par des virgules (ex. MOTO,TRICYCLE,VTC).</div>
+          }
+          @case ('LOYALTY_DISCOUNT_MAX_PERCENT') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">Remise maximale acceptée pour une tranche, en pourcentage (30 par défaut). Les tranches au-dessus sont refusées.</div>
+          }
           @case ('LOYALTY_EXPIRY_MONTHS') {
             <div class="alert alert-warning small mt-2 mb-0">L'expiration des points n'est pas encore livrée : laissez ce réglage vide ou à 0.</div>
           }
