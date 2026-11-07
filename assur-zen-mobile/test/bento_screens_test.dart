@@ -1,4 +1,10 @@
+import 'package:assurzen_mobile/app/app_scope.dart';
+import 'package:assurzen_mobile/app/session_controller.dart';
+import 'package:assurzen_mobile/core/storage/local_store.dart';
 import 'package:assurzen_mobile/core/ui.dart';
+import 'package:assurzen_mobile/data/mock/mock_data.dart';
+import 'package:assurzen_mobile/data/mock/mock_repositories.dart';
+import 'package:assurzen_mobile/features/profile/profile_page.dart';
 import 'package:assurzen_mobile/data/models/models.dart';
 import 'package:assurzen_mobile/features/claims/claims_page.dart';
 import 'package:assurzen_mobile/features/auth/auth_layout.dart';
@@ -6,6 +12,7 @@ import 'package:assurzen_mobile/features/contracts/contracts_page.dart';
 import 'package:assurzen_mobile/features/shell/main_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers/fonts.dart';
 
@@ -117,6 +124,7 @@ void main() {
   });
 
   authLayoutTests();
+  profilePhoneTests();
 
   group('Barre du bas', () {
     testWidgets('cinq onglets : les quatre libellés visibles et Souscrire au centre', (tester) async {
@@ -190,6 +198,43 @@ void authLayoutTests() {
         expect(tester.takeException(), isNull);
         expect(find.text('Bouton 11'), findsOneWidget);
       });
+    }
+  });
+}
+
+// Numéro de téléphone du Profil : toujours sur une seule ligne, quelle que soit la largeur.
+void profilePhoneTests() {
+  group('Profil : numéro de téléphone', () {
+    for (final size in [const Size(320, 568), const Size(360, 640), const Size(411, 891)]) {
+      for (final scale in [1.0, 1.3]) {
+        testWidgets('une seule ligne (${size.width.round()} dp, texte ${(scale * 100).round()} %)', (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = size;
+          addTearDown(tester.view.reset);
+          SharedPreferences.setMockInitialValues({'lock_choice_done': true});
+          final store = await LocalStore.open();
+          final repos = MockRepositories.create();
+          final session = SessionController(store: store, repos: repos)..updateUser(MockData.demoUser);
+          await tester.pumpWidget(AppScope(
+            repos: repos,
+            session: session,
+            store: store,
+            child: MaterialApp(
+              builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)), child: child!),
+              home: const Scaffold(body: ProfilePage()),
+            ),
+          ));
+          await tester.pump(const Duration(milliseconds: 600));
+
+          final finder = find.textContaining('+225');
+          expect(finder, findsOneWidget);
+          // Hauteur d'une seule ligne de 14 sp (agrandie par l'échelle du texte), pas de deux.
+          expect(tester.getSize(finder).height, lessThan(14 * 1.6 * scale));
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(seconds: 5));
+        });
+      }
     }
   });
 }

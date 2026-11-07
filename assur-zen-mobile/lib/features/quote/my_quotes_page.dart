@@ -52,7 +52,7 @@ class _MyQuotesPageState extends State<MyQuotesPage> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(AzSpace.screen, 0, AzSpace.screen, 4),
-                child: Semantics(header: true, child: Text('Mes devis', style: AzText.display.copyWith(fontSize: 28, height: 1.1))),
+                child: Semantics(header: true, child: Text('Mes devis', style: AzText.display.copyWith(fontSize: 24, height: 1.1))),
               ),
               Expanded(
                 child: AsyncView<List<MotoQuote>>(
@@ -242,7 +242,7 @@ class _QuoteTile extends StatelessWidget {
               Expanded(
                 child: Text.rich(
                   TextSpan(children: [
-                    TextSpan(text: amountNumber, style: AzText.headline.copyWith(fontSize: 22)),
+                    TextSpan(text: amountNumber, style: AzText.headline.copyWith(fontSize: 19)),
                     if (cut > 0) TextSpan(text: ' FCFA', style: AzText.label.copyWith(color: AzColors.ink, fontWeight: FontWeight.w600)),
                   ]),
                 ),

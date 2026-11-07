@@ -58,7 +58,7 @@ class _ForgotPinPageState extends State<ForgotPinPage> {
       showBack: true,
       step: 1,
       steps: 3,
-      titleSize: 28,
+      titleSize: 24,
       children: [
         AzPhoneField(controller: _phone, error: _error),
         AuthPrimaryButton('Recevoir le code', loading: _loading, onPressed: _send),

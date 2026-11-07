@@ -438,7 +438,7 @@ class MotoQuoteResult extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(formatFcfa(p.total), style: AzText.display.copyWith(color: Colors.white, fontSize: 32, height: 1.1)),
+              Text(formatFcfa(p.total), style: AzText.display.copyWith(color: Colors.white, fontSize: 28, height: 1.1)),
               if (simulation.effectiveDate != null && simulation.expiryDate != null) ...[
                 const SizedBox(height: 6),
                 Text(

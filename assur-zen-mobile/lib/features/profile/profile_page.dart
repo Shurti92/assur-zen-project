@@ -278,13 +278,35 @@ class _IdentityCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(user.fullName, maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.section.copyWith(color: Colors.white, fontSize: 18)),
-                    Text('+225 ${formatPhone(user.phone).replaceAll(' ', ' ')}', style: AzText.bodyMedium.copyWith(color: AzColors.blue100)),
+                    // Le numéro tient toujours sur une seule ligne : il rétrécit légèrement au lieu de passer à la ligne.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text('+225 ${formatPhone(user.phone)}', maxLines: 1, softWrap: false, style: AzText.bodyMedium.copyWith(color: AzColors.blue100)),
+                    ),
                     if (Env.useMock) Text('Données fictives', style: AzText.caption.copyWith(color: AzColors.blue100)),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              AzPill('Modifier', leadingIcon: Icons.edit_outlined, onTap: onEdit),
+              // Modifier : le crayon seul suffit (libellé conservé pour l'accessibilité).
+              Tooltip(
+                message: 'Modifier',
+                child: Semantics(
+                  button: true,
+                  label: 'Modifier mes informations',
+                  excludeSemantics: true,
+                  child: Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: onEdit,
+                      child: const SizedBox(width: 44, height: 44, child: Icon(Icons.edit_outlined, color: AzColors.blue700, size: 20)),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           if (s != null) ...[

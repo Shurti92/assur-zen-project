@@ -59,7 +59,8 @@ class AzButton extends StatelessWidget {
       AzButtonVariant.dangerOutline => (Colors.white, AzColors.errorStrong, AzColors.errorStrong),
     };
 
-    final content = Row(
+    final content = LayoutBuilder(
+      builder: (context, box) => Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (loading) ...[
@@ -73,10 +74,11 @@ class AzButton extends StatelessWidget {
           Icon(icon, size: 20, color: fg),
           const SizedBox(width: 8),
         ],
-        // Flexible seulement en pleine largeur : dans une Row, un bouton
-        // compact reçoit une largeur non bornée.
-        if (expand) Flexible(child: _label(fg)) else _label(fg),
+        // Le libellé peut rétrécir (points de suspension) dès que la largeur est bornée : bouton pleine largeur,
+        // ou compact dans un écran étroit. Dans une Row, un bouton compact reçoit une largeur non bornée : pas de Flexible.
+        if (expand || box.hasBoundedWidth) Flexible(child: _label(fg)) else _label(fg),
       ],
+      ),
     );
 
     return Semantics(

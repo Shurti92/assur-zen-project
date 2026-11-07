@@ -18,15 +18,15 @@ abstract final class AzText {
   static const String family = 'PlusJakartaSans';
 
   static const TextStyle display = TextStyle(
-      fontFamily: titleFamily, fontSize: 30, height: 38 / 30, fontWeight: FontWeight.w700, letterSpacing: -0.6, color: AzColors.ink);
+      fontFamily: titleFamily, fontSize: 26, height: 34 / 26, fontWeight: FontWeight.w700, letterSpacing: -0.6, color: AzColors.ink);
   static const TextStyle headline = TextStyle(
-      fontFamily: titleFamily, fontSize: 22, height: 30 / 22, fontWeight: FontWeight.w700, letterSpacing: -0.4, color: AzColors.ink);
+      fontFamily: titleFamily, fontSize: 19, height: 26 / 19, fontWeight: FontWeight.w700, letterSpacing: -0.4, color: AzColors.ink);
   static const TextStyle title = TextStyle(
-      fontFamily: titleFamily, fontSize: 19, height: 26 / 19, fontWeight: FontWeight.w700, letterSpacing: -0.2, color: AzColors.ink);
+      fontFamily: titleFamily, fontSize: 17, height: 24 / 17, fontWeight: FontWeight.w700, letterSpacing: -0.2, color: AzColors.ink);
   static const TextStyle section = TextStyle(
-      fontFamily: titleFamily, fontSize: 16, height: 22 / 16, fontWeight: FontWeight.w700, letterSpacing: -0.2, color: AzColors.ink);
+      fontFamily: titleFamily, fontSize: 15, height: 21 / 15, fontWeight: FontWeight.w700, letterSpacing: -0.2, color: AzColors.ink);
   static const TextStyle titleSmall = TextStyle(
-      fontFamily: titleFamily, fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w700, color: AzColors.ink);
+      fontFamily: titleFamily, fontSize: 13.5, height: 19 / 13.5, fontWeight: FontWeight.w700, color: AzColors.ink);
   static const TextStyle body = TextStyle(
       fontFamily: family, fontSize: 15, height: 22 / 15, fontWeight: FontWeight.w500, color: AzColors.ink);
   static const TextStyle bodyMedium = TextStyle(

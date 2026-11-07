@@ -14,6 +14,7 @@ import 'package:assurzen_mobile/features/auth/register_page.dart';
 import 'package:assurzen_mobile/features/catalog/finder_page.dart';
 import 'package:assurzen_mobile/features/catalog/product_page.dart';
 import 'package:assurzen_mobile/features/claims/claim_declare_page.dart';
+import 'package:assurzen_mobile/features/contracts/contract_detail_page.dart';
 import 'package:assurzen_mobile/features/notifications/notifications_page.dart';
 import 'package:assurzen_mobile/features/profile/profile_page.dart';
 import 'package:assurzen_mobile/features/quote/my_quotes_page.dart';
@@ -123,6 +124,9 @@ void main() {
       'onglet assurances': (_) => const MainShell(initialTab: ShellTab.contracts),
       'onglet sinistres': (_) => const MainShell(initialTab: ShellTab.claims),
       'onglet profil': (_) => const MainShell(initialTab: ShellTab.profile),
+      'détail du contrat': (_) => ContractDetailPage(contractId: MockData.contracts.first.id),
+      'mes devis': (_) => const MyQuotesPage(),
+      'questions fréquentes (profil)': (_) => const SupportPage(focusFaq: true),
     };
 
     for (final screen in _screens.entries) {

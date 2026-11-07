@@ -47,7 +47,7 @@ class WelcomePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 24),
                             Text('Bienvenue sur AssurZen Mobile',
-                                style: AzText.display.copyWith(color: Colors.white, fontSize: 34, height: 40 / 34)),
+                                style: AzText.display.copyWith(color: Colors.white, fontSize: 29, height: 35 / 29)),
                             const SizedBox(height: 12),
                             Text('Devis, contrats, attestations et sinistres : tout au même endroit.',
                                 style: AzText.body.copyWith(color: AzColors.blue100)),

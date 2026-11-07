@@ -28,7 +28,7 @@ class _ClaimsPageState extends State<ClaimsPage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(AzSpace.screen, 20, AzSpace.screen, 24),
         children: [
-          Semantics(header: true, child: Text('Sinistres', style: AzText.display.copyWith(fontSize: 28, height: 1.1))),
+          Semantics(header: true, child: Text('Sinistres', style: AzText.display.copyWith(fontSize: 24, height: 1.1))),
           const SizedBox(height: 4),
           Text('Un accident, un vol ? Nous vous accompagnons.', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
           const SizedBox(height: 14),

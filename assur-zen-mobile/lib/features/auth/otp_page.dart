@@ -204,7 +204,7 @@ class _OtpPageState extends State<OtpPage> {
       showBack: true,
       step: step,
       steps: steps,
-      titleSize: 28,
+      titleSize: 24,
       children: _verified ? _pinStep() : _codeStep(),
     );
   }

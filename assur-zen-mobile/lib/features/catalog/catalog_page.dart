@@ -48,7 +48,7 @@ class _CatalogPageState extends State<CatalogPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Semantics(header: true, child: Text('Nos solutions d’assurance', style: AzText.display.copyWith(fontSize: 28, height: 1.1))),
+                      Semantics(header: true, child: Text('Nos solutions d’assurance', style: AzText.display.copyWith(fontSize: 24, height: 1.1))),
                       const SizedBox(height: 4),
                       Text('Choisissez votre protection.', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
                       const SizedBox(height: 14),
@@ -133,19 +133,10 @@ class _CatalogPageState extends State<CatalogPage> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // Grille de deux colonnes : les deux cartes d'une ligne ont la même hauteur.
-                      for (var i = 0; i < list.length; i += 2) ...[
+                      // Une carte horizontale par assurance : icône à gauche, texte à droite.
+                      for (var i = 0; i < list.length; i++) ...[
                         if (i > 0) const SizedBox(height: 10),
-                        IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(child: ProductTile(product: list[i])),
-                              const SizedBox(width: 10),
-                              Expanded(child: i + 1 < list.length ? ProductTile(product: list[i + 1]) : const SizedBox.shrink()),
-                            ],
-                          ),
-                        ),
+                        ProductTile(product: list[i]),
                       ],
                       if (list.isEmpty)
                         Padding(
@@ -165,7 +156,7 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 }
 
-/// Carte produit du catalogue (grille de deux colonnes) : pastille d'icône, nom, description, mode de souscription.
+/// Carte produit du catalogue, en horizontal : pastille d'icône à gauche, nom, description et mode de souscription à droite.
 class ProductTile extends StatelessWidget {
   const ProductTile({super.key, required this.product});
 
@@ -178,24 +169,35 @@ class ProductTile extends StatelessWidget {
       onTap: () => openProduct(context, product.id),
       semanticLabel: product.title,
       padding: const EdgeInsets.all(14),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AzIconTile(icon: productIcon(product.id, code: product.iconCode), size: 48, background: productTint(product.id), iconSize: 26, radius: 17),
-          const SizedBox(height: 10),
-          Text(product.title, style: AzText.titleSmall.copyWith(fontSize: 15.5, height: 1.2)),
-          if (product.description.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              product.description,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: AzText.caption.copyWith(fontSize: 12.5, height: 17 / 12.5, fontWeight: FontWeight.w500),
+          AzIconTile(icon: productIcon(product.id, code: product.iconCode), size: 56, background: productTint(product.id), iconSize: 28, radius: 18),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(product.title, style: AzText.titleSmall.copyWith(fontSize: 15, height: 1.25)),
+                if (product.description.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    product.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AzText.caption.copyWith(fontSize: 12.5, height: 17 / 12.5, fontWeight: FontWeight.w500),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                SubscriptionModeBadge(online: product.onlineSubscription, quoteOnly: product.family == ProductFamily.professionnel),
+              ],
             ),
-          ],
-          const Spacer(),
-          const SizedBox(height: 8),
-          SubscriptionModeBadge(online: product.onlineSubscription, quoteOnly: product.family == ProductFamily.professionnel),
+          ),
+          const SizedBox(width: 6),
+          const Padding(
+            padding: EdgeInsets.only(top: 16),
+            child: Icon(Icons.chevron_right_rounded, color: AzColors.muted),
+          ),
         ],
       ),
     );

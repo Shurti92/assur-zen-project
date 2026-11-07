@@ -63,7 +63,8 @@ class AzStatusBadge extends StatelessWidget {
             Container(width: 6, height: 6, decoration: BoxDecoration(color: foreground, shape: BoxShape.circle)),
             const SizedBox(width: 6),
           ],
-          Text(label, style: AzText.caption.copyWith(color: foreground, fontWeight: FontWeight.w700)),
+          // Le libellé rétrécit (points de suspension) plutôt que de déborder quand la place manque.
+          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: AzText.caption.copyWith(color: foreground, fontWeight: FontWeight.w700))),
         ],
       ),
     );

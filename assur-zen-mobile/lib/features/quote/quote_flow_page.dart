@@ -534,7 +534,7 @@ class _QuoteFlowPageState extends State<QuoteFlowPage> {
               ],
               Text('Total à payer · ${_durationLabel(_d.durationMonths)}', style: AzText.label.copyWith(color: AzColors.blue100)),
               const SizedBox(height: 4),
-              Text(formatFcfa(q.total), style: AzText.amount.copyWith(color: Colors.white, fontSize: 34)),
+              Text(formatFcfa(q.total), style: AzText.amount.copyWith(color: Colors.white, fontSize: 30)),
               const SizedBox(height: 4),
               Text('Devis n° ${q.number} · valable jusqu’au ${formatDate(q.validUntil)}',
                   style: AzText.caption.copyWith(color: AzColors.blue50, fontWeight: FontWeight.w500, fontSize: 13)),

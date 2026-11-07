@@ -17,7 +17,7 @@ class AuthLayout extends StatelessWidget {
     this.onBack,
     this.step,
     this.steps,
-    this.titleSize = 30,
+    this.titleSize = 26,
     this.sheetColor = Colors.white,
   });
 

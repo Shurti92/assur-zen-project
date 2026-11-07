@@ -121,7 +121,7 @@ class _Slide extends StatelessWidget {
             children: [
               _Art(icon: icon, height: art),
               const SizedBox(height: 28),
-              Text(title, style: AzText.headline.copyWith(fontSize: 28, height: 34 / 28)),
+              Text(title, style: AzText.headline.copyWith(fontSize: 24, height: 30 / 24)),
               const SizedBox(height: 10),
               Text(text, style: AzText.body.copyWith(color: AzColors.muted)),
             ],

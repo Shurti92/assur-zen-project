@@ -108,7 +108,7 @@ class AzScreenTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Semantics(header: true, child: Text(title, style: AzText.display.copyWith(fontSize: 28, height: 1.15))),
+        Semantics(header: true, child: Text(title, style: AzText.display.copyWith(fontSize: 24, height: 1.15))),
         if (subtitle != null) ...[
           const SizedBox(height: 4),
           Text(subtitle!, style: AzText.bodyMedium.copyWith(color: AzColors.muted)),

@@ -44,7 +44,7 @@ class _ContractsPageState extends State<ContractsPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(AzSpace.screen, 20, AzSpace.screen, 4),
-            child: Semantics(header: true, child: Text('Mes assurances', style: AzText.display.copyWith(fontSize: 28, height: 1.1))),
+            child: Semantics(header: true, child: Text('Mes assurances', style: AzText.display.copyWith(fontSize: 24, height: 1.1))),
           ),
           Expanded(
             child: AsyncView<List<Contract>>(

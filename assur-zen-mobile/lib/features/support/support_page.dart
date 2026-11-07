@@ -72,7 +72,7 @@ class _SupportPageState extends State<SupportPage> {
           title: 'Contact et assistance',
           subtitle: availability == null ? 'Nous vous répondons.' : '$availability · Nous vous répondons',
           showBack: true,
-          titleSize: 27,
+          titleSize: 23,
           sheetColor: AzColors.background,
           children: [
             if (hasQuick) _QuickActions(info: info),
@@ -121,7 +121,11 @@ class _SupportPageState extends State<SupportPage> {
           _scrolledToFaq = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final ctx = _faqKey.currentContext;
-            if (ctx != null) Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), curve: Curves.easeOut, alignment: 0.05);
+            if (ctx == null || !mounted) return;
+            // Le titre s'arrête sous la barre d'état du téléphone, pas dessous.
+            final mq = MediaQuery.of(context);
+            final alignment = ((mq.padding.top + 44) / mq.size.height).clamp(0.0, 0.5);
+            Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), curve: Curves.easeOut, alignment: alignment);
           });
         }
         return Column(

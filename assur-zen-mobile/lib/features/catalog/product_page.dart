@@ -197,7 +197,7 @@ class _Hero extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  Semantics(header: true, child: Text(product.title, style: AzText.display.copyWith(color: Colors.white, fontSize: 26, height: 1.12, letterSpacing: -0.3))),
+                  Semantics(header: true, child: Text(product.title, style: AzText.display.copyWith(color: Colors.white, fontSize: 23, height: 1.12, letterSpacing: -0.3))),
                   if (product.description.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     _HeroDescription(text: product.description),

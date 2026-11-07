@@ -272,7 +272,7 @@ class _Summary extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text(c.name, style: AzText.title.copyWith(color: Colors.white, fontSize: 22, height: 1.15)),
+          Text(c.name, style: AzText.title.copyWith(color: Colors.white, fontSize: 19, height: 1.15)),
           Text(c.insuredObject, style: AzText.bodyMedium.copyWith(color: AzColors.blue100)),
           const SizedBox(height: 14),
           Row(

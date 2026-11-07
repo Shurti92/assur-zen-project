@@ -185,7 +185,7 @@ class _Header extends StatelessWidget {
               children: [
                 Text(_todayLabel(DateTime.now()).toUpperCase(), style: AzText.overline.copyWith(fontSize: 12)),
                 const SizedBox(height: 4),
-                Text('${greeting()} $name,', maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.display.copyWith(fontSize: 29, height: 1.1)),
+                Text('${greeting()} $name,', maxLines: 2, overflow: TextOverflow.ellipsis, style: AzText.display.copyWith(fontSize: 25, height: 1.1)),
                 const SizedBox(height: 2),
                 Text('voici où vous en êtes.', style: AzText.bodyMedium.copyWith(color: AzColors.muted)),
               ],
@@ -270,7 +270,7 @@ class _Welcome extends StatelessWidget {
         children: [
           Text('Bienvenue chez AssurZen', style: AzText.label.copyWith(color: AzColors.blue100)),
           const SizedBox(height: 4),
-          Text('Protégez ce qui compte pour vous.', style: AzText.display.copyWith(color: Colors.white, fontSize: 24, height: 1.15)),
+          Text('Protégez ce qui compte pour vous.', style: AzText.display.copyWith(color: Colors.white, fontSize: 21, height: 1.15)),
           const SizedBox(height: 6),
           Text('Obtenez un devis auto ou moto en quelques minutes, sans vous déplacer.', style: AzText.bodyMedium.copyWith(color: AzColors.blue100)),
           const SizedBox(height: 16),
@@ -317,7 +317,7 @@ class _TodoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Semantics(header: true, child: Text('Renouveler ${c.name}', style: AzText.title.copyWith(fontSize: 21, height: 1.2))),
+          Semantics(header: true, child: Text('Renouveler ${c.name}', style: AzText.title.copyWith(fontSize: 18, height: 1.2))),
           const SizedBox(height: 4),
           Text(c.endDate == null ? 'Échéance proche' : 'Échéance le ${formatDate(c.endDate)}', style: AzText.bodyMedium.copyWith(color: AzColors.warningInk)),
           const SizedBox(height: 14),

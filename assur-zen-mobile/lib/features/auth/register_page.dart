@@ -86,7 +86,7 @@ class _RegisterPageState extends State<RegisterPage> {
       showBack: true,
       step: 1,
       steps: 2,
-      titleSize: 28,
+      titleSize: 24,
       children: [
         AzTextField(
           label: 'Nom et prénoms',
