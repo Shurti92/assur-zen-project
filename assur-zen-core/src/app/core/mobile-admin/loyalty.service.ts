@@ -49,6 +49,12 @@ export interface LoyaltyStats {
   globalMonthlyCap: number;
   expiryMonths: number;
   withdrawalGraceDays: number;
+  /** Solde cumulé des adhérents actifs (retraits exclus). Absent sur une Gateway plus ancienne. */
+  pointsInCirculation?: number;
+  /** Clients ayant retiré leur accord dont les points ne sont pas encore effacés. */
+  pendingErasures?: number;
+  /** Adhérents actifs par niveau, du seuil le plus bas au plus haut (la somme égale members). */
+  membersByLevel?: { code: string; label: string; members: number }[];
 }
 
 export interface LoyaltyClientLevel {

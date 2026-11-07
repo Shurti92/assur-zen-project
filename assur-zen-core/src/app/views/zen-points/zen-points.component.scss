@@ -43,6 +43,12 @@
     text-transform: uppercase;
   }
 
+  small {
+    display: block;
+    color: var(--cui-secondary-color);
+    font-size: 11px;
+  }
+
   b {
     display: flex;
     flex-wrap: wrap;

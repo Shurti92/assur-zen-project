@@ -105,6 +105,12 @@ export class ZenPointsComponent {
     });
   }
 
+  /** Part d'un niveau dans l'ensemble des membres, en % (null si aucun membre). */
+  levelShare(members: number): number | null {
+    const total = this.stats()?.members ?? 0;
+    return total > 0 ? Math.round((members / total) * 1000) / 10 : null;
+  }
+
   fmt(n: number | null | undefined): string {
     return (n ?? 0).toLocaleString('fr-FR');
   }
