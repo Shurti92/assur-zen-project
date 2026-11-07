@@ -3,7 +3,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SpinnerComponent } from '@coreui/angular';
 
-import { MailDiagnostic, MailTestResult, MobileMailService } from '../../core/mobile-admin/mobile-mail.service';
+import { ConfigurationService } from '../../core/configurations/configuration.service';
+import { MailDiagnostic, MailTestResult, MobileMailService, SmsStats } from '../../core/mobile-admin/mobile-mail.service';
 
 interface LastTest {
   result: MailTestResult;
@@ -21,12 +22,25 @@ interface LastTest {
 })
 export class MessagerieComponent {
   private readonly service = inject(MobileMailService);
+  private readonly configService = inject(ConfigurationService);
 
   readonly diag = signal<MailDiagnostic | null>(null);
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
   readonly testing = signal(false);
   readonly last = signal<LastTest | null>(null);
+
+  // ---- SMS de notification (consommation et coût) ----
+  readonly sms = signal<SmsStats | null>(null);
+  readonly smsLoading = signal(true);
+  readonly smsError = signal(false);
+  /** Expéditeur des SMS de notification (réglage MOBILE_SMS_SENDER), '—' si illisible. */
+  readonly smsSender = signal('—');
+  /** Plafond global du jour atteint : le bandeau d'alerte s'affiche. */
+  readonly smsCapReached = computed(() => {
+    const s = this.sms();
+    return !!s && s.plafondGlobalParJour > 0 && s.aujourdhui.envoyes >= s.plafondGlobalParJour;
+  });
 
   /** Origine lisible de la configuration. */
   readonly sourceLabel = computed(() => {
@@ -62,6 +76,32 @@ export class MessagerieComponent {
 
   constructor() {
     this.load();
+    this.loadSms();
+  }
+
+  loadSms(): void {
+    this.smsLoading.set(true);
+    this.smsError.set(false);
+    this.configService.getByKey('MOBILE_SMS_SENDER').subscribe({
+      next: (c) => this.smsSender.set(c.configValue?.trim() || '—'),
+      error: () => this.smsSender.set('—'),
+    });
+    this.service.smsStats().subscribe({
+      next: (s) => {
+        this.sms.set(s);
+        this.smsLoading.set(false);
+      },
+      error: () => {
+        this.sms.set(null);
+        this.smsError.set(true);
+        this.smsLoading.set(false);
+      },
+    });
+  }
+
+  /** Montant en francs CFA avec séparateur de milliers. */
+  fcfa(value: number): string {
+    return (value ?? 0).toLocaleString('fr-FR') + ' F';
   }
 
   load(): void {

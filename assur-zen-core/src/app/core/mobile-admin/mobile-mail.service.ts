@@ -21,6 +21,22 @@ export interface MailTestResult {
   error?: string | null;
 }
 
+export interface SmsPeriodStats {
+  envoyes: number;
+  echecs: number;
+  ignores: number;
+  coutEstimeFcfa: number;
+}
+
+export interface SmsStats {
+  coutUnitaireFcfa: number;
+  plafondParClientEtParJour: number;
+  plafondGlobalParJour: number;
+  actif: boolean;
+  aujourdhui: SmsPeriodStats;
+  moisEnCours: SmsPeriodStats;
+}
+
 /** Diagnostic de la messagerie (rôle ADMIN). */
 @Injectable({ providedIn: 'root' })
 export class MobileMailService {
@@ -33,5 +49,10 @@ export class MobileMailService {
 
   test(): Observable<MailTestResult> {
     return this.http.post<MailTestResult>(`${this.base}/test`, {});
+  }
+
+  /** Consommation des SMS de notification (GET /admin/mobile/sms-stats, ADMIN). */
+  smsStats(): Observable<SmsStats> {
+    return this.http.get<SmsStats>('/admin/mobile/sms-stats');
   }
 }
