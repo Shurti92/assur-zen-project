@@ -83,4 +83,61 @@
       </section>
     }
   }
+
+  <section class="ms-card">
+    <div class="ms-status">
+      <h2>SMS de notification</h2>
+      @if (sms(); as s) {
+        @if (s.actif) {
+          <span class="ms-badge ms-badge--ok"><i></i>Actif</span>
+        } @else {
+          <span class="ms-badge ms-badge--no"><i></i>Désactivé</span>
+        }
+      }
+      <span class="ms-spacer"></span>
+      <button (click)="loadSms()" [disabled]="smsLoading()" class="ms-btn ms-btn--sec" type="button">Actualiser</button>
+      <a class="ms-btn ms-btn--sec" routerLink="/administration/configuration/sans-redeploiement/configurations">Modifier les réglages →</a>
+    </div>
+    <p class="ms-sub">Envoyés seulement aux clients qui ont accepté le canal SMS et la catégorie. Texte sans montant ni nom.</p>
+
+    @if (smsLoading() && !sms()) {
+      <div class="ms-center"><c-spinner size="sm" /> Lecture des statistiques SMS…</div>
+    } @else if (smsError()) {
+      <div class="ms-alert" role="alert">⚠ Statistiques SMS indisponibles.</div>
+    } @else if (sms(); as s) {
+      @if (smsCapReached()) {
+        <div class="ms-alert">⚠ Plafond global du jour atteint ({{ s.plafondGlobalParJour }} SMS) : les envois suivants sont ignorés jusqu'à demain.</div>
+      }
+      <div class="ms-kpis">
+        <div class="ms-kpi"><span>Coût unitaire</span><b>{{ fcfa(s.coutUnitaireFcfa) }}</b><small>par SMS</small></div>
+        <div class="ms-kpi"><span>Plafond par client</span><b>{{ s.plafondParClientEtParJour }}</b><small>SMS par jour</small></div>
+        <div class="ms-kpi"><span>Plafond global</span><b>{{ s.plafondGlobalParJour }}</b><small>SMS par jour</small></div>
+        <div class="ms-kpi"><span>Expéditeur</span><b>{{ smsSender() }}</b><small>SMS de notification</small></div>
+      </div>
+      <div class="ms-tablewrap">
+        <table class="ms-table">
+          <thead>
+            <tr><th></th><th>Envoyés</th><th>Échecs</th><th>Ignorés</th><th>Coût estimé</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Aujourd'hui</b></td>
+              <td>{{ s.aujourdhui.envoyes }}</td>
+              <td [class.ms-warn]="s.aujourdhui.echecs > 0">{{ s.aujourdhui.echecs }}</td>
+              <td>{{ s.aujourdhui.ignores }}</td>
+              <td><b>{{ fcfa(s.aujourdhui.coutEstimeFcfa) }}</b></td>
+            </tr>
+            <tr>
+              <td><b>Mois en cours</b></td>
+              <td>{{ s.moisEnCours.envoyes }}</td>
+              <td [class.ms-warn]="s.moisEnCours.echecs > 0">{{ s.moisEnCours.echecs }}</td>
+              <td>{{ s.moisEnCours.ignores }}</td>
+              <td><b>{{ fcfa(s.moisEnCours.coutEstimeFcfa) }}</b></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="ms-sub">Ignorés : client sans consentement SMS, plafond atteint ou catégorie désactivée. Coût estimé = envoyés × coût unitaire.</p>
+    }
+  </section>
 </div>
