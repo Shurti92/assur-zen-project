@@ -61,6 +61,10 @@ class _EnterpriseRequestPageState extends State<EnterpriseRequestPage> {
   int _step = 0;
   bool _busy = false;
   String? _globalError;
+
+  /// Le serveur a déjà la demande (réponse perdue au premier envoi, ou envoi répété) : le client est
+  /// rassuré au lieu de voir une erreur. Aucune référence n'est inventée.
+  bool _alreadyPending = false;
   EnterpriseRequestReceipt? _receipt;
   bool _prefilled = false;
 
@@ -87,10 +91,11 @@ class _EnterpriseRequestPageState extends State<EnterpriseRequestPage> {
   }
 
   void _changed() {
-    if (_errors.isEmpty && _globalError == null) return;
+    if (_errors.isEmpty && _globalError == null && !_alreadyPending) return;
     setState(() {
       _errors.clear();
       _globalError = null;
+      _alreadyPending = false;
     });
   }
 
@@ -125,6 +130,7 @@ class _EnterpriseRequestPageState extends State<EnterpriseRequestPage> {
     setState(() {
       _errors.clear();
       _globalError = null;
+      _alreadyPending = false;
       _step--;
     });
   }
@@ -162,13 +168,16 @@ class _EnterpriseRequestPageState extends State<EnterpriseRequestPage> {
     setState(() {
       _busy = true;
       _globalError = null;
+      _alreadyPending = false;
     });
     try {
       final receipt = await context.repos.enterpriseQuotes.submitRequest(_input());
       if (mounted) setState(() => _receipt = receipt);
     } catch (e) {
       if (!mounted) return;
-      if (e is ApiException && e.field != null && _fieldStep.containsKey(e.field)) {
+      if (e is ApiException && (e.code == 'REQUEST_ALREADY_PENDING' || e.statusCode == 409)) {
+        setState(() => _alreadyPending = true);
+      } else if (e is ApiException && e.field != null && _fieldStep.containsKey(e.field)) {
         setState(() {
           _errors[e.field!] = e.message;
           _step = _fieldStep[e.field!]!;
@@ -223,6 +232,14 @@ class _EnterpriseRequestPageState extends State<EnterpriseRequestPage> {
       children: [
         _stepBar(),
         const SizedBox(height: 14),
+        if (_alreadyPending) ...[
+          const AzBanner(
+            kind: AzBannerKind.success,
+            title: 'Votre demande est déjà enregistrée.',
+            text: 'Elle est en cours de traitement : il est inutile de la renvoyer.',
+          ),
+          const SizedBox(height: 12),
+        ],
         if (_globalError != null) ...[
           AzBanner(kind: AzBannerKind.error, text: _globalError!),
           const SizedBox(height: 12),

@@ -424,6 +424,35 @@ void main() {
     expect(find.text('Atlantic Transit SARL'), findsOneWidget, reason: 'la saisie est conservée');
   });
 
+  testWidgets('demande déjà enregistrée (réponse perdue puis renvoi) : message rassurant, pas d’erreur ni de référence inventée', (tester) async {
+    final fake = _FakeEnterprise(
+      submitError: const ApiException(
+        kind: ApiErrorKind.business,
+        message: 'Une demande pour cette entreprise et cette formule est deja en cours de traitement.',
+        code: 'REQUEST_ALREADY_PENDING',
+        statusCode: 409,
+      ),
+    );
+    await pumpRequest(tester, fake);
+    await fillCompany(tester);
+    await tester.ensureVisible(find.text('Continuer'));
+    await tester.tap(find.text('Continuer'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await fillRepresentative(tester);
+    await tester.ensureVisible(find.text('Continuer'));
+    await tester.tap(find.text('Continuer'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.ensureVisible(find.text('Envoyer ma demande'));
+    await tester.tap(find.text('Envoyer ma demande'));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.textContaining('Votre demande est déjà enregistrée.'), findsOneWidget);
+    expect(find.textContaining('inutile de la renvoyer'), findsOneWidget);
+    expect(find.textContaining('deja en cours'), findsNothing, reason: 'le message d’erreur brut du serveur n’est plus montré');
+    expect(find.textContaining('Référence'), findsNothing, reason: 'aucune référence inventée');
+    expect(find.text('Étape 3 sur 3'), findsOneWidget);
+  });
+
   testWidgets('serveur sans formule : aucun prix, un rappel est proposé', (tester) async {
     await _pump(tester, _repos(_FakeEnterprise(packs: const [])));
     expect(find.text('Cotation indisponible'), findsOneWidget);
