@@ -584,6 +584,24 @@
             Texte de consentement SMS montré au client. Si vous le modifiez, augmentez aussi <strong>MOBILE_SMS_CONSENT_VERSION</strong> : sinon les clients qui ont déjà accepté ne sont pas invités à relire le nouveau texte.
           </div>
         }
+        @switch (enterpriseKey()) {
+          @case ('ENTERPRISE_REQUEST_NOTIFY_EMAIL') {
+            <div class="alert alert-warning small mt-2 mb-0">
+              Adresse(s) du conseiller prévenu(s) à chaque nouvelle demande de souscription Entreprise, séparées par des virgules.
+              <strong>Vide = aucun e-mail envoyé</strong> : à renseigner pour être alerté.
+            </div>
+          }
+          @case ('ENTERPRISE_REQUEST_MAX_PER_DAY') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
+              Nombre de demandes de souscription Entreprise autorisées par compte et par 24 heures (5 par défaut). Entier positif.
+            </div>
+          }
+          @case ('ENTERPRISE_REQUEST_CONFIRMATION_TEXT') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
+              Message de confirmation montré au client après l'envoi de sa demande de souscription Entreprise.
+            </div>
+          }
+        }
         @switch (loyaltyKey()) {
           @case ('LOYALTY_ENABLED') {
             <div class="alert alert-warning small mt-2 mb-0">
