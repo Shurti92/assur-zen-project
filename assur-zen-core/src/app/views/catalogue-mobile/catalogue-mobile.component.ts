@@ -5,8 +5,17 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SpinnerComponent } from '@coreui/angular';
 
+import { environment } from '../../../environments/environment';
 import { MobileProductService } from '../../core/mobile-admin/mobile-product.service';
 import {
+  CardFile,
+  CardSummary,
+  buildCardFile,
+  parseCardFile,
+  summarizeContent,
+} from '../../core/mobile-admin/product-card-file';
+import {
+  AssistancePlan,
   GuaranteeKind,
   MobileProduct,
   MobileProductContentRequest,
@@ -147,6 +156,18 @@ export class CatalogueMobileComponent {
   readonly assistanceCount = signal<number | null>(null);
   readonly saving = signal(false);
   readonly formError = signal<string | null>(null);
+
+  // ---- Export / import d'une fiche ----
+  readonly exporting = signal(false);
+  readonly importVisible = signal(false);
+  readonly importError = signal<string | null>(null);
+  readonly importFile = signal<CardFile | null>(null);
+  readonly importFileName = signal('');
+  readonly importWithAssistance = signal(true);
+  /** Bandeau de l'éditeur après un import (rien n'est enregistré tant que l'on n'a pas cliqué sur Enregistrer). */
+  readonly importBanner = signal<string | null>(null);
+  /** Niveaux d'assistance importés, enregistrés en même temps que la fiche. */
+  private pendingAssistance: AssistancePlan[] | null = null;
   /** Brouillon édité par ngModel : objet simple (pas un signal) pour permettre le binding bidirectionnel. */
   draft: Draft | null = null;
 
@@ -324,6 +345,150 @@ export class CatalogueMobileComponent {
   closeEdit(): void {
     this.editVisible.set(false);
     this.draft = null;
+    this.importBanner.set(null);
+    this.pendingAssistance = null;
+  }
+
+  // ================= Export / import d'une fiche =================
+
+  /** Télécharge la fiche enregistrée du produit ouvert (sans visibilité ni ordre d'affichage). */
+  exportCard(): void {
+    const product = this.editProduct();
+    if (!product || this.exporting()) return;
+    this.formError.set(null);
+    this.exporting.set(true);
+    const finish = (assistance: AssistancePlan[] | null) => {
+      const file = buildCardFile(product, environment.envName, assistance);
+      const day = new Date().toISOString().slice(0, 10);
+      const name = `fiche-${product.productKey ?? product.productId}-${environment.envName}-${day}.json`;
+      const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.exporting.set(false);
+    };
+    if (this.isAuto) {
+      this.service.assistance(product.productId).subscribe({
+        next: (r) => finish(r.applicable ? r.plans : null),
+        error: (err) => {
+          this.exporting.set(false);
+          this.formError.set(this.messageOf(err, "Impossible de lire les niveaux d'assistance pour l'export."));
+        },
+      });
+    } else {
+      finish(null);
+    }
+  }
+
+  openImport(): void {
+    this.importError.set(null);
+    this.importFile.set(null);
+    this.importFileName.set('');
+    this.importWithAssistance.set(true);
+    this.importVisible.set(true);
+  }
+
+  async onImportFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const product = this.editProduct();
+    if (!file || !product) return;
+    this.importError.set(null);
+    this.importFile.set(null);
+    this.importFileName.set(file.name);
+    if (file.size > 2_000_000) {
+      this.importError.set('Fichier trop volumineux.');
+      return;
+    }
+    const result = parseCardFile(await file.text(), product);
+    if (result.ok) this.importFile.set(result.file);
+    else this.importError.set(result.error);
+  }
+
+  /** Comparaison « fiche actuelle » / « fichier importé » affichée avant le chargement. */
+  readonly importRows = computed(() => {
+    const file = this.importFile();
+    const product = this.editProduct();
+    if (!file || !product) return [];
+    const now: CardSummary = summarizeContent(
+      {
+        description: product.description ?? undefined,
+        benefits: product.benefits ?? [],
+        guarantees: product.guarantees ?? [],
+        formulas: product.formulas ?? [],
+        exclusions: product.exclusions ?? [],
+        requiredDocuments: product.requiredDocuments ?? [],
+        faq: product.faq ?? [],
+        icon: product.icon ?? undefined,
+        family: product.family ?? undefined,
+      },
+      product.configured,
+      null,
+    );
+    const next = summarizeContent(file.contenu, true, file.assistance ? file.assistance.plans.length : null);
+    const n = (v: number) => (v === 0 ? '—' : String(v));
+    const rows: { label: string; now: string; next: string }[] = [
+      { label: 'Fiche mobile', now: now.fiche ? 'renseignée' : 'aucune', next: 'renseignée' },
+      { label: 'Description', now: now.description ? `${now.description} caractères` : '—', next: next.description ? `${next.description} caractères` : '—' },
+      { label: 'Avantages', now: n(now.benefits), next: n(next.benefits) },
+      { label: 'Garanties', now: n(now.guarantees), next: n(next.guarantees) },
+      { label: 'Formules', now: n(now.formulas), next: n(next.formulas) },
+      { label: 'Exclusions', now: n(now.exclusions), next: n(next.exclusions) },
+      { label: 'Pièces à fournir', now: n(now.documents), next: n(next.documents) },
+      { label: 'Questions fréquentes', now: n(now.faq), next: n(next.faq) },
+      { label: 'Icône · famille', now: now.icon || now.family ? `${now.icon || '—'} · ${now.family || '—'}` : '—', next: `${next.icon || '—'} · ${next.family || '—'}` },
+    ];
+    if (this.isAuto && file.assistance) {
+      rows.push({ label: "Niveaux d'assistance", now: '—', next: `${file.assistance.plans.length} niveau(x)` });
+    }
+    return rows;
+  });
+
+  /** Charge le fichier dans le formulaire : rien n'est enregistré, la visibilité reste décochée. */
+  applyImport(): void {
+    const file = this.importFile();
+    const product = this.editProduct();
+    if (!file || !product || !this.draft) return;
+    const c = file.contenu;
+    this.draft = {
+      visibleMobile: false,
+      shortName: c.shortName ?? '',
+      family: c.family ?? '',
+      icon: c.icon ?? '',
+      description: c.description ?? '',
+      howItWorks: c.howItWorks ?? '',
+      eligibility: c.eligibility ?? '',
+      benefits: [...c.benefits],
+      guarantees: c.guarantees.map((g) => ({
+        uid: ++this.uidSeq,
+        open: false,
+        id: g.id ?? '',
+        name: g.name,
+        kind: g.kind,
+        description: g.description ?? '',
+        limit: g.limit ?? '',
+        formulaIds: [...(g.formulaIds ?? [])],
+        visible: g.visible ?? true,
+      })),
+      formulas: c.formulas.map((f) => ({
+        id: f.id,
+        name: f.name,
+        description: f.description ?? '',
+        visible: f.visible ?? true,
+      })),
+      exclusions: [...c.exclusions],
+      requiredDocuments: [...c.requiredDocuments],
+      faq: c.faq.map((q) => ({ uid: ++this.uidSeq, open: false, question: q.question, answer: q.answer })),
+    };
+    this.pendingAssistance = this.isAuto && this.importWithAssistance() && file.assistance ? file.assistance.plans : null;
+    const when = file.exportedAt ? new Date(file.exportedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    this.importBanner.set(`Fiche importée depuis ${file.source}${when ? ' (' + when + ')' : ''}. Relisez puis enregistrez : rien n'est encore sauvegardé.`);
+    this.editTab.set('general');
+    this.formError.set(null);
+    this.importVisible.set(false);
   }
 
   // ---- Listes de textes (avantages, exclusions, pièces) ----
@@ -444,9 +609,26 @@ export class CatalogueMobileComponent {
     this.formError.set(null);
     this.service.save(product.productId, content).subscribe({
       next: (saved) => {
-        this.saving.set(false);
         this.replace(saved);
-        this.closeEdit();
+        const plans = this.pendingAssistance;
+        if (!plans) {
+          this.saving.set(false);
+          this.closeEdit();
+          return;
+        }
+        // Niveaux d'assistance importés : enregistrés juste après la fiche.
+        this.service.saveAssistance(product.productId, plans).subscribe({
+          next: () => {
+            this.saving.set(false);
+            this.closeEdit();
+          },
+          error: (err) => {
+            this.saving.set(false);
+            this.formError.set(
+              'La fiche est enregistrée, mais pas les niveaux d’assistance : ' + this.messageOf(err, "Impossible d'enregistrer l'assistance."),
+            );
+          },
+        });
       },
       error: (err) => {
         this.saving.set(false);
