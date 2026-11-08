@@ -124,7 +124,7 @@ class _FinderPageState extends State<FinderPage> {
                   Text(p.description, style: AzText.body.copyWith(fontSize: 15, color: AzColors.ink2)),
                 ],
                 const SizedBox(height: 12),
-                SubscriptionModeBadge(online: p.onlineSubscription),
+                SubscriptionModeBadge(online: p.onlineSubscription, quote: p.hasQuote),
               ],
             ),
           ),

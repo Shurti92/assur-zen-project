@@ -125,6 +125,9 @@ class Product {
 
   bool get hasEnterpriseQuote => quoteType == 'ENTREPRISE';
 
+  /// Le serveur chiffre ce produit dans l'application.
+  bool get hasQuote => quoteType != null;
+
   /// Niveaux d'assistance (Assurance Auto uniquement), actifs et triés par le serveur. Vide : rubrique masquée.
   final List<AssistancePlan> assistancePlans;
 

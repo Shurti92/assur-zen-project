@@ -189,7 +189,7 @@ class ProductTile extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 8),
-                SubscriptionModeBadge(online: product.onlineSubscription, quoteOnly: product.isQuoteOnly),
+                SubscriptionModeBadge(online: product.onlineSubscription, quoteOnly: product.isQuoteOnly, quote: product.hasQuote),
               ],
             ),
           ),
@@ -204,11 +204,15 @@ class ProductTile extends StatelessWidget {
   }
 }
 
-/// « Souscription en ligne » ou « Avec un conseiller » (décision 1.2).
+/// « Souscription en ligne », « Devis en ligne » ou « Avec un conseiller » (décision 1.2).
 class SubscriptionModeBadge extends StatelessWidget {
-  const SubscriptionModeBadge({super.key, required this.online, this.quoteOnly = false});
+  const SubscriptionModeBadge({super.key, required this.online, this.quoteOnly = false, this.quote = false});
 
   final bool online;
+
+  /// Le serveur sait chiffrer ce produit dans l'application (`quote.available`) : le client obtient son prix
+  /// sans conseiller, même si la souscription n'est pas entièrement en ligne.
+  final bool quote;
 
   /// Produit professionnel : le parcours s'arrête au devis.
   final bool quoteOnly;
@@ -216,8 +220,8 @@ class SubscriptionModeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (quoteOnly) return const AzStatusBadge(label: 'Sur devis', foreground: AzColors.info, background: AzColors.infoBg, dot: false);
-    return online
-        ? const AzStatusBadge(label: 'Souscription en ligne', foreground: AzColors.success, background: AzColors.successBg, dot: false)
-        : const AzStatusBadge(label: 'Avec un conseiller', foreground: AzColors.info, background: AzColors.infoBg, dot: false);
+    if (online) return const AzStatusBadge(label: 'Souscription en ligne', foreground: AzColors.success, background: AzColors.successBg, dot: false);
+    if (quote) return const AzStatusBadge(label: 'Devis en ligne', foreground: AzColors.success, background: AzColors.successBg, dot: false);
+    return const AzStatusBadge(label: 'Avec un conseiller', foreground: AzColors.info, background: AzColors.infoBg, dot: false);
   }
 }

@@ -21,6 +21,36 @@ class ProductPage extends StatefulWidget {
 class _ProductPageState extends State<ProductPage> {
   bool _more = false;
 
+  /// Ouvre le devis du produit : d'après le type annoncé par le serveur, sinon d'après l'identifiant connu,
+  /// sinon la souscription générique ou une demande de rappel.
+  void _openQuote(BuildContext context, Product p) {
+    switch (p.quoteType) {
+      case 'ENTREPRISE':
+        context.push(AppRoutes.enterpriseQuote, p);
+        return;
+      case 'MOTO':
+        context.push(AppRoutes.motoQuote, p.title);
+        return;
+      case 'VTC':
+        context.push(AppRoutes.vtcQuote, p.title);
+        return;
+      case 'VOYAGE':
+        context.push(AppRoutes.voyageQuote, p.title);
+        return;
+    }
+    if (p.id == 'moto') {
+      context.push(AppRoutes.motoQuote, p.title);
+    } else if (p.id == 'automobile-vtc') {
+      context.push(AppRoutes.vtcQuote, p.title);
+    } else if (p.id == 'voyage') {
+      context.push(AppRoutes.voyageQuote, p.title);
+    } else if (p.onlineSubscription) {
+      context.push(AppRoutes.quote, QuoteArgs(productId: p.id));
+    } else {
+      showAdvisorSheet(context, product: p);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,25 +151,18 @@ class _ProductPageState extends State<ProductPage> {
                     Expanded(
                       flex: 5,
                       child: AzButton(
-                        // Le devis en ligne moto est servi par la Gateway (prix et garanties du serveur).
+                        // Le serveur annonce les produits qu'il sait chiffrer (`quote.type`) ; sans cette information
+                        // (Gateway plus ancienne), on retombe sur les identifiants connus.
                         p.hasEnterpriseQuote
                             ? 'Ma cotation'
-                            : p.id == 'moto' || p.id == 'automobile-vtc' || p.id == 'voyage' || p.onlineSubscription || professional ? 'Obtenir un devis' : 'Être rappelé',
+                            : p.hasQuote || p.id == 'moto' || p.id == 'automobile-vtc' || p.id == 'voyage' || p.onlineSubscription || professional
+                                ? 'Obtenir un devis'
+                                : 'Être rappelé',
                         variant: AzButtonVariant.accent,
                         height: 52,
                         radius: 16,
                         horizontalPadding: 8,
-                        onPressed: () => p.hasEnterpriseQuote
-                            ? context.push(AppRoutes.enterpriseQuote, p)
-                            : p.id == 'moto'
-                            ? context.push(AppRoutes.motoQuote, p.title)
-                            : p.id == 'automobile-vtc'
-                                ? context.push(AppRoutes.vtcQuote, p.title)
-                                : p.id == 'voyage'
-                                    ? context.push(AppRoutes.voyageQuote, p.title)
-                                    : p.onlineSubscription
-                                        ? context.push(AppRoutes.quote, QuoteArgs(productId: p.id))
-                                        : showAdvisorSheet(context, product: p),
+                        onPressed: () => _openQuote(context, p),
                       ),
                     ),
                   ],
@@ -194,7 +217,7 @@ class _Hero extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(color: professional ? AzColors.orange500 : Colors.white, borderRadius: BorderRadius.circular(AzRadius.pill)),
                         child: Text(
-                          professional ? 'Sur devis' : (product.onlineSubscription ? 'Souscription en ligne' : 'Avec un conseiller'),
+                          professional ? 'Sur devis' : (product.onlineSubscription ? 'Souscription en ligne' : (product.hasQuote ? 'Devis en ligne' : 'Avec un conseiller')),
                           style: AzText.caption.copyWith(color: professional ? Colors.white : AzColors.blue700, fontWeight: FontWeight.w700),
                         ),
                       ),
