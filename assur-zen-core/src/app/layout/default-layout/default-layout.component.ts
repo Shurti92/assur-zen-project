@@ -19,6 +19,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { NavPermissionsService } from '../../core/auth/nav-permissions.service';
 import { MobileRequestService } from '../../core/mobile-admin/mobile-request.service';
 import { MobileDocumentService } from '../../core/mobile-admin/mobile-document.service';
+import { EnterpriseRequestService } from '../../core/mobile-admin/enterprise-request.service';
 import { DefaultFooterComponent, DefaultHeaderComponent } from './';
 import { isCommercialRole } from '../../core/profile/models/profile-details.model';
 import { getNavItems } from './_nav';
@@ -54,6 +55,7 @@ export class DefaultLayoutComponent {
   private readonly translocoService = inject(TranslocoService);
   private readonly mobileRequests = inject(MobileRequestService);
   private readonly mobileDocuments = inject(MobileDocumentService);
+  private readonly enterpriseRequests = inject(EnterpriseRequestService);
 
   /** Read inside navItems() purely so it re-evaluates on language change AND
    * once the initial translation payload finishes loading — langChanges$
@@ -90,6 +92,7 @@ export class DefaultLayoutComponent {
       if (this.authService.currentUser()?.role === 'ADMIN') {
         this.mobileRequests.refreshPending();
         this.mobileDocuments.refreshPending();
+        this.enterpriseRequests.refreshPending();
       }
     });
   }
@@ -98,7 +101,8 @@ export class DefaultLayoutComponent {
   private withMobileBadges(items: INavData[]): INavData[] {
     const requests = this.mobileRequests.pendingTotal();
     const documents = this.mobileDocuments.pendingCount() ?? 0;
-    const total = requests + documents;
+    const enterprise = this.enterpriseRequests.pendingCount() ?? 0;
+    const total = requests + documents + enterprise;
     if (total <= 0) return items;
     const badge = { color: 'danger', text: String(total) };
     return items.map((item) => {
@@ -108,6 +112,7 @@ export class DefaultLayoutComponent {
           badge,
           children: item.children?.map((c) => {
             if (c.name === 'nav.mobile.demandes' && requests > 0) return { ...c, badge: { color: 'danger', text: String(requests) } };
+            if (c.name === 'nav.mobile.entreprise' && enterprise > 0) return { ...c, badge: { color: 'danger', text: String(enterprise) } };
             if (c.name === 'nav.mobile.documents' && documents > 0) return { ...c, badge: { color: 'danger', text: String(documents) } };
             return c;
           }),

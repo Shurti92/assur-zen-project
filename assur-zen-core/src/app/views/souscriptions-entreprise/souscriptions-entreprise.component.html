@@ -1,0 +1,264 @@
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-1">Souscriptions Entreprise</h4>
+    <p class="text-body-secondary mb-0 small">
+      Demandes envoyées depuis l'application après une cotation. Le client est notifié dans l'application à chaque changement de statut.
+    </p>
+  </div>
+  <button (click)="fetch()" [disabled]="loading()" cButton class="dl-btn" type="button">Actualiser</button>
+</div>
+
+<div class="se-tabs" role="tablist">
+  <button type="button" [class.active]="tab() === 'requests'" (click)="setTab('requests')">Demandes</button>
+  <button type="button" [class.active]="tab() === 'domains'" (click)="setTab('domains')">Domaines d'activité</button>
+</div>
+
+@if (info(); as message) {
+  <div class="alert alert-success small py-2">{{ message }}</div>
+}
+
+<!-- ===== Demandes ===== -->
+@if (tab() === 'requests') {
+  @if (error(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+
+  <div class="se-seg" role="tablist" aria-label="Statut">
+    <button type="button" [class.on]="filter() === 'ALL'" (click)="filter.set('ALL')">Toutes ({{ items().length }})</button>
+    <button type="button" [class.on]="filter() === 'RECUE'" (click)="filter.set('RECUE')">Reçues ({{ counts().RECUE }})</button>
+    <button type="button" [class.on]="filter() === 'EN_COURS'" (click)="filter.set('EN_COURS')">En cours ({{ counts().EN_COURS }})</button>
+    <button type="button" [class.on]="filter() === 'TRAITEE'" (click)="filter.set('TRAITEE')">Traitées ({{ counts().TRAITEE }})</button>
+    <button type="button" [class.on]="filter() === 'REFUSEE'" (click)="filter.set('REFUSEE')">Refusées ({{ counts().REFUSEE }})</button>
+  </div>
+
+  @if (loading() && items().length === 0) {
+    <p class="dl-empty"><c-spinner size="sm" /> Chargement…</p>
+  } @else if (filtered().length === 0 && !error()) {
+    <p class="dl-empty">Aucune demande{{ filter() === 'ALL' ? '' : ' avec ce statut' }}.</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col">Référence</th>
+            <th scope="col">Entreprise</th>
+            <th scope="col">Formule · option</th>
+            <th scope="col" class="text-end">Prime annoncée</th>
+            <th scope="col">Reçue le</th>
+            <th scope="col">Statut</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filtered(); track item.id) {
+            <tr>
+              <td><span class="dl-tag">{{ item.reference }}</span></td>
+              <td>
+                <b>{{ item.companyName }}</b><app-loyalty-badge [level]="item.loyaltyLevel" />
+                <div class="dl-insured-meta">{{ domainLabel(item.activityDomain) }}{{ item.location ? ' · ' + item.location : '' }}</div>
+              </td>
+              <td>{{ item.formulaName || item.formulaId }} · {{ item.optionLabel || item.option }}</td>
+              <td class="text-end"><strong>{{ formatAmount(item.quotedTotal) }}</strong></td>
+              <td class="dl-timestamp">{{ formatDate(item.createdAt) }}</td>
+              <td><span [class]="statusChip(item.status)"><span class="dl-chip-dot"></span>{{ statusLabel[item.status] }}</span></td>
+              <td class="text-end">
+                <button (click)="open(item)" [class.dl-btn-primary]="actions(item).length > 0" cButton class="dl-btn" size="sm" type="button">
+                  {{ actions(item).length > 0 ? 'Traiter' : 'Voir' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="small text-body-secondary mt-2">Les 200 dernières demandes. Le badge Silver ou Gold vient du niveau Zen Points du client.</div>
+  }
+}
+
+<!-- ===== Domaines d'activité ===== -->
+@if (tab() === 'domains') {
+  @if (domainsError(); as message) {
+    <app-alert-message class="d-block mb-3" [message]="message" />
+  }
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+    <span class="small text-body-secondary">
+      Liste proposée au client dans le formulaire de souscription. L'ordre du tableau est l'ordre affiché. Un domaine retiré est désactivé, jamais supprimé
+      (des demandes y renvoient).
+    </span>
+    <span class="d-flex gap-2">
+      <a routerLink="/administration/configuration/sans-redeploiement/configurations" class="btn btn-sm btn-outline-secondary">Réglages (Paramétrage dynamique)</a>
+      <button (click)="addDomain()" [disabled]="domainsSaving()" cButton class="dl-btn dl-btn-primary" size="sm" type="button">+ Domaine</button>
+    </span>
+  </div>
+
+  @if (domainsLoading() && domains().length === 0) {
+    <p class="dl-empty"><c-spinner size="sm" /> Chargement…</p>
+  } @else {
+    <div class="dl-table-scroll">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th scope="col" style="width: 64px">Ordre</th>
+            <th scope="col">Code</th>
+            <th scope="col">Libellé (visible du client)</th>
+            <th scope="col">Actif</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of domains(); track r.key; let i = $index) {
+            <tr [class.se-off]="!r.active">
+              <td>
+                <span class="se-mv">
+                  <button (click)="moveDomain(i, -1)" [disabled]="i === 0" aria-label="Monter" type="button">▲</button>
+                  <button (click)="moveDomain(i, 1)" [disabled]="i === domains().length - 1" aria-label="Descendre" type="button">▼</button>
+                </span>
+              </td>
+              <td>
+                @if (r.existing) {
+                  <span class="dl-tag">{{ r.code }}</span>
+                } @else {
+                  <input
+                    (input)="patchDomain(r.key, { code: $any($event.target).value.toUpperCase() })"
+                    [value]="r.code"
+                    aria-label="Code"
+                    class="form-control form-control-sm se-code"
+                    maxlength="40"
+                    placeholder="EX. TRANSPORT"
+                  />
+                }
+              </td>
+              <td>
+                <input
+                  (input)="patchDomain(r.key, { label: $any($event.target).value })"
+                  [value]="r.label"
+                  aria-label="Libellé"
+                  class="form-control form-control-sm"
+                  maxlength="100"
+                />
+              </td>
+              <td>
+                <div class="form-check form-switch">
+                  <input (change)="patchDomain(r.key, { active: $any($event.target).checked })" [checked]="r.active" class="form-check-input" type="checkbox" aria-label="Domaine actif" />
+                </div>
+              </td>
+              <td class="text-end">
+                @if (!r.existing) {
+                  <button (click)="removeDomain(r.key)" cButton color="danger" variant="outline" class="dl-btn" size="sm" type="button">Retirer</button>
+                }
+              </td>
+            </tr>
+            @if (domainErrors().get(r.key); as message) {
+              <tr><td colspan="5" class="se-err">{{ message }}</td></tr>
+            }
+          } @empty {
+            <tr><td colspan="5" class="dl-empty">Aucun domaine d'activité.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-warning small mt-3">
+      Code : majuscules, chiffres et _ (40 max), unique, non modifiable une fois enregistré. Libellé : 100 caractères max. Une ligne enregistrée se désactive ; une ligne
+      nouvelle peut être retirée.
+    </div>
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <span class="small text-body-secondary">{{ domainsDirty() ? 'Modifications non enregistrées' : 'Aucune modification non enregistrée' }}</span>
+      <button (click)="cancelDomains()" [disabled]="!domainsDirty() || domainsSaving()" cButton class="dl-btn" type="button">Annuler</button>
+      <button (click)="saveDomains()" [disabled]="!canSaveDomains()" cButton class="dl-btn dl-btn-primary" type="button">
+        @if (domainsSaving()) {
+          <c-spinner size="sm" />
+        }
+        Enregistrer
+      </button>
+    </div>
+  }
+}
+
+<!-- ===== Détail d'une demande ===== -->
+<app-modal [visible]="selected() !== null" size="lg" [title]="selected()?.reference ?? 'Demande'" (closed)="close()">
+  @if (selected(); as d) {
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span [class]="statusChip(d.status)"><span class="dl-chip-dot"></span>{{ statusLabel[d.status] }}</span>
+      <app-loyalty-badge [level]="d.loyaltyLevel" />
+      <span class="flex-grow-1"></span>
+      <span class="small text-body-secondary">Reçue le {{ formatDate(d.createdAt) }}</span>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6"><div class="se-label">Entreprise</div>{{ d.companyName }}</div>
+      <div class="col-md-6"><div class="se-label">RCCM</div>{{ d.rccmNumber || '—' }}</div>
+      <div class="col-md-6"><div class="se-label">Domaine d'activité</div>{{ domainLabel(d.activityDomain) }}</div>
+      <div class="col-md-6"><div class="se-label">Localisation</div>{{ d.location || '—' }}</div>
+      <div class="col-md-6"><div class="se-label">Formule</div>{{ d.formulaName || d.formulaId }} · {{ d.optionLabel || d.option }}</div>
+      <div class="col-md-6"><div class="se-label">Prime annoncée (TTC annuelle)</div><strong>{{ d.quotedTotal.toLocaleString('fr-FR') }} FCFA</strong></div>
+      <div class="col-md-6">
+        <div class="se-label">Représentant</div>
+        {{ d.representativeName || '—' }}{{ d.representativeRole ? ', ' + d.representativeRole : '' }}
+      </div>
+      <div class="col-md-6"><div class="se-label">Téléphone</div>{{ d.representativePhone || '—' }}</div>
+      <div class="col-md-6"><div class="se-label">E-mail</div>{{ d.representativeEmail || '—' }}</div>
+      <div class="col-md-6"><div class="se-label">Compte mobile</div>{{ d.userId ? '#' + d.userId : 'Sans compte' }}{{ d.accountPhone ? ' · ' + d.accountPhone : '' }}</div>
+    </div>
+
+    <div class="alert alert-info small mt-3 mb-0">
+      La prime est celle annoncée au client au moment de la demande : elle ne change pas si la grille est modifiée ensuite.
+    </div>
+
+    @if (actionError(); as message) {
+      <app-alert-message class="d-block mt-3" [message]="message" />
+    }
+
+    @if (actions(d).length > 0) {
+      <label class="form-label fw-semibold mt-3" for="se-comment">
+        Commentaire (facultatif, <strong>montré au client</strong>, {{ maxComment }} caractères max)
+      </label>
+      <textarea
+        (input)="comment.set($any($event.target).value)"
+        [value]="comment()"
+        [attr.maxlength]="maxComment"
+        id="se-comment"
+        rows="2"
+        class="form-control"
+        placeholder="Ex. Nous vous rappelons dans la journée pour étudier votre dossier."
+      ></textarea>
+      <div class="small text-body-secondary text-end">{{ comment().length }} / {{ maxComment }}</div>
+    } @else {
+      <div class="mt-3 small">
+        <div class="se-label">Traitement</div>
+        {{ statusLabel[d.status] }} le {{ formatDate(d.processedAt) }}{{ d.processedBy ? ' par ' + d.processedBy : '' }}
+        @if (d.processComment) {
+          <div class="mt-1"><span class="se-label">Commentaire envoyé au client</span>{{ d.processComment }}</div>
+        }
+      </div>
+    }
+
+    <div class="d-flex justify-content-end gap-2 mt-3 pt-3" style="border-top: 1px solid var(--cui-border-color)">
+      <button (click)="close()" cButton class="dl-btn" type="button">Fermer</button>
+      @for (a of actions(d); track a) {
+        @if (a === 'REFUSEE') {
+          <button (click)="requestAction(a)" [disabled]="busy()" cButton color="danger" variant="outline" class="dl-btn" type="button">
+            {{ actionLabel(a) }}
+          </button>
+        } @else {
+          <button (click)="requestAction(a)" [disabled]="busy()" [class.dl-btn-primary]="a === 'TRAITEE'" cButton class="dl-btn" type="button">
+            @if (busy()) {
+              <c-spinner size="sm" />
+            }
+            {{ actionLabel(a) }}
+          </button>
+        }
+      }
+    </div>
+  }
+</app-modal>
+
+<app-confirm-dialog
+  [visible]="confirmAction() !== null"
+  cancelLabel="Annuler"
+  [confirmLabel]="confirmAction() === 'REFUSEE' ? 'Refuser' : 'Confirmer'"
+  icon="cilWarning"
+  [message]="confirmMessage()"
+  [title]="confirmTitle()"
+  (cancelled)="confirmAction.set(null)"
+  (confirmed)="apply(confirmAction()!)"
+/>

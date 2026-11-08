@@ -563,6 +563,16 @@ export const routes: Routes = [
         },
       },
       {
+        path: 'mobile/entreprise',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./views/souscriptions-entreprise/souscriptions-entreprise.component').then((m) => m.SouscriptionsEntrepriseComponent),
+        data: {
+          title: 'Souscriptions Entreprise',
+          section: 'Mobile AssurZen',
+        },
+      },
+      {
         path: 'mobile/documents',
         canActivate: [adminGuard],
         loadComponent: () => import('./views/documents-mobile/documents-mobile.component').then((m) => m.DocumentsMobileComponent),

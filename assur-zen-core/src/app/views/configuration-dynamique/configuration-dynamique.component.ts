@@ -550,6 +550,12 @@ export class ConfigurationDynamiqueComponent {
     return key === 'MOBILE_PUSH_TITLE' || key.startsWith('MOBILE_PUSH_TEXT_');
   }
 
+  /** Clé ENTERPRISE_REQUEST_* : retourne la clé (en majuscules) ou '' si autre. */
+  enterpriseKey(): string {
+    const k = this.configForm.controls.configKey.value.trim().toUpperCase();
+    return k.startsWith('ENTERPRISE_REQUEST_') ? k : '';
+  }
+
   /** Clé LOYALTY_* : retourne la clé (en majuscules) ou '' si autre. */
   loyaltyKey(): string {
     const k = this.configForm.controls.configKey.value.trim().toUpperCase();
