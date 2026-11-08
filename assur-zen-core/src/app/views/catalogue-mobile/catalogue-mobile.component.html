@@ -93,6 +93,13 @@
 >
   @if (draft; as d) {
     <div modalHeaderActions class="cm-head-sw">
+      <button (click)="exportCard()" [disabled]="exporting() || !editProduct()?.configured" class="cm-btn cm-btn--ghost cm-btn--sm" type="button"
+        title="Télécharger la fiche enregistrée (fichier .json)">
+        ⬇ Exporter la fiche
+      </button>
+      <button (click)="openImport()" class="cm-btn cm-btn--ghost cm-btn--sm" type="button" title="Charger une fiche exportée d'un autre environnement">
+        ⬆ Importer une fiche…
+      </button>
       <label [class.cm-sw--on]="d.visibleMobile" class="cm-sw cm-sw--light">
         <input [(ngModel)]="d.visibleMobile" id="cm-visible" role="switch" type="checkbox" /><i></i>Visible sur le mobile
       </label>
@@ -120,6 +127,9 @@
     </div>
 
     <div class="cm-pane">
+    @if (importBanner(); as banner) {
+      <div class="cm-import-banner">{{ banner }}</div>
+    }
     @if (formError(); as message) {
       <app-alert-message class="d-block mb-3" [message]="message" />
     }
@@ -452,4 +462,53 @@
       </div>
     }
   }
+</app-modal>
+
+<!-- ===== Import d'une fiche ===== -->
+<app-modal [visible]="importVisible()" size="lg" [title]="'Importer une fiche dans « ' + (editProduct()?.title ?? '') + ' »'" (closed)="importVisible.set(false)">
+  <label class="cm-import-drop" for="cm-import-file">
+    <span>{{ importFileName() || 'Choisissez un fichier .json exporté depuis AssurZen' }}</span>
+    <input (change)="onImportFile($event)" id="cm-import-file" accept=".json,application/json" type="file" />
+  </label>
+
+  @if (importError(); as message) {
+    <app-alert-message class="d-block mt-3" [message]="message" />
+  }
+
+  @if (importFile(); as file) {
+    <div class="cm-import-meta">
+      <span>Source : <strong>{{ file.source }}</strong></span>
+      <span>Produit : <strong>{{ file.produit.titre }}</strong></span>
+      <span class="cm-import-ok">Produit concordant</span>
+    </div>
+    <table class="cm-import-table">
+      <thead>
+        <tr><th>Élément</th><th>Fiche actuelle</th><th>Fichier importé</th></tr>
+      </thead>
+      <tbody>
+        @for (row of importRows(); track row.label) {
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="cm-import-old">{{ row.now }}</td>
+            <td class="cm-import-new">{{ row.next }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    @if (isAuto && file.assistance) {
+      <label class="cm-import-check">
+        <input [checked]="importWithAssistance()" (change)="importWithAssistance.set($any($event.target).checked)" type="checkbox" />
+        Importer aussi les niveaux d'assistance (enregistrés en même temps que la fiche)
+      </label>
+    }
+    <div class="cm-import-warn">
+      Le contenu actuel du formulaire sera <strong>remplacé</strong>. <strong>Rien n'est enregistré</strong> : vous relisez le formulaire puis vous cliquez sur
+      « Enregistrer ». La visibilité reste <strong>décochée</strong> : on rend visible dans un second temps.
+    </div>
+  }
+
+  <div class="cm-footer">
+    <button (click)="importVisible.set(false)" class="cm-btn cm-btn--ghost" type="button">Annuler</button>
+    <button (click)="applyImport()" [disabled]="!importFile()" class="cm-btn cm-btn--pri" type="button">Charger dans le formulaire</button>
+  </div>
 </app-modal>

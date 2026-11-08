@@ -1040,3 +1040,97 @@ label {
 ::ng-deep .cdk-drag-animating {
   transition: transform 200ms ease;
 }
+
+// ---------- Export / import d'une fiche ----------
+
+.cm-head-sw {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cm-import-banner {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(29, 78, 216, 0.1);
+  color: #1d4ed8;
+  font-size: 13px;
+}
+
+.cm-import-drop {
+  display: block;
+  padding: 18px;
+  border: 2px dashed var(--cui-border-color);
+  border-radius: 10px;
+  color: var(--cui-secondary-color);
+  text-align: center;
+  cursor: pointer;
+
+  input {
+    display: block;
+    margin: 8px auto 0;
+  }
+}
+
+.cm-import-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 14px 0 8px;
+  font-size: 13px;
+}
+
+.cm-import-ok {
+  padding: 1px 10px;
+  border-radius: 99px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+  font-weight: 600;
+}
+
+.cm-import-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--cui-border-color);
+    font-size: 13px;
+    text-align: left;
+  }
+
+  th {
+    color: var(--cui-secondary-color);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+}
+
+.cm-import-old {
+  color: var(--cui-secondary-color);
+}
+
+.cm-import-new {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.cm-import-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.cm-import-warn {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(217, 119, 6, 0.14);
+  color: #7a4a05;
+  font-size: 13px;
+}
