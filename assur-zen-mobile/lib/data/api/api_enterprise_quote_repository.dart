@@ -22,7 +22,47 @@ class ApiEnterpriseQuoteRepository implements EnterpriseQuoteRepository {
     return sim;
   }
 
+  @override
+  Future<List<EnterpriseActivityDomain>> getActivityDomains() async {
+    try {
+      return domainsFromJson(await _client.get(Endpoints.enterpriseDomains));
+    } on ApiException {
+      // Liste facultative : sans elle, le client saisit son domaine en texte libre.
+      return const [];
+    }
+  }
+
+  @override
+  Future<EnterpriseRequestReceipt> submitRequest(EnterpriseRequestInput input) async {
+    final receipt = receiptFromJson(await _client.post(Endpoints.enterpriseRequests, body: input.toJson()));
+    if (receipt == null) throw ApiException.server();
+    return receipt;
+  }
+
   // Conversion JSON (publique pour les tests) ---------------------------------
+
+  static List<EnterpriseActivityDomain> domainsFromJson(dynamic data) {
+    if (data is! Map<String, dynamic>) return const [];
+    return [
+      for (final d in _maps(data['items']))
+        if (_text(d['label']) != null) EnterpriseActivityDomain(code: _text(d['code']) ?? _text(d['label'])!, label: _text(d['label'])!),
+    ];
+  }
+
+  /// Sans référence, la demande n'est pas déclarée prise en compte.
+  static EnterpriseRequestReceipt? receiptFromJson(dynamic data) {
+    if (data is! Map<String, dynamic>) return null;
+    final reference = _text(data['reference']);
+    if (reference == null) return null;
+    return EnterpriseRequestReceipt(
+      reference: reference,
+      status: _text(data['status']),
+      formulaName: _text(data['formulaName']),
+      optionLabel: _text(data['optionLabel']),
+      total: _int(data['total']),
+      message: _text(data['message']),
+    );
+  }
 
   static String? _text(Object? v) {
     final s = v?.toString().trim();

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/routes.dart';
 import '../../core/ui.dart';
 import '../../data/models/enterprise_quote.dart';
 import '../../data/models/models.dart';
 import '../catalog/advisor_sheet.dart';
+import 'enterprise_request_page.dart';
 
 /// Cotation Assurance Entreprise. Tout vient du serveur : formules, options, prime annuelle TTC, garanties.
 ///
@@ -293,6 +295,13 @@ class _EnterpriseQuotePageState extends State<EnterpriseQuotePage> {
           ]),
         ],
         const SizedBox(height: 20),
+        // Le client reprend la formule et l'option cotées ; le compte n'est demandé qu'à l'envoi.
+        AzButton(
+          'Souscrire',
+          variant: AzButtonVariant.accent,
+          onPressed: () => context.push(AppRoutes.enterpriseRequest, EnterpriseRequestArgs(product: widget.product, simulation: sim)),
+        ),
+        const SizedBox(height: 10),
         AzButton.secondary('Être rappelé par un conseiller', onPressed: () => showAdvisorSheet(context, product: widget.product)),
       ],
     );

@@ -288,6 +288,12 @@ abstract interface class EnterpriseQuoteRepository {
 
   /// Prime annuelle TTC d'une formule et d'une option, avec ses garanties quand le serveur en donne.
   Future<EnterpriseSimulation> simulate({required String formulaId, required String option});
+
+  /// Domaines d'activité proposés ; erreur ou rien : liste vide (le client saisit un texte libre).
+  Future<List<EnterpriseActivityDomain>> getActivityDomains();
+
+  /// Enregistre la demande de souscription (compte requis). Le serveur retrouve formule, option et prime.
+  Future<EnterpriseRequestReceipt> submitRequest(EnterpriseRequestInput input);
 }
 
 /// Pas de cotation Entreprise (démonstration, serveur sans cotation) : aucune formule, aucun prix.
@@ -300,6 +306,13 @@ class NoEnterpriseQuotes implements EnterpriseQuoteRepository {
   @override
   Future<EnterpriseSimulation> simulate({required String formulaId, required String option}) async =>
       throw ApiException.notImplemented('cotation Entreprise');
+
+  @override
+  Future<List<EnterpriseActivityDomain>> getActivityDomains() async => const [];
+
+  @override
+  Future<EnterpriseRequestReceipt> submitRequest(EnterpriseRequestInput input) async =>
+      throw ApiException.notImplemented('demande de souscription Entreprise');
 }
 
 /// Pop-up publicitaires paramétrés au back-office.

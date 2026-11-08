@@ -33,6 +33,67 @@ class EnterpriseForm {
   final int? durationMonths;
 }
 
+/// Domaine d'activité proposé par le serveur (réglable au back-office). Liste vide : texte libre.
+class EnterpriseActivityDomain {
+  const EnterpriseActivityDomain({required this.code, required this.label});
+
+  final String code;
+  final String label;
+}
+
+/// Demande de souscription Entreprise saisie par le client. Aucun prix : le serveur retrouve lui-même
+/// la formule, l'option et la prime TTC.
+class EnterpriseRequestInput {
+  const EnterpriseRequestInput({
+    required this.formulaId,
+    required this.option,
+    required this.activityDomain,
+    required this.companyName,
+    required this.rccmNumber,
+    required this.location,
+    required this.representativeName,
+    required this.representativeRole,
+    required this.representativePhone,
+    required this.representativeEmail,
+  });
+
+  final String formulaId;
+  final String option;
+  final String activityDomain;
+  final String companyName;
+  final String rccmNumber;
+  final String location;
+  final String representativeName;
+  final String representativeRole;
+  final String representativePhone;
+  final String representativeEmail;
+
+  Map<String, dynamic> toJson() => {
+        'formulaId': formulaId,
+        'option': option,
+        'activityDomain': activityDomain,
+        'companyName': companyName,
+        'rccmNumber': rccmNumber,
+        'location': location,
+        'representativeName': representativeName,
+        'representativeRole': representativeRole,
+        'representativePhone': representativePhone,
+        'representativeEmail': representativeEmail,
+      };
+}
+
+/// Accusé de réception du serveur. `message` est le texte de confirmation réglé au back-office.
+class EnterpriseRequestReceipt {
+  const EnterpriseRequestReceipt({required this.reference, this.status, this.formulaName, this.optionLabel, this.total, this.message});
+
+  final String reference;
+  final String? status;
+  final String? formulaName;
+  final String? optionLabel;
+  final int? total;
+  final String? message;
+}
+
 /// Une garantie. `level` 1 : ligne « dont » rattachée à la ligne de niveau 0 qui précède.
 class EnterpriseGuarantee {
   const EnterpriseGuarantee({
