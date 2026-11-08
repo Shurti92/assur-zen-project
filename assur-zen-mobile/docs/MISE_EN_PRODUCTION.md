@@ -1,7 +1,8 @@
 # AssurZen Mobile : dossier de mise en production
 
-Document de travail, établi à partir du code de l'application (version `1.0.0+1`). Il distingue ce que le code
-prouve, ce qui reste à vérifier, et ce que seule AssurZen peut fournir. **Les passages marqués « à valider »
+Document de travail, établi à partir du code de l'application (version `1.0.0+1` dans `pubspec.yaml`, **mis à jour
+le 8 novembre 2026** : documents, notifications, Zen Points, remises, Assurance Entreprise). Il distingue ce que le
+code prouve, ce qui reste à vérifier, et ce que seule AssurZen peut fournir. **Les passages marqués « à valider »
 doivent être relus par la personne responsable des données personnelles et par le service juridique avant
 toute publication ou déclaration.** Aucune durée de conservation, aucun engagement de délai ni aucune
 coordonnée n'est inventé ici.
@@ -12,13 +13,15 @@ coordonnée n'est inventé ici.
 
 | Sujet | État |
 |---|---|
-| Parcours branchés sur la Gateway | Authentification, contrats, demandes, sinistres avec photos, catalogue, rappel, assistance, notifications push, devis moto et VTC (calcul, enregistrement, acceptation, liste) |
-| Paiement | **Simulé** par le serveur en développement. Aucun agrégateur réel n'est branché |
-| Souscription depuis un devis | **Non livrée** côté Gateway (statut `CONVERTI` inutilisé) |
-| Devis des autres produits | **Non livrés** côté Gateway (seuls moto et VTC existent) |
-| Envoi de pièces à la souscription | **N'existe pas** côté Gateway (seules les photos de sinistre existent) |
-| Essais sur la recette et la production | **Jamais faits** : tout est validé sur la Gateway de développement |
-| Build de publication signé | **Non fait** : la version `release` utilise aujourd'hui la signature de debug |
+| Parcours branchés sur la Gateway | Authentification, contrats, demandes, sinistres avec photos, catalogue, rappel, assistance, notifications push, devis moto, VTC et voyage (calcul, enregistrement, acceptation, liste), cotation et demande de souscription Assurance Entreprise |
+| Documents | Page « Mes documents » par contrat ; **ajout de documents par le client** (contrat, reçu, attestation ; PDF, JPG ou PNG, 5 Mo au plus) avec statut En attente, Refusé (motif) ou Disponible |
+| Notifications | Écran « Mes notifications » : canaux push et SMS, grille par catégorie, accord SMS dont le texte vient du serveur (sans texte du serveur, les SMS ne peuvent pas être activés) |
+| Zen Points | Adhésion, niveau, historique, règles, remises assurance auto (moto, VTC) au devis et au renouvellement, grille du niveau suivant. Actifs en production côté Gateway (réglages `LOYALTY_ENABLED` et `LOYALTY_DISCOUNT_ENABLED`) ; l'expiration des points est **désactivée** |
+| Paiement | **À confirmer avec la Gateway** : l'application sait payer un devis accepté et un renouvellement, mais seule la Gateway peut dire si un agrégateur réel est branché en production |
+| Souscription depuis un devis | Livrée côté application (statuts payé et converti, contrat émis) : **à valider en production** |
+| Assurance Entreprise | Cotation et demande de souscription livrées en recette ; produit **masqué en production** tant que les textes ne sont pas validés par AssurZen |
+| Essais sur la recette et la production | **Partiels** : connexion, Zen Points, cotation et demande Entreprise essayés sur la recette (8 novembre 2026). Le reste de la recette et toute la production : **à faire** |
+| Build de publication signé | **Non fait** : le projet lit désormais `android/key.properties` pour signer, mais **aucun keystore n'existe**. Sans lui, la version `release` reste signée avec la clé de debug (essais seulement) |
 
 ## 2. Données personnelles : inventaire pour la politique de confidentialité, l'ARTCI et Google Play
 
@@ -34,6 +37,12 @@ coordonnée n'est inventé ici.
 | Données de sinistre | Déclaration | Traiter le sinistre : contrat, type, date, heure, lieu, circonstances, tiers éventuel (nom, immatriculation, assureur) |
 | **Photos** de sinistre | Déclaration | Pièces justificatives. Envoyées au serveur, non conservées par l'application |
 | Données de devis moto ou VTC | Devis | Calculer et enregistrer le devis : type et caractéristiques du véhicule, marque, modèle, immatriculation ou châssis, année, dates |
+| Données de devis voyage | Devis | Nom du voyageur, numéro de passeport, date de naissance, pays, dates de départ et de retour |
+| **Documents ajoutés par le client** | « Ajouter un document » | Fichiers PDF, JPG ou PNG (5 Mo au plus) rattachés à un contrat, vérifiés par le back-office. Envoyés au serveur, non conservés par l'application |
+| Préférences de notification | « Mes notifications » | Canaux push et SMS, catégories choisies, **accord SMS** (date et version du texte accepté) |
+| Adhésion aux Zen Points | « Mes Zen Points » | Consentement au programme (version des conditions), solde, niveau, historique des points |
+| Réponses au quiz, score de protection | Écran d'accueil | Mesurer et récompenser les bons gestes (consentement demandé, texte fourni par le serveur) |
+| **Demande de souscription Entreprise** | Souscrire (Assurance Entreprise) | Domaine d'activité, nom de l'entreprise, numéro RCCM, localisation, **nom, fonction, téléphone et e-mail du représentant**, formule et option cotées. La Gateway envoie une alerte e-mail au conseiller. Un e-mail de confirmation au représentant (texte réglable, sans montant) est prévu : **livré en développement le 8 novembre 2026, pas encore déployé en recette ni en production** |
 | Message d'assistance, avis | Assistance, avis après souscription | Répondre au client, mesurer la satisfaction |
 | Demandes sur un contrat | Modification ou résiliation | Traiter la demande |
 | Paiement | Renouvellement | Référence payable, montant, moyen, numéro de téléphone, clé d'idempotence |
@@ -74,13 +83,15 @@ coordonnée n'est inventé ici.
 > AssurZen Assurances Côte d'Ivoire dans votre poche.
 >
 > • Consultez vos contrats et leurs échéances.
-> • Obtenez un devis en ligne pour votre moto ou votre véhicule VTC, enregistrez-le et acceptez-le.
+> • Obtenez un devis en ligne pour votre moto, votre véhicule VTC ou votre voyage, enregistrez-le et acceptez-le.
+> • Retrouvez et ajoutez les documents de vos contrats.
+> • Gagnez des Zen Points et profitez de remises sur votre assurance auto.
 > • Déclarez un sinistre avec photos et suivez son avancement.
 > • Faites une demande de modification ou de résiliation de contrat.
 > • Soyez prévenu par notification, et contactez un conseiller.
 > • Protégez l'accès à l'application par votre code PIN, votre empreinte ou un schéma.
 
-**À ne pas annoncer avant d'être livré** : le paiement en ligne (aujourd'hui simulé), la souscription depuis l'application, les devis d'autres produits. La liste ci-dessus doit rester conforme à ce qui est réellement en ligne le jour de la publication.
+**À ne pas annoncer avant d'être confirmé** : le paiement en ligne (seule la Gateway peut dire si un agrégateur réel est branché), l'Assurance Entreprise (produit masqué en production tant que ses textes ne sont pas validés), l'expiration des points (désactivée). La liste ci-dessus doit rester conforme à ce qui est réellement en ligne le jour de la publication, et les remises Zen Points ne doivent être annoncées qu'avec les conditions validées par AssurZen.
 
 **Formulaire « Sécurité des données »** (réponses proposées, à valider) :
 - Données collectées : nom, adresse e-mail, numéro de téléphone, photos, identifiants d'appareil (jeton de notification), informations de paiement (numéro de téléphone et montant, uniquement lors d'un paiement).
@@ -93,7 +104,7 @@ coordonnée n'est inventé ici.
 ## 5. Points à traiter avant la publication
 
 ### 5.1 Techniques
-1. **Signature de publication.** Créer un keystore et un fichier `key.properties` (jamais publiés : déjà ignorés par git), puis produire un `app bundle` signé et vérifier que les notifications fonctionnent dans cette version. *Le keystore doit être sauvegardé par AssurZen : sa perte empêche toute mise à jour.*
+1. **Signature de publication.** Le projet est prêt : `android/app/build.gradle.kts` signe la version `release` avec le keystore décrit dans `android/key.properties` (lignes `storeFile`, `storePassword`, `keyAlias`, `keyPassword`), et retombe sur la clé de debug s'il est absent. **Reste à faire par AssurZen :** créer le keystore (par exemple avec `keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`) et le fichier `key.properties`, tous deux jamais publiés (déjà ignorés par git). Puis produire un `app bundle` signé (`flutter build appbundle --release --dart-define=USE_MOCK=false --dart-define=APP_ENV=prod`) et vérifier que les notifications fonctionnent dans cette version. *Le keystore et ses mots de passe doivent être sauvegardés par AssurZen : leur perte empêche toute mise à jour. Le numéro de version (`version:` dans `pubspec.yaml`) est à augmenter à chaque publication.*
 2. **Essai complet sur la recette** puis la production : certificat HTTPS, comptes, vrais SMS, notifications, devis, sinistre avec photo. Non fait à ce jour.
 3. **Fichier Firebase de production** (`google-services.json`) : à confirmer que le projet Firebase utilisé est celui de la production.
 4. **Réduction et obscurcissement du code** (R8) : non activés ; à décider, puis à tester.
@@ -101,9 +112,10 @@ coordonnée n'est inventé ici.
 6. **Logo vectoriel et icône de lancement définitive** (l'icône actuelle est provisoire).
 
 ### 5.2 Données personnelles
-1. **Brouillon du devis générique** : il enregistre en clair, dans les préférences, le nom, le téléphone et l'e-mail du souscripteur pendant 30 jours. Ce parcours n'est atteignable que pour un produit déclaré « souscrivable en ligne », ce qui n'est le cas d'aucun produit aujourd'hui. **Avant d'en activer un, il faut soit chiffrer ce brouillon, soit ne plus y stocker ces champs.**
-2. **Dernier numéro de téléphone connu** : conservé en clair pour préremplir la connexion. À valider (acceptable ou à déplacer dans le stockage chiffré).
-3. **Durées de conservation** côté serveur (compte, sinistres, photos, devis, journaux) : à définir par AssurZen et à publier.
+1. **Brouillon du devis générique** : il enregistre en clair, dans les préférences, le nom, le téléphone et l'e-mail du souscripteur pendant 30 jours. Ce parcours n'est atteignable que pour un produit déclaré « souscrivable en ligne » sans devis dédié ; à vérifier sur la Gateway de production avant publication. **Avant d'en activer un, il faut soit chiffrer ce brouillon, soit ne plus y stocker ces champs.**
+2. **Demande de souscription Entreprise** : elle transmet l'identité d'un représentant d'entreprise (nom, fonction, téléphone, e-mail). À inscrire dans l'inventaire du traitement. L'e-mail de confirmation au représentant (texte réglable au back-office, sans montant) est livré en développement mais pas encore déployé : son texte est à valider par AssurZen. L'envoi se fait en arrière-plan et son état est visible au back-office.
+3. **Dernier numéro de téléphone connu** : conservé en clair pour préremplir la connexion. À valider (acceptable ou à déplacer dans le stockage chiffré).
+4. **Durées de conservation** côté serveur (compte, sinistres, photos, devis, journaux) : à définir par AssurZen et à publier.
 
 ### 5.3 À fournir par AssurZen
 - **Politique de confidentialité** et **conditions générales d'utilisation** (liens renseignés dans le back-office ; l'application les affiche déjà quand le serveur les fournit).
