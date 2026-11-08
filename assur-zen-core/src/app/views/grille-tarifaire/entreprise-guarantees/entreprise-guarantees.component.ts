@@ -212,36 +212,68 @@ export class EntrepriseGuaranteesComponent {
 
   // ------------------------------------------------------------------ contrôles
 
+  /**
+   * Une garantie sans montant ni texte est un intitulé de groupe : acceptée seulement si la ligne suivante est une
+   * garantie de niveau 1 (« dont »), comme le contrôle la Gateway.
+   */
+  private isHeadingAt(rows: EditRow[], index: number): boolean {
+    const r = rows[index];
+    const next = rows[index + 1];
+    return (
+      r.kind === 'GUARANTEE' &&
+      r.level === 0 &&
+      !!r.name.trim() &&
+      (r.amount === null || r.amount < 1) &&
+      !r.label.trim() &&
+      !!next &&
+      next.kind === 'GUARANTEE' &&
+      next.level === 1
+    );
+  }
+
+  /** Pour le gabarit : la ligne est-elle un intitulé de groupe ? */
+  isHeading(index: number): boolean {
+    return this.isHeadingAt(this.rows(), index);
+  }
+
   private validate(rows: EditRow[]): Map<number, string> {
     const errors = new Map<number, string>();
     let hasParent = false;
-    for (const r of rows) {
+    rows.forEach((r, index) => {
       const name = r.name.trim();
       if (r.level === 0) hasParent = true;
       if (r.level === 1 && !hasParent) {
         errors.set(r.key, 'Une ligne « dont » doit suivre une ligne de niveau 0.');
-        continue;
+        return;
       }
       if (r.kind === 'GUARANTEE') {
-        if (!name || ((r.amount === null || r.amount < 1) && !r.label.trim())) {
-          errors.set(r.key, 'Une garantie doit avoir un nom et un montant (ou un texte, ex. Non garanti).');
-          continue;
+        if (!name) {
+          errors.set(r.key, 'Une garantie doit avoir un nom.');
+          return;
+        }
+        const noIndemnity = (r.amount === null || r.amount < 1) && !r.label.trim();
+        if (noIndemnity && !this.isHeadingAt(rows, index)) {
+          errors.set(
+            r.key,
+            'Renseignez un montant ou un texte (ex. Non garanti), ou faites de cette ligne un intitulé de groupe suivi d’au moins une ligne « dont ».',
+          );
+          return;
         }
       } else if (r.kind === 'LIMIT') {
         if (!name || r.amount === null || r.amount < 1) {
           errors.set(r.key, 'Un plafond doit avoir un nom et un montant.');
-          continue;
+          return;
         }
       } else if (!r.label.trim()) {
         errors.set(r.key, 'Une note doit contenir un texte.');
-        continue;
+        return;
       }
       if (name.length > 250 || r.label.length > 250) {
         errors.set(r.key, 'Le nom et le texte font 250 caractères au plus.');
       } else if (r.deductible.length > 100 || r.basis.length > 100) {
         errors.set(r.key, 'La franchise et la base font 100 caractères au plus.');
       }
-    }
+    });
     if (rows.length > MAX_ROWS) {
       errors.set(rows[MAX_ROWS].key, `${MAX_ROWS} lignes au maximum.`);
     }

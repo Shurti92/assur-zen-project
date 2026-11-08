@@ -8,6 +8,7 @@
   </div>
   <p class="eg-hint">
     L'ordre du tableau est l'ordre affiché au client. Une ligne « dont » (niveau 1) est rattachée à la ligne de niveau 0 qui la précède.
+    Une garantie sans montant ni texte est un <strong>intitulé de groupe</strong> : elle doit être suivie d'au moins une ligne « dont ».
   </p>
 
   @if (error(); as message) {
@@ -79,6 +80,9 @@
                         class="eg-input"
                         maxlength="250"
                       />
+                      @if (isHeading(i)) {
+                        <span class="eg-heading">Intitulé de groupe : les montants sont portés par les lignes « dont » qui suivent</span>
+                      }
                     </div>
                   </td>
                   <td>
