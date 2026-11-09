@@ -596,6 +596,24 @@
               Nombre de demandes de souscription Entreprise autorisées par compte et par 24 heures (5 par défaut). Entier positif.
             </div>
           }
+          @case ('ENTERPRISE_REQUEST_CLIENT_EMAIL_ENABLED') {
+            <div class="alert alert-warning small mt-2 mb-0">
+              <strong>true</strong> : le représentant reçoit un e-mail de confirmation après sa demande de souscription Entreprise. <strong>false</strong> : aucun e-mail n'est
+              envoyé au client (l'alerte au conseiller, elle, dépend de ENTERPRISE_REQUEST_NOTIFY_EMAIL). L'état des envois s'affiche dans Mobile AssurZen › Souscriptions Entreprise.
+            </div>
+          }
+          @case ('ENTERPRISE_REQUEST_CLIENT_EMAIL_SUBJECT') {
+            <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
+              Objet de l'e-mail de confirmation (défaut : « Votre demande de souscription {{ '{' }}reference{{ '}' }} »). Variables possibles : {{ '{' }}reference{{ '}' }}, {{ '{' }}representant{{ '}' }},
+              {{ '{' }}entreprise{{ '}' }}, {{ '{' }}formule{{ '}' }}, {{ '{' }}option{{ '}' }}.
+            </div>
+          }
+          @case ('ENTERPRISE_REQUEST_CLIENT_EMAIL_TEXT') {
+            <div class="alert alert-warning small mt-2 mb-0">
+              Texte de l'e-mail de confirmation, sauts de ligne conservés. Variables possibles : {{ '{' }}reference{{ '}' }}, {{ '{' }}representant{{ '}' }}, {{ '{' }}entreprise{{ '}' }},
+              {{ '{' }}formule{{ '}' }}, {{ '{' }}option{{ '}' }}. <strong>N'y mettez jamais de montant.</strong>
+            </div>
+          }
           @case ('ENTERPRISE_REQUEST_CONFIRMATION_TEXT') {
             <div class="text-body-secondary mt-1" style="font-size: 0.8rem;">
               Message de confirmation montré au client après l'envoi de sa demande de souscription Entreprise.

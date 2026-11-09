@@ -4,6 +4,9 @@ import { Observable, map } from 'rxjs';
 
 export type EnterpriseRequestStatus = 'RECUE' | 'EN_COURS' | 'TRAITEE' | 'REFUSEE';
 
+/** État d'un envoi d'e-mail lié à la demande (null = demande antérieure au suivi des e-mails). */
+export type EmailStatus = 'EN_ATTENTE' | 'ENVOYE' | 'ECHEC' | 'NON_CONFIGURE' | 'DESACTIVE';
+
 /** Demande de souscription Entreprise envoyée depuis l'application après une cotation. */
 export interface EnterpriseRequest {
   id: number;
@@ -31,6 +34,14 @@ export interface EnterpriseRequest {
   processComment?: string | null;
   /** Niveau Zen Points du client (absent si non concerné). */
   loyaltyLevel?: string | null;
+  /** Alerte e-mail au conseiller (champs de sortie, absents sur les demandes antérieures au suivi). */
+  alertStatus?: EmailStatus | null;
+  alertDetail?: string | null;
+  alertAt?: string | null;
+  /** E-mail de confirmation au représentant. */
+  confirmationStatus?: EmailStatus | null;
+  confirmationDetail?: string | null;
+  confirmationAt?: string | null;
 }
 
 export interface ActivityDomain {
