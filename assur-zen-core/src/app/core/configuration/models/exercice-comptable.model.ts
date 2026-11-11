@@ -30,4 +30,14 @@ export interface MoisComptableResponse {
   dateDebut: string;
   dateFin: string;
   cloture: boolean;
+  /** Objectif de production du mois (FCFA) ; null = pas d'objectif. Absent sur une Gateway plus ancienne. */
+  objectifMensuel?: number | null;
+  /** Primes des contrats signés dans le mois (date de signature). Absent sur une Gateway plus ancienne. */
+  realiseMensuel?: number;
+}
+
+/** Une ligne de l'enregistrement groupé des objectifs mensuels (montant null = effacer). */
+export interface ObjectifMensuelItem {
+  numero: number;
+  montant: number | null;
 }
