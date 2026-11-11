@@ -1,3 +1,4 @@
+import { AuthService } from '../../../core/auth/auth.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -37,6 +38,8 @@ const TYPE_PARTENAIRE_VARIANT: Record<TypePartenaire, string> = {
 })
 export class InsuranceWidgetsComponent {
   private readonly dashboardService = inject(DashboardService);
+  private readonly auth = inject(AuthService);
+  readonly isAdmin = computed(() => this.auth.currentUser()?.role === 'ADMIN');
 
   readonly period = signal<DashboardPeriod>('month');
   readonly kpis = signal<DashboardBackOfficeKpis | null>(null);
@@ -175,6 +178,31 @@ export class InsuranceWidgetsComponent {
       enAvance: pct >= rythme,
       atteint: pct >= 100,
       ringDash: `${Math.min(100, pct) * 1.005} 100.5`,
+    };
+  });
+
+  /**
+   * Objectif de production du mois en cours (exercice actif). null si la Gateway ne le renvoie pas.
+   * La progression est une fraction (0,42 = 42 %) : on la convertit pour l'affichage.
+   */
+  readonly monthGoal = computed(() => {
+    const m = this.kpis()?.objectifMensuel;
+    if (!m) return null;
+    const now = new Date();
+    const joursMois = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const rythme = Math.round((now.getDate() / joursMois) * 100);
+    const pct = Math.round(m.progression * 1000) / 10;
+    const defini = m.montant > 0;
+    return {
+      mois: m.mois,
+      montant: m.montant,
+      realise: m.realise,
+      reste: Math.max(0, m.montant - m.realise),
+      pct,
+      rythme,
+      defini,
+      atteint: defini && pct >= 100,
+      enAvance: defini && pct >= rythme,
     };
   });
 

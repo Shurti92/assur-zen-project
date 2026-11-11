@@ -6,6 +6,7 @@ import {
   ExerciceComptableRequest,
   ExerciceComptableResponse,
   MoisComptableResponse,
+  ObjectifMensuelItem,
 } from './models/exercice-comptable.model';
 
 @Injectable({ providedIn: 'root' })
@@ -43,6 +44,11 @@ export class ExerciceComptableService {
 
   reouvrir(id: number): Observable<ExerciceComptableResponse> {
     return this.http.post<ExerciceComptableResponse>(`/exercices-comptables/${id}/reouvrir`, {});
+  }
+
+  /** Enregistre les objectifs mensuels (ADMIN). Les mois absents de la liste restent inchangés. */
+  setObjectifsMensuels(id: number, items: ObjectifMensuelItem[]): Observable<ExerciceComptableResponse> {
+    return this.http.put<ExerciceComptableResponse>(`/exercices-comptables/${id}/objectifs-mensuels`, { items });
   }
 
   /** `mois` est déjà inclus dans `list()`/`get()` — cet appel ne sert qu'à rafraîchir uniquement

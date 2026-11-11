@@ -1,4 +1,6 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { IconDirective } from '@coreui/icons-angular';
 import {
@@ -23,6 +25,7 @@ import { AlertMessageComponent } from '../../../shared/alert-message/alert-messa
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import { ModalComponent } from '../../../shared/modal/modal.component';
 import { ThousandSeparatorDirective } from '../../../shared/directives/thousand-separator.directive';
+import { AuthService } from '../../../core/auth/auth.service';
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -48,7 +51,9 @@ function today(): string {
     ModalComponent,
     ConfirmDialogComponent,
     ThousandSeparatorDirective,
+    DecimalPipe,
   ],
+  styleUrl: './exercice-comptable.component.scss',
 })
 export class ExerciceComptableComponent {
   private readonly exerciceService = inject(ExerciceComptableService);
@@ -78,6 +83,55 @@ export class ExerciceComptableComponent {
     () => this.items().find((item) => item.id === this.moisModalExerciceId()) ?? null
   );
 
+  // ---- Objectifs de production mensuels (saisie réservée à l'ADMIN) ----
+  private readonly auth = inject(AuthService);
+  readonly isAdmin = computed(() => this.auth.currentUser()?.role === 'ADMIN');
+  /** Montants saisis, par numéro de mois (null = pas d'objectif). */
+  readonly objectifsDraft = signal<Record<number, number | null>>({});
+  readonly objectifsSaving = signal(false);
+  readonly objectifsError = signal<string | null>(null);
+  readonly objectifsInfo = signal<string | null>(null);
+  /** Aperçu de la répartition en parts égales (null = fenêtre fermée). */
+  readonly repartirPreview = signal<{ total: number; base: number; dernier: number } | null>(null);
+  /** Confirmation demandée pour la modification de mois clos. */
+  readonly clotureConfirm = signal(false);
+  readonly copyBusy = signal(false);
+
+  /** Sauvegarde de l'état serveur pour détecter les modifications. */
+  private objectifsSaved(): Record<number, number | null> {
+    const ex = this.moisModalExercice();
+    return Object.fromEntries((ex?.mois ?? []).map((m) => [m.numero, m.objectifMensuel ?? null]));
+  }
+
+  readonly objectifsDirtyNumeros = computed(() => {
+    const saved = this.objectifsSaved();
+    const draft = this.objectifsDraft();
+    return (this.moisModalExercice()?.mois ?? [])
+      .map((m) => m.numero)
+      .filter((n) => (draft[n] ?? null) !== (saved[n] ?? null));
+  });
+
+  /** Les Gateways antérieures ne renvoient pas objectifMensuel : on masque alors la grille. */
+  readonly objectifsSupported = computed(() => (this.moisModalExercice()?.mois ?? []).some((m) => 'objectifMensuel' in m));
+
+  readonly objectifsTotal = computed(() => {
+    const draft = this.objectifsDraft();
+    return (this.moisModalExercice()?.mois ?? []).reduce((sum, m) => sum + (draft[m.numero] ?? 0), 0);
+  });
+  readonly objectifsEcart = computed(() => this.objectifsTotal() - (this.moisModalExercice()?.objectifGlobal ?? 0));
+  readonly objectifsEcartPct = computed(() => {
+    const annuel = this.moisModalExercice()?.objectifGlobal ?? 0;
+    return annuel > 0 ? (this.objectifsEcart() / annuel) * 100 : null;
+  });
+  /** Pas d'enregistrement tant qu'un montant est invalide ou que rien n'a changé. */
+  readonly objectifsCanSave = computed(
+    () => this.isAdmin() && !this.moisModalExercice()?.cloture && this.objectifsDirtyNumeros().length > 0 && !this.objectifsSaving(),
+  );
+  readonly hasClosedChanged = computed(() => {
+    const dirty = new Set(this.objectifsDirtyNumeros());
+    return (this.moisModalExercice()?.mois ?? []).some((m) => m.cloture && dirty.has(m.numero));
+  });
+
   readonly form = this.fb.nonNullable.group({
     libelle: [''],
     dateDebut: [''],
@@ -99,6 +153,12 @@ export class ExerciceComptableComponent {
 
   constructor() {
     this.fetch();
+    effect(() => {
+      const ex = this.moisModalExercice();
+      untracked(() => {
+        this.objectifsDraft.set(Object.fromEntries((ex?.mois ?? []).map((m) => [m.numero, m.objectifMensuel ?? null])));
+      });
+    });
   }
 
   fetch(): void {
@@ -240,6 +300,132 @@ export class ExerciceComptableComponent {
 
   closeMoisModal(): void {
     this.moisModalExerciceId.set(null);
+    this.objectifsError.set(null);
+    this.objectifsInfo.set(null);
+    this.repartirPreview.set(null);
+    this.clotureConfirm.set(false);
+  }
+
+  // ---------------- Objectifs mensuels ----------------
+
+  /** Saisie d'un montant : vide = pas d'objectif, sinon entier positif. */
+  onObjectifInput(numero: number, value: string): void {
+    this.objectifsInfo.set(null);
+    const digits = value.replace(/\D/g, '');
+    this.objectifsDraft.update((d) => ({ ...d, [numero]: digits === '' ? null : Number(digits) }));
+  }
+
+  formatInput(value: number | null | undefined): string {
+    return value === null || value === undefined ? '' : value.toLocaleString('fr-FR');
+  }
+
+  /** Part de l'objectif annuel pour un mois, en % (null si pas d'objectif annuel). */
+  partAnnee(numero: number): number | null {
+    const annuel = this.moisModalExercice()?.objectifGlobal ?? 0;
+    const v = this.objectifsDraft()[numero];
+    return annuel > 0 && v ? (v / annuel) * 100 : null;
+  }
+
+  /** Statut d'un mois par rapport à aujourd'hui : clos, en cours, à venir. */
+  moisEtat(mois: MoisComptableResponse): 'clos' | 'cours' | 'avenir' {
+    if (mois.cloture) return 'clos';
+    const now = new Date().toISOString().slice(0, 10);
+    if (mois.dateDebut <= now && now <= mois.dateFin) return 'cours';
+    return mois.dateFin < now ? 'clos' : 'avenir';
+  }
+
+  openRepartir(): void {
+    const ex = this.moisModalExercice();
+    if (!ex || ex.objectifGlobal <= 0 || ex.mois.length === 0) return;
+    const n = ex.mois.length;
+    const base = Math.floor(ex.objectifGlobal / n);
+    const dernier = ex.objectifGlobal - base * (n - 1);
+    this.repartirPreview.set({ total: ex.objectifGlobal, base, dernier });
+  }
+
+  applyRepartir(): void {
+    const ex = this.moisModalExercice();
+    const p = this.repartirPreview();
+    if (!ex || !p) return;
+    const sorted = [...ex.mois].sort((a, b) => a.numero - b.numero);
+    this.objectifsDraft.set(Object.fromEntries(sorted.map((m, i) => [m.numero, i === sorted.length - 1 ? p.dernier : p.base])));
+    this.repartirPreview.set(null);
+    this.objectifsInfo.set(null);
+  }
+
+  /** Copie les montants de l'exercice précédent (par numéro de mois), sans enregistrer. */
+  canCopyPrevious(): boolean {
+    return this.previousExercice()?.mois.some((m) => (m.objectifMensuel ?? 0) > 0) ?? false;
+  }
+
+  previousExercice(): ExerciceComptableResponse | null {
+    const ex = this.moisModalExercice();
+    if (!ex) return null;
+    const before = this.items()
+      .filter((i) => i.id !== ex.id && i.dateFin < ex.dateDebut)
+      .sort((a, b) => b.dateFin.localeCompare(a.dateFin));
+    return before[0] ?? null;
+  }
+
+  copyPrevious(): void {
+    const prev = this.previousExercice();
+    if (!prev) return;
+    const byNum = Object.fromEntries(prev.mois.map((m) => [m.numero, m.objectifMensuel ?? null]));
+    this.objectifsDraft.update((d) => {
+      const next = { ...d };
+      for (const m of this.moisModalExercice()?.mois ?? []) if (byNum[m.numero] != null) next[m.numero] = byNum[m.numero];
+      return next;
+    });
+    this.objectifsInfo.set(null);
+  }
+
+  resetObjectifs(): void {
+    const ex = this.moisModalExercice();
+    this.objectifsDraft.set(Object.fromEntries((ex?.mois ?? []).map((m) => [m.numero, m.objectifMensuel ?? null])));
+    this.objectifsError.set(null);
+  }
+
+  requestSaveObjectifs(): void {
+    if (!this.objectifsCanSave()) return;
+    // Modifier un mois clos change le taux d'atteinte historique : confirmation demandée.
+    if (this.hasClosedChanged()) {
+      this.clotureConfirm.set(true);
+      return;
+    }
+    this.saveObjectifs();
+  }
+
+  saveObjectifs(): void {
+    const ex = this.moisModalExercice();
+    if (!ex || !this.objectifsCanSave()) return;
+    this.clotureConfirm.set(false);
+    this.objectifsSaving.set(true);
+    this.objectifsError.set(null);
+    const draft = this.objectifsDraft();
+    const items = this.objectifsDirtyNumeros().map((numero) => ({ numero, montant: draft[numero] ?? null }));
+    this.exerciceService.setObjectifsMensuels(ex.id, items).subscribe({
+      next: (updated) => {
+        this.objectifsSaving.set(false);
+        this.items.update((list) => list.map((i) => (i.id === updated.id ? updated : i)));
+        this.objectifsInfo.set('Objectifs mensuels enregistrés.');
+      },
+      error: (err) => {
+        this.objectifsSaving.set(false);
+        this.objectifsError.set(this.objectifsErrorMessage(err));
+      },
+    });
+  }
+
+  private objectifsErrorMessage(err: unknown): string {
+    if (err instanceof HttpErrorResponse) {
+      const code = err.error?.code as string | undefined;
+      if (code === 'EXERCICE_CLOTURE') return 'Cet exercice est clôturé : les objectifs ne sont plus modifiables.';
+      if (code === 'MOIS_NOT_FOUND') return 'Un mois est introuvable pour cet exercice.';
+      if (err.status === 403) return 'Accès réservé aux administrateurs.';
+      if (err.status === 404) return 'Exercice introuvable.';
+      if (typeof err.error?.message === 'string' && err.error.message) return err.error.message;
+    }
+    return "Impossible d'enregistrer les objectifs mensuels.";
   }
 
   /** Clôture/réouverture d'un mois : purement structurel/reporting côté backend — ne bloque

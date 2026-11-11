@@ -28,6 +28,18 @@ export interface DashboardObjectifGlobal {
   progression: number;
 }
 
+/** Objectif de production du mois en cours (exercice actif). */
+export interface DashboardObjectifMensuel {
+  /** Libellé du mois, ex. « Novembre 2026 ». */
+  mois: string;
+  annee: number;
+  /** 0 si aucun objectif n'est défini pour le mois. */
+  montant: number;
+  realise: number;
+  /** Fraction (ratio realise / montant, ex. 0,42), pas un pourcentage. 0 si montant = 0. */
+  progression: number;
+}
+
 export interface DashboardCycleDeVie {
   realises: number;
   echeanceProche: number;
@@ -62,6 +74,8 @@ export interface DashboardBackOfficeKpis {
   volumes: DashboardVolumes;
   finance: DashboardFinance;
   objectifGlobal: DashboardObjectifGlobal;
+  /** Absent ou null sur une Gateway plus ancienne, ou sans exercice actif. */
+  objectifMensuel?: DashboardObjectifMensuel | null;
   cycleDeVie: DashboardCycleDeVie;
   repartitionParProduit: ProduitRepartition[];
   objectifParApporteur: DashboardObjectifParApporteur;

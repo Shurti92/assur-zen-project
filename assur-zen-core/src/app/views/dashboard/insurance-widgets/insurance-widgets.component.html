@@ -60,6 +60,41 @@
       </div>
     }
 
+    <!-- Objectif du mois -->
+    @if (monthGoal(); as mg) {
+      <div class="ct-card ct-goal ct-goal--month">
+        @if (mg.defini) {
+          <div class="ct-goal-main">
+            <div class="ct-goal-title">Objectif de production · {{ mg.mois }}</div>
+            <div class="ct-goal-amount ct-num">{{ formatAmount(mg.realise) }} <small>/ {{ formatAmount(mg.montant) }}</small></div>
+            <div class="ct-goal-bar"><span [style.width.%]="mg.pct > 100 ? 100 : mg.pct"></span><em [style.left.%]="mg.rythme"></em></div>
+            <div class="ct-goal-legend"><span>{{ mg.pct | number: '1.0-0' }} % atteint</span><span>Repère : {{ mg.rythme }} % du mois écoulé</span></div>
+          </div>
+          <div class="ct-goal-side">
+            <span class="ct-sub">Reste à produire</span>
+            <b class="ct-num">{{ formatAmount(mg.reste) }}</b>
+            @if (mg.atteint) {
+              <span class="ct-pill ct-p-ok"><i></i>Objectif atteint</span>
+            } @else if (mg.enAvance) {
+              <span class="ct-pill ct-p-ok"><i></i>En bonne voie</span>
+            } @else {
+              <span class="ct-pill ct-p-warn"><i></i>En retard sur le rythme</span>
+            }
+          </div>
+        } @else {
+          <div class="ct-goal-main">
+            <div class="ct-goal-title">Objectif de production · {{ mg.mois }}</div>
+            <p class="ct-sub mb-0">Aucun objectif défini pour ce mois.</p>
+          </div>
+          @if (isAdmin()) {
+            <div class="ct-goal-side">
+              <a routerLink="/configuration/exercice-comptable" class="ct-btn">Définir les objectifs mensuels</a>
+            </div>
+          }
+        }
+      </div>
+    }
+
     <!-- Indicateurs principaux -->
     <div class="ct-grid ct-g4 ct-mt">
       <div class="ct-card ct-kpi">

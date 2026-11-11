@@ -274,3 +274,8 @@ a.ct-lg:hover { color: var(--pz-primary); }
   .ct-hide-sm { display: none; }
   .ct-hb { grid-template-columns: 110px 1fr 70px; }
 }
+
+.ct-btn { display: inline-block; padding: 6px 14px; border: 1px solid var(--pz-primary); border-radius: 8px; color: var(--pz-primary); font-size: 13px; font-weight: 600; text-decoration: none; }
+.ct-btn:hover { background: var(--pz-primary); color: #fff; }
+.ct-goal--month { margin-top: 12px; grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 960px) { .ct-goal--month { grid-template-columns: minmax(0, 1fr); } }

@@ -1,0 +1,77 @@
+// Objectifs de production mensuels (fenêtre « Mois » de l'exercice comptable)
+
+.eo-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.eo-grow {
+  flex: 1;
+}
+
+.eo-sum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+
+  div {
+    padding: 8px 14px;
+    border: 1px solid var(--cui-border-color);
+    border-radius: 10px;
+  }
+
+  span {
+    display: block;
+    color: var(--cui-secondary-color);
+    font-size: 12px;
+  }
+
+  b {
+    font-size: 17px;
+  }
+}
+
+.eo-warn {
+  color: #b45309;
+}
+
+.eo-alert {
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(217, 119, 6, 0.14);
+  color: #7a4a05;
+  font-size: 13px;
+}
+
+.eo-input {
+  width: 150px;
+  padding: 4px 8px;
+  border: 1px solid var(--cui-border-color);
+  border-radius: 8px;
+  background: var(--cui-body-bg);
+  color: var(--cui-body-color);
+  font: inherit;
+  font-weight: 600;
+  text-align: right;
+}
+
+.eo-cur td {
+  background: rgba(79, 70, 229, 0.06);
+}
+
+.eo-changed .eo-input {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.eo-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
